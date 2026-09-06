@@ -325,6 +325,7 @@ export function Schedule({
 
   const showFullUpcoming = isCurrent && !selectedDay;
   const focusedEvents = showFullUpcoming ? [] : (byDay.get(viewDay) ?? []);
+  const agendaEmpty = showFullUpcoming ? upcomingByDay.length === 0 : focusedEvents.length === 0;
   const canPrevDay = !showFullUpcoming && navAnchor > monthStart;
   const canNextDay = !showFullUpcoming && navAnchor < monthEnd;
   const upcomingTitle = isCurrent ? "Upcoming" : "Agenda";
@@ -389,7 +390,7 @@ export function Schedule({
             </button>
           </div>
         </div>
-        <div className="agenda">
+        <div className={"agenda" + (agendaEmpty ? " agenda--empty" : "")}>
           {showFullUpcoming ? (
             upcomingByDay.length ? (
               upcomingByDay.map(({ iso, days }) => (

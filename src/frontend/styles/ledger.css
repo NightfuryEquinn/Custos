@@ -5945,6 +5945,17 @@ textarea::placeholder {
   flex-direction: column;
 }
 
+.agenda--empty {
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.agenda--empty .empty {
+  width: 100%;
+  max-width: 360px;
+}
+
 .panel-head--agenda {
   align-items: center;
 }
@@ -7878,6 +7889,13 @@ textarea::placeholder {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
     align-items: start;
+  }
+
+  .agenda.agenda--empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
   }
 
   .agenda-group {
