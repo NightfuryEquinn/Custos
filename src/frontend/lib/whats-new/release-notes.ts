@@ -36,6 +36,23 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "4.5.5",
+    date: "September 2026",
+    lead: "Calculator allocation can use a currency amount per category instead of only percentages, with a Percent / Amount toggle that converts your draft.",
+    highlights: [
+      {
+        icon: "calculator",
+        title: "Allocate by amount or percent",
+        body: "Allocate by Category now has a Percent / Amount toggle. Type a currency amount per expense category until the total matches net after tax, or keep using percentages that total 100%. Switching modes converts the current draft when net is set.",
+      },
+      {
+        icon: "budget",
+        title: "Live remaining in currency",
+        body: "Amount mode tracks leftover dollars on the same progress bar, so you can see how much is left or over before you apply to wallet budgets.",
+      },
+    ],
+  },
+  {
     version: "4.4.5",
     date: "September 2026",
     lead: "Wide desktop layouts get denser two-column reading for Budgets, Taxonomy, Transactions, and Upcoming; Calculator becomes a setup cockpit; Capital cards stay one column until 1280px; Transparency diagrams stack top-to-bottom; Insights and Fuel keep their editorial polish with a warmer light theme; dark mode contrast meets WCAG AA.",

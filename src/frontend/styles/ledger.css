@@ -4782,6 +4782,46 @@ textarea::placeholder {
   }
 }
 
+.calculator-alloc-head {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.calculator-alloc-head-copy {
+  min-width: 0;
+  flex: 1 1 180px;
+}
+
+.calculator-alloc-head-copy h2 {
+  white-space: normal;
+}
+
+.calculator-alloc-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.calculator-alloc-mode .mini-btn {
+  font-size: 12px;
+  min-height: 44px;
+}
+
+.calculator-alloc-mode .mini-btn.is-active,
+.calculator-alloc-mode .calculator-preset-toggle.is-active {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+}
+
+.calculator-alloc-mode .mini-btn.is-active:hover:not(:disabled),
+.calculator-alloc-mode .calculator-preset-toggle.is-active:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 88%, var(--bg));
+  color: var(--bg);
+  border-color: var(--ink);
+}
+
 .calculator-alloc-progress {
   margin: 0 0 16px;
   padding: 14px 16px;
@@ -5009,6 +5049,10 @@ textarea::placeholder {
   flex: none;
 }
 
+.calculator-alloc-controls .calculator-amt-field {
+  width: 148px;
+}
+
 .calculator-alloc-amt {
   flex: 1;
   min-width: 0;
@@ -5100,6 +5144,11 @@ textarea::placeholder {
 
   .calculator-alloc-controls .calculator-pct-field {
     width: 96px;
+  }
+
+  .calculator-alloc-controls .calculator-amt-field {
+    width: 128px;
+    flex: 1 1 128px;
   }
 }
 

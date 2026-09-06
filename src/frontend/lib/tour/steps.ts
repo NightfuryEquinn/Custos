@@ -312,7 +312,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "calculator-allocate",
       "Allocate",
-      "Set a percent per expense category until the total is 100%.",
+      "Toggle Percent or Amount, then fill each expense category until the total is 100% or net after tax.",
       '[data-tour="tour-calculator-allocate"]',
     ),
     lastStep(

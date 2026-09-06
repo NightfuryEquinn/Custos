@@ -2,10 +2,13 @@ import { useEnter, useModalMotion, useStagger } from "@/frontend/lib/animate";
 import { CatGlyph, EmptyState, Icon, SummaryCard } from "@/frontend/components/ui";
 import {
   allocateBudgets,
+  budgetsFromAmounts,
   computeNet,
+  isValidAllocationAmounts,
   isValidAllocationTotal,
   isValidTaxTotal,
   MY_TAX_PRESETS,
+  percentsFromAmounts,
   sumPercents,
   type TaxPreset,
 } from "@/frontend/lib/calculator";
@@ -22,12 +25,15 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
  * Calculator — budgeting helper
  * ─────────────────────────────
  * Client-side only: deduct custom tax lines from income, allocate the
- * net across expense categories by percentage, then optionally apply
- * the result to wallet budgets via a confirmation modal.
+ * net across expense categories by percent or amount, then optionally
+ * apply the result to wallet budgets via a confirmation modal.
  * Layout: Income + Tax Collection share a setup grid on wider screens;
- * Allocate by Category uses a live progress bar and responsive cards.
+ * Allocate by Category uses a live progress bar, a Percent/Amount
+ * toggle, and responsive cards.
  * Typography: Young Serif / Schibsted Grotesk / Azeret Mono via fonts.css.
  */
+
+type AllocMode = "percent" | "amount";
 
 type TaxLine = {
   id: string;
@@ -75,6 +81,8 @@ export function Calculator({
   const [grossDraft, setGrossDraft] = useState("");
   const [taxLines, setTaxLines] = useState<TaxLine[]>(() => [emptyTaxLine(0)]);
   const [pctByCat, setPctByCat] = useState<Record<string, string>>({});
+  const [amtByCat, setAmtByCat] = useState<Record<string, string>>({});
+  const [allocMode, setAllocMode] = useState<AllocMode>("percent");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [applied, setApplied] = useState(false);
   const titleId = useId();
@@ -95,15 +103,10 @@ export function Calculator({
 
   /** Keep allocation draft keys aligned with expense categories. */
   useEffect(() => {
-    setPctByCat((prev) => {
-      const next: Record<string, string> = {};
+    const ids = expenseCategories.map((c) => c.id);
 
-      for (const c of expenseCategories) {
-        next[c.id] = prev[c.id] ?? "";
-      }
-
-      return next;
-    });
+    setPctByCat((prev) => alignDraftMap(prev, ids));
+    setAmtByCat((prev) => alignDraftMap(prev, ids));
   }, [expenseCategories]);
 
   const gross = parseNonNeg(grossDraft);
@@ -122,15 +125,35 @@ export function Calculator({
     [expenseCategories, pctByCat],
   );
 
+  const amountRows = useMemo(
+    () =>
+      expenseCategories.map((c) => ({
+        id: c.id,
+        amount: parseNonNeg(amtByCat[c.id] ?? ""),
+      })),
+    [expenseCategories, amtByCat],
+  );
+
   const allocSum = sumPercents(allocations.map((a) => a.pct));
+  const allocAmtSum = amountRows.reduce((sum, row) => sum + row.amount, 0);
   const allocOk =
-    expenseCategories.length > 0 && isValidAllocationTotal(allocations.map((a) => a.pct));
+    expenseCategories.length > 0 &&
+    (allocMode === "percent"
+      ? isValidAllocationTotal(allocations.map((a) => a.pct))
+      : net > 0 &&
+        isValidAllocationAmounts(
+          amountRows.map((a) => a.amount),
+          net,
+        ));
   const canApply = gross > 0 && taxOk && allocOk;
 
-  const computed = useMemo(
-    () => (canApply ? allocateBudgets(net, allocations) : {}),
-    [canApply, net, allocations],
-  );
+  const computed = useMemo(() => {
+    if (!canApply) return {};
+
+    return allocMode === "percent"
+      ? allocateBudgets(net, allocations)
+      : budgetsFromAmounts(net, amountRows);
+  }, [canApply, net, allocations, amountRows, allocMode]);
 
   /** Which presets currently have rows in the tax list. */
   const activeTaxPresetIds = useMemo(() => {
@@ -212,7 +235,29 @@ export function Calculator({
     if (applied) setApplied(false);
   };
 
+  /** Switch percent/amount input, converting drafts when net is positive. */
+  const switchAllocMode = (next: AllocMode) => {
+    if (next === allocMode) return;
+
+    markDirty();
+
+    if (net > 0) {
+      const ids = expenseCategories.map((c) => c.id);
+
+      if (next === "amount") {
+        setAmtByCat(draftsFromValues(ids, allocateBudgets(net, allocations)));
+      } else {
+        setPctByCat(draftsFromValues(ids, percentsFromAmounts(net, amountRows)));
+      }
+    }
+
+    setAllocMode(next);
+  };
+
   const remainingAlloc = 100 - allocSum;
+  const remainingAmt = net - allocAmtSum;
+  const fillPct = allocMode === "percent" ? allocSum : net > 0 ? (allocAmtSum / net) * 100 : 0;
+  const remainingOver = allocMode === "percent" ? remainingAlloc < 0 : remainingAmt < 0;
   const cur = getCurrency(currency);
   const viewRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -366,9 +411,39 @@ export function Calculator({
       </div>
 
       <section className="panel" data-tour="tour-calculator-allocate">
-        <div className="panel-head">
-          <h2>Allocate by Category</h2>
-          <p className="panel-sub">Percentages must total 100%</p>
+        <div className="panel-head calculator-alloc-head">
+          <div className="calculator-alloc-head-copy">
+            <h2>Allocate by Category</h2>
+            <p className="panel-sub">
+              {allocMode === "percent"
+                ? "Percentages must total 100%"
+                : "Amounts must total net after tax"}
+            </p>
+          </div>
+          <div className="calculator-alloc-mode" role="radiogroup" aria-label="Allocation input">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={allocMode === "percent"}
+              className={
+                "mini-btn calculator-preset-toggle" + (allocMode === "percent" ? " is-active" : "")
+              }
+              onClick={() => switchAllocMode("percent")}
+            >
+              Percent
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={allocMode === "amount"}
+              className={
+                "mini-btn calculator-preset-toggle" + (allocMode === "amount" ? " is-active" : "")
+              }
+              onClick={() => switchAllocMode("amount")}
+            >
+              Amount
+            </button>
+          </div>
         </div>
 
         {!expenseCategories.length ? (
@@ -383,26 +458,41 @@ export function Calculator({
                 "calculator-alloc-progress" +
                 (allocOk
                   ? " calculator-alloc-progress--ok"
-                  : remainingAlloc < 0
+                  : remainingOver
                     ? " calculator-alloc-progress--over"
                     : " calculator-alloc-progress--under")
               }
               role="status"
-              aria-label={`Allocated ${formatPct(allocSum)}`}
+              aria-label={
+                allocMode === "percent"
+                  ? `Allocated ${formatPct(allocSum)}`
+                  : `Allocated ${fmtMoney(allocAmtSum, { currency })} of ${fmtMoney(net, { currency })}`
+              }
             >
               <div className="calculator-alloc-progress-head">
                 <span>Allocation</span>
                 <span className="num">
-                  {formatPct(allocSum)}
-                  {allocOk
-                    ? " — ready"
-                    : ` — ${formatPct(Math.abs(remainingAlloc))} ${remainingAlloc > 0 ? "left" : "over"}`}
+                  {allocMode === "percent" ? (
+                    <>
+                      {formatPct(allocSum)}
+                      {allocOk
+                        ? " — ready"
+                        : ` — ${formatPct(Math.abs(remainingAlloc))} ${remainingAlloc > 0 ? "left" : "over"}`}
+                    </>
+                  ) : (
+                    <>
+                      {fmtMoney(allocAmtSum, { currency })}
+                      {allocOk
+                        ? " — ready"
+                        : ` — ${fmtMoney(Math.abs(remainingAmt), { currency })} ${remainingAmt > 0 ? "left" : "over"}`}
+                    </>
+                  )}
                 </span>
               </div>
               <div className="calculator-alloc-track" aria-hidden="true">
                 <div
                   className="calculator-alloc-fill"
-                  style={{ width: `${Math.min(Math.max(allocSum, 0), 100)}%` }}
+                  style={{ width: `${Math.min(Math.max(fillPct, 0), 100)}%` }}
                 />
               </div>
             </div>
@@ -410,7 +500,16 @@ export function Calculator({
             <div className="calculator-alloc-list">
               {expenseCategories.map((c) => {
                 const pct = parseNonNeg(pctByCat[c.id] ?? "");
-                const amount = canApply ? (computed[c.id] ?? 0) : roundMoney((net * pct) / 100);
+                const amountDraft = parseNonNeg(amtByCat[c.id] ?? "");
+                const derivedAmount = canApply
+                  ? (computed[c.id] ?? 0)
+                  : roundMoney((net * pct) / 100);
+                const derivedPct =
+                  net > 0
+                    ? canApply
+                      ? ((computed[c.id] ?? 0) / net) * 100
+                      : (amountDraft / net) * 100
+                    : 0;
 
                 return (
                   <div key={c.id} className="calculator-alloc-row">
@@ -419,30 +518,59 @@ export function Calculator({
                       <span>{c.name}</span>
                     </div>
                     <div className="calculator-alloc-controls">
-                      <div className="calculator-alloc-amt num">
-                        {fmtMoney(amount, { currency })}
-                      </div>
-                      <div className="calculator-pct-field">
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          inputMode="decimal"
-                          placeholder="0"
-                          value={pctByCat[c.id] ?? ""}
-                          onChange={(e) => {
-                            markDirty();
-                            setPctByCat((prev) => ({
-                              ...prev,
-                              [c.id]: stripNegativeInput(e.target.value),
-                            }));
-                          }}
-                          onKeyDown={preventNegativeKeys}
-                          onWheel={preventWheelChange}
-                          aria-label={`${c.name} percent`}
-                        />
-                        <span className="calculator-pct-suffix">%</span>
-                      </div>
+                      {allocMode === "percent" ? (
+                        <>
+                          <div className="calculator-alloc-amt num">
+                            {fmtMoney(derivedAmount, { currency })}
+                          </div>
+                          <div className="calculator-pct-field">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              inputMode="decimal"
+                              placeholder="0"
+                              value={pctByCat[c.id] ?? ""}
+                              onChange={(e) => {
+                                markDirty();
+                                setPctByCat((prev) => ({
+                                  ...prev,
+                                  [c.id]: stripNegativeInput(e.target.value),
+                                }));
+                              }}
+                              onKeyDown={preventNegativeKeys}
+                              onWheel={preventWheelChange}
+                              aria-label={`${c.name} percent`}
+                            />
+                            <span className="calculator-pct-suffix">%</span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="calculator-alloc-amt num">{formatPct(derivedPct)}</div>
+                          <div className="calculator-pct-field calculator-amt-field">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              inputMode="decimal"
+                              placeholder="0.00"
+                              value={amtByCat[c.id] ?? ""}
+                              onChange={(e) => {
+                                markDirty();
+                                setAmtByCat((prev) => ({
+                                  ...prev,
+                                  [c.id]: stripNegativeInput(e.target.value),
+                                }));
+                              }}
+                              onKeyDown={preventNegativeKeys}
+                              onWheel={preventWheelChange}
+                              aria-label={`${c.name} amount`}
+                            />
+                            <span className="calculator-pct-suffix">{cur.symbol}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 );
@@ -544,4 +672,33 @@ function formatPct(n: number): string {
   const rounded = Math.round(n * 100) / 100;
 
   return `${rounded}%`;
+}
+
+/** Keep a draft map keyed to the given category ids. */
+function alignDraftMap(prev: Record<string, string>, ids: string[]): Record<string, string> {
+  const next: Record<string, string> = {};
+
+  for (const id of ids) {
+    next[id] = prev[id] ?? "";
+  }
+
+  return next;
+}
+
+/** Stringify a positive number for an allocation draft; zero → empty. */
+function draftFromNumber(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return "";
+
+  return String(n);
+}
+
+/** Build category draft strings from a computed number map. */
+function draftsFromValues(ids: string[], values: Record<string, number>): Record<string, string> {
+  const next: Record<string, string> = {};
+
+  for (const id of ids) {
+    next[id] = draftFromNumber(values[id] ?? 0);
+  }
+
+  return next;
 }

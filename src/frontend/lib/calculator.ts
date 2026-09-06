@@ -1,11 +1,17 @@
 /**
  * Budget calculator helpers — tax deduction and category allocation.
- * Client-side only; no persistence.
+ * Client-side only; no persistence. Allocation can be by percentage or
+ * by explicit amounts that must total net after tax.
  */
 
 type AllocationRow = {
   id: string;
   pct: number;
+};
+
+type AmountRow = {
+  id: string;
+  amount: number;
 };
 
 export type TaxPresetLine = {
@@ -58,6 +64,7 @@ export const MY_TAX_PRESETS: TaxPreset[] = [
 ];
 
 const PCT_TOLERANCE = 0.01;
+const CENT_TOLERANCE = 1;
 
 /** Sum finite percentage values (non-finite treated as 0). */
 export function sumPercents(percents: number[]): number {
@@ -133,6 +140,123 @@ export function allocateBudgets(net: number, allocations: AllocationRow[]): Reco
 
   for (const [id, cents] of Object.entries(centsById)) {
     result[id] = cents / 100;
+  }
+
+  return result;
+}
+
+/**
+ * Whether allocation amounts total net within one cent.
+ * Non-finite and negative values are treated as 0.
+ */
+export function isValidAllocationAmounts(amounts: number[], net: number): boolean {
+  const targetCents = Math.max(0, Math.round((Number.isFinite(net) ? net : 0) * 100));
+  const sumCents = amounts.reduce((sum, amount) => {
+    const cents = Number.isFinite(amount) && amount > 0 ? Math.round(amount * 100) : 0;
+
+    return sum + cents;
+  }, 0);
+
+  return Math.abs(sumCents - targetCents) <= CENT_TOLERANCE;
+}
+
+/**
+ * Build budgets from explicit amounts. Amounts carry 2 decimal places;
+ * leftover cents (from rounding or 1-cent slack) go to the last category
+ * with a positive amount so the map totals net rounded to the nearest cent.
+ */
+export function budgetsFromAmounts(net: number, rows: AmountRow[]): Record<string, number> {
+  const targetCents = Math.max(0, Math.round((Number.isFinite(net) ? net : 0) * 100));
+  const centsById: Record<string, number> = {};
+
+  if (!rows.length) {
+    return {};
+  }
+
+  let allocated = 0;
+
+  for (const row of rows) {
+    const cents = Number.isFinite(row.amount) && row.amount > 0 ? Math.round(row.amount * 100) : 0;
+    centsById[row.id] = cents;
+    allocated += cents;
+  }
+
+  const remainder = targetCents - allocated;
+
+  if (remainder !== 0) {
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const row = rows[i];
+
+      if (!row) continue;
+
+      const amount = Number.isFinite(row.amount) ? row.amount : 0;
+
+      if (amount > 0) {
+        centsById[row.id] = (centsById[row.id] ?? 0) + remainder;
+        break;
+      }
+    }
+  }
+
+  const result: Record<string, number> = {};
+
+  for (const [id, cents] of Object.entries(centsById)) {
+    result[id] = cents / 100;
+  }
+
+  return result;
+}
+
+/**
+ * Convert amounts into percentages that total 100% (2 decimal places).
+ * Remainder hundredths go to the last category with a positive amount.
+ * Returns 0% for every row when net is 0.
+ */
+export function percentsFromAmounts(net: number, rows: AmountRow[]): Record<string, number> {
+  const targetCents = Math.max(0, Math.round((Number.isFinite(net) ? net : 0) * 100));
+  const result: Record<string, number> = {};
+
+  if (!rows.length) {
+    return {};
+  }
+
+  if (targetCents === 0) {
+    for (const row of rows) {
+      result[row.id] = 0;
+    }
+
+    return result;
+  }
+
+  const hundredthsById: Record<string, number> = {};
+  let allocated = 0;
+
+  for (const row of rows) {
+    const cents = Number.isFinite(row.amount) && row.amount > 0 ? Math.round(row.amount * 100) : 0;
+    const hundredths = Math.round((cents * 10000) / targetCents);
+    hundredthsById[row.id] = hundredths;
+    allocated += hundredths;
+  }
+
+  const remainder = 10000 - allocated;
+
+  if (remainder !== 0) {
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const row = rows[i];
+
+      if (!row) continue;
+
+      const amount = Number.isFinite(row.amount) ? row.amount : 0;
+
+      if (amount > 0) {
+        hundredthsById[row.id] = (hundredthsById[row.id] ?? 0) + remainder;
+        break;
+      }
+    }
+  }
+
+  for (const [id, hundredths] of Object.entries(hundredthsById)) {
+    result[id] = hundredths / 100;
   }
 
   return result;
