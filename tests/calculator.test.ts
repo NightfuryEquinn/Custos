@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
   allocateBudgets,
+  budgetsFromAmounts,
   computeNet,
+  isValidAllocationAmounts,
   isValidAllocationTotal,
   isValidTaxTotal,
   MY_TAX_PRESETS,
+  percentsFromAmounts,
   sumPercents,
 } from "@/frontend/lib/calculator";
 
@@ -77,5 +80,64 @@ describe("calculator", () => {
       expect(isValidTaxTotal(preset.lines.map((l) => l.pct))).toBe(true);
       expect(preset.lines.every((l) => l.title.trim().length > 0)).toBe(true);
     }
+  });
+
+  test("isValidAllocationAmounts accepts totals within 1 cent of net", () => {
+    expect(isValidAllocationAmounts([40, 60], 100)).toBe(true);
+    expect(isValidAllocationAmounts([50.01, 50], 100)).toBe(true);
+    expect(isValidAllocationAmounts([49.99, 50], 100)).toBe(true);
+  });
+
+  test("isValidAllocationAmounts rejects totals more than 1 cent off", () => {
+    expect(isValidAllocationAmounts([40, 40], 100)).toBe(false);
+    expect(isValidAllocationAmounts([50.02, 50], 100)).toBe(false);
+  });
+
+  test("isValidAllocationAmounts treats empty net as zero target", () => {
+    expect(isValidAllocationAmounts([0, 0], 0)).toBe(true);
+    expect(isValidAllocationAmounts([10], 0)).toBe(false);
+  });
+
+  test("budgetsFromAmounts places remainder on last positive amount", () => {
+    const result = budgetsFromAmounts(100, [
+      { id: "a", amount: 33.33 },
+      { id: "b", amount: 33.33 },
+      { id: "c", amount: 33.33 },
+    ]);
+
+    expect((result.a ?? 0) + (result.b ?? 0) + (result.c ?? 0)).toBeCloseTo(100, 6);
+    expect(result).toEqual({ a: 33.33, b: 33.33, c: 33.34 });
+  });
+
+  test("budgetsFromAmounts skips zero-amount categories for remainder", () => {
+    const result = budgetsFromAmounts(100.01, [
+      { id: "a", amount: 50 },
+      { id: "b", amount: 50 },
+      { id: "c", amount: 0 },
+    ]);
+
+    expect((result.a ?? 0) + (result.b ?? 0) + (result.c ?? 0)).toBeCloseTo(100.01, 6);
+    expect(result.c).toBe(0);
+    expect(result.b).toBe(50.01);
+  });
+
+  test("budgetsFromAmounts returns empty map for empty rows", () => {
+    expect(budgetsFromAmounts(500, [])).toEqual({});
+  });
+
+  test("percentsFromAmounts round-trips through allocateBudgets", () => {
+    const net = 100.55;
+    const rows = [
+      { id: "a", amount: 50.28 },
+      { id: "b", amount: 50.27 },
+    ];
+    const pcts = percentsFromAmounts(net, rows);
+    const back = allocateBudgets(net, [
+      { id: "a", pct: pcts.a ?? 0 },
+      { id: "b", pct: pcts.b ?? 0 },
+    ]);
+
+    expect(isValidAllocationTotal(Object.values(pcts))).toBe(true);
+    expect(back).toEqual({ a: 50.28, b: 50.27 });
   });
 });

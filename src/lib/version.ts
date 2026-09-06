@@ -5,4 +5,4 @@
  * Bumping this re-announces the release: every device that has not yet seen
  * notes for the new version gets the What's New popup on next load.
  */
-export const APP_VERSION = "4.4.5";
+export const APP_VERSION = "4.5.5";
