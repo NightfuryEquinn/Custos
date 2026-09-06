@@ -339,22 +339,25 @@ function daysBetweenIso(from: string, to: string): number {
 
 /**
  * Has this occurrence already gone by? Dates before today have; dates after
- * have not. Today counts as passed only for a timed event whose clock time is
- * behind `now` — all-day events stay upcoming for the whole day.
+ * have not. Today stays upcoming for all-day events and for timed events with
+ * no end time. A timed event with an end time is passed once that clock is
+ * behind `now` on its last covered day.
  */
 function occurrencePassed(
   iso: string,
-  ev: { allDay?: boolean; time?: string | null },
+  ev: { allDay?: boolean; time?: string | null; endTime?: string | null },
   todayIso: string,
   nowHm: string,
   dayIndex = 0,
+  span = 1,
 ): boolean {
   if (iso !== todayIso) return iso < todayIso;
-  if (ev.allDay) return false;
-  /* Mid-run: the start time is behind us but the event is still going. */
-  if (dayIndex > 0) return false;
+  if (ev.allDay || !ev.endTime) return false;
 
-  return (ev.time || "00:00") < nowHm;
+  const lastDay = span <= 1 || dayIndex >= span - 1;
+  if (!lastDay) return false;
+
+  return ev.endTime < nowHm;
 }
 
 /**
@@ -364,9 +367,11 @@ function occurrencePassed(
  * A daily event would otherwise fill the agenda with one row per remaining day
  * of the month, and a week-long event with one row per day it covers; the agenda
  * only needs the one the user is heading toward. The kept entry is today's while
- * its time is still ahead, otherwise the next one in the list — so a run that
+ * the occurrence is still running (no end time: the rest of today; with an end
+ * time: until that clock), otherwise the next one in the list — so a run that
  * started before today stays visible, anchored to today rather than dropping out
- * with its past start day. Single-day one-time events pass through untouched.
+ * with its past start day. Single-day one-time events drop out once they have
+ * ended, and otherwise stay through today.
  *
  * `occurrences` must be ordered earliest-first (as `eventDaysByMonth` returns).
  */
@@ -383,6 +388,9 @@ export function collapseRecurringToNext<T extends DayEvent & { id: string }>(
     const recurring = Boolean(o.ev.repeat) && o.ev.repeat !== "once";
     const spans = (o.span ?? 1) > 1;
 
+    const passed = occurrencePassed(o.iso, o.ev, todayIso, nowHm, o.dayIndex ?? 0, o.span ?? 1);
+    if (passed) continue;
+
     if (!recurring && !spans) {
       out.push(o);
       continue;
@@ -391,7 +399,6 @@ export function collapseRecurringToNext<T extends DayEvent & { id: string }>(
     /* A recurring event collapses across occurrences too, not just within one. */
     const key = recurring ? o.ev.id : `${o.ev.id}|${o.startIso ?? o.iso}`;
     if (kept.has(key)) continue;
-    if (occurrencePassed(o.iso, o.ev, todayIso, nowHm, o.dayIndex ?? 0)) continue;
 
     kept.add(key);
     out.push(o);

@@ -62,6 +62,15 @@ function normalizeLead(lead: string, allDay: boolean): string {
   return allowed.some((l) => l.id === lead) ? lead : allDay ? "1d" : "at";
 }
 
+/** Default end time one hour after start, or empty when that would not be later. */
+function defaultEndTimeAfter(time: string): string {
+  const [hRaw, mRaw] = (time || "09:00").split(":").map(Number);
+  const total = Math.min((hRaw ?? 9) * 60 + (mRaw ?? 0) + 60, 23 * 60 + 59);
+  const next = `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+
+  return next > time ? next : "";
+}
+
 function ChevDown({ size = 16 }: { size?: number }) {
   return <CaretDown size={size} aria-hidden />;
 }
@@ -261,8 +270,8 @@ export function Schedule({
   const occStarts = useMemo(() => occ.filter((o) => o.dayIndex === 0), [occ]);
   const agenda = isCurrent ? occ.filter((o) => o.iso >= TODAY_ISO) : occ;
 
-  // Re-tick each minute so today's occurrence drops out of the agenda once its
-  // time goes by, handing the slot to the series' next occurrence.
+  // Re-tick each minute so today's occurrence drops out of the agenda once it
+  // has ended, handing the slot to the series' next occurrence.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -634,9 +643,14 @@ export function EventModal({
     return () => window.removeEventListener("keydown", h);
   }, [scopeOpen, confirmOpen, busy, onClose, requestClose]);
 
+  /** Toggle all-day: clear the end time, or seed it one hour after start. */
   const handleAllDayChange = (checked: boolean) => {
     setAllDay(checked);
-    if (checked) setEndTime("");
+    if (checked) {
+      setEndTime("");
+    } else {
+      setEndTime(defaultEndTimeAfter(time));
+    }
     if (!leadTimesForEvent(checked).some((l) => l.id === lead)) {
       setLead(checked ? "1d" : "at");
     }
@@ -867,7 +881,7 @@ export function EventModal({
                 <button
                   type="button"
                   className="ghost-btn end-time-add"
-                  onClick={() => setEndTime(time)}
+                  onClick={() => setEndTime(defaultEndTimeAfter(time))}
                 >
                   <Icon name="plus" size={14} /> End time
                 </button>

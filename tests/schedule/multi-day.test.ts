@@ -314,6 +314,25 @@ describe("agenda collapsing", () => {
 
     expect(out.map((o) => o.iso)).toEqual(["2026-08-04"]);
   });
+
+  test("a timed span stays on its last day until the end time", () => {
+    const trip = ev({
+      id: "t",
+      date: "2026-08-10",
+      endDate: "2026-08-13",
+      repeat: "once",
+      allDay: false,
+      time: "15:00",
+      endTime: "11:00",
+    });
+    const morning = new Date(2026, 7, 13, 9, 0);
+    const afternoon = new Date(2026, 7, 13, 12, 0);
+
+    expect(
+      collapseRecurringToNext(agenda([trip], "2026-08-13"), morning).map((o) => o.iso),
+    ).toEqual(["2026-08-13"]);
+    expect(collapseRecurringToNext(agenda([trip], "2026-08-13"), afternoon)).toEqual([]);
+  });
 });
 
 describe("labels", () => {
