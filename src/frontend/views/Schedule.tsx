@@ -668,6 +668,11 @@ export function EventModal({
     setDraft("");
   };
 
+  /** Remove a comment from local modal state (persists on Save). */
+  const removeComment = (id: string) => {
+    setComments((cs) => cs.filter((c) => c.id !== id));
+  };
+
   const customOk = catId !== "custom" || (customLabel.trim() && customGlyph);
   const holdAmountEvaluated = evaluateExpression(holdAmount);
   const holdAmountIsExpression = holdAmountEvaluated !== null && !isPlainNumber(holdAmount);
@@ -1027,7 +1032,17 @@ export function EventModal({
             {comments.length ? (
               comments.map((c) => (
                 <div key={c.id} className="cmt">
-                  <div className="cmt-bubble">{c.text}</div>
+                  <div className="cmt-row">
+                    <div className="cmt-bubble">{c.text}</div>
+                    <button
+                      className="cmt-remove"
+                      type="button"
+                      onClick={() => removeComment(c.id)}
+                      aria-label="Delete comment"
+                    >
+                      <Icon name="close" size={13} />
+                    </button>
+                  </div>
                   <div className="cmt-time">{fmtCommentTime(c.at)}</div>
                 </div>
               ))

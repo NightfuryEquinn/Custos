@@ -6293,6 +6293,13 @@ textarea::placeholder {
   gap: 3px;
 }
 
+.cmt-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 100%;
+}
+
 .cmt-bubble {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -6302,8 +6309,31 @@ textarea::placeholder {
   font-size: 13.5px;
   line-height: 1.5;
   color: var(--ink);
-  align-self: flex-start;
+  flex: 1;
+  min-width: 0;
   max-width: 100%;
+}
+
+.cmt-remove {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  line-height: 0;
+  display: grid;
+  place-items: center;
+  color: var(--ink-faint);
+  border-radius: var(--r-sm);
+  margin-top: 4px;
+}
+
+.cmt-remove svg {
+  display: block;
+}
+
+.cmt-remove:hover {
+  background: var(--surface);
+  color: var(--danger);
 }
 
 .cmt-time {
@@ -6364,6 +6394,14 @@ textarea::placeholder {
 .cmt-send:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+@media (max-width: 860px) {
+  .cmt-remove {
+    width: 44px;
+    height: 44px;
+    margin-top: 0;
+  }
 }
 
 /* ── 11. Modals & empty states ────────────────────────────────────── */
