@@ -201,9 +201,12 @@ export function useLedger(walletAddress: string) {
       return Promise.all(
         wallets.map(async (wire) => {
           const decoded = await decodeWallet(wire, cryptoKey);
-          /* Migrate legacy plaintext name/financials into the E2EE payload. */
+          /* Migrate legacy plaintext name/financials into the E2EE payload.
+             Fire-and-forget: `decoded` already holds the values being sent,
+             so this load doesn't need the round trip's echo back — a first
+             load shouldn't block on a one-time migration write. */
           if (!wire.enc || wire.name != null) {
-            const encrypted = await encodeWalletFinancials(
+            void encodeWalletFinancials(
               {
                 name: decoded.name,
                 income: decoded.income,
@@ -211,9 +214,11 @@ export function useLedger(walletAddress: string) {
                 budgets: decoded.budgets,
               },
               cryptoKey,
-            );
-            const { wallet: updated } = await api.wallets.update(wire.id, encrypted);
-            return decodeWallet(updated, cryptoKey);
+            )
+              .then((encrypted) => api.wallets.update(wire.id, encrypted))
+              .catch(() => {
+                /* A later load retries the migration. */
+              });
           }
           return decoded;
         }),
@@ -228,16 +233,25 @@ export function useLedger(walletAddress: string) {
       const wire = await api.categories.list();
       const cryptoKey = requireKey(wallet);
 
+      /* Both branches below persist the returned value in the background —
+         it's already what's being returned to the query, so this load
+         doesn't need to wait for the write to land. */
       if (wire.seed) {
         const defaults = cloneDefaultCategories();
-        const encrypted = await encodeCategories(defaults, cryptoKey);
-        await api.categories.update(encrypted);
+        void encodeCategories(defaults, cryptoKey)
+          .then((encrypted) => api.categories.update(encrypted))
+          .catch(() => {
+            /* A later load retries seeding. */
+          });
         return defaults;
       }
 
       if (!wire.enc && wire.categories) {
-        const encrypted = await encodeCategories(wire.categories, cryptoKey);
-        await api.categories.update(encrypted);
+        void encodeCategories(wire.categories, cryptoKey)
+          .then((encrypted) => api.categories.update(encrypted))
+          .catch(() => {
+            /* A later load retries the migration. */
+          });
         return wire.categories;
       }
 
@@ -291,7 +305,9 @@ export function useLedger(walletAddress: string) {
       const cryptoKey = requireKey(wallet);
       return Promise.all(capitalPlans.map((wire) => decodeCapitalPlan(wire, cryptoKey)));
     },
-    enabled: cryptoReady && !!profileQuery.data,
+    /* No dependency on profile — `month` (the only profile field this hook
+       reads) already has a default, so gating on it was a pure waterfall. */
+    enabled: cryptoReady,
   });
 
   /*
@@ -335,23 +351,30 @@ export function useLedger(walletAddress: string) {
 
       return collected;
     },
-    enabled:
-      cryptoReady &&
-      !!profileQuery.data &&
-      wallets.length > 0 &&
-      categoriesQuery.data !== undefined,
+    /* queryFn only needs requireKey(wallet) (cryptoReady) — it fetches by
+       date range with no wallet or category filter (that filtering happens
+       client-side below), so profile/wallets/categories were pure waterfall. */
+    enabled: cryptoReady,
   });
 
-  const decodedExpenses = (expensesQuery.data ?? []).map((e) => ({
-    ...e,
-    kind: e.kind ?? "expense",
-    recurring: normalizeRecurring(e.recurring),
-  }));
+  /* Was a bare .map() in the render body — re-running over up to 10,000 rows
+     on every LedgerApp render (any modal open, any FAB toggle), not just
+     when the underlying data actually changed. */
+  const decodedExpenses = useMemo(
+    () =>
+      (expensesQuery.data ?? []).map((e) => ({
+        ...e,
+        kind: e.kind ?? "expense",
+        recurring: normalizeRecurring(e.recurring),
+      })),
+    [expensesQuery.data],
+  );
   /* Null plans means "not loaded", not "no plans exist" — healing against an
      empty roster would strip every live assignment. */
-  const allExpenses = livePlans
-    ? releaseOrphanedPlanRefs(decodedExpenses, livePlans)
-    : decodedExpenses;
+  const allExpenses = useMemo(
+    () => (livePlans ? releaseOrphanedPlanRefs(decodedExpenses, livePlans) : decodedExpenses),
+    [decodedExpenses, livePlans],
+  );
   const expenses = useMemo(
     () => (activeWallet ? allExpenses.filter((e) => e.walletId === activeWallet.id) : []),
     [allExpenses, activeWallet],
@@ -383,38 +406,37 @@ export function useLedger(walletAddress: string) {
 
       return collected;
     },
-    enabled:
-      cryptoReady &&
-      !!profileQuery.data &&
-      wallets.length > 0 &&
-      categoriesQuery.data !== undefined,
+    /* No wallet/category filter on this fetch either — see expensesQuery. */
+    enabled: cryptoReady,
     staleTime: 5 * 60 * 1000,
   });
 
-  const savingsTxns = useMemo(() => {
+  /* Decode + heal once, shared by savingsTxns and balanceExpenses below —
+     these used to each redo the same map + releaseOrphanedPlanRefs pass over
+     up to 40,000 rows independently. */
+  const allExpensesHealed = useMemo(() => {
     const decoded = (allExpensesQuery.data ?? []).map((e) => ({
       ...e,
       kind: e.kind ?? "expense",
       recurring: normalizeRecurring(e.recurring),
     }));
-    const all = livePlans ? releaseOrphanedPlanRefs(decoded, livePlans) : decoded;
-    return all.filter((e) => {
-      if (activeWallet && e.walletId !== activeWallet.id) return false;
-      const cls = classifyTx(e, categoryIndex);
-      return cls === "savings" || cls === "withdrawal";
-    });
-  }, [allExpensesQuery.data, categoryIndex, activeWallet, livePlans]);
+    return livePlans ? releaseOrphanedPlanRefs(decoded, livePlans) : decoded;
+  }, [allExpensesQuery.data, livePlans]);
 
-  const balanceExpenses = useMemo(() => {
-    const decoded = (allExpensesQuery.data ?? []).map((e) => ({
-      ...e,
-      kind: e.kind ?? "expense",
-      recurring: normalizeRecurring(e.recurring),
-    }));
-    const all = livePlans ? releaseOrphanedPlanRefs(decoded, livePlans) : decoded;
+  const savingsTxns = useMemo(
+    () =>
+      allExpensesHealed.filter((e) => {
+        if (activeWallet && e.walletId !== activeWallet.id) return false;
+        const cls = classifyTx(e, categoryIndex);
+        return cls === "savings" || cls === "withdrawal";
+      }),
+    [allExpensesHealed, categoryIndex, activeWallet],
+  );
 
-    return activeWallet ? all.filter((e) => e.walletId === activeWallet.id) : [];
-  }, [allExpensesQuery.data, livePlans, activeWallet]);
+  const balanceExpenses = useMemo(
+    () => (activeWallet ? allExpensesHealed.filter((e) => e.walletId === activeWallet.id) : []),
+    [allExpensesHealed, activeWallet],
+  );
 
   /**
    * Subcategories with transaction history, across full history and every
@@ -485,7 +507,9 @@ export function useLedger(walletAddress: string) {
           }),
         );
 
-        await backfillReminderDetails(
+        /* Fire-and-forget: notifyDetails only affects a future reminder send,
+           not anything this load renders, so it shouldn't hold up the query. */
+        void backfillReminderDetails(
           page.events.map((wire, i) => ({ wire, event: decoded[i]! })),
           activeWallet?.currency,
           categoryIndex.catById,
@@ -518,22 +542,24 @@ export function useLedger(walletAddress: string) {
       return Promise.all(
         todoLists.map(async (wire) => {
           if (!wire.enc && wire.name) {
-            const encrypted = await encodeTodoListUpdate(
-              {
-                name: wire.name,
-                icon: wire.icon ?? "📋",
-                tasks: wire.tasks ?? [],
-              },
+            /* Fire-and-forget: decoding `wire` directly already gives the
+               same result the round trip's echo would, so this load
+               doesn't need to wait for the migration write to land. */
+            void encodeTodoListUpdate(
+              { name: wire.name, icon: wire.icon ?? "📋", tasks: wire.tasks ?? [] },
               cryptoKey,
-            );
-            const { todoList } = await api.todoLists.update(wire.id, encrypted);
-            return decodeTodoList(todoList, cryptoKey);
+            )
+              .then((encrypted) => api.todoLists.update(wire.id, encrypted))
+              .catch(() => {
+                /* A later load retries the migration. */
+              });
           }
           return decodeTodoList(wire, cryptoKey);
         }),
       );
     },
-    enabled: cryptoReady && !!profileQuery.data,
+    /* No dependency on profile — see capitalPlansQuery. */
+    enabled: cryptoReady,
   });
 
   const vehiclesQuery = useQuery({
@@ -543,7 +569,8 @@ export function useLedger(walletAddress: string) {
       const cryptoKey = requireKey(wallet);
       return Promise.all(vehicles.map((wire) => decodeVehicle(wire, cryptoKey)));
     },
-    enabled: cryptoReady && !!profileQuery.data,
+    /* No dependency on profile — see capitalPlansQuery. */
+    enabled: cryptoReady,
   });
 
   /*
@@ -571,7 +598,8 @@ export function useLedger(walletAddress: string) {
 
       return collected;
     },
-    enabled: cryptoReady && !!profileQuery.data,
+    /* No dependency on profile — see capitalPlansQuery. */
+    enabled: cryptoReady,
   });
 
   const setMonthMutation = useMutation({
@@ -1086,16 +1114,17 @@ export function useLedger(walletAddress: string) {
     },
   });
 
+  /* Overview (the first thing rendered post-login) only reads profile,
+     wallets, categories and expenses — events/todoLists/capitalPlans/
+     vehicles all default to `[]` (below) and render their own empty state
+     exactly like savingsTxns/vehicleFills already do, so gating the whole
+     app on them was blocking first paint for data no one was waiting on. */
   const isLoading =
     !cryptoReady ||
     profileQuery.isLoading ||
     walletsQuery.isLoading ||
     categoriesQuery.isLoading ||
-    expensesQuery.isLoading ||
-    eventsQuery.isLoading ||
-    todoListsQuery.isLoading ||
-    capitalPlansQuery.isLoading ||
-    vehiclesQuery.isLoading;
+    expensesQuery.isLoading;
   const error =
     profileQuery.error ??
     walletsQuery.error ??
@@ -1236,9 +1265,13 @@ export function useLedger(walletAddress: string) {
     usedSubIds,
     savingsLoading: allExpensesQuery.isLoading,
     events: eventsQuery.data ?? [],
+    eventsLoading: eventsQuery.isLoading,
     todoLists: todoListsQuery.data ?? [],
+    todoListsLoading: todoListsQuery.isLoading,
     capitalPlans: capitalPlansQuery.data ?? [],
+    capitalPlansLoading: capitalPlansQuery.isLoading,
     vehicles: vehiclesQuery.data ?? [],
+    vehiclesLoading: vehiclesQuery.isLoading,
     vehicleFills: vehicleFillsQuery.data ?? [],
     vehicleFillsLoading: vehicleFillsQuery.isLoading,
     budgets: activeWallet?.budgets ?? {},

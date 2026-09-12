@@ -114,6 +114,14 @@ export type SessionDocument = {
   /** Legacy SIWE address; kept for old sessions until backfill. */
   address?: string;
   tokenHash: string;
+  /**
+   * Previous tokenHash, kept valid briefly after a sliding-renewal rotation.
+   * A page load fans out several concurrent requests on the pre-rotation
+   * cookie; without this grace window, any request whose lookup lands after
+   * a sibling's rotation finds no matching row and 401s.
+   */
+  prevTokenHash?: string;
+  prevTokenValidUntil?: Date;
   userAgent: string;
   ip: string;
   createdAt: Date;

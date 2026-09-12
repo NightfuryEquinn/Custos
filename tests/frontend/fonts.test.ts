@@ -53,4 +53,23 @@ describe("self-hosted brand fonts", () => {
     expect(HTML_CONTENT_SECURITY_POLICY).not.toContain("fonts.gstatic.com");
     expect(HTML_CONTENT_SECURITY_POLICY).toContain("font-src 'self'");
   });
+
+  test("fonts.css references fonts by relative path to a file that exists", () => {
+    /* Must stay relative (not /fonts/...): `bun run dev` (src/index.ts's
+       Bun.serve HTML import) has no equivalent to Bun.build's `external`
+       option, and resolves a root-relative url() against the OS filesystem
+       root instead of the project — "Could not resolve: /fonts/...".
+       A relative path resolves the same way in dev and in build.ts, which
+       un-inlines it into a real dist/fonts/ file after the build (Bun.build
+       has no `loader` override that stops it from base64-inlining a CSS
+       url() either way — real file or not — so that step has to happen
+       post-build, not by changing this path convention). */
+    const css = readFileSync(join(root, "src/frontend/styles/fonts.css"), "utf8");
+    const urls = [...css.matchAll(/url\(["']([^"')]+)["']\)/g)].map((m) => m[1]!);
+    expect(urls.length).toBeGreaterThan(0);
+    for (const url of urls) {
+      expect(url.startsWith("../assets/fonts/")).toBe(true);
+      expect(existsSync(join(root, "src/frontend/styles", url))).toBe(true);
+    }
+  });
 });

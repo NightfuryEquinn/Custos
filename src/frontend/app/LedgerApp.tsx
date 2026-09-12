@@ -18,6 +18,7 @@ import {
 } from "@/frontend/components/ui";
 import { CURRENT_MONTH_KEY, MONTHS, TODAY_ISO } from "@/frontend/lib/data";
 import { releaseHoldForOccurrence, restoreHoldForOccurrence } from "@/frontend/lib/envelope-holds";
+import { ApiError } from "@/frontend/lib/api";
 import { useLedger } from "@/frontend/lib/hooks/useLedger";
 import { useLedgerTour, type TourKind } from "@/frontend/lib/tour";
 import { useWhatsNew } from "@/frontend/lib/whats-new";
@@ -40,9 +41,18 @@ import {
   Recurring,
   Transactions,
 } from "@/frontend/views";
-import { EventModal, Schedule } from "@/frontend/views/Schedule";
 import type { Piggy, Piglet } from "@/frontend/lib/piggies";
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
+
+/* Schedule and its EventModal share one file — deferring both keeps the
+   calendar/reminder logic out of the initial bundle for anyone who never
+   opens Schedule or adds an event straight from Overview's quick-add. */
+const Schedule = lazy(() =>
+  import("@/frontend/views/Schedule").then((m) => ({ default: m.Schedule })),
+);
+const EventModal = lazy(() =>
+  import("@/frontend/views/Schedule").then((m) => ({ default: m.EventModal })),
+);
 
 /* Own-file views, deferred until first opened — cuts their deps (mermaid, etc) from the initial load. */
 const CategoriesView = lazy(() =>
@@ -162,6 +172,14 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
     if (welcomeDue) setWelcomeOpen(true);
   }, [welcomeDue]);
 
+  /* A 401/403 mid-session (expired cookie, revoked session) used to render
+     the same "API is down" screen with no way out but a manual reload —
+     route it to sign-out instead so the user lands back on AuthScreen. */
+  const authErrorStatus = ledgerError instanceof ApiError ? ledgerError.status : undefined;
+  useEffect(() => {
+    if (authErrorStatus === 401 || authErrorStatus === 403) onSignOut();
+  }, [authErrorStatus, onSignOut]);
+
   /* Accumulates locally as tours finish. Two tours can end back to back —
      the shell tour hands straight off to the current view's — and reading
      `toursSeen` alone would let the second PATCH overwrite the first before
@@ -250,11 +268,26 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
   }
 
   if (ledger.error) {
+    if (authErrorStatus === 401 || authErrorStatus === 403) {
+      /* onSignOut() already fired above; this only covers the brief render
+         before Root swaps back to AuthScreen. */
+      return (
+        <div className="app app--loading">
+          <LoadingBloom label="Session expired — signing you out…" />
+        </div>
+      );
+    }
+
+    const message =
+      authErrorStatus === 429
+        ? "Too many requests. Please wait a moment and reload."
+        : authErrorStatus !== undefined && authErrorStatus >= 500
+          ? "The server hit an error. Try again in a moment."
+          : "Could not reach the server. Check your connection and try again.";
+
     return (
       <div className="app app--loading">
-        <div className="loading-state loading-state--error">
-          Could not reach the server. Check that the API is running and try again.
-        </div>
+        <div className="loading-state loading-state--error">{message}</div>
       </div>
     );
   }
@@ -893,25 +926,27 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
         />
       ) : null}
       {evModal && (
-        <EventModal
-          initial={"add" in evModal ? null : evModal}
-          defaultDate={"add" in evModal ? evModal.date : undefined}
-          occurrenceIso={"add" in evModal ? undefined : evOccurrenceIso}
-          hasLinkedPayment={
-            !("add" in evModal) &&
-            !!evModal.expenseId &&
-            allExpenses.some((expense) => expense.id === evModal.expenseId)
-          }
-          categoryIndex={ledger.categoryIndex}
-          currency={currency}
-          onSave={saveEvent}
-          onLogPayment={logPaymentFromEvent}
-          onClose={() => {
-            setEvModal(null);
-            setEvOccurrenceIso(undefined);
-          }}
-          onDelete={deleteEvent}
-        />
+        <Suspense fallback={null}>
+          <EventModal
+            initial={"add" in evModal ? null : evModal}
+            defaultDate={"add" in evModal ? evModal.date : undefined}
+            occurrenceIso={"add" in evModal ? undefined : evOccurrenceIso}
+            hasLinkedPayment={
+              !("add" in evModal) &&
+              !!evModal.expenseId &&
+              allExpenses.some((expense) => expense.id === evModal.expenseId)
+            }
+            categoryIndex={ledger.categoryIndex}
+            currency={currency}
+            onSave={saveEvent}
+            onLogPayment={logPaymentFromEvent}
+            onClose={() => {
+              setEvModal(null);
+              setEvOccurrenceIso(undefined);
+            }}
+            onDelete={deleteEvent}
+          />
+        </Suspense>
       )}
       {welcomeOpen ? (
         <TourWelcomeModal

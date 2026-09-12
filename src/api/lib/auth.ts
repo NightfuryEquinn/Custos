@@ -9,6 +9,13 @@ export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 /** Absolute cap: no session may outlive this, regardless of sliding renewal. */
 export const SESSION_MAX_LIFETIME_MS = 90 * 24 * 60 * 60 * 1000;
 export const NONCE_TTL_MS = 5 * 60 * 1000;
+/**
+ * How long the pre-rotation token hash stays valid after a sliding-renewal
+ * rotation. A page load fans out several concurrent requests on the same
+ * cookie; without this window, any request whose session lookup runs after
+ * a sibling's rotation write finds no matching row and 401s.
+ */
+export const SESSION_ROTATION_GRACE_MS = 30 * 1000;
 
 /** Whether this process is a production / Vercel deploy. */
 function isProductionRuntime(): boolean {
