@@ -1,6 +1,5 @@
 import type { ViewId } from "@/frontend/lib/types";
 import type { StepOptionsButton, Tour } from "shepherd.js";
-import "shepherd.js/dist/css/shepherd.css";
 import { getViewTourSteps, SHELL_TOUR_STEPS } from "./steps";
 
 export type TourKind = ViewId | "shell";
@@ -72,7 +71,13 @@ function bindButtons(tour: Tour, steps: ReturnType<typeof getViewTourSteps>) {
 async function createTour(kind: TourKind, { onDone }: RunTourOptions): Promise<Tour> {
   teardownActiveTour();
 
-  const { default: Shepherd } = await import("shepherd.js");
+  /* Deferred alongside the JS: a static top-level import of this CSS pulled
+     it into every load's blocking stylesheet even for users who never open
+     a tour — `LedgerApp.tsx` imports this module eagerly for `useLedgerTour`. */
+  const [{ default: Shepherd }] = await Promise.all([
+    import("shepherd.js"),
+    import("shepherd.js/dist/css/shepherd.css"),
+  ]);
 
   const steps = kind === "shell" ? SHELL_TOUR_STEPS : getViewTourSteps(kind);
   const tour = new Shepherd.Tour({

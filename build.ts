@@ -14,8 +14,6 @@ const frontend = await Bun.build({
   target: "browser",
   sourcemap: false,
   splitting: true,
-  /* Keep woff2 as hashed files instead of base64 data URIs (smaller CSS). */
-  loader: { ".woff2": "file" },
   define: {
     "process.env.NODE_ENV": JSON.stringify("production"),
   },
@@ -104,3 +102,53 @@ for await (const entry of new Bun.Glob("*").scan({ cwd: publicDir })) {
   const st = await Bun.file(dest).stat();
   console.log(` ${path.relative(root, dest)}  ${(st.size / 1024).toFixed(1)} KB`);
 }
+
+/* Copy the SIL OFL license text alongside the extracted font files below
+   (matches the convention already used by website/fonts/). */
+const fontsSrcDir = path.join(root, "src/frontend/assets/fonts");
+const fontsDestDir = path.join(outdir, "fonts");
+await mkdir(fontsDestDir, { recursive: true });
+for (const name of ["OFL.txt", "NOTICE.txt"]) {
+  await Bun.write(path.join(fontsDestDir, name), Bun.file(path.join(fontsSrcDir, name)));
+}
+
+/*
+ * Un-inline the fonts CSS bundled it as base64.
+ *
+ * fonts.css references fonts by a *relative* url("../assets/fonts/...") —
+ * that's required for `bun run dev` (src/index.ts's Bun.serve HTML import
+ * has no equivalent to Bun.build's `external` option; a root-relative
+ * `url("/fonts/...")` there fails outright — Bun resolves it against the
+ * OS filesystem root, not the project, so it 404s trying to resolve
+ * "C:\fonts\..." or "/fonts/..." at the filesystem level: "Could not
+ * resolve"). But `Bun.build` (this file) has no `loader` override for CSS
+ * url() either way — a relative path always gets base64-inlined, real file
+ * or not. Rather than fight the bundler with a source-level workaround,
+ * decode what it already inlined back into real files post-build: same
+ * `fonts.css` works unmodified in both dev and prod, and this is the one
+ * place a build-time-only rewrite is safe.
+ */
+const cssOutputs = frontend.outputs.filter((o) => o.path.endsWith(".css"));
+let fontBytes = 0;
+let fontCount = 0;
+for (const cssOutput of cssOutputs) {
+  const css = await Bun.file(cssOutput.path).text();
+  const writes: Promise<unknown>[] = [];
+  const rewritten = css.replace(
+    /url\(data:font\/woff2;base64,([A-Za-z0-9+/=]+)\)/g,
+    (_match, base64: string) => {
+      const bytes = Buffer.from(base64, "base64");
+      const hash = Bun.hash(bytes).toString(16);
+      const filename = `font-${hash}.woff2`;
+      writes.push(Bun.write(path.join(fontsDestDir, filename), bytes));
+      fontBytes += bytes.byteLength;
+      fontCount++;
+      return `url(/fonts/${filename})`;
+    },
+  );
+  await Promise.all(writes);
+  if (rewritten !== css) await Bun.write(cssOutput.path, rewritten);
+}
+console.log(
+  ` ${path.relative(root, fontsDestDir)}/*  ${fontCount} font file(s), ${(fontBytes / 1024).toFixed(1)} KB extracted from CSS`,
+);

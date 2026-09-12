@@ -13,7 +13,7 @@ import { getCipherCache, putCipherCache } from "@/frontend/lib/pwa/cipher-cache"
 import { identityStorage } from "@/frontend/auth/lib/identity-storage";
 import type { TourPreference } from "@/schemas/profile";
 
-class ApiError extends Error {
+export class ApiError extends Error {
   status: number;
   retryAfterMs?: number;
 
@@ -83,8 +83,12 @@ function isCacheableGet(path: string, method: string): boolean {
   );
 }
 
+/* A stuck request used to hang the UI on the loading spinner indefinitely —
+   no timeout anywhere in this file. */
+const REQUEST_TIMEOUT_MS = 20_000;
+
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const { body, headers, ...rest } = opts;
+  const { body, headers, signal, ...rest } = opts;
   const method = (rest.method ?? (body !== undefined ? "POST" : "GET")).toUpperCase();
   const address = identityStorage.session();
 
@@ -93,6 +97,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
       ...rest,
       method,
       credentials: "include",
+      signal: signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       headers: {
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
         ...headers,
@@ -118,11 +123,21 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     }
     return json;
   } catch (err) {
-    if (
-      address &&
-      isCacheableGet(path, method) &&
-      (err instanceof TypeError || !navigator.onLine)
-    ) {
+    /* Serve a warm ciphertext copy for: real network failure, offline, a
+       timed-out/aborted request, a rate limit, or a server error — none of
+       those mean the data changed, so a stale read beats blanking the whole
+       app. A 401/403/404 means the request itself is wrong and must not be
+       papered over with cache. */
+    const status = err instanceof ApiError ? err.status : undefined;
+    const isAbort = err instanceof DOMException && err.name === "AbortError";
+    const cacheableFailure =
+      err instanceof TypeError ||
+      isAbort ||
+      !navigator.onLine ||
+      status === 429 ||
+      (!!status && status >= 500);
+
+    if (address && isCacheableGet(path, method) && cacheableFailure) {
       const cached = await getCipherCache<T>(address, path);
       if (cached != null) return cached;
     }

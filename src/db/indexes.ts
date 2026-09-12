@@ -1,45 +1,20 @@
 import type { Db } from "mongodb";
 import { COLLECTIONS } from "./collections";
 
-/** Ensure Mongo indexes for the current schema (accountId ownership). */
+/**
+ * Ensure Mongo indexes for the current schema (accountId ownership).
+ *
+ * Run at build time (`bun run db:indexes`, wired into the Vercel build
+ * command) rather than per-request: this used to run inside connectDb() on
+ * every cold serverless isolate, paying 13 serial dropIndex round trips
+ * (the address-keyed legacy indexes below, all long since dropped for real
+ * — every one of them now just throws and is caught) plus ~25 createIndex
+ * calls before that isolate's first request could be served.
+ *
+ * The legacy address-keyed drops this used to carry are gone — if that
+ * migration ever needs repeating, add the drops back temporarily.
+ */
 export async function ensureIndexes(db: Db): Promise<void> {
-  /* Name uniqueness moved client-side once todo lists are E2EE. */
-  try {
-    await db.collection(COLLECTIONS.todoLists).dropIndex("userAddress_1_name_1");
-  } catch {
-    /* Index may already be absent. */
-  }
-
-  /* Wallet names moved into E2EE payload; drop plaintext name index. */
-  try {
-    await db.collection(COLLECTIONS.financialWallets).dropIndex("userAddress_1_name_1");
-  } catch {
-    /* Index may already be absent. */
-  }
-
-  /* Legacy address-keyed indexes — drop after accountId backfill. */
-  const legacyDrops: Array<[string, string]> = [
-    [COLLECTIONS.ledgerProfiles, "userAddress_1"],
-    [COLLECTIONS.financialWallets, "userAddress_1_isDefault_1"],
-    [COLLECTIONS.categoryTaxonomies, "userAddress_1"],
-    [COLLECTIONS.expenses, "userAddress_1_walletId_1_date_-1"],
-    [COLLECTIONS.expenses, "userAddress_1_date_-1"],
-    [COLLECTIONS.expenses, "userAddress_1_recurring_1_date_-1"],
-    [COLLECTIONS.events, "userAddress_1_date_1"],
-    [COLLECTIONS.consent, "userAddress_1"],
-    [COLLECTIONS.sessions, "address_1_createdAt_-1"],
-    [COLLECTIONS.todoLists, "userAddress_1_createdAt_1"],
-    [COLLECTIONS.budgetAlertLogs, "userAddress_1_walletId_1_categoryId_1_month_1_level_1"],
-  ];
-
-  for (const [coll, index] of legacyDrops) {
-    try {
-      await db.collection(coll).dropIndex(index);
-    } catch {
-      /* Index may already be absent. */
-    }
-  }
-
   await Promise.all([
     db.collection(COLLECTIONS.users).createIndex({ address: 1 }, { unique: true }),
     db.collection(COLLECTIONS.ledgerProfiles).createIndex({ accountId: 1 }, { unique: true }),
@@ -91,6 +66,8 @@ export async function ensureIndexes(db: Db): Promise<void> {
     db.collection(COLLECTIONS.authNonces).createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     db.collection(COLLECTIONS.authNonces).createIndex({ address: 1, nonce: 1 }),
     db.collection(COLLECTIONS.sessions).createIndex({ tokenHash: 1 }, { unique: true }),
+    /* Rotation grace-window lookup — see sessionAuth's $or in middleware/session.ts. */
+    db.collection(COLLECTIONS.sessions).createIndex({ prevTokenHash: 1 }),
     db.collection(COLLECTIONS.sessions).createIndex({ accountId: 1, createdAt: -1 }),
     db.collection(COLLECTIONS.sessions).createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     db

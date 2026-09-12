@@ -23,8 +23,8 @@
 
 /* ── 1. Design tokens ─────────────────────────────────────────────── */
 :root {
-  /* Accent — cool slate blue (light theme); dark theme overrides below */
-  --accent: #4a6fa5;
+  /* Accent — earthy clay (light theme); dark theme lightens it below */
+  --accent: #8f6140;
   /* Text / icon color on accent-filled controls (white on light, dark ink on dark) */
   --accent-contrast: #ffffff;
 
@@ -88,7 +88,7 @@
 }
 
 /*
- * Dark theme — cool charcoal, WCAG 2.1 AA contrast targets:
+ * Dark theme — warm espresso, WCAG 2.1 AA contrast targets:
  *   normal text ≥ 4.5:1, large text / UI chrome ≥ 3.0:1 against surface layers.
  * --accent is lightened so links, active tabs, and focus rings stay readable;
  * --accent-contrast flips to dark ink so filled buttons stay ≥ 4.5:1 on the
@@ -96,23 +96,23 @@
  */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #14171c;
-  --surface: #1b1f26;
-  --surface-2: #222733;
-  --surface-3: #2a3040;
-  --accent: #7aa5e9;
-  --accent-contrast: #11151b;
-  --ink: #e8ecf2;
-  --ink-soft: #b8c3d3;
-  --ink-faint: #8e9ab0;
-  --hair: #2c3444;
-  --border: #384252;
-  --border-strong: #526075;
+  --bg: #1a1714;
+  --surface: #221e19;
+  --surface-2: #2b2620;
+  --surface-3: #362f27;
+  --accent: #c98f63;
+  --accent-contrast: #1a1714;
+  --ink: #ece5d9;
+  --ink-soft: #c8bcab;
+  --ink-faint: #9c8f7c;
+  --hair: #332c24;
+  --border: #473e33;
+  --border-strong: #6b5c48;
   --danger: #e27a6c;
-  --ok: #7da68f;
-  --saved: #8fb3a3;
+  --ok: #86a883;
+  --saved: #9cb995;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 10px 30px -16px rgba(0, 0, 0, 0.6);
-  --scrim: rgba(5, 8, 12, 0.55);
+  --scrim: rgba(14, 10, 6, 0.58);
 }
 
 /* ── 2. Base & reset ──────────────────────────────────────────────── */
@@ -460,8 +460,8 @@ h3 {
 
 :root[data-theme="dark"] .fab {
   /* Dark ink on the lavender fill — white-on-#8f84b8 was only ~3.4:1 */
-  background: #8f84b8;
-  color: #11151b;
+  background: #b09cc0;
+  color: #1a1714;
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.35),
     0 8px 24px -4px rgba(0, 0, 0, 0.5);
@@ -764,20 +764,20 @@ h3 {
 
 /* Dark: pastel fills need dark label ink; white-on-pastel failed AA (~2.7–3.4:1) */
 :root[data-theme="dark"] .primary-btn--expense {
-  background: #6f92a4;
-  color: #11151b;
+  background: #82a3a6;
+  color: #1a1714;
   font-weight: 700;
 }
 
 :root[data-theme="dark"] .primary-btn--savings {
-  background: #8f84b8;
-  color: #11151b;
+  background: #b09cc0;
+  color: #1a1714;
   font-weight: 700;
 }
 
 :root[data-theme="dark"] .primary-btn--income {
-  background: #85a785;
-  color: #11151b;
+  background: #9db487;
+  color: #1a1714;
   font-weight: 700;
 }
 
@@ -2778,51 +2778,51 @@ textarea::placeholder {
  * clear WCAG AA (≥ 4.5:1) on surface / surface-2.
  */
 :root[data-theme="dark"] .profile-tinted.style-clockwork {
-  --profile-accent: #68b699;
+  --profile-accent: #74b2a2;
 }
 
 :root[data-theme="dark"] .profile-tinted.style-burst {
-  --profile-accent: #e28662;
+  --profile-accent: #d3906a;
 }
 
 :root[data-theme="dark"] .profile-tinted.style-dripper {
-  --profile-accent: #7aa5e9;
+  --profile-accent: #8ca3db;
 }
 
 :root[data-theme="dark"] .profile-tinted.style-peakValley {
-  --profile-accent: #d8a65c;
+  --profile-accent: #caac70;
 }
 
 :root[data-theme="dark"] .profile-tinted.style-accumulator {
-  --profile-accent: #5bc0d1;
+  --profile-accent: #76bbcf;
 }
 
 :root[data-theme="dark"] .profile-tinted.style-nomad {
-  --profile-accent: #c7b17e;
+  --profile-accent: #beb48b;
 }
 
 :root[data-theme="dark"] .profile-tinted.style-salaried {
-  --profile-accent: #6bc49e;
+  --profile-accent: #78c0aa;
 }
 
 :root[data-theme="dark"] .profile-tinted.style-variable {
-  --profile-accent: #74c2d4;
+  --profile-accent: #87bed1;
 }
 
 :root[data-theme="dark"] .profile-tinted.style-projectBased {
-  --profile-accent: #92a6e0;
+  --profile-accent: #9da5d3;
 }
 
 :root[data-theme="dark"] .profile-tinted.style-portfolio {
-  --profile-accent: #7ad2b4;
+  --profile-accent: #87cebd;
 }
 
 :root[data-theme="dark"] .profile-tinted.style-windfall {
-  --profile-accent: #dbbd5d;
+  --profile-accent: #cdc179;
 }
 
 :root[data-theme="dark"] .profile-tinted.style-emerging {
-  --profile-accent: #9daec5;
+  --profile-accent: #a3adc0;
 }
 
 /* A month whose income fell short of its spend. */
@@ -5086,7 +5086,7 @@ textarea::placeholder {
 }
 
 :root[data-theme="dark"] .primary-btn.calculator-apply-success:disabled {
-  color: #11151b;
+  color: #1a1714;
 }
 
 .calculator-confirm-lead {

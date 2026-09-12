@@ -11,6 +11,7 @@ import { cronRoutes } from "./cron";
 import { eventsRoutes } from "./events";
 import { expensesRoutes } from "./expenses";
 import { fxRoutes } from "./fx";
+import { healthRoutes } from "./health";
 import { profileRoutes } from "./profile";
 import { pushRoutes } from "./push";
 import { todoListsRoutes } from "./todo-lists";
@@ -22,9 +23,13 @@ export function createApiRoutes() {
   const api = new Hono();
 
   api.use("*", securityHeaders);
-  api.use("*", globalRateLimit);
+  /* ensureDb before the rate limiter: on a cold isolate isDbConnected() is
+     false until the DB connects, so a rate limiter mounted first silently
+     used a per-isolate memory bucket that isn't actually shared. */
   api.use("*", ensureDb);
+  api.use("*", globalRateLimit);
 
+  api.route("/health", healthRoutes);
   api.route("/auth", authRoutes);
   api.route("/users", usersRoutes);
   api.route("/push", pushRoutes);

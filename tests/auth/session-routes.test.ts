@@ -228,20 +228,56 @@ describe("auth session routes", () => {
     const newToken = match![1]!;
     expect(newToken).not.toBe(token);
 
-    const oldMe = await app.request("/api/auth/me", {
+    /* Old token stays valid for a short grace window after rotation — a page
+       load fans out several concurrent requests on the pre-rotation cookie,
+       and they must not 401 just because a sibling request rotated first. */
+    const oldMeDuringGrace = await app.request("/api/auth/me", {
       headers: { Cookie: `${SESSION_COOKIE}=${token}` },
     });
-    expect(oldMe.status).toBe(401);
+    expect(oldMeDuringGrace.status).toBe(200);
 
     const newMe = await app.request("/api/auth/me", {
       headers: { Cookie: `${SESSION_COOKIE}=${newToken}` },
     });
     expect(newMe.status).toBe(200);
 
+    /* Past the grace window, the old token is dead. */
+    await sessions.updateOne(
+      { _id: session!._id },
+      { $set: { prevTokenValidUntil: new Date(Date.now() - 1000) } },
+    );
+    const oldMeAfterGrace = await app.request("/api/auth/me", {
+      headers: { Cookie: `${SESSION_COOKIE}=${token}` },
+    });
+    expect(oldMeAfterGrace.status).toBe(401);
+
     const after = await sessions.findOne({ _id: session!._id });
     expect(after!.tokenHash).toBe(hashToken(newToken));
     expect(after!.createdAt.getTime()).toBe(session!.createdAt.getTime());
     expect(after!.accountId).toBeTruthy();
+  });
+
+  test("concurrent requests on a stale session all succeed despite rotation", async () => {
+    /* Reproduces the reported "API is running" 401: a page load fans out
+       several concurrent requests on one pre-rotation cookie. Before the
+       grace window, any request whose lookup ran after a sibling's rotation
+       write landed found no row for the old hash and 401ed. */
+    const wallet = Wallet.createRandom();
+    const { token } = await challengeAndVerify(wallet);
+    const { sessions } = getCollections(memory as unknown as Db);
+    const session = await sessions.findOne({ tokenHash: hashToken(token) });
+
+    await sessions.updateOne(
+      { _id: session!._id },
+      { $set: { lastSeenAt: new Date(Date.now() - 6 * 60_000) } },
+    );
+
+    const results = await Promise.all(
+      Array.from({ length: 8 }, () =>
+        app.request("/api/auth/me", { headers: { Cookie: `${SESSION_COOKIE}=${token}` } }),
+      ),
+    );
+    for (const res of results) expect(res.status).toBe(200);
   });
 
   test("absolute lifetime cap revokes expired sessions", async () => {

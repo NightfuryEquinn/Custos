@@ -5,6 +5,9 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 
 const CACHE_TTL_MS = 60 * 60 * 1000;
+/* Without this, a hung upstream burns the whole 30s function maxDuration
+   (vercel.json) instead of failing fast into a 502. */
+const UPSTREAM_TIMEOUT_MS = 8_000;
 
 type FxCache = {
   base: string;
@@ -41,7 +44,12 @@ fxRoutes.get("/latest/:base", async (c) => {
   }
 
   const url = `https://v6.exchangerate-api.com/v6/${apiKey}/latest/${encodeURIComponent(base)}`;
-  const res = await fetch(url);
+  let res: Response;
+  try {
+    res = await fetch(url, { signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
+  } catch {
+    throw new HTTPException(502, { message: "Exchange rate request timed out" });
+  }
   const data = (await res.json().catch(() => null)) as {
     result?: string;
     "error-type"?: string;

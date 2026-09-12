@@ -26,6 +26,12 @@ async function openClient(uri: string): Promise<Db> {
   const next = new MongoClient(resolved, {
     serverSelectionTimeoutMS: CONNECT_TIMEOUT_MS,
     connectTimeoutMS: CONNECT_TIMEOUT_MS,
+    /* The driver default (100) times however many isolates Vercel spins up
+       under load can exceed a small Atlas tier's connection cap, surfacing
+       as intermittent 503s. Serverless functions serve requests one at a
+       time per isolate anyway, so a small pool is plenty. */
+    maxPoolSize: 10,
+    maxIdleTimeMS: 30_000,
   });
   await next.connect();
   client = next;
@@ -44,8 +50,8 @@ export async function connectDb(): Promise<Db> {
   connecting = (async () => {
     try {
       const nextDb = await openClient(uri);
-      const { ensureIndexes } = await import("./indexes");
-      await ensureIndexes(nextDb);
+      /* Indexes sync at build time (`bun run db:indexes`) instead of here —
+         see ensureIndexes' doc comment. */
       db = nextDb;
       return db;
     } catch (err) {

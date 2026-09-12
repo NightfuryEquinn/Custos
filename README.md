@@ -161,6 +161,7 @@ On Windows, Bun may fail to resolve `mongodb+srv` DNS; the app auto-converts to 
 ### Database scripts
 
 ```bash
+bun run db:indexes       # sync indexes — run once against a fresh database
 bun run db:list          # list collections
 bun run db:drop expenses events --yes   # drop specific collection(s)
 bun run db:drop:all --yes  # drop all app collections
@@ -172,7 +173,7 @@ Connectivity check: `curl http://localhost:3000/` (expect `200`)
 
 MongoDB database name defaults to `ledger` (`MONGODB_DB`). User-owned documents are keyed by opaque `accountId` (`users._id` hex). The SIWE wallet `address` lives on `users` (and `auth_nonces`) for login only. Every collection also has `_id` (`ObjectId`) and, where noted, `createdAt` / `updatedAt`.
 
-Schemas are defined in `src/schemas/` and wired in `src/db/collections.ts`. Indexes are created on connect via `src/db/indexes.ts`.
+Schemas are defined in `src/schemas/` and wired in `src/db/collections.ts`. Indexes are defined in `src/db/indexes.ts` and synced by `bun run db:indexes` (wired into the Vercel build command) rather than on every connect — a fresh local database needs it run once.
 
 ### Collections
 

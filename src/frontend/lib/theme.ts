@@ -8,13 +8,13 @@
    Dark theme tokens in ledger.css target WCAG 2.1 AA contrast
    (≥ 4.5:1 normal text, ≥ 3.0:1 large text / UI). getAccent() reads the
    live --accent custom property so charts pick up the dark-mode accent
-   (#7aa5e9) after applyTheme flips data-theme.
+   (#c98f63) after applyTheme flips data-theme.
    ──────────────────────────────────────────────────────────────────── */
 
 export type ThemePreference = "light" | "dark" | "system";
 
 /** Default accent — keep in sync with --accent in ledger.css (light theme). */
-const DEFAULT_ACCENT = "#4a6fa5";
+const DEFAULT_ACCENT = "#8f6140";
 
 const THEME_KEY = "ledger:theme";
 

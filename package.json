@@ -16,7 +16,8 @@
     "format:check": "prettier --check .",
     "check": "bun run lint && bun run format:check && bun test tests && bun run typecheck && bun run knip",
     "db:wipe-account": "bun scripts/wipe-account.ts",
-    "db:prune-stale": "bun scripts/prune-stale-users.ts"
+    "db:prune-stale": "bun scripts/prune-stale-users.ts",
+    "db:indexes": "bun scripts/sync-indexes.ts"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.8.0",

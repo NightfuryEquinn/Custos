@@ -32,6 +32,25 @@ self.addEventListener("fetch", (event) => {
   /* Leave third-party requests alone (analytics, etc.). */
   if (url.origin !== self.location.origin) return;
 
+  /* Content-hashed bundler output and self-hosted fonts never change under
+     a given filename (vercel.json also sends them as immutable) — serve
+     straight from cache with no network round trip, instead of the
+     network-first strategy below that's right for everything else. */
+  const isImmutableAsset = url.pathname.startsWith("/chunk-") || url.pathname.startsWith("/fonts/");
+  if (isImmutableAsset) {
+    event.respondWith(
+      caches.match(req).then(
+        (cached) =>
+          cached ||
+          fetch(req).then((res) => {
+            if (res.ok) void caches.open(SHELL_CACHE).then((cache) => cache.put(req, res.clone()));
+            return res;
+          }),
+      ),
+    );
+    return;
+  }
+
   event.respondWith(
     fetch(req)
       .then((res) => {
