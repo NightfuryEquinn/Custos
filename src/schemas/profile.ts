@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { accountIdSchema, monthKeySchema } from "./common";
+import { TERMS_VERSION } from "@/lib/legal";
+import { ACCENT_NAMES } from "@/lib/accents";
+
+const accentSchema = z.enum(ACCENT_NAMES as [string, ...string[]]);
 
 /**
  * How the user answered the first-run tour prompt.
@@ -21,6 +25,15 @@ const ledgerProfileSchema = z.object({
      user across devices and survives sign-out and Clear Local Data. */
   tourPreference: tourPreferenceSchema.default("pending"),
   toursSeen: toursSeenSchema.default([]),
+  /* Version of the Terms this account has accepted. Recorded server-side (not
+     localStorage) so it follows the account across devices and survives
+     Clear Local Data; undefined means "never accepted". */
+  termsVersion: z.string().max(32).optional(),
+  /* Supporter accent perk. The server does not check supporterSince
+     before accepting a write — a non-supporter who forges this just gets a
+     different shade of brown; enforce server-side if a perk is ever worth
+     more than a colour. */
+  accent: accentSchema.optional(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -30,6 +43,10 @@ export const updateProfileSchema = z
     currentMonth: monthKeySchema.optional(),
     tourPreference: tourPreferenceSchema.optional(),
     toursSeen: toursSeenSchema.optional(),
+    /* Literal, not a free string — a client cannot declare acceptance of a
+       version it was never shown. */
+    termsVersion: z.literal(TERMS_VERSION).optional(),
+    accent: accentSchema.optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "At least one field is required",

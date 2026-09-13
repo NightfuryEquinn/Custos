@@ -786,7 +786,7 @@
             "applicationSubCategory": "Personal budgeting and expense tracking",
             "operatingSystem": "Web browser, Android, iOS",
             "browserRequirements": "Requires a modern browser with WebCrypto support",
-            "softwareVersion": "4.5.5",
+            "softwareVersion": "5.0.0",
             "description": "Custos is a private expense ledger, schedule, and to-do app. Track spending across wallets and 29 currencies, plan bills and events with email and push reminders, and sign in with a Web3 wallet — the server only ever sees ciphertext.",
             "image": "https://nightfuryequinn.github.io/Custos/og-image.png",
             "screenshot": "https://nightfuryequinn.github.io/Custos/og-image.png",
@@ -863,7 +863,7 @@
                 "name": "Is Custos free?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Yes — every feature is free on the official hosted app. The source is public for transparency under a proprietary license, which means it is not free to self-host, rebrand, or offer as a competing service; those uses need a written commercial agreement."
+                  "text": "Yes — every feature is free on the official hosted app, and always will be. Optional tips and a monthly Supporter subscription (a badge and a choice of accent colors) help fund it, but never gate anything. The source is public for transparency under a proprietary license, which means it is not free to self-host, rebrand, or offer as a competing service; those uses need a written commercial agreement."
                 }
               },
               {
@@ -931,7 +931,7 @@
         <canvas id="hero-canvas" aria-hidden="true"></canvas>
         <div class="wrap">
           <div class="badge">
-            <span class="ver">v4.5.5</span> <span class="dot"></span> End-to-end encrypted · Web3
+            <span class="ver">v5.0.0</span> <span class="dot"></span> End-to-end encrypted · Web3
             sign-in · No email or password
           </div>
           <h1>Your money and schedule,<br /><span class="grad">encrypted end-to-end.</span></h1>
@@ -1058,6 +1058,15 @@
               <p>
                 Add Custos to your home screen and keep reading your ledger offline from an
                 encrypted local cache.
+              </p>
+            </div>
+            <div class="card">
+              <div class="icon">🔐</div>
+              <h3>Zero-tap Face ID</h3>
+              <p>
+                Open the app and you're in — Face ID or Touch ID prompts on its own, with no button
+                to press. The check never leaves your device, and a typed passphrase always works as
+                a fallback.
               </p>
             </div>
           </div>
@@ -1316,10 +1325,12 @@
             <details class="faq-item">
               <summary>Is Custos free?</summary>
               <p>
-                Yes — every feature is free on the official hosted app. The source is public for
-                transparency under a proprietary license, which means it is not free to self-host,
-                rebrand, or offer as a competing service; those uses need a written commercial
-                agreement.
+                Yes — every feature is free on the official hosted app, and always will be. Optional
+                <a href="offers.html#support">tips and a monthly Supporter subscription</a> (a badge
+                and a choice of accent colors) help fund it, but never gate anything. The source is
+                public for transparency under a proprietary license, which means it is not free to
+                self-host, rebrand, or offer as a competing service; those uses need a written
+                commercial agreement.
               </p>
             </details>
             <details class="faq-item">
@@ -1329,6 +1340,15 @@
                 nobody — the operator included — can restore access or read your data. Keep the
                 phrase somewhere safe, set a device passphrase so the key is wrapped on each
                 browser, and download an encrypted backup from Account → Exports &amp; imports.
+              </p>
+            </details>
+            <details class="faq-item">
+              <summary>Does Custos send my fingerprint or face anywhere?</summary>
+              <p>
+                No. Face ID / Touch ID unlock runs entirely through your browser's WebAuthn support
+                — it returns a derived value that never leaves the device, and the server is never
+                told a biometric check happened at all. Once enabled, it can prompt on its own when
+                you open the app; a typed device passphrase always works as a fallback.
               </p>
             </details>
             <details class="faq-item">
@@ -1450,11 +1470,16 @@
             <a href="#goals">Goals</a>
             <a href="#privacy">Privacy</a>
             <a href="#faq">FAQ</a>
+            <a href="offers.html">Offers</a>
+            <a href="services.html">Services</a>
           </div>
         </div>
         <p class="foot-note">
-          Custos v4.5.5 — private expense ledger, schedule, and to-do app. E2EE by default. Source
-          public for transparency under the
+          Custos v5.0.0 — private expense ledger, schedule, and to-do app. E2EE by default. Free on
+          the official host, always — optional tips and a monthly Supporter subscription (<a
+            href="offers.html#support"
+            >ways to support</a
+          >) never gate a feature. Source public for transparency under the
           <a
             href="https://github.com/NightfuryEquinn/Custos/blob/develop/LICENSE"
             target="_blank"

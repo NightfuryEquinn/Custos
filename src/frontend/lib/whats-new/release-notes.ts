@@ -36,6 +36,38 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "5.0.0",
+    date: "September 2026",
+    lead: "Face ID and Touch ID now prompt on their own when you open Custos, the old 'we may share your data' claim is retired for good, and optional tips or a monthly Supporter subscription are the only way this ever gets funded.",
+    highlights: [
+      {
+        icon: "shield",
+        title: "Face ID prompts automatically",
+        body: "The unlock screen asks for Face ID or Touch ID as soon as it opens instead of waiting for you to press a button. The Unlock with Face ID button is still there as a fallback, and your device passphrase always works.",
+      },
+      {
+        icon: "sparkle",
+        title: "Straight to your identity",
+        body: "If this device already has Face ID set up for the identity you last used, Custos skips the welcome screen and opens that identity's unlock screen directly. Signing out on purpose clears this, so you land back on the welcome screen next time.",
+      },
+      {
+        icon: "info",
+        title: "The old sharing claim is retired",
+        body: "Custos never actually shared anything — the data-sharing switch under Data & privacy only ever recorded a preference. That claim is gone from the Terms; nothing is shared today, and nothing has ever been shared.",
+      },
+      {
+        icon: "piggy",
+        title: "Optional ways to support",
+        body: "Account → Support Custos links to tips (Ko-fi, GitHub Sponsors) and a monthly Supporter subscription — a badge next to your name and a choice of accent colors. Free features never change either way.",
+      },
+      {
+        icon: "list",
+        title: "No more duplicate active sessions",
+        body: "Signing back in from a browser that lost its session cookie used to add a new entry to Active Sessions every time. It now replaces that browser's prior entry instead of stacking a duplicate — a genuinely different device is still tracked separately.",
+      },
+    ],
+  },
+  {
     version: "4.5.5",
     date: "September 2026",
     lead: "Calculator allocation can use a currency amount per category instead of only percentages, with a Percent / Amount toggle that converts your draft.",

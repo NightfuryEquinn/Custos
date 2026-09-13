@@ -1,5 +1,6 @@
 import { LedgerApp } from "@/frontend/app/LedgerApp";
 import { AuthScreen, getSavedAccount, logoutSession, UnlockScreen } from "@/frontend/auth";
+import { TermsGate } from "@/frontend/auth/components/TermsGate";
 import { LoadingBloom } from "@/frontend/components/LoadingBloom";
 import { ThemeToggle } from "@/frontend/components/ThemeToggle";
 import { api } from "@/frontend/lib/api";
@@ -8,6 +9,7 @@ import { unlockLedgerKey } from "@/frontend/lib/crypto/unlock";
 import { identityStorage } from "@/frontend/auth/lib/identity-storage";
 import { sessionSecrets } from "@/frontend/auth/lib/session-secrets";
 import { ThemeProvider } from "@/frontend/lib/hooks/useTheme";
+import { TERMS_VERSION } from "@/lib/legal";
 import type { Account } from "@/frontend/lib/types";
 import { useEffect, useState } from "react";
 
@@ -20,9 +22,22 @@ export function Root() {
   const [booting, setBooting] = useState(true);
   const [cryptoReady, setCryptoReady] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [termsVersion, setTermsVersion] = useState<string | undefined>(undefined);
+  const [termsChecked, setTermsChecked] = useState(false);
+
+  /** Re-fetch whether this account has accepted the current Terms. */
+  const checkTerms = () => {
+    setTermsChecked(false);
+    api.profile
+      .get()
+      .then(({ profile }) => setTermsVersion(profile.termsVersion))
+      .catch(() => setTermsVersion(undefined))
+      .finally(() => setTermsChecked(true));
+  };
 
   // Restore session; prefer locally-stored codename when it matches.
   useEffect(() => {
+    checkTerms(); // fired alongside auth.me() below — same session cookie, no added latency
     api.auth
       .me()
       .then(async ({ account: remote }) => {
@@ -63,12 +78,14 @@ export function Root() {
       await logoutSession();
       setAccount(null);
       setCryptoReady(false);
+      setTermsVersion(undefined);
+      setTermsChecked(false);
     } finally {
       setSigningOut(false);
     }
   };
 
-  if (booting) {
+  if (booting || (account && !termsChecked)) {
     return (
       <ThemeProvider>
         <div className="app app--loading">
@@ -81,7 +98,9 @@ export function Root() {
   return (
     <ThemeProvider>
       {account ? (
-        cryptoReady || ledgerKeyStore.isUnlocked(account.address) ? (
+        termsVersion !== TERMS_VERSION ? (
+          <TermsGate onAccepted={setTermsVersion} onSignOut={signOut} signingOut={signingOut} />
+        ) : cryptoReady || ledgerKeyStore.isUnlocked(account.address) ? (
           <LedgerApp
             key={account.address}
             account={account}
@@ -103,6 +122,7 @@ export function Root() {
             onAuth={(acc) => {
               setAccount(acc);
               setCryptoReady(true);
+              checkTerms();
             }}
           />
         </>

@@ -15,6 +15,7 @@ import {
   wrapSecrets,
 } from "./lib/device-vault";
 import {
+  biometricAutoUnlockIdentity,
   biometricEnrolled,
   biometricSupported,
   enrollBiometric,
@@ -33,6 +34,7 @@ import {
   writeCachedNotifyEmail,
 } from "@/frontend/lib/hooks/useAccountNotifyEmail";
 import { hasSharingChoiceMade, markSharingChoiceMade, setConsent } from "./lib/consent";
+import { SHARING_SIGNUP_DESCRIPTION, SHARING_SIGNUP_TITLE, SIGNUP_LEAD } from "@/lib/legal";
 import { walletClient } from "./lib/wallet";
 import { TermsModal } from "./components/LegalModals";
 
@@ -237,6 +239,18 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
     };
   }, [mode, pendingIdn]);
 
+  /* Returning user whose server session lapsed: jump straight to their last
+     identity's unlock screen so Face ID can prompt with no clicks. */
+  const autoRouted = useRef(false);
+  useEffect(() => {
+    if (autoRouted.current || mode !== "welcome") return;
+    const idn = biometricAutoUnlockIdentity();
+    if (!idn) return;
+    autoRouted.current = true;
+    setPendingIdn(idn);
+    setMode("device-unlock");
+  }, [mode]);
+
   async function doGenerate() {
     setError("");
     setPhraseCopied(false);
@@ -421,18 +435,30 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
   }
 
   /** Face ID button on the device-unlock screen. */
-  async function biometricUnlock() {
+  async function biometricUnlock(silent = false) {
     if (!pendingIdn) return;
     setError("");
-    setBusy(true);
+    if (!silent) setBusy(true);
+    let pass: string;
     try {
-      const pass = await unlockWithBiometric(pendingIdn.address);
-      await unlockDeviceVault(pass, true);
+      pass = await unlockWithBiometric(pendingIdn.address);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not unlock with Face ID.");
+      if (!silent) setError(e instanceof Error ? e.message : "Could not unlock with Face ID.");
       setBusy(false);
+      return;
     }
+    await unlockDeviceVault(pass, true);
   }
+
+  /* Prompt as soon as the unlock screen is ready. Browsers that demand a user
+     gesture (WebKit) reject instantly — the button below stays as the fallback. */
+  const autoTried = useRef(false);
+  useEffect(() => {
+    if (!canBiometricUnlock || autoTried.current) return;
+    autoTried.current = true;
+    void biometricUnlock(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canBiometricUnlock]);
 
   /** Continue past the one-time Face ID offer into the app. */
   async function proceedAfterOffer() {
@@ -731,8 +757,8 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
       <AuthShell cardRef={cardRef} tight>
         <h2 className="auth-h2">Use Face ID on this Device?</h2>
         <p className="auth-lead">
-          Skip typing your passphrase next time — unlock Custos with Face ID or Touch ID on this
-          browser. Your passphrase is encrypted with your biometric key and never leaves this
+          Next time, Custos will ask for Face ID or Touch ID on its own — no need to type your
+          passphrase. Your passphrase is encrypted with your biometric key and never leaves this
           device.
         </p>
         {offerError ? <div className="auth-error">{offerError}</div> : null}
@@ -763,19 +789,11 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
       <>
         <AuthShell cardRef={cardRef} tight>
           <h2 className="auth-h2">Before You Enter</h2>
-          <p className="auth-lead">
-            Custos is free on the official host with full features. We are a freemium,
-            customer-based app — optional anonymized insights help us keep the lights on. Your
-            encrypted amounts, titles, and notes stay private either way.
-          </p>
+          <p className="auth-lead">{SIGNUP_LEAD}</p>
 
           <div className="consent-card auth-share-card">
-            <div className="consent-title">Optional data sharing</div>
-            <p className="consent-desc">
-              Opt in to share de-identified category totals with vetted research and advertising
-              partners — not your name, wallet address, notes, or decrypted ledger amounts. You can
-              change this anytime under Account → Data &amp; privacy.
-            </p>
+            <div className="consent-title">{SHARING_SIGNUP_TITLE}</div>
+            <p className="consent-desc">{SHARING_SIGNUP_DESCRIPTION}</p>
             <div className="auth-share-choices" role="radiogroup" aria-label="Data sharing choice">
               <button
                 type="button"
@@ -785,7 +803,7 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
                 onClick={() => setSharingChoice("in")}
               >
                 <span className="auth-share-choice-label">Opt in</span>
-                <span className="auth-share-choice-hint">Share anonymized category totals</span>
+                <span className="auth-share-choice-hint">Record a sharing preference</span>
               </button>
               <button
                 type="button"
@@ -796,7 +814,7 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
               >
                 <span className="auth-share-choice-label">Opt out</span>
                 <span className="auth-share-choice-hint">
-                  Do not share — free features unchanged
+                  No preference recorded — free features unchanged
                 </span>
               </button>
             </div>

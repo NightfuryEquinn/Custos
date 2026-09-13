@@ -82,6 +82,55 @@ describe.each([
   });
 });
 
+/** Pull `--accent`/`--accent-contrast` out of a `[data-accent="x"]` block. */
+function parseAccentBlock(selector: string): { accent: string; contrast: string } {
+  const block = css.match(new RegExp(`${selector}\\s*\\{([^}]*)\\}`));
+  if (!block) throw new Error(`accent block not found: ${selector}`);
+  const accent = block[1]!.match(/--accent:\s*(#[0-9a-fA-F]{6})/)?.[1];
+  const contrast = block[1]!.match(/--accent-contrast:\s*(#[0-9a-fA-F]{6})/)?.[1];
+  if (!accent || !contrast) throw new Error(`accent tokens not found in: ${selector}`);
+  return { accent, contrast };
+}
+
+const ACCENT_NAMES = ["moss", "azure", "berry"];
+
+describe.each(ACCENT_NAMES)("Supporter accent '%s' (WCAG 2.1 AA)", (name) => {
+  test("light: --accent on --surface >= 3.0:1, --accent-contrast on --accent >= 4.5:1", () => {
+    const { accent, contrast: onAccent } = parseAccentBlock(`:root\\[data-accent="${name}"\\]`);
+    expect(contrast(accent, light.surface!)).toBeGreaterThanOrEqual(3.0);
+    expect(contrast(onAccent, accent)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  test("dark: --accent on --surface >= 3.0:1, --accent-contrast on --accent >= 4.5:1", () => {
+    const { accent, contrast: onAccent } = parseAccentBlock(
+      `:root\\[data-theme="dark"\\]\\[data-accent="${name}"\\]`,
+    );
+    expect(contrast(accent, dark.surface!)).toBeGreaterThanOrEqual(3.0);
+    expect(contrast(onAccent, accent)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe("accent map and CSS agree", () => {
+  test("every ACCENTS entry in theme.ts matches its ledger.css block", async () => {
+    const { ACCENTS } = await import("@/frontend/lib/theme");
+
+    for (const [name, tokens] of Object.entries(ACCENTS)) {
+      if (name === "clay") {
+        // The default accent lives in the base :root / :root[data-theme] blocks,
+        // not a [data-accent] override — nothing to cross-check here.
+        continue;
+      }
+      const lightBlock = parseAccentBlock(`:root\\[data-accent="${name}"\\]`);
+      const darkBlock = parseAccentBlock(`:root\\[data-theme="dark"\\]\\[data-accent="${name}"\\]`);
+
+      expect(lightBlock.accent).toBe(tokens.light);
+      expect(lightBlock.contrast).toBe(tokens.contrastLight);
+      expect(darkBlock.accent).toBe(tokens.dark);
+      expect(darkBlock.contrast).toBe(tokens.contrastDark);
+    }
+  });
+});
+
 describe("dark archetype accents (.profile-tinted) on --surface", () => {
   const styles = [
     "clockwork",

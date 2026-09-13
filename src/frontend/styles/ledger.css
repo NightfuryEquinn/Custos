@@ -115,6 +115,39 @@
   --scrim: rgba(14, 10, 6, 0.58);
 }
 
+/*
+ * Supporter accent perk — one pair per name, keyed off [data-accent]
+ * on <html>. Must come after the :root[data-theme] blocks above: [data-accent]
+ * has the same specificity (0,2,0) as :root[data-theme="light"], so the light
+ * case is decided by source order and silently no-ops if moved earlier.
+ * Kept in sync with the ACCENTS map in @/frontend/lib/theme.ts — the
+ * "accent map and CSS agree" test in theme-contrast.test.ts catches drift.
+ */
+:root[data-accent="moss"] {
+  --accent: #3f7a52;
+  --accent-contrast: #ffffff;
+}
+:root[data-theme="dark"][data-accent="moss"] {
+  --accent: #8fc79a;
+  --accent-contrast: #1a1714;
+}
+:root[data-accent="azure"] {
+  --accent: #3a6ea5;
+  --accent-contrast: #ffffff;
+}
+:root[data-theme="dark"][data-accent="azure"] {
+  --accent: #8fb8e8;
+  --accent-contrast: #1a1714;
+}
+:root[data-accent="berry"] {
+  --accent: #8a4568;
+  --accent-contrast: #ffffff;
+}
+:root[data-theme="dark"][data-accent="berry"] {
+  --accent: #d99bb8;
+  --accent-contrast: #1a1714;
+}
+
 /* ── 2. Base & reset ──────────────────────────────────────────────── */
 * {
   box-sizing: border-box;
@@ -1328,6 +1361,50 @@ textarea::placeholder {
 .am-name {
   font-weight: 600;
   font-size: 14.5px;
+}
+
+.accent-swatches {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.accent-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-full);
+  border: 2px solid transparent;
+  box-shadow: 0 0 0 1px var(--border);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.accent-swatch:hover:not(:disabled) {
+  transform: scale(1.08);
+}
+
+.accent-swatch.is-selected {
+  border-color: var(--surface);
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+.accent-swatch:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.am-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: var(--r-full);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 700;
+  vertical-align: middle;
 }
 
 .am-addr {
@@ -4785,11 +4862,18 @@ textarea::placeholder {
 .calculator-alloc-head {
   flex-wrap: wrap;
   align-items: flex-start;
+  /* Panel-head's default space-between pins the mode toggle to the far edge
+     of this (often much wider) panel, leaving a big empty gap next to the
+     short title. Keep the toggle right after the copy instead. */
+  justify-content: flex-start;
+  gap: var(--sp-4);
 }
 
 .calculator-alloc-head-copy {
   min-width: 0;
-  flex: 1 1 180px;
+  /* Content width, not stretched to fill the row — flex-grow here is what
+     pushed the toggle away from the title in the first place. */
+  flex: 0 1 auto;
 }
 
 .calculator-alloc-head-copy h2 {
@@ -7619,6 +7703,16 @@ textarea::placeholder {
   font-size: 12.5px;
   font-weight: 600;
   width: 100%;
+}
+
+/* The border-top above reads as a divider under a .consent-top row (title +
+   toggle). When .consent-status is the only thing in its .consent-card —
+   there's no .consent-top above it — that line just doubles up with the
+   card's own border a few pixels down. */
+.consent-status--flush {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 .cs-dot {

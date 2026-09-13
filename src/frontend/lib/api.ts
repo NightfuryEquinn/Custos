@@ -32,6 +32,10 @@ type ApiProfile = {
      follows the user across devices instead of dying with localStorage. */
   tourPreference: TourPreference;
   toursSeen: string[];
+  /* Version of the Terms this account has accepted; undefined = never. */
+  termsVersion?: string;
+  /* Supporter accent perk; undefined = default "clay". */
+  accent?: string;
   /* ISO timestamp of profile creation. */
   createdAt: string;
 };
@@ -53,6 +57,8 @@ type ApiUser = {
   timezone?: string;
   emailRemindersEnabled?: boolean;
   budgetAlertsEnabled?: boolean;
+  /* ISO timestamp set only by the manual grant script; undefined = not a supporter. */
+  supporterSince?: string;
 };
 
 type ApiConsent = {
@@ -231,7 +237,14 @@ export const api = {
     get() {
       return request<{ profile: ApiProfile }>("/profile");
     },
-    update(body: Partial<Pick<ApiProfile, "currentMonth" | "tourPreference" | "toursSeen">>) {
+    update(
+      body: Partial<
+        Pick<
+          ApiProfile,
+          "currentMonth" | "tourPreference" | "toursSeen" | "termsVersion" | "accent"
+        >
+      >,
+    ) {
       return request<{ profile: ApiProfile }>("/profile", { method: "PATCH", body });
     },
   },

@@ -1,4 +1,5 @@
 import { ACCOUNT_STALE_DAYS } from "@/lib/account-retention";
+import { SHARING_LEGAL_PARAGRAPH, TERMS_UPDATED } from "@/lib/legal";
 import { Icon } from "@/frontend/components/ui";
 import { useModalMotion } from "@/frontend/lib/animate";
 import { useRef } from "react";
@@ -42,7 +43,7 @@ export function TermsModal({ onClose }: LegalModalProps) {
         </div>
         <div className="modal-body modal-scroll">
           <p className="dm-lead">
-            Last updated August 25, 2026. By using Custos you agree to these terms.
+            Last updated {TERMS_UPDATED}. By using Custos you agree to these terms.
           </p>
 
           <div className="dm-sec">
@@ -86,16 +87,8 @@ export function TermsModal({ onClose }: LegalModalProps) {
           <div className="dm-div" />
 
           <div className="dm-sec">
-            <span className="fld-label">Freemium &amp; optional data sharing</span>
-            <p className="legal-p">
-              Custos is free on the official host. We are a freemium, customer-based product and may
-              fund the service through optional insights. With your consent, we may share
-              de-identified category totals with vetted research and advertising partners — not your
-              name, wallet address, notes, or decrypted ledger amounts. Transaction amounts, titles,
-              and notes remain end-to-end encrypted. You choose opt-in or opt-out at signup and may
-              change that choice anytime under Account → Data &amp; privacy. Opting out does not
-              reduce free hosted features.
-            </p>
+            <span className="fld-label">Freemium &amp; data sharing</span>
+            <p className="legal-p">{SHARING_LEGAL_PARAGRAPH}</p>
           </div>
 
           <div className="dm-div" />
@@ -116,7 +109,7 @@ export function TermsModal({ onClose }: LegalModalProps) {
             <p className="legal-p">
               The Custos source code is proprietary (Custos Proprietary License). The repository is
               public for transparency and evaluation. Using this hosted service does not grant you
-              rights to copy, modify, redistribute, self-host, rebrand, or offer Sched Ledger as a
+              rights to copy, modify, redistribute, self-host, rebrand, or offer Custos as a
               competing commercial product or hosted service except under a separate written
               commercial agreement with the Licensor. See the project LICENSE file and Copyright
               notice.

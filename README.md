@@ -36,7 +36,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 
 - **Web3 identity** — create or restore an in-browser wallet (12- or 24-word recovery phrase); sign in with a cryptographic challenge (SIWE-style). Prefer a **ledger-only** key so the auth address is not correlated with on-chain activity
 - **Device passphrase vault** — recovery phrase quiz on create; in-app keys wrapped with a local passphrase (PBKDF2 + AES-GCM) instead of plaintext `localStorage`
-- **Face ID / Touch ID unlock** — optional per-device biometric unlock via WebAuthn PRF; the passphrase is encrypted with a key derived from the biometric assertion and never stored in the clear. Offered once after your first passphrase unlock, or toggle anytime under **Account → Preferences**
+- **Face ID / Touch ID unlock** — optional per-device biometric unlock via WebAuthn PRF; the passphrase is encrypted with a key derived from the biometric assertion and never stored in the clear. Offered once after your first passphrase unlock, or toggle anytime under **Account → Preferences**. When it is on, the unlock screen prompts automatically on open and a returning device skips the welcome screen straight to that identity — the button and passphrase field stay as fallbacks, browsers that require a tap fail silently, and an explicit sign out turns the auto-prompt off until you sign in again
 - **Dark mode** — system-aware theme toggle, persisted locally; dark palette targets **WCAG 2.1 AA** contrast (≥ 4.5:1 normal text, ≥ 3.0:1 large text / UI chrome) with brighter secondary ink (`--ink-faint`), clearer card borders, high-contrast filled controls (`--accent-contrast`), and vivid status / progress fills
 - **Typography** — Young Serif (display), Schibsted Grotesk (UI), and Azeret Mono (amounts), self-hosted SIL OFL faces in `src/frontend/styles/fonts.css` and shared with the marketing site; summary amounts stay 20–24px and reflow on narrow screens so long figures do not overflow
 - **Sessions & privacy** — HttpOnly session cookies with sliding token rotation, revoke devices, clear local data, and third-party data-sharing consent under **Account → Data & privacy**
@@ -56,7 +56,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - Ownership uses opaque `accountId` (`users._id`); the SIWE address stays on `users` for login only
 - New document ids are random ObjectIds (no embedded creation timestamp)
 - Signature verification, Mongo-backed rate limiting (in-memory fallback), security headers, in-memory profile cache
-- Automated tests for crypto unlock/codec, device vault, encrypted backup, reminder email privacy, calculator, spending habits, session auth, budget-alert evaluation, envelope holds, multi-day and recurring schedule math, push dedupe, compound list pagination, cron scan cursors, security-header parity, the ranked-insight model, transaction and fuel insights, vehicle routes, and the release-notes gate (`bun test`)
+- Automated tests for crypto unlock/codec, device vault, encrypted backup, biometric auto-unlock selection, reminder email privacy, calculator, spending habits, session auth, budget-alert evaluation, envelope holds, multi-day and recurring schedule math, push dedupe, compound list pagination, cron scan cursors, security-header parity, the ranked-insight model, transaction and fuel insights, vehicle routes, and the release-notes gate (`bun test`)
 
 ## Tech stack
 
@@ -265,7 +265,9 @@ Sign-in is wallet-based and verified on the server:
 3. `POST /api/auth/verify` — server verifies the signature and sets an **HttpOnly** `ledger_session` cookie
 4. Authenticated requests use `credentials: include` (no spoofable address header)
 
-Manage sessions under **Account → Data & privacy** (revoke devices, sign out everywhere, clear cookies and local storage). Restore access on a new device with your **12- or 24-word recovery phrase**, then set a **device passphrase** so the key is encrypted on that browser.
+Manage sessions under **Account → Data & privacy** (revoke devices, sign out everywhere, clear cookies and local storage). Restore access on a new device with your **12- or 24-word recovery phrase**, then set a **device passphrase** so the key is encrypted on that browser. Signing in again from a browser that lost its session cookie (private mode, a partial "clear site data") replaces that browser's prior session instead of adding a duplicate to Active Sessions — matched by User-Agent, so a genuinely different device is still tracked separately.
+
+If Face ID / Touch ID is enrolled for the identity you last used on this device, a lapsed server session skips the welcome screen and reopens that identity's unlock screen with the biometric prompt already firing — no tap required. This is gated entirely on `ledger:session` in local storage, which sign-out clears, so a deliberate sign-out always returns you to the welcome screen next time.
 
 ### Encryption
 
@@ -413,16 +415,26 @@ curl -sS -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/j
 10. **Push notifications** — open **Account → Preferences**, enable push, and confirm the device registers (needs the `VAPID_*` keys; on iOS add the app to the Home Screen first).
 11. **What's New** — confirm the release notes open on a device that has not seen this version, and that **Account → What's New** reopens them afterwards.
 12. **First-run tour prompt** — sign in with a fresh wallet and confirm the welcome modal appears once. Choose **I'll explore** and confirm no tour auto-opens on any view and the prompt does not return after a reload; with another fresh wallet choose **Show me around**, close the shell tour with the X, and confirm it stays closed on reload.
+13. **Face ID auto-unlock** — on a device with Face ID enrolled, clear the server session cookie (leave local storage intact) and reload: the app should jump straight to that identity's unlock screen with the OS prompt already open, no tap needed. Then sign out explicitly and reload, and confirm you land back on the welcome screen with no auto-prompt.
+14. **Session dedup** — sign in, clear just that browser's `ledger_session` cookie (leave the wallet identity in local storage), sign in again on the same browser, and confirm **Account → Data & privacy → Active Sessions** still shows one entry, not two.
 
 ### Serverless notes
 
 - Rate limiting uses the shared Mongo `rate_limits` collection across function instances (in-memory fallback if the DB is unavailable). Profile cache and FX cache remain in-memory per instance.
 - Cold starts may add latency on the first request while MongoDB connects; warm instances reuse the cached client.
 
+## Support Custos
+
+The official hosted app is free with full features, and always will be — nothing below gates the ledger, encryption, exports, or backups. **Account → Support Custos** links to:
+
+- **Tips** — Ko-fi or GitHub Sponsors, one-off or recurring.
+- **Supporter** — a monthly subscription via Lemon Squeezy for a badge next to your name and a choice of accent colors. Checkout collects the wallet address you sign in with; the perk is granted with [`scripts/grant-supporter.ts`](scripts/grant-supporter.ts) and typically appears within 24 hours. Grant/revoke is a manual, one-off flag — it does not automatically track subscription status.
+- Disclosed, non-personalized affiliate offers and B2B services on the [website](https://nightfuryequinn.github.io/Custos/offers.html) — never inside the app, never near ledger content.
+
 ## License
 
 Custos is proprietary ([LICENSE](LICENSE)). The repository is public for **transparency and evaluation**.
 
-- **Free to use** on the Licensor’s official hosted app (full features), under the in-app Terms. Optional anonymized category-total sharing is opt-in/out — your choice, changeable anytime.
-- **Not free to self-host, rebrand, claim as your product, or offer as a competing service.** Those uses need a written commercial agreement (monthly fee, collaboration, or copyright buyout).
+- **Free to use** on the Licensor's official hosted app (full features), under the in-app Terms. Custos does not share your data with anyone — the "data sharing" toggle under Data & privacy only records a preference for a possible future opt-in programme that does not exist yet.
+- **Not free to self-host, rebrand, claim as your product, or offer as a competing service.** Those uses need a written commercial agreement (monthly fee, collaboration, or copyright buyout) — see [Commercial and self-hosting](https://nightfuryequinn.github.io/Custos/services.html) for fixed-price options.
 - Contact: [xianzyip8@gmail.com](mailto:xianzyip8@gmail.com)

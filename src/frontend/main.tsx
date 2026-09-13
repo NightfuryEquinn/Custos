@@ -1,6 +1,12 @@
 import { Root } from "@/frontend/app/Root";
 import logoUrl from "@/frontend/assets/logo.png";
-import { applyTheme, getStoredTheme, resolveDark } from "@/frontend/lib/theme";
+import {
+  applyAccent,
+  applyTheme,
+  getStoredAccent,
+  getStoredTheme,
+  resolveDark,
+} from "@/frontend/lib/theme";
 import { registerServiceWorker } from "@/frontend/lib/pwa/register";
 import "@/frontend/styles/fonts.css";
 import "@/frontend/styles/ledger.css";
@@ -13,6 +19,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 applyTheme(resolveDark(getStoredTheme()));
+applyAccent(getStoredAccent());
 registerServiceWorker();
 
 /** Attach the web app manifest without involving the HTML bundler. */

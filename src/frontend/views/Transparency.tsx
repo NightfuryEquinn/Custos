@@ -35,6 +35,11 @@ const COLLECTIONS: CollectionDoc[] = [
       { key: "emailRemindersEnabled?", value: "true" },
       { key: "budgetAlertsEnabled?", value: "true" },
       {
+        key: "supporterSince?",
+        value: "ISO date",
+        note: "set only by the manual grant script — a monthly Supporter subscription perk",
+      },
+      {
         key: "lastSeenAt?",
         value: "ISO date",
         note: `Login / session activity; stale accounts purged after ${ACCOUNT_STALE_DAYS} days`,
@@ -50,6 +55,16 @@ const COLLECTIONS: CollectionDoc[] = [
       { key: "currentMonth", value: '"2026-07"', note: "YYYY-MM" },
       { key: "tourPreference", value: '"guided"', note: "pending | guided | explore" },
       { key: "toursSeen", value: '["shell", "overview"]', note: "tour ids already shown" },
+      {
+        key: "termsVersion?",
+        value: '"2026-09-13"',
+        note: "Terms version accepted; undefined means never accepted",
+      },
+      {
+        key: "accent?",
+        value: '"moss"',
+        note: "Supporter accent perk; undefined means default (clay)",
+      },
       { key: "createdAt / updatedAt", value: "ISO dates" },
     ],
   },
@@ -535,9 +550,12 @@ export function Transparency() {
               they stay readable at every width. On desktop you navigate from the sidebar; on phone
               and tablet portrait a five-tab bar (Overview, Schedule, Transactions, To-Do, More)
               opens a sheet for the remaining views. A device passphrase wraps your in-app recovery
-              key on this browser; encrypted backups download to your machine only. The installable
-              PWA may cache ciphertext locally for offline reads — saves still need the network.
-              Older rows may still carry legacy plaintext columns from before E2EE payloads.
+              key on this browser; encrypted backups download to your machine only. Optional Face ID
+              / Touch ID unlock runs entirely in the browser through WebAuthn — it can prompt on its
+              own when you open the app, but the server never receives the credential, the
+              assertion, or any signal that a biometric check happened. The installable PWA may
+              cache ciphertext locally for offline reads — saves still need the network. Older rows
+              may still carry legacy plaintext columns from before E2EE payloads.
             </p>
           </div>
         </div>
@@ -588,6 +606,11 @@ export function Transparency() {
               an identity/behavior graph without decrypting ciphertext. E2EE does not remove
               data-protection obligations for plaintext metadata under regimes like GDPR/CCPA — not
               legal advice; get a lawyer&apos;s read if you ship commercially.
+            </p>
+            <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
+              Automatic Face ID / Touch ID unlock changes nothing here: the server still only sees a
+              normal signature-based sign-in and cannot tell a biometric unlock from a typed
+              passphrase.
             </p>
           </div>
         </div>
