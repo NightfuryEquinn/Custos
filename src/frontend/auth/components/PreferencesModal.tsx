@@ -204,7 +204,8 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
                 <span className="fld-label">Face ID</span>
                 <p className="dm-lead">
                   Unlock Custos on this device with Face ID or Touch ID instead of typing your
-                  device passphrase.
+                  device passphrase. Once enabled, the unlock screen prompts on its own when you
+                  open the app — no button press needed.
                 </p>
                 <div className="consent-card">
                   <div className="consent-top">

@@ -36,6 +36,28 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "5.0.0",
+    date: "September 2026",
+    lead: "Face ID and Touch ID now prompt on their own when you open Custos, so a returning device signs in without a single tap.",
+    highlights: [
+      {
+        icon: "shield",
+        title: "Face ID prompts automatically",
+        body: "The unlock screen asks for Face ID or Touch ID as soon as it opens instead of waiting for you to press a button. The Unlock with Face ID button is still there as a fallback, and your device passphrase always works.",
+      },
+      {
+        icon: "sparkle",
+        title: "Straight to your identity",
+        body: "If this device already has Face ID set up for the identity you last used, Custos skips the welcome screen and opens that identity's unlock screen directly. Signing out on purpose clears this, so you land back on the welcome screen next time.",
+      },
+      {
+        icon: "info",
+        title: "Quiet when it can't run",
+        body: "Browsers that require a tap before a biometric check, and prompts you dismiss, fall back to the button and passphrase field with no error message. Nothing new is stored on this device and nothing about the prompt reaches the server.",
+      },
+    ],
+  },
+  {
     version: "4.5.5",
     date: "September 2026",
     lead: "Calculator allocation can use a currency amount per category instead of only percentages, with a Percent / Amount toggle that converts your draft.",

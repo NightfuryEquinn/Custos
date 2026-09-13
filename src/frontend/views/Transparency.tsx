@@ -535,9 +535,12 @@ export function Transparency() {
               they stay readable at every width. On desktop you navigate from the sidebar; on phone
               and tablet portrait a five-tab bar (Overview, Schedule, Transactions, To-Do, More)
               opens a sheet for the remaining views. A device passphrase wraps your in-app recovery
-              key on this browser; encrypted backups download to your machine only. The installable
-              PWA may cache ciphertext locally for offline reads — saves still need the network.
-              Older rows may still carry legacy plaintext columns from before E2EE payloads.
+              key on this browser; encrypted backups download to your machine only. Optional Face ID
+              / Touch ID unlock runs entirely in the browser through WebAuthn — it can prompt on its
+              own when you open the app, but the server never receives the credential, the
+              assertion, or any signal that a biometric check happened. The installable PWA may
+              cache ciphertext locally for offline reads — saves still need the network. Older rows
+              may still carry legacy plaintext columns from before E2EE payloads.
             </p>
           </div>
         </div>
@@ -588,6 +591,11 @@ export function Transparency() {
               an identity/behavior graph without decrypting ciphertext. E2EE does not remove
               data-protection obligations for plaintext metadata under regimes like GDPR/CCPA — not
               legal advice; get a lawyer&apos;s read if you ship commercially.
+            </p>
+            <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
+              Automatic Face ID / Touch ID unlock changes nothing here: the server still only sees a
+              normal signature-based sign-in and cannot tell a biometric unlock from a typed
+              passphrase.
             </p>
           </div>
         </div>

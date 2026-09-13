@@ -36,7 +36,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 
 - **Web3 identity** — create or restore an in-browser wallet (12- or 24-word recovery phrase); sign in with a cryptographic challenge (SIWE-style). Prefer a **ledger-only** key so the auth address is not correlated with on-chain activity
 - **Device passphrase vault** — recovery phrase quiz on create; in-app keys wrapped with a local passphrase (PBKDF2 + AES-GCM) instead of plaintext `localStorage`
-- **Face ID / Touch ID unlock** — optional per-device biometric unlock via WebAuthn PRF; the passphrase is encrypted with a key derived from the biometric assertion and never stored in the clear. Offered once after your first passphrase unlock, or toggle anytime under **Account → Preferences**
+- **Face ID / Touch ID unlock** — optional per-device biometric unlock via WebAuthn PRF; the passphrase is encrypted with a key derived from the biometric assertion and never stored in the clear. Offered once after your first passphrase unlock, or toggle anytime under **Account → Preferences**. When it is on, the unlock screen prompts automatically on open and a returning device skips the welcome screen straight to that identity — the button and passphrase field stay as fallbacks, browsers that require a tap fail silently, and an explicit sign out turns the auto-prompt off until you sign in again
 - **Dark mode** — system-aware theme toggle, persisted locally; dark palette targets **WCAG 2.1 AA** contrast (≥ 4.5:1 normal text, ≥ 3.0:1 large text / UI chrome) with brighter secondary ink (`--ink-faint`), clearer card borders, high-contrast filled controls (`--accent-contrast`), and vivid status / progress fills
 - **Typography** — Young Serif (display), Schibsted Grotesk (UI), and Azeret Mono (amounts), self-hosted SIL OFL faces in `src/frontend/styles/fonts.css` and shared with the marketing site; summary amounts stay 20–24px and reflow on narrow screens so long figures do not overflow
 - **Sessions & privacy** — HttpOnly session cookies with sliding token rotation, revoke devices, clear local data, and third-party data-sharing consent under **Account → Data & privacy**
@@ -56,7 +56,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - Ownership uses opaque `accountId` (`users._id`); the SIWE address stays on `users` for login only
 - New document ids are random ObjectIds (no embedded creation timestamp)
 - Signature verification, Mongo-backed rate limiting (in-memory fallback), security headers, in-memory profile cache
-- Automated tests for crypto unlock/codec, device vault, encrypted backup, reminder email privacy, calculator, spending habits, session auth, budget-alert evaluation, envelope holds, multi-day and recurring schedule math, push dedupe, compound list pagination, cron scan cursors, security-header parity, the ranked-insight model, transaction and fuel insights, vehicle routes, and the release-notes gate (`bun test`)
+- Automated tests for crypto unlock/codec, device vault, encrypted backup, biometric auto-unlock selection, reminder email privacy, calculator, spending habits, session auth, budget-alert evaluation, envelope holds, multi-day and recurring schedule math, push dedupe, compound list pagination, cron scan cursors, security-header parity, the ranked-insight model, transaction and fuel insights, vehicle routes, and the release-notes gate (`bun test`)
 
 ## Tech stack
 
@@ -267,6 +267,8 @@ Sign-in is wallet-based and verified on the server:
 
 Manage sessions under **Account → Data & privacy** (revoke devices, sign out everywhere, clear cookies and local storage). Restore access on a new device with your **12- or 24-word recovery phrase**, then set a **device passphrase** so the key is encrypted on that browser.
 
+If Face ID / Touch ID is enrolled for the identity you last used on this device, a lapsed server session skips the welcome screen and reopens that identity's unlock screen with the biometric prompt already firing — no tap required. This is gated entirely on `ledger:session` in local storage, which sign-out clears, so a deliberate sign-out always returns you to the welcome screen next time.
+
 ### Encryption
 
 Ledger data (transaction amounts, categories, notes, schedule titles, budget holds, to-do lists, and per-wallet budgets/income) is encrypted in your browser with **AES-256-GCM**. The encryption key is derived from a wallet signature over a fixed message — it never leaves your device and is held in memory for the session only.
@@ -413,6 +415,7 @@ curl -sS -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/j
 10. **Push notifications** — open **Account → Preferences**, enable push, and confirm the device registers (needs the `VAPID_*` keys; on iOS add the app to the Home Screen first).
 11. **What's New** — confirm the release notes open on a device that has not seen this version, and that **Account → What's New** reopens them afterwards.
 12. **First-run tour prompt** — sign in with a fresh wallet and confirm the welcome modal appears once. Choose **I'll explore** and confirm no tour auto-opens on any view and the prompt does not return after a reload; with another fresh wallet choose **Show me around**, close the shell tour with the X, and confirm it stays closed on reload.
+13. **Face ID auto-unlock** — on a device with Face ID enrolled, clear the server session cookie (leave local storage intact) and reload: the app should jump straight to that identity's unlock screen with the OS prompt already open, no tap needed. Then sign out explicitly and reload, and confirm you land back on the welcome screen with no auto-prompt.
 
 ### Serverless notes
 
