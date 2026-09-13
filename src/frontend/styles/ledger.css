@@ -4862,11 +4862,18 @@ textarea::placeholder {
 .calculator-alloc-head {
   flex-wrap: wrap;
   align-items: flex-start;
+  /* Panel-head's default space-between pins the mode toggle to the far edge
+     of this (often much wider) panel, leaving a big empty gap next to the
+     short title. Keep the toggle right after the copy instead. */
+  justify-content: flex-start;
+  gap: var(--sp-4);
 }
 
 .calculator-alloc-head-copy {
   min-width: 0;
-  flex: 1 1 180px;
+  /* Content width, not stretched to fill the row — flex-grow here is what
+     pushed the toggle away from the title in the first place. */
+  flex: 0 1 auto;
 }
 
 .calculator-alloc-head-copy h2 {
@@ -7696,6 +7703,16 @@ textarea::placeholder {
   font-size: 12.5px;
   font-weight: 600;
   width: 100%;
+}
+
+/* The border-top above reads as a divider under a .consent-top row (title +
+   toggle). When .consent-status is the only thing in its .consent-card —
+   there's no .consent-top above it — that line just doubles up with the
+   card's own border a few pixels down. */
+.consent-status--flush {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 .cs-dot {

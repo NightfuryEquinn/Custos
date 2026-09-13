@@ -80,12 +80,15 @@ export function SupportModal({ onClose }: SupportModalProps) {
           </p>
 
           {supporterSince ? (
-            <div className="consent-card">
-              <div className="consent-status cs-on">
-                <span className="cs-dot" />
-                Supporter since {new Date(supporterSince).toLocaleDateString()}
+            <>
+              <div className="consent-card">
+                <div className="consent-status consent-status--flush cs-on">
+                  <span className="cs-dot" />
+                  Supporter since {new Date(supporterSince).toLocaleDateString()}
+                </div>
               </div>
-            </div>
+              <div className="dm-div" />
+            </>
           ) : null}
 
           <div className="dm-sec">
