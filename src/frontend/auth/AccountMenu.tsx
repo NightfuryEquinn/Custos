@@ -23,6 +23,7 @@ import { Identicon } from "./components/Identicon";
 import { CopyrightModal, TermsModal } from "./components/LegalModals";
 import { PreferencesModal } from "./components/PreferencesModal";
 import { RecoveryReveal } from "./components/RecoveryReveal";
+import { SupportModal } from "./components/SupportModal";
 import { copyText } from "./lib/clipboard";
 import { shortAddr } from "./lib/format";
 import { identityStorage } from "./lib/identity-storage";
@@ -102,6 +103,8 @@ export function AccountMenu({
   const [csvOpen, setCsvOpen] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
   const [copyrightOpen, setCopyrightOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supporterSince, setSupporterSince] = useState<string | undefined>(undefined);
   const [copied, setCopied] = useState(false);
   const [timezone, setTimezone] = useState(() => browserTimezone());
   const [timezoneSaved, setTimezoneSaved] = useState(false);
@@ -114,6 +117,7 @@ export function AccountMenu({
     api.users
       .me()
       .then(({ user }) => {
+        setSupporterSince(user.supporterSince);
         if (user.timezone) {
           setTimezone(user.timezone);
           setTimezoneSaved(true);
@@ -173,6 +177,7 @@ export function AccountMenu({
       >
         <Identicon address={account.address} size={28} radius={9} />
         <span className="acct-name">{account.codename}</span>
+        {supporterSince ? <span className="am-badge">Supporter</span> : null}
         <Icon name="chevD" size={15} />
       </button>
       {open ? (
@@ -180,7 +185,10 @@ export function AccountMenu({
           <div className="am-head">
             <Identicon address={account.address} size={40} />
             <div>
-              <div className="am-name">{account.codename}</div>
+              <div className="am-name">
+                {account.codename}
+                {supporterSince ? <span className="am-badge">Supporter</span> : null}
+              </div>
               <div className="am-addr num">{shortAddr(account.address)}</div>
             </div>
           </div>
@@ -301,6 +309,16 @@ export function AccountMenu({
           >
             <Icon name="info" size={16} /> Copyright
           </button>
+          <button
+            className="am-item"
+            type="button"
+            onClick={() => {
+              setSupportOpen(true);
+              setOpen(false);
+            }}
+          >
+            <Icon name="sparkle" size={16} /> Support Custos
+          </button>
           <div className="am-div" />
           {onTakeTour ? (
             <button
@@ -360,6 +378,7 @@ export function AccountMenu({
       ) : null}
       {termsOpen ? <TermsModal onClose={() => setTermsOpen(false)} /> : null}
       {copyrightOpen ? <CopyrightModal onClose={() => setCopyrightOpen(false)} /> : null}
+      {supportOpen ? <SupportModal onClose={() => setSupportOpen(false)} /> : null}
     </div>
   );
 }

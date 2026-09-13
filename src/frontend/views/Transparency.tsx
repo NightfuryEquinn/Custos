@@ -35,6 +35,11 @@ const COLLECTIONS: CollectionDoc[] = [
       { key: "emailRemindersEnabled?", value: "true" },
       { key: "budgetAlertsEnabled?", value: "true" },
       {
+        key: "supporterSince?",
+        value: "ISO date",
+        note: "set only by the manual grant script — a one-time Lifetime Supporter unlock",
+      },
+      {
         key: "lastSeenAt?",
         value: "ISO date",
         note: `Login / session activity; stale accounts purged after ${ACCOUNT_STALE_DAYS} days`,

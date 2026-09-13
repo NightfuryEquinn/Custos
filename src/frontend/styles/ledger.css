@@ -1330,6 +1330,20 @@ textarea::placeholder {
   font-size: 14.5px;
 }
 
+.am-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: var(--r-full);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
 .am-addr {
   font-size: 12px;
   color: var(--ink-faint);

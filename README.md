@@ -422,10 +422,18 @@ curl -sS -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/j
 - Rate limiting uses the shared Mongo `rate_limits` collection across function instances (in-memory fallback if the DB is unavailable). Profile cache and FX cache remain in-memory per instance.
 - Cold starts may add latency on the first request while MongoDB connects; warm instances reuse the cached client.
 
+## Support Custos
+
+The official hosted app is free with full features, and always will be — nothing below gates the ledger, encryption, exports, or backups. **Account → Support Custos** links to:
+
+- **Tips** — Ko-fi or GitHub Sponsors, one-off or recurring.
+- **Lifetime Supporter** — a one-time unlock via Lemon Squeezy (or a Stripe Payment Link as a fallback) for a badge next to your name and a choice of accent colors. Checkout collects the wallet address you sign in with; the perk is granted with [`scripts/grant-supporter.ts`](scripts/grant-supporter.ts) and typically appears within 24 hours.
+- Disclosed, non-personalized affiliate offers and B2B services on the [website](https://nightfuryequinn.github.io/Custos/offers.html) — never inside the app, never near ledger content.
+
 ## License
 
 Custos is proprietary ([LICENSE](LICENSE)). The repository is public for **transparency and evaluation**.
 
-- **Free to use** on the Licensor’s official hosted app (full features), under the in-app Terms. Optional anonymized category-total sharing is opt-in/out — your choice, changeable anytime.
-- **Not free to self-host, rebrand, claim as your product, or offer as a competing service.** Those uses need a written commercial agreement (monthly fee, collaboration, or copyright buyout).
+- **Free to use** on the Licensor's official hosted app (full features), under the in-app Terms. Custos does not share your data with anyone — the "data sharing" toggle under Data & privacy only records a preference for a possible future opt-in programme that does not exist yet.
+- **Not free to self-host, rebrand, claim as your product, or offer as a competing service.** Those uses need a written commercial agreement (monthly fee, collaboration, or copyright buyout) — see [Commercial and self-hosting](https://nightfuryequinn.github.io/Custos/services.html) for fixed-price options.
 - Contact: [xianzyip8@gmail.com](mailto:xianzyip8@gmail.com)

@@ -55,6 +55,8 @@ type ApiUser = {
   timezone?: string;
   emailRemindersEnabled?: boolean;
   budgetAlertsEnabled?: boolean;
+  /* ISO timestamp set only by the manual grant script; undefined = not a supporter. */
+  supporterSince?: string;
 };
 
 type ApiConsent = {
