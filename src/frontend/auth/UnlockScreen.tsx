@@ -138,18 +138,30 @@ export function UnlockScreen({
     setBusy(false);
   }
 
-  async function biometricUnlock() {
+  async function biometricUnlock(silent = false) {
     if (!idn) return;
     setError("");
-    setBusy(true);
+    if (!silent) setBusy(true);
+    let pass: string;
     try {
-      const pass = await unlockWithBiometric(idn.address);
-      await unlock(pass, true);
+      pass = await unlockWithBiometric(idn.address);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not unlock with Face ID.");
+      if (!silent) setError(e instanceof Error ? e.message : "Could not unlock with Face ID.");
       setBusy(false);
+      return;
     }
+    await unlock(pass, true);
   }
+
+  /* Prompt as soon as the screen is ready. Browsers that demand a user gesture
+     (WebKit) reject instantly — the button below stays as the fallback. */
+  const autoTried = useRef(false);
+  useEffect(() => {
+    if (!canBiometricUnlock || autoTried.current) return;
+    autoTried.current = true;
+    void biometricUnlock(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canBiometricUnlock]);
 
   async function acceptBiometricOffer() {
     if (!idn) return;
@@ -182,8 +194,8 @@ export function UnlockScreen({
           <Brand />
           <h1>Use Face ID on this Device?</h1>
           <p className="auth-lead">
-            Skip typing your passphrase next time — unlock Custos with Face ID or Touch ID on this
-            browser. Your passphrase is encrypted with your biometric key and never leaves this
+            Next time, Custos will ask for Face ID or Touch ID on its own — no need to type your
+            passphrase. Your passphrase is encrypted with your biometric key and never leaves this
             device.
           </p>
           {offerError ? <p className="auth-error">{offerError}</p> : null}

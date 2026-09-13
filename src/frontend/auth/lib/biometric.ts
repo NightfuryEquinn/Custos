@@ -7,7 +7,9 @@
  * assertion.
  */
 
+import type { IdentityRecord } from "@/frontend/lib/types";
 import { base64ToBytes, bytesToBase64 } from "./device-vault";
+import { identityStorage } from "./identity-storage";
 
 const RECORDS_KEY = "ledger:biometric:v1";
 const ASKED_KEY = "ledger:biometric:asked:v1";
@@ -204,6 +206,14 @@ export async function unlockWithBiometric(address: string): Promise<string> {
       throw new Error("Face ID could not unlock this device.");
     }
   }
+}
+
+/** The identity this device should auto-prompt Face ID for, if any. */
+export function biometricAutoUnlockIdentity(): IdentityRecord | undefined {
+  const addr = identityStorage.session();
+  const idn = addr ? identityStorage.find(addr) : undefined;
+
+  return idn?.vault && !idn.injected && biometricEnrolled(idn.address) ? idn : undefined;
 }
 
 export function disableBiometric(address: string) {

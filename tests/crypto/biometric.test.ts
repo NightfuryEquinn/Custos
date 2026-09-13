@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import {
+  biometricAutoUnlockIdentity,
   biometricEnrolled,
   disableBiometric,
   enrollBiometric,
@@ -90,5 +91,23 @@ describe("biometric vault", () => {
 
     disableBiometric("0xjkl");
     expect(biometricEnrolled("0xjkl")).toBe(false);
+  });
+
+  test("auto-unlock identity is the enrolled last-session vault, and nothing else", async () => {
+    stubCredentials(fixedBuffer(5));
+    const addr = "0x1111111111111111111111111111111111111111";
+    store.setItem(
+      "ledger:identities",
+      JSON.stringify([{ address: addr, codename: "c", vault: { any: "blob" }, injected: false }]),
+    );
+
+    store.setItem("ledger:session", addr);
+    expect(biometricAutoUnlockIdentity()).toBeUndefined(); // not enrolled yet
+
+    await enrollBiometric(addr, "c", "pass");
+    expect(biometricAutoUnlockIdentity()?.address).toBe(addr);
+
+    store.removeItem("ledger:session"); // signed out on purpose
+    expect(biometricAutoUnlockIdentity()).toBeUndefined();
   });
 });

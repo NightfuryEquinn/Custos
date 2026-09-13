@@ -15,6 +15,7 @@ import {
   wrapSecrets,
 } from "./lib/device-vault";
 import {
+  biometricAutoUnlockIdentity,
   biometricEnrolled,
   biometricSupported,
   enrollBiometric,
@@ -237,6 +238,18 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
     };
   }, [mode, pendingIdn]);
 
+  /* Returning user whose server session lapsed: jump straight to their last
+     identity's unlock screen so Face ID can prompt with no clicks. */
+  const autoRouted = useRef(false);
+  useEffect(() => {
+    if (autoRouted.current || mode !== "welcome") return;
+    const idn = biometricAutoUnlockIdentity();
+    if (!idn) return;
+    autoRouted.current = true;
+    setPendingIdn(idn);
+    setMode("device-unlock");
+  }, [mode]);
+
   async function doGenerate() {
     setError("");
     setPhraseCopied(false);
@@ -421,18 +434,30 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
   }
 
   /** Face ID button on the device-unlock screen. */
-  async function biometricUnlock() {
+  async function biometricUnlock(silent = false) {
     if (!pendingIdn) return;
     setError("");
-    setBusy(true);
+    if (!silent) setBusy(true);
+    let pass: string;
     try {
-      const pass = await unlockWithBiometric(pendingIdn.address);
-      await unlockDeviceVault(pass, true);
+      pass = await unlockWithBiometric(pendingIdn.address);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not unlock with Face ID.");
+      if (!silent) setError(e instanceof Error ? e.message : "Could not unlock with Face ID.");
       setBusy(false);
+      return;
     }
+    await unlockDeviceVault(pass, true);
   }
+
+  /* Prompt as soon as the unlock screen is ready. Browsers that demand a user
+     gesture (WebKit) reject instantly — the button below stays as the fallback. */
+  const autoTried = useRef(false);
+  useEffect(() => {
+    if (!canBiometricUnlock || autoTried.current) return;
+    autoTried.current = true;
+    void biometricUnlock(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canBiometricUnlock]);
 
   /** Continue past the one-time Face ID offer into the app. */
   async function proceedAfterOffer() {
@@ -731,8 +756,8 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
       <AuthShell cardRef={cardRef} tight>
         <h2 className="auth-h2">Use Face ID on this Device?</h2>
         <p className="auth-lead">
-          Skip typing your passphrase next time — unlock Custos with Face ID or Touch ID on this
-          browser. Your passphrase is encrypted with your biometric key and never leaves this
+          Next time, Custos will ask for Face ID or Touch ID on its own — no need to type your
+          passphrase. Your passphrase is encrypted with your biometric key and never leaves this
           device.
         </p>
         {offerError ? <div className="auth-error">{offerError}</div> : null}
