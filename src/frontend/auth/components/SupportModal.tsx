@@ -1,6 +1,9 @@
 import { Icon } from "@/frontend/components/ui";
 import { api } from "@/frontend/lib/api";
 import { useModalMotion } from "@/frontend/lib/animate";
+import { useTheme } from "@/frontend/lib/hooks/useTheme";
+import type { AccentName } from "@/frontend/lib/theme";
+import { ACCENTS, ACCENT_NAMES } from "@/lib/accents";
 import { SUPPORT_LINKS } from "@/lib/support-links";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -19,6 +22,8 @@ const LIFETIME_LINKS = SUPPORT_LINKS.filter((l) => l.kind === "lifetime");
  */
 export function SupportModal({ onClose }: SupportModalProps) {
   const [supporterSince, setSupporterSince] = useState<string | undefined>(undefined);
+  const [accentBusy, setAccentBusy] = useState(false);
+  const { accentName, setAccentName, dark } = useTheme();
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
@@ -29,6 +34,22 @@ export function SupportModal({ onClose }: SupportModalProps) {
       .then(({ user }) => setSupporterSince(user.supporterSince))
       .catch(() => {});
   }, []);
+
+  /* Repaint immediately, then persist so it follows the account across
+     devices; on failure, fall back to whatever the server still has. */
+  const pickAccent = async (name: AccentName) => {
+    if (accentBusy || name === accentName) return;
+    const previous = accentName;
+    setAccentName(name);
+    setAccentBusy(true);
+    try {
+      await api.profile.update({ accent: name });
+    } catch {
+      setAccentName(previous);
+    } finally {
+      setAccentBusy(false);
+    }
+  };
 
   return createPortal(
     <div
@@ -108,6 +129,30 @@ export function SupportModal({ onClose }: SupportModalProps) {
               ))}
             </div>
           </div>
+
+          {supporterSince ? (
+            <>
+              <div className="dm-div" />
+              <div className="dm-sec">
+                <span className="fld-label">Accent color</span>
+                <p className="dm-lead">A Lifetime perk — pick the accent used across the app.</p>
+                <div className="accent-swatches" role="radiogroup" aria-label="Accent color">
+                  {ACCENT_NAMES.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      className={`accent-swatch${name === accentName ? " is-selected" : ""}`}
+                      style={{ background: ACCENTS[name][dark ? "dark" : "light"] }}
+                      disabled={accentBusy}
+                      aria-pressed={name === accentName}
+                      aria-label={name}
+                      onClick={() => void pickAccent(name)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : null}
         </div>
       </div>
     </div>,

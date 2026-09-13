@@ -82,7 +82,7 @@ import {
   type ChartPeriod,
   type WalletFunding,
 } from "@/frontend/lib/stats";
-import { getAccent } from "@/frontend/lib/theme";
+import { useTheme } from "@/frontend/lib/hooks/useTheme";
 import type {
   Budgets,
   CapitalPlan,
@@ -267,7 +267,7 @@ export function Overview({
         .slice(0, 3),
     [savingsTxns, categoryIndex],
   );
-  const accent = getAccent();
+  const { accent } = useTheme();
   const spentPct = st.spendingBudget ? st.spent / st.spendingBudget : 0;
   const activeCat = hoverCat;
   const isStarting = wallet?.fundingMode === "starting";
@@ -1064,6 +1064,7 @@ export function Insights({
   capitalPlans,
   setMonth,
 }: InsightsProps) {
+  const { accent } = useTheme();
   const [chartPeriod, setChartPeriod] = useState<ChartPeriod>("monthly");
   const [habitPeriod, setHabitPeriod] = useState<HabitPeriod>("month");
   const [incomeWindow, setIncomeWindow] = useState<IncomeWindow>("6mo");
@@ -1691,7 +1692,7 @@ export function Insights({
         </div>
         <MoMBars
           months={chartBars}
-          accent={getAccent()}
+          accent={accent}
           activeKey={activeChartKey}
           onSelect={(key) => setMonth(chartSelectionMonth(chartPeriod, key))}
           budget={chartBudget}

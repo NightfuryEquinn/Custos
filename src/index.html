@@ -21,6 +21,12 @@
           (pref !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
         document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
         document.documentElement.style.colorScheme = dark ? "dark" : "light";
+        // Lifetime Supporter accent perk — localStorage is a paint-time cache
+        // of the server's ledger_profiles.accent; this script runs before the
+        // app can reach the server, so a stale/missing value here just means
+        // one frame at the default accent instead of a full flash on load.
+        var accent = localStorage.getItem("ledger:accent");
+        if (accent) document.documentElement.setAttribute("data-accent", accent);
       })();
     </script>
     <link rel="icon" href="/src/frontend/assets/logo.png" type="image/png" />

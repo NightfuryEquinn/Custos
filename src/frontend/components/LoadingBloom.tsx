@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { trefoil } from "ldrs";
-import { getAccent } from "@/frontend/lib/theme";
+import { useTheme } from "@/frontend/lib/hooks/useTheme";
 
 if (!customElements.get("l-trefoil")) {
   trefoil.register();
@@ -32,13 +32,12 @@ function randomMessage() {
 
 export function LoadingBloom({ label, size = "md" }: { label?: string; size?: "sm" | "md" }) {
   const [fallback] = useState(randomMessage);
+  const { accent } = useTheme();
   return (
     <div className={`loading-bloom loading-bloom--${size}`}>
       <l-trefoil
         size={TREFOIL_SIZE[size]}
-        // ponytail: reads the accent at mount; a theme flip mid-spinner won't repaint it.
-        // Upgrade to useTheme() if that ever shows.
-        color={getAccent()}
+        color={accent}
         speed={5}
         stroke={8}
         stroke-length={0.4}

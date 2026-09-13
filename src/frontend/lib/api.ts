@@ -34,6 +34,8 @@ type ApiProfile = {
   toursSeen: string[];
   /* Version of the Terms this account has accepted; undefined = never. */
   termsVersion?: string;
+  /* Lifetime Supporter accent perk; undefined = default "clay". */
+  accent?: string;
   /* ISO timestamp of profile creation. */
   createdAt: string;
 };
@@ -237,7 +239,10 @@ export const api = {
     },
     update(
       body: Partial<
-        Pick<ApiProfile, "currentMonth" | "tourPreference" | "toursSeen" | "termsVersion">
+        Pick<
+          ApiProfile,
+          "currentMonth" | "tourPreference" | "toursSeen" | "termsVersion" | "accent"
+        >
       >,
     ) {
       return request<{ profile: ApiProfile }>("/profile", { method: "PATCH", body });

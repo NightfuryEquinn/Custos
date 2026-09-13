@@ -115,6 +115,39 @@
   --scrim: rgba(14, 10, 6, 0.58);
 }
 
+/*
+ * Lifetime Supporter accent perk — one pair per name, keyed off [data-accent]
+ * on <html>. Must come after the :root[data-theme] blocks above: [data-accent]
+ * has the same specificity (0,2,0) as :root[data-theme="light"], so the light
+ * case is decided by source order and silently no-ops if moved earlier.
+ * Kept in sync with the ACCENTS map in @/frontend/lib/theme.ts — the
+ * "accent map and CSS agree" test in theme-contrast.test.ts catches drift.
+ */
+:root[data-accent="moss"] {
+  --accent: #3f7a52;
+  --accent-contrast: #ffffff;
+}
+:root[data-theme="dark"][data-accent="moss"] {
+  --accent: #8fc79a;
+  --accent-contrast: #1a1714;
+}
+:root[data-accent="azure"] {
+  --accent: #3a6ea5;
+  --accent-contrast: #ffffff;
+}
+:root[data-theme="dark"][data-accent="azure"] {
+  --accent: #8fb8e8;
+  --accent-contrast: #1a1714;
+}
+:root[data-accent="berry"] {
+  --accent: #8a4568;
+  --accent-contrast: #ffffff;
+}
+:root[data-theme="dark"][data-accent="berry"] {
+  --accent: #d99bb8;
+  --accent-contrast: #1a1714;
+}
+
 /* ── 2. Base & reset ──────────────────────────────────────────────── */
 * {
   box-sizing: border-box;
@@ -1328,6 +1361,36 @@ textarea::placeholder {
 .am-name {
   font-weight: 600;
   font-size: 14.5px;
+}
+
+.accent-swatches {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.accent-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-full);
+  border: 2px solid transparent;
+  box-shadow: 0 0 0 1px var(--border);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.accent-swatch:hover:not(:disabled) {
+  transform: scale(1.08);
+}
+
+.accent-swatch.is-selected {
+  border-color: var(--surface);
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+.accent-swatch:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .am-badge {

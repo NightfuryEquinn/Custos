@@ -20,7 +20,9 @@ import { CURRENT_MONTH_KEY, MONTHS, TODAY_ISO } from "@/frontend/lib/data";
 import { releaseHoldForOccurrence, restoreHoldForOccurrence } from "@/frontend/lib/envelope-holds";
 import { ApiError } from "@/frontend/lib/api";
 import { useLedger } from "@/frontend/lib/hooks/useLedger";
+import { useTheme } from "@/frontend/lib/hooks/useTheme";
 import { useLedgerTour, type TourKind } from "@/frontend/lib/tour";
+import type { AccentName } from "@/frontend/lib/theme";
 import { useWhatsNew } from "@/frontend/lib/whats-new";
 import type {
   Account,
@@ -171,6 +173,16 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
   useEffect(() => {
     if (welcomeDue) setWelcomeOpen(true);
   }, [welcomeDue]);
+
+  /* Server profile is the cross-device source of truth for the accent perk;
+     mirror it into the ThemeProvider (which also writes the localStorage
+     cache the pre-paint bootstrap script reads) whenever it loads or changes
+     on another device. */
+  const { setAccentName } = useTheme();
+  const profileAccent = ledgerProfile?.accent as AccentName | undefined;
+  useEffect(() => {
+    if (profileAccent) setAccentName(profileAccent);
+  }, [profileAccent, setAccentName]);
 
   /* A 401/403 mid-session (expired cookie, revoked session) used to render
      the same "API is down" screen with no way out but a manual reload —

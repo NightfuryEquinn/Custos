@@ -60,6 +60,11 @@ const COLLECTIONS: CollectionDoc[] = [
         value: '"2026-09-13"',
         note: "Terms version accepted; undefined means never accepted",
       },
+      {
+        key: "accent?",
+        value: '"moss"',
+        note: "Lifetime Supporter accent perk; undefined means default (clay)",
+      },
       { key: "createdAt / updatedAt", value: "ISO dates" },
     ],
   },

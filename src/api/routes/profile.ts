@@ -27,6 +27,7 @@ function serializeProfile(doc: {
   tourPreference?: TourPreference;
   toursSeen?: string[];
   termsVersion?: string;
+  accent?: string;
   createdAt: Date;
 }) {
   const serialized = serializeDoc(doc);
@@ -40,6 +41,8 @@ function serializeProfile(doc: {
     toursSeen: serialized.toursSeen ?? [],
     /* Undefined reads as "never accepted" on the client. */
     termsVersion: serialized.termsVersion,
+    /* Undefined reads as the default "clay" accent on the client. */
+    accent: serialized.accent,
     /* Account age tells the client whether to announce release notes. */
     createdAt: serialized.createdAt.toISOString(),
   };
