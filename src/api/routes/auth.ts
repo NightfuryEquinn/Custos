@@ -110,6 +110,22 @@ authRoutes.post("/verify", authVerifyRateLimit, zValidator("json", authVerifySch
   const ip = getClientIp(c);
   const userAgent = getUserAgent(c);
 
+  /* Revoke this account's existing active session(s) on the same device
+     (same User-Agent) before inserting a fresh one. Without this, a login
+     that only happens because the browser lost its cookie (private mode,
+     Safari's cap on script-set cookies, a partial "clear site data") stacks
+     an indistinguishable new row in Active Sessions instead of replacing the
+     old one — the old row was still valid, just orphaned from its cookie.
+     A different real device (different User-Agent) is unaffected. */
+  await sessions.updateMany(
+    {
+      ...sessionOwnershipFilter(accountId, normalized),
+      userAgent,
+      revokedAt: { $exists: false },
+    },
+    { $set: { revokedAt: now } },
+  );
+
   const sessionResult = await sessions.insertOne({
     _id: new ObjectId(),
     accountId,

@@ -9,7 +9,10 @@ import { installMemoryDb, uninstallMemoryDb, type MemoryDb } from "../helpers/me
 
 const app = createApiApp();
 
-async function challengeAndVerify(wallet: HDNodeWallet) {
+/** userAgent defaults to "unknown" — pass distinct values to simulate two
+    independent devices; verify() revokes a same-account, same-User-Agent
+    session, so two calls with the same default would collapse into one. */
+async function challengeAndVerify(wallet: HDNodeWallet, userAgent?: string) {
   const challengeRes = await app.request("/api/auth/challenge", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -21,7 +24,10 @@ async function challengeAndVerify(wallet: HDNodeWallet) {
 
   const verifyRes = await app.request("/api/auth/verify", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(userAgent ? { "user-agent": userAgent } : {}),
+    },
     body: JSON.stringify({
       address: wallet.address,
       message: challenge.message,
@@ -177,8 +183,8 @@ describe("auth session routes", () => {
 
   test("revoking other sessions leaves the current one intact", async () => {
     const wallet = Wallet.createRandom();
-    const first = await challengeAndVerify(wallet);
-    const second = await challengeAndVerify(wallet);
+    const first = await challengeAndVerify(wallet, "device-a");
+    const second = await challengeAndVerify(wallet, "device-b");
 
     const res = await app.request("/api/auth/sessions", {
       method: "DELETE",
@@ -324,8 +330,8 @@ describe("auth session routes", () => {
 
   test("clearAll revokes every session for the user", async () => {
     const wallet = Wallet.createRandom();
-    const a = await challengeAndVerify(wallet);
-    const b = await challengeAndVerify(wallet);
+    const a = await challengeAndVerify(wallet, "device-a");
+    const b = await challengeAndVerify(wallet, "device-b");
 
     const res = await app.request("/api/auth/clear", {
       method: "POST",
@@ -343,8 +349,8 @@ describe("auth session routes", () => {
 
   test("revoking a specific other session works", async () => {
     const wallet = Wallet.createRandom();
-    const first = await challengeAndVerify(wallet);
-    const second = await challengeAndVerify(wallet);
+    const first = await challengeAndVerify(wallet, "device-a");
+    const second = await challengeAndVerify(wallet, "device-b");
 
     const res = await app.request(`/api/auth/sessions/${first.body.session.id}`, {
       method: "DELETE",
