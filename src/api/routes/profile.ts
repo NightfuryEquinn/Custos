@@ -26,6 +26,7 @@ function serializeProfile(doc: {
   currentMonth: string;
   tourPreference?: TourPreference;
   toursSeen?: string[];
+  termsVersion?: string;
   createdAt: Date;
 }) {
   const serialized = serializeDoc(doc);
@@ -37,6 +38,8 @@ function serializeProfile(doc: {
        the defaults read as "never asked", so those users get the prompt once. */
     tourPreference: serialized.tourPreference ?? "pending",
     toursSeen: serialized.toursSeen ?? [],
+    /* Undefined reads as "never accepted" on the client. */
+    termsVersion: serialized.termsVersion,
     /* Account age tells the client whether to announce release notes. */
     createdAt: serialized.createdAt.toISOString(),
   };
@@ -90,13 +93,15 @@ profileRoutes.patch("/", zValidator("json", updateProfileSchema), async (c) => {
   const { ledgerProfiles } = getCollections(getDb());
 
   await fetchProfile(accountId);
-  invalidateProfile(accountId);
 
   const updated = await ledgerProfiles.findOneAndUpdate(
     { accountId },
     { $set: { ...body, updatedAt: new Date() } },
     { returnDocument: "after" },
   );
+  /* After the write, not before — invalidating first left a 30s window where
+     a concurrent GET could repopulate the cache with the stale pre-write doc. */
+  invalidateProfile(accountId);
 
   if (!updated) notFound("Profile not found");
   return c.json({ profile: serializeProfile(updated) });

@@ -1,6 +1,12 @@
 import { ConfirmDialog, Icon } from "@/frontend/components/ui";
 import { api, type ApiSession } from "@/frontend/lib/api";
 import { useModalMotion } from "@/frontend/lib/animate";
+import {
+  SHARING_CARD_DESCRIPTION,
+  SHARING_CARD_TITLE,
+  SHARING_OFF_STATUS,
+  SHARING_ON_STATUS,
+} from "@/lib/legal";
 import type { Account } from "@/frontend/lib/types";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -391,15 +397,8 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
             <div className="consent-card">
               <div className="consent-top">
                 <div>
-                  <div className="consent-title">Share Anonymized Category Totals</div>
-                  <p className="consent-desc">
-                    Custos is free on the official host with full features. We are a freemium,
-                    customer-based app and may fund the service with optional insights. When on, we
-                    share de-identified category totals with vetted research &amp; advertising
-                    partners — not your name, wallet address, notes, or decrypted amounts (those
-                    stay end-to-end encrypted). Opt in or out anytime; free features stay the same
-                    either way.
-                  </p>
+                  <div className="consent-title">{SHARING_CARD_TITLE}</div>
+                  <p className="consent-desc">{SHARING_CARD_DESCRIPTION}</p>
                 </div>
                 <label className="switch">
                   <input
@@ -413,7 +412,7 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
               </div>
               <div className={`consent-status ${consent ? "cs-on" : "cs-off"}`}>
                 <span className="cs-dot" />
-                {consent ? "Opted in — sharing is active" : "Opted out — nothing is shared"}
+                {consent ? SHARING_ON_STATUS : SHARING_OFF_STATUS}
               </div>
             </div>
             <p className="dm-note">

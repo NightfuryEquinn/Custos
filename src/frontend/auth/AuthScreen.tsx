@@ -34,6 +34,7 @@ import {
   writeCachedNotifyEmail,
 } from "@/frontend/lib/hooks/useAccountNotifyEmail";
 import { hasSharingChoiceMade, markSharingChoiceMade, setConsent } from "./lib/consent";
+import { SHARING_SIGNUP_DESCRIPTION, SHARING_SIGNUP_TITLE, SIGNUP_LEAD } from "@/lib/legal";
 import { walletClient } from "./lib/wallet";
 import { TermsModal } from "./components/LegalModals";
 
@@ -788,19 +789,11 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
       <>
         <AuthShell cardRef={cardRef} tight>
           <h2 className="auth-h2">Before You Enter</h2>
-          <p className="auth-lead">
-            Custos is free on the official host with full features. We are a freemium,
-            customer-based app — optional anonymized insights help us keep the lights on. Your
-            encrypted amounts, titles, and notes stay private either way.
-          </p>
+          <p className="auth-lead">{SIGNUP_LEAD}</p>
 
           <div className="consent-card auth-share-card">
-            <div className="consent-title">Optional data sharing</div>
-            <p className="consent-desc">
-              Opt in to share de-identified category totals with vetted research and advertising
-              partners — not your name, wallet address, notes, or decrypted ledger amounts. You can
-              change this anytime under Account → Data &amp; privacy.
-            </p>
+            <div className="consent-title">{SHARING_SIGNUP_TITLE}</div>
+            <p className="consent-desc">{SHARING_SIGNUP_DESCRIPTION}</p>
             <div className="auth-share-choices" role="radiogroup" aria-label="Data sharing choice">
               <button
                 type="button"
@@ -810,7 +803,7 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
                 onClick={() => setSharingChoice("in")}
               >
                 <span className="auth-share-choice-label">Opt in</span>
-                <span className="auth-share-choice-hint">Share anonymized category totals</span>
+                <span className="auth-share-choice-hint">Record a sharing preference</span>
               </button>
               <button
                 type="button"
@@ -821,7 +814,7 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
               >
                 <span className="auth-share-choice-label">Opt out</span>
                 <span className="auth-share-choice-hint">
-                  Do not share — free features unchanged
+                  No preference recorded — free features unchanged
                 </span>
               </button>
             </div>

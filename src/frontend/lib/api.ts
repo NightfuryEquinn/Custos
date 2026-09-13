@@ -32,6 +32,8 @@ type ApiProfile = {
      follows the user across devices instead of dying with localStorage. */
   tourPreference: TourPreference;
   toursSeen: string[];
+  /* Version of the Terms this account has accepted; undefined = never. */
+  termsVersion?: string;
   /* ISO timestamp of profile creation. */
   createdAt: string;
 };
@@ -231,7 +233,11 @@ export const api = {
     get() {
       return request<{ profile: ApiProfile }>("/profile");
     },
-    update(body: Partial<Pick<ApiProfile, "currentMonth" | "tourPreference" | "toursSeen">>) {
+    update(
+      body: Partial<
+        Pick<ApiProfile, "currentMonth" | "tourPreference" | "toursSeen" | "termsVersion">
+      >,
+    ) {
       return request<{ profile: ApiProfile }>("/profile", { method: "PATCH", body });
     },
   },

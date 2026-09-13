@@ -50,6 +50,11 @@ const COLLECTIONS: CollectionDoc[] = [
       { key: "currentMonth", value: '"2026-07"', note: "YYYY-MM" },
       { key: "tourPreference", value: '"guided"', note: "pending | guided | explore" },
       { key: "toursSeen", value: '["shell", "overview"]', note: "tour ids already shown" },
+      {
+        key: "termsVersion?",
+        value: '"2026-09-13"',
+        note: "Terms version accepted; undefined means never accepted",
+      },
       { key: "createdAt / updatedAt", value: "ISO dates" },
     ],
   },
