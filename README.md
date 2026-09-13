@@ -427,7 +427,7 @@ curl -sS -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/j
 The official hosted app is free with full features, and always will be — nothing below gates the ledger, encryption, exports, or backups. **Account → Support Custos** links to:
 
 - **Tips** — Ko-fi or GitHub Sponsors, one-off or recurring.
-- **Lifetime Supporter** — a one-time unlock via Lemon Squeezy (or a Stripe Payment Link as a fallback) for a badge next to your name and a choice of accent colors. Checkout collects the wallet address you sign in with; the perk is granted with [`scripts/grant-supporter.ts`](scripts/grant-supporter.ts) and typically appears within 24 hours.
+- **Lifetime Supporter** — a one-time unlock via Lemon Squeezy for a badge next to your name and a choice of accent colors. Checkout collects the wallet address you sign in with; the perk is granted with [`scripts/grant-supporter.ts`](scripts/grant-supporter.ts) and typically appears within 24 hours.
 - Disclosed, non-personalized affiliate offers and B2B services on the [website](https://nightfuryequinn.github.io/Custos/offers.html) — never inside the app, never near ledger content.
 
 ## License

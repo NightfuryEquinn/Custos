@@ -33,7 +33,7 @@ through 5, folded into one release.
 **Support & Lifetime perk (Phases 1-2)**
 
 - `Account → Support Custos`: tips (Ko-fi, GitHub Sponsors) and a one-time
-  Lifetime unlock (Lemon Squeezy, Stripe fallback) — placeholder URLs in
+  Lifetime unlock (Lemon Squeezy) — placeholder URLs in
   `src/lib/support-links.ts` until real accounts are wired up.
 - `supporterSince` granted manually via `scripts/grant-supporter.ts` (no
   webhook, no provider SDK) — a supporter badge next to the account name, and
@@ -45,7 +45,7 @@ through 5, folded into one release.
 
 **Marketing site (Phases 3-4)**
 
-- `website/offers.html`: the same tip/Lifetime links plus 2-3 placeholder
+- `website/offers.html`: the same tip/Lifetime link plus 2-3 placeholder
   affiliate cards, with the commission disclosure above the fold.
 - `website/services.html`: fixed-price bands for self-host setup, private
   deployment, an E2EE/wallet-auth workshop, and custom privacy work.
@@ -61,7 +61,7 @@ through 5, folded into one release.
 
 ## Before this goes live
 
-- Swap the placeholder Ko-fi / GitHub Sponsors / Lemon Squeezy / Stripe URLs
+- Swap the placeholder Ko-fi / GitHub Sponsors / Lemon Squeezy URLs
   in `src/lib/support-links.ts` and `website/offers.html` for real accounts.
 - Replace the two placeholder affiliate cards in `offers.html` with real,
   disclosed programs.
