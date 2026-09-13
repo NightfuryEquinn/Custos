@@ -3,7 +3,7 @@
    ────────────────────────────────────────────────────────────────────
    The design system lives in styles/ledger.css (tokens for color,
    radius, spacing). This module handles the light/dark preference and
-   the Lifetime Supporter accent perk, and resolves the accent color for
+   the Supporter accent perk, and resolves the accent color for
    SVG charts (which can't read CSS custom properties directly).
 
    Dark theme tokens in ledger.css target WCAG 2.1 AA contrast

@@ -30,14 +30,16 @@ through 5, folded into one release.
   30-second stale-cache window in `PATCH /profile` (cache was invalidated
   before the write instead of after).
 
-**Support & Lifetime perk (Phases 1-2)**
+**Support & Supporter perk (Phases 1-2)**
 
-- `Account → Support Custos`: tips (Ko-fi, GitHub Sponsors) and a one-time
-  Lifetime unlock (Lemon Squeezy) — placeholder URLs in
+- `Account → Support Custos`: tips (Ko-fi, GitHub Sponsors) and a monthly
+  Supporter subscription (Lemon Squeezy) — placeholder URLs in
   `src/lib/support-links.ts` until real accounts are wired up.
 - `supporterSince` granted manually via `scripts/grant-supporter.ts` (no
   webhook, no provider SDK) — a supporter badge next to the account name, and
   a choice of accent colors (`ledger_profiles.accent`, client-side gate only).
+  The grant is a one-off, permanent flag with no automatic expiry tied to
+  the subscription — cancelling does not revoke the perk on its own.
 - Fixed a latent bug the accent perk would have made visible: `getAccent()`
   was a bare `getComputedStyle` read with no re-render subscription, so
   charts already failed to repaint on a dark-mode flip. Accent is now
@@ -45,7 +47,7 @@ through 5, folded into one release.
 
 **Marketing site (Phases 3-4)**
 
-- `website/offers.html`: the same tip/Lifetime link plus 2-3 placeholder
+- `website/offers.html`: the same tip/Supporter link plus 2-3 placeholder
   affiliate cards, with the commission disclosure above the fold.
 - `website/services.html`: fixed-price bands for self-host setup, private
   deployment, an E2EE/wallet-auth workshop, and custom privacy work.
@@ -65,13 +67,16 @@ through 5, folded into one release.
   in `src/lib/support-links.ts` and `website/offers.html` for real accounts.
 - Replace the two placeholder affiliate cards in `offers.html` with real,
   disclosed programs.
-- Confirm the Lifetime checkout actually collects the wallet address as a
+- Confirm the Supporter checkout actually collects the wallet address as a
   required custom field — `scripts/grant-supporter.ts` looks users up by it.
 
 ## Explicitly not in this release
 
-Subscriptions, trials, seat or usage meters. An in-app ad SDK. A payment
-webhook (manual grant only, for now — see the `ponytail:` comment in
-`scripts/grant-supporter.ts` for the upgrade path). Any category-total or
-aggregate pipeline. Paywalls on Schedule, Insights, encryption, exports, or
-backups. Bank aggregation. White-label. A third-party ad network.
+Trials, seat or usage meters, or any subscription that gates a ledger
+feature — the Supporter perk is billed monthly but the perk itself (badge,
+accent) is a manual, permanent grant, not a feature paywall tied to active
+billing status. An in-app ad SDK. A payment webhook (manual grant only, for
+now — see the `ponytail:` comment in `scripts/grant-supporter.ts` for the
+upgrade path). Any category-total or aggregate pipeline. Paywalls on
+Schedule, Insights, encryption, exports, or backups. Bank aggregation.
+White-label. A third-party ad network.

@@ -1,11 +1,16 @@
 /**
- * Grant or revoke the Lifetime Supporter perk for one wallet address.
+ * Grant or revoke the Supporter perk for one wallet address.
  *
  * Usage:
  *   bun scripts/grant-supporter.ts 0xABC…            # grant
  *   bun scripts/grant-supporter.ts 0xABC… --revoke   # revoke
  *
  * Requires MONGODB_URI (and optional MONGODB_DB) from the environment / .env.
+ *
+ * Lemon Squeezy bills the Supporter perk as a monthly subscription, but the
+ * grant here is a one-off, permanent flag with no automatic expiry — a
+ * cancelled subscription does not lose the perk on its own; run --revoke
+ * by hand if that ever needs to change.
  *
  * ponytail: manual grant, ~24h turnaround after checkout. Upgrade to a
  * provider webhook once the manual step gets annoying — src/api/routes/cron.ts's
@@ -20,7 +25,7 @@ import { COLLECTIONS } from "../src/db/collections";
 import { resolveMongoUri } from "../src/db/resolve-uri";
 
 function printHelp(): void {
-  console.log(`Grant or revoke the Lifetime Supporter perk for one wallet address.
+  console.log(`Grant or revoke the Supporter perk for one wallet address.
 
 Usage:
   bun scripts/grant-supporter.ts <address>            Grant
@@ -78,8 +83,8 @@ async function main(): Promise<void> {
 
     console.log(
       revoke
-        ? `Revoked Lifetime Supporter for ${address}.`
-        : `Granted Lifetime Supporter to ${address} at ${(updated.supporterSince as Date).toISOString()}.`,
+        ? `Revoked Supporter for ${address}.`
+        : `Granted Supporter to ${address} at ${(updated.supporterSince as Date).toISOString()}.`,
     );
   } finally {
     await client.close();

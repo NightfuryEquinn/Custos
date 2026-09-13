@@ -37,7 +37,7 @@ const COLLECTIONS: CollectionDoc[] = [
       {
         key: "supporterSince?",
         value: "ISO date",
-        note: "set only by the manual grant script — a one-time Lifetime Supporter unlock",
+        note: "set only by the manual grant script — a monthly Supporter subscription perk",
       },
       {
         key: "lastSeenAt?",
@@ -63,7 +63,7 @@ const COLLECTIONS: CollectionDoc[] = [
       {
         key: "accent?",
         value: '"moss"',
-        note: "Lifetime Supporter accent perk; undefined means default (clay)",
+        note: "Supporter accent perk; undefined means default (clay)",
       },
       { key: "createdAt / updatedAt", value: "ISO dates" },
     ],

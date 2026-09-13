@@ -16,7 +16,7 @@ export const SHARING_LEGAL_PARAGRAPH =
   "that does not exist yet — if one is ever built, it will be described here and announced " +
   "before any data leaves your device. Transaction amounts, titles, and notes stay end-to-end " +
   "encrypted either way. Custos is free on the official host with full features; optional " +
-  "tips and a one-time Lifetime Supporter unlock help fund it, and neither gates anything in " +
+  "tips and a monthly Supporter subscription help fund it, and neither gates anything in " +
   "the core ledger.";
 
 export const SHARING_CARD_TITLE = "Share Anonymized Category Totals";
@@ -38,5 +38,5 @@ export const SHARING_SIGNUP_DESCRIPTION =
   "shared today; change this anytime under Account → Data & privacy.";
 
 export const SIGNUP_LEAD =
-  "Custos is free on the official host with full features. Optional tips and a one-time " +
-  "Lifetime Supporter unlock help keep the lights on — never a paywall on the ledger itself.";
+  "Custos is free on the official host with full features. Optional tips and a monthly " +
+  "Supporter subscription help keep the lights on — never a paywall on the ledger itself.";

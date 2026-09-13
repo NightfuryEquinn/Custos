@@ -38,7 +38,7 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
   {
     version: "5.0.0",
     date: "September 2026",
-    lead: "Face ID and Touch ID now prompt on their own when you open Custos, the old 'we may share your data' claim is retired for good, and optional tips or a one-time Lifetime unlock are the only way this ever gets funded.",
+    lead: "Face ID and Touch ID now prompt on their own when you open Custos, the old 'we may share your data' claim is retired for good, and optional tips or a monthly Supporter subscription are the only way this ever gets funded.",
     highlights: [
       {
         icon: "shield",
@@ -58,7 +58,7 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
       {
         icon: "piggy",
         title: "Optional ways to support",
-        body: "Account → Support Custos links to tips (Ko-fi, GitHub Sponsors) and a one-time Lifetime Supporter unlock — a badge next to your name and a choice of accent colors. Free features never change either way.",
+        body: "Account → Support Custos links to tips (Ko-fi, GitHub Sponsors) and a monthly Supporter subscription — a badge next to your name and a choice of accent colors. Free features never change either way.",
       },
     ],
   },

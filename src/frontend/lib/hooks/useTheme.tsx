@@ -17,7 +17,7 @@ type ThemeContextValue = {
   dark: boolean;
   setPreference: (preference: ThemePreference) => void;
   toggle: () => void;
-  /** Lifetime Supporter accent perk — name plus the resolved hex/contrast for
+  /** Supporter accent perk — name plus the resolved hex/contrast for
       the current theme, so charts re-render on either changing instead of
       reading a stale `--accent` off the DOM. */
   accentName: AccentName;

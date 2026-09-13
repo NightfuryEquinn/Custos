@@ -48,7 +48,7 @@ async function patchProfile(cookie: string, body: unknown) {
  * forges this gets a different shade of brown, nothing more. These tests
  * cover the schema guard, not an entitlement check.
  */
-describe("profile records the Lifetime Supporter accent perk", () => {
+describe("profile records the Supporter accent perk", () => {
   let memory: MemoryDb;
 
   beforeAll(() => {

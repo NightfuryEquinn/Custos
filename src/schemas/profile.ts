@@ -29,7 +29,7 @@ const ledgerProfileSchema = z.object({
      localStorage) so it follows the account across devices and survives
      Clear Local Data; undefined means "never accepted". */
   termsVersion: z.string().max(32).optional(),
-  /* Lifetime Supporter accent perk. The server does not check supporterSince
+  /* Supporter accent perk. The server does not check supporterSince
      before accepting a write — a non-supporter who forges this just gets a
      different shade of brown; enforce server-side if a perk is ever worth
      more than a colour. */

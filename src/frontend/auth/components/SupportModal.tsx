@@ -13,12 +13,12 @@ type SupportModalProps = {
 };
 
 const TIP_LINKS = SUPPORT_LINKS.filter((l) => l.kind === "tip");
-const LIFETIME_LINKS = SUPPORT_LINKS.filter((l) => l.kind === "lifetime");
+const SUPPORTER_LINKS = SUPPORT_LINKS.filter((l) => l.kind === "supporter");
 
 /**
- * Optional funding: tips and a one-time Lifetime Supporter unlock. Nothing
- * here is a paywall — the core ledger, encryption, exports, and backups stay
- * free and ungated either way.
+ * Optional funding: tips and a monthly Supporter subscription. Nothing here
+ * is a paywall — the core ledger, encryption, exports, and backups stay free
+ * and ungated either way.
  */
 export function SupportModal({ onClose }: SupportModalProps) {
   const [supporterSince, setSupporterSince] = useState<string | undefined>(undefined);
@@ -75,7 +75,7 @@ export function SupportModal({ onClose }: SupportModalProps) {
         <div className="modal-body modal-scroll">
           <p className="dm-lead">
             Custos is free on the official host with full features, and always will be. Tips and the
-            one-time Lifetime unlock below are optional and keep the lights on — they never gate
+            Supporter subscription below are optional and keep the lights on — they never gate
             anything in the ledger itself.
           </p>
 
@@ -83,7 +83,7 @@ export function SupportModal({ onClose }: SupportModalProps) {
             <div className="consent-card">
               <div className="consent-status cs-on">
                 <span className="cs-dot" />
-                Lifetime Supporter since {new Date(supporterSince).toLocaleDateString()}
+                Supporter since {new Date(supporterSince).toLocaleDateString()}
               </div>
             </div>
           ) : null}
@@ -109,14 +109,14 @@ export function SupportModal({ onClose }: SupportModalProps) {
           <div className="dm-div" />
 
           <div className="dm-sec">
-            <span className="fld-label">Lifetime Supporter</span>
+            <span className="fld-label">Supporter</span>
             <p className="dm-lead">
-              A one-time unlock: a badge next to your name and a choice of accent colors. Checkout
-              asks for the wallet address you sign in with — the perk shows up within about 24
-              hours.
+              A monthly subscription: a badge next to your name and a choice of accent colors.
+              Checkout asks for the wallet address you sign in with — the perk shows up within about
+              24 hours.
             </p>
             <div className="wn-list">
-              {LIFETIME_LINKS.map((link) => (
+              {SUPPORTER_LINKS.map((link) => (
                 <a
                   key={link.url}
                   className="am-item"
@@ -135,7 +135,7 @@ export function SupportModal({ onClose }: SupportModalProps) {
               <div className="dm-div" />
               <div className="dm-sec">
                 <span className="fld-label">Accent color</span>
-                <p className="dm-lead">A Lifetime perk — pick the accent used across the app.</p>
+                <p className="dm-lead">A Supporter perk — pick the accent used across the app.</p>
                 <div className="accent-swatches" role="radiogroup" aria-label="Accent color">
                   {ACCENT_NAMES.map((name) => (
                     <button

@@ -3,15 +3,18 @@
  * vars — every URL here is meant to be public.
  *
  * Placeholder URLs below — swap in the real Ko-fi / GitHub Sponsors / Lemon
- * Squeezy accounts before this ships. The Lifetime checkout must collect the
+ * Squeezy accounts before this ships. Lemon Squeezy is a recurring monthly
+ * subscription, not a one-time purchase — the checkout must collect the
  * buyer's wallet address as a required custom field — that address is what
- * `scripts/grant-supporter.ts` looks up.
+ * `scripts/grant-supporter.ts` looks up. The perk itself is still a manual,
+ * one-off grant with no automatic expiry on cancellation (revoke by hand
+ * with `--revoke` if that ever needs to change).
  */
 
 export type SupportLink = {
   label: string;
   url: string;
-  kind: "tip" | "lifetime";
+  kind: "tip" | "supporter";
 };
 
 export const SUPPORT_LINKS: SupportLink[] = [
@@ -20,6 +23,6 @@ export const SUPPORT_LINKS: SupportLink[] = [
   {
     label: "Lemon Squeezy",
     url: "https://custos-nightfuryequinn.lemonsqueezy.com/checkout",
-    kind: "lifetime",
+    kind: "supporter",
   },
 ];

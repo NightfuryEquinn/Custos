@@ -116,7 +116,7 @@
 }
 
 /*
- * Lifetime Supporter accent perk — one pair per name, keyed off [data-accent]
+ * Supporter accent perk — one pair per name, keyed off [data-accent]
  * on <html>. Must come after the :root[data-theme] blocks above: [data-accent]
  * has the same specificity (0,2,0) as :root[data-theme="light"], so the light
  * case is decided by source order and silently no-ops if moved earlier.
