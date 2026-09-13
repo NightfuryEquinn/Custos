@@ -60,6 +60,11 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
         title: "Optional ways to support",
         body: "Account → Support Custos links to tips (Ko-fi, GitHub Sponsors) and a monthly Supporter subscription — a badge next to your name and a choice of accent colors. Free features never change either way.",
       },
+      {
+        icon: "list",
+        title: "No more duplicate active sessions",
+        body: "Signing back in from a browser that lost its session cookie used to add a new entry to Active Sessions every time. It now replaces that browser's prior entry instead of stacking a duplicate — a genuinely different device is still tracked separately.",
+      },
     ],
   },
   {

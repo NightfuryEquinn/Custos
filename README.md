@@ -265,7 +265,7 @@ Sign-in is wallet-based and verified on the server:
 3. `POST /api/auth/verify` — server verifies the signature and sets an **HttpOnly** `ledger_session` cookie
 4. Authenticated requests use `credentials: include` (no spoofable address header)
 
-Manage sessions under **Account → Data & privacy** (revoke devices, sign out everywhere, clear cookies and local storage). Restore access on a new device with your **12- or 24-word recovery phrase**, then set a **device passphrase** so the key is encrypted on that browser.
+Manage sessions under **Account → Data & privacy** (revoke devices, sign out everywhere, clear cookies and local storage). Restore access on a new device with your **12- or 24-word recovery phrase**, then set a **device passphrase** so the key is encrypted on that browser. Signing in again from a browser that lost its session cookie (private mode, a partial "clear site data") replaces that browser's prior session instead of adding a duplicate to Active Sessions — matched by User-Agent, so a genuinely different device is still tracked separately.
 
 If Face ID / Touch ID is enrolled for the identity you last used on this device, a lapsed server session skips the welcome screen and reopens that identity's unlock screen with the biometric prompt already firing — no tap required. This is gated entirely on `ledger:session` in local storage, which sign-out clears, so a deliberate sign-out always returns you to the welcome screen next time.
 
@@ -416,6 +416,7 @@ curl -sS -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/j
 11. **What's New** — confirm the release notes open on a device that has not seen this version, and that **Account → What's New** reopens them afterwards.
 12. **First-run tour prompt** — sign in with a fresh wallet and confirm the welcome modal appears once. Choose **I'll explore** and confirm no tour auto-opens on any view and the prompt does not return after a reload; with another fresh wallet choose **Show me around**, close the shell tour with the X, and confirm it stays closed on reload.
 13. **Face ID auto-unlock** — on a device with Face ID enrolled, clear the server session cookie (leave local storage intact) and reload: the app should jump straight to that identity's unlock screen with the OS prompt already open, no tap needed. Then sign out explicitly and reload, and confirm you land back on the welcome screen with no auto-prompt.
+14. **Session dedup** — sign in, clear just that browser's `ledger_session` cookie (leave the wallet identity in local storage), sign in again on the same browser, and confirm **Account → Data & privacy → Active Sessions** still shows one entry, not two.
 
 ### Serverless notes
 
