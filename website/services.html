@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Custos — Commercial & Self-Hosting</title>
+    <meta
+      name="description"
+      content="Paid self-host setup, private deployment, an E2EE/wallet-auth workshop, and custom privacy work for teams that want Custos commercially."
+    />
+    <link rel="canonical" href="https://nightfuryequinn.github.io/Custos/services.html" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#0b0d12" />
+    <link rel="icon" href="logo.png" type="image/png" />
+    <link rel="apple-touch-icon" href="logo.png" />
+    <link rel="stylesheet" href="fonts.css" />
+    <style>
+      :root {
+        --bg: #0b0d12;
+        --bg-alt: #12151d;
+        --card: #161a24;
+        --border: #242938;
+        --text: #e8eaf0;
+        --text-dim: #9aa1b4;
+        --accent: #6ee7b7;
+        --accent2: #7c9aff;
+        --radius: 14px;
+        --font-display: "Young Serif", Georgia, serif;
+        --font-body: "Schibsted Grotesk", system-ui, sans-serif;
+        --tracking: 0.015em;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-body);
+        line-height: 1.6;
+        letter-spacing: var(--tracking);
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      .wrap {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        backdrop-filter: blur(12px);
+        background: rgba(11, 13, 18, 0.72);
+        border-bottom: 1px solid var(--border);
+      }
+      nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 24px;
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--font-display);
+        font-size: 1.1rem;
+      }
+      .brand img {
+        width: 28px;
+        height: 28px;
+        border-radius: 7px;
+      }
+      .nav-cta {
+        padding: 8px 16px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        font-size: 0.85rem;
+        color: var(--text-dim);
+      }
+      .nav-cta:hover {
+        color: var(--text);
+        border-color: var(--accent2);
+      }
+      main {
+        padding: 56px 0 80px;
+      }
+      h1 {
+        font-family: var(--font-display);
+        font-weight: 400;
+        font-size: clamp(1.8rem, 4vw, 2.6rem);
+        margin-bottom: 14px;
+      }
+      main > .wrap > p.intro {
+        color: var(--text-dim);
+        max-width: 640px;
+        margin-bottom: 44px;
+      }
+      .bands {
+        display: grid;
+        gap: 16px;
+        margin-bottom: 48px;
+      }
+      .band {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 24px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 16px;
+        align-items: start;
+      }
+      .band h3 {
+        font-size: 1.05rem;
+        margin-bottom: 6px;
+      }
+      .band p {
+        color: var(--text-dim);
+        font-size: 0.9rem;
+        max-width: 520px;
+      }
+      .band .price {
+        font-family: var(--font-display);
+        font-size: 1.3rem;
+        color: var(--accent);
+        white-space: nowrap;
+        text-align: right;
+      }
+      .cta-box {
+        background: var(--bg-alt);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 28px;
+        text-align: center;
+      }
+      .cta-box h2 {
+        font-family: var(--font-display);
+        font-weight: 400;
+        font-size: 1.3rem;
+        margin-bottom: 10px;
+      }
+      .cta-box p {
+        color: var(--text-dim);
+        margin-bottom: 18px;
+      }
+      .btn-primary {
+        display: inline-block;
+        padding: 12px 24px;
+        border-radius: 10px;
+        background: var(--text);
+        color: var(--bg);
+        font-weight: 700;
+        font-size: 0.92rem;
+      }
+      footer {
+        border-top: 1px solid var(--border);
+        padding: 32px 0;
+      }
+      .foot-note {
+        color: var(--text-dim);
+        font-size: 0.78rem;
+        text-align: center;
+      }
+      @media (max-width: 600px) {
+        .band {
+          grid-template-columns: 1fr;
+        }
+        .band .price {
+          text-align: left;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <nav aria-label="Primary">
+        <div class="brand">
+          <img src="logo.png" alt="Custos logo" width="28" height="28" decoding="async" />Custos
+        </div>
+        <a class="nav-cta" href="index.html">Back to Custos</a>
+      </nav>
+    </header>
+
+    <main>
+      <div class="wrap">
+        <h1>Commercial & Self-Hosting</h1>
+        <p class="intro">
+          Custos is free with full features on the official host, and the source is public for
+          transparency — but self-hosting, rebranding, or offering it as a competing service needs a
+          written commercial agreement. These are fixed-price starting points, not hourly rates; the
+          exact scope and price get confirmed by email before any work starts.
+        </p>
+
+        <div class="bands">
+          <div class="band">
+            <div>
+              <h3>Self-host setup</h3>
+              <p>
+                Stand up your own instance — Vercel/self-managed hosting, MongoDB Atlas, the
+                notification and reminder cron jobs, environment variables, and a working deploy
+                checklist handed to your team.
+              </p>
+            </div>
+            <div class="price">from $800</div>
+          </div>
+
+          <div class="band">
+            <div>
+              <h3>Private deployment</h3>
+              <p>
+                A dedicated, isolated deployment under your own domain and infrastructure, with the
+                encryption model unchanged — the operator still never sees plaintext ledger data.
+              </p>
+            </div>
+            <div class="price">from $2,500</div>
+          </div>
+
+          <div class="band">
+            <div>
+              <h3>E2EE / wallet-auth workshop</h3>
+              <p>
+                A half-day walkthrough of the client-side encryption model, wallet-signature
+                sign-in, and what stays plaintext for cron/queries — for a team building something
+                similar and evaluating the trade-offs first.
+              </p>
+            </div>
+            <div class="price">from $1,200</div>
+          </div>
+
+          <div class="band">
+            <div>
+              <h3>Custom privacy work</h3>
+              <p>
+                Scoped changes to the encryption boundary, data model, or retention rules for a
+                specific compliance or product need. Quoted after a short scoping call.
+              </p>
+            </div>
+            <div class="price">quoted</div>
+          </div>
+        </div>
+
+        <div class="cta-box">
+          <h2>Talk through your scope</h2>
+          <p>
+            Email with what you're trying to do — self-host, a private deployment, or something
+            bespoke.
+          </p>
+          <a class="btn-primary" href="mailto:xianzyip8@gmail.com">xianzyip8@gmail.com</a>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <p class="foot-note">
+        Custos — private expense ledger, schedule, and to-do app.
+        <a href="index.html" style="text-decoration: underline">Back to the site</a>.
+      </p>
+    </footer>
+  </body>
+</html>

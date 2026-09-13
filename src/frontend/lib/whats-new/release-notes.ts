@@ -38,7 +38,7 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
   {
     version: "5.0.0",
     date: "September 2026",
-    lead: "Face ID and Touch ID now prompt on their own when you open Custos, so a returning device signs in without a single tap.",
+    lead: "Face ID and Touch ID now prompt on their own when you open Custos, the old 'we may share your data' claim is retired for good, and optional tips or a one-time Lifetime unlock are the only way this ever gets funded.",
     highlights: [
       {
         icon: "shield",
@@ -52,8 +52,13 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
       },
       {
         icon: "info",
-        title: "Quiet when it can't run",
-        body: "Browsers that require a tap before a biometric check, and prompts you dismiss, fall back to the button and passphrase field with no error message. Nothing new is stored on this device and nothing about the prompt reaches the server.",
+        title: "The old sharing claim is retired",
+        body: "Custos never actually shared anything — the data-sharing switch under Data & privacy only ever recorded a preference. That claim is gone from the Terms; nothing is shared today, and nothing has ever been shared.",
+      },
+      {
+        icon: "piggy",
+        title: "Optional ways to support",
+        body: "Account → Support Custos links to tips (Ko-fi, GitHub Sponsors) and a one-time Lifetime Supporter unlock — a badge next to your name and a choice of accent colors. Free features never change either way.",
       },
     ],
   },
