@@ -20,6 +20,7 @@ import {
 } from "@/frontend/lib/number-input";
 import type { Budgets, CategoryIndex, FinancialWallet } from "@/frontend/lib/types";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 /*
  * Calculator — budgeting helper
@@ -594,73 +595,76 @@ export function Calculator({
         </p>
       </div>
 
-      {confirmOpen ? (
-        <div
-          ref={scrimRef}
-          className="modal-scrim center"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget && !budgetsSaving) closeConfirm();
-          }}
-        >
-          <div
-            ref={panelRef}
-            className="modal sm"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={titleId}
-          >
-            <div className="modal-head">
-              <h3 id={titleId}>Apply Calculator Budgets?</h3>
-              <button
-                className="icon-btn"
-                type="button"
-                onClick={closeConfirm}
-                disabled={budgetsSaving}
-                aria-label="Close"
+      {confirmOpen
+        ? createPortal(
+            <div
+              ref={scrimRef}
+              className="modal-scrim center"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget && !budgetsSaving) closeConfirm();
+              }}
+            >
+              <div
+                ref={panelRef}
+                className="modal sm"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
               >
-                <Icon name="close" size={18} />
-              </button>
-            </div>
-            <div className="modal-body modal-scroll">
-              <p className="calculator-confirm-lead">
-                This updates all expense category budgets on{" "}
-                <strong>{wallet?.name ?? "this wallet"}</strong> to the amounts below.
-              </p>
-              <ul className="calculator-confirm-list">
-                {expenseCategories.map((c) => (
-                  <li key={c.id}>
-                    <span className="calculator-confirm-name">
-                      <CatGlyph glyph={c.glyph} id={c.id} /> {c.name}
-                    </span>
-                    <span className="num">{fmtMoney(computed[c.id] ?? 0, { currency })}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="modal-foot">
-              <span />
-              <div className="mf-right">
-                <button
-                  type="button"
-                  className="ghost-btn"
-                  disabled={budgetsSaving}
-                  onClick={closeConfirm}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="primary-btn"
-                  disabled={budgetsSaving}
-                  onClick={applyBudgets}
-                >
-                  {budgetsSaving ? "Applying…" : "Confirm Apply"}
-                </button>
+                <div className="modal-head">
+                  <h3 id={titleId}>Apply Calculator Budgets?</h3>
+                  <button
+                    className="icon-btn"
+                    type="button"
+                    onClick={closeConfirm}
+                    disabled={budgetsSaving}
+                    aria-label="Close"
+                  >
+                    <Icon name="close" size={18} />
+                  </button>
+                </div>
+                <div className="modal-body modal-scroll">
+                  <p className="calculator-confirm-lead">
+                    This updates all expense category budgets on{" "}
+                    <strong>{wallet?.name ?? "this wallet"}</strong> to the amounts below.
+                  </p>
+                  <ul className="calculator-confirm-list">
+                    {expenseCategories.map((c) => (
+                      <li key={c.id}>
+                        <span className="calculator-confirm-name">
+                          <CatGlyph glyph={c.glyph} id={c.id} /> {c.name}
+                        </span>
+                        <span className="num">{fmtMoney(computed[c.id] ?? 0, { currency })}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="modal-foot">
+                  <span />
+                  <div className="mf-right">
+                    <button
+                      type="button"
+                      className="ghost-btn"
+                      disabled={budgetsSaving}
+                      onClick={closeConfirm}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="primary-btn"
+                      disabled={budgetsSaving}
+                      onClick={applyBudgets}
+                    >
+                      {budgetsSaving ? "Applying…" : "Confirm Apply"}
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

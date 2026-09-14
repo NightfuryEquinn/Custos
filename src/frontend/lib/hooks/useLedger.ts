@@ -818,6 +818,13 @@ export function useLedger(walletAddress: string) {
       });
       void drainOutbox(wallet);
     },
+    onSuccess: (_void, budgets) => {
+      const id = activeWallet?.id;
+      if (!id) return;
+      queryClient.setQueryData<FinancialWallet[]>(keys.wallets(wallet), (prev = []) =>
+        prev.map((w) => (w.id === id ? { ...w, budgets } : w)),
+      );
+    },
   });
 
   const saveWalletMutation = useMutation({
