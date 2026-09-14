@@ -216,7 +216,11 @@ eventsRoutes.patch("/:id", zValidator("json", updateEventSchema), async (c) => {
   );
 
   if (!updated) notFound("Event not found");
-  if (body.notify === true) {
+  /* Only on the actual off→on transition — a patch that merely keeps an
+     already-notifying event's `notify: true` (e.g. editing its title, or an
+     offline write-queue replay of the same patch) must not re-send the
+     confirmation email every time. */
+  if (body.notify === true && !existing.notify) {
     void sendEventConfirmation(updated).catch((err) =>
       console.error("[reminders] confirmation email failed:", err),
     );

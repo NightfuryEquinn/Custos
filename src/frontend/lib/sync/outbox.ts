@@ -128,11 +128,31 @@ export async function enqueueOutbox(entry: NewOutboxEntry): Promise<OutboxEntry>
   return stored;
 }
 
-/** Mark an entry's write confirmed by the server — remove it. */
+/** Entries blocked on `opId` via the dependsOn cascade (see failOutboxPermanently). */
+async function blockedOn(store: IDBObjectStore, opId: string): Promise<OutboxEntry[]> {
+  return (
+    (await reqAsPromise(store.index("status").getAll(IDBKeyRange.only("blocked")))) as OutboxEntry[]
+  ).filter((e) => e.blockedBy === opId);
+}
+
+/**
+ * Mark an entry's write confirmed by the server — remove it, and release
+ * anything that was blocked waiting on it back to pending so the next drain
+ * picks it up.
+ */
 export async function confirmOutbox(opId: string): Promise<void> {
   const db = await openCustosDb();
   const tx = db.transaction(STORE, "readwrite");
-  tx.objectStore(STORE).delete(opId);
+  const store = tx.objectStore(STORE);
+  store.delete(opId);
+  for (const dep of await blockedOn(store, opId)) {
+    store.put({
+      ...dep,
+      status: "pending",
+      blockedBy: undefined,
+      updatedAt: Date.now(),
+    } satisfies OutboxEntry);
+  }
   await txAsPromise(tx);
   notify();
 }
@@ -165,7 +185,15 @@ export async function rescheduleOutbox(
   notify();
 }
 
-/** Mark an entry permanently failed — the drain moves on, the user must act. */
+/**
+ * Mark an entry permanently failed — the drain moves on, the user must act.
+ * Anything still pending that depends on this opId (e.g. a fill queued
+ * against a vehicle create that just failed) is cascaded to "blocked" rather
+ * than fired at a parent that will never exist; it un-blocks automatically
+ * once the user retries or discards the blocker (retryOutbox/discardOutbox
+ * both flip status back to "pending", which the dependsOn check in
+ * claimNextOutboxEntry re-evaluates on the next drain).
+ */
 export async function failOutboxPermanently(
   opId: string,
   error: { status?: number; message: string },
@@ -185,13 +213,48 @@ export async function failOutboxPermanently(
     lastError: { ...error, at: Date.now() },
     updatedAt: Date.now(),
   } satisfies OutboxEntry);
+
+  const dependents = (
+    await reqAsPromise(store.index("address").getAll(IDBKeyRange.only(existing.address)))
+  ).filter(
+    (e): e is OutboxEntry =>
+      (e as OutboxEntry).status === "pending" && (e as OutboxEntry).dependsOn.includes(opId),
+  );
+  for (const dep of dependents) {
+    store.put({
+      ...dep,
+      status: "blocked",
+      blockedBy: opId,
+      updatedAt: Date.now(),
+    } satisfies OutboxEntry);
+  }
+
   await txAsPromise(tx);
   notify();
 }
 
-/** User discards a permanently-failed entry. */
+/**
+ * User discards a permanently-failed entry. Unlike confirmOutbox, anything
+ * blocked on it is cascade-failed rather than released — the operation it
+ * depended on has been abandoned, not completed, so it can never succeed
+ * either. The user sees it in the same retry/discard panel next.
+ */
 export async function discardOutbox(opId: string): Promise<void> {
-  return confirmOutbox(opId);
+  const db = await openCustosDb();
+  const tx = db.transaction(STORE, "readwrite");
+  const store = tx.objectStore(STORE);
+  store.delete(opId);
+  for (const dep of await blockedOn(store, opId)) {
+    store.put({
+      ...dep,
+      status: "failed",
+      blockedBy: undefined,
+      lastError: { message: "A change this depended on was discarded.", at: Date.now() },
+      updatedAt: Date.now(),
+    } satisfies OutboxEntry);
+  }
+  await txAsPromise(tx);
+  notify();
 }
 
 /** User asks to retry a permanently-failed entry. */
@@ -209,6 +272,7 @@ export async function retryOutbox(opId: string): Promise<void> {
     status: "pending",
     nextAttemptAt: Date.now(),
     leaseUntil: undefined,
+    blockedBy: undefined,
   } satisfies OutboxEntry);
   await txAsPromise(tx);
   notify();

@@ -3,9 +3,11 @@ import { resetFakeIdb } from "../helpers/fake-idb";
 import {
   clearOutboxForAddress,
   confirmOutbox,
+  discardOutbox,
   enqueueOutbox,
   failOutboxPermanently,
   listOutbox,
+  retryOutbox,
 } from "@/frontend/lib/sync/outbox";
 import type { NewOutboxEntry } from "@/frontend/lib/sync/types";
 
@@ -112,6 +114,61 @@ describe("outbox: coalescing", () => {
     // Manually mark inflight to exercise the guard (claim path is covered in engine tests).
     const list1 = await listOutbox(ADDRESS);
     expect(list1[0]!.status).toBe("failed");
+  });
+});
+
+describe("outbox: dependsOn failure cascade", () => {
+  test("a permanently-failed create blocks its still-pending dependents", async () => {
+    const parent = await enqueueOutbox(entry({ entity: "vehicle", op: "create", targetId: "v1" }));
+    const child = await enqueueOutbox(
+      entry({
+        entity: "vehicleFill",
+        op: "create",
+        targetId: "f1",
+        request: { method: "POST", path: "/vehicles/fills", body: { vehicleId: "v1" } },
+        dependsOn: [parent.opId],
+      }),
+    );
+
+    await failOutboxPermanently(parent.opId, { status: 400, message: "rejected" });
+
+    const list = await listOutbox(ADDRESS);
+    const blocked = list.find((e) => e.opId === child.opId)!;
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.blockedBy).toBe(parent.opId);
+    const parentEntry = list.find((e) => e.opId === parent.opId)!;
+    expect(parentEntry.status).toBe("failed");
+  });
+
+  test("confirming the blocker releases its dependents back to pending", async () => {
+    const parent = await enqueueOutbox(entry({ entity: "vehicle", op: "create", targetId: "v1" }));
+    const child = await enqueueOutbox(
+      entry({ entity: "vehicleFill", op: "create", targetId: "f1", dependsOn: [parent.opId] }),
+    );
+    await failOutboxPermanently(parent.opId, { message: "temporary" });
+    await retryOutbox(parent.opId); // user retries — parent goes back to pending
+    await confirmOutbox(parent.opId); // ...and this time the retry succeeds
+
+    const list = await listOutbox(ADDRESS);
+    expect(list).toHaveLength(1);
+    const released = list.find((e) => e.opId === child.opId)!;
+    expect(released.status).toBe("pending");
+    expect(released.blockedBy).toBeUndefined();
+  });
+
+  test("discarding the blocker cascade-fails its dependents instead of releasing them", async () => {
+    const parent = await enqueueOutbox(entry({ entity: "vehicle", op: "create", targetId: "v1" }));
+    const child = await enqueueOutbox(
+      entry({ entity: "vehicleFill", op: "create", targetId: "f1", dependsOn: [parent.opId] }),
+    );
+    await failOutboxPermanently(parent.opId, { message: "rejected" });
+    await discardOutbox(parent.opId);
+
+    const list = await listOutbox(ADDRESS);
+    expect(list).toHaveLength(1);
+    const failed = list.find((e) => e.opId === child.opId)!;
+    expect(failed.status).toBe("failed");
+    expect(failed.lastError?.message).toMatch(/discarded/i);
   });
 });
 

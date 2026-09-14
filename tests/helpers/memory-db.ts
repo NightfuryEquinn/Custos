@@ -247,7 +247,14 @@ function createCollection() {
       return { insertedId: _id, acknowledged: true };
     },
     async findOne(filter: Record<string, unknown>, _options?: Record<string, unknown>) {
-      return docs.find((d) => matches(d, filter)) ?? null;
+      /* A snapshot, not the live stored object — the real Mongo driver hands
+         back a freshly-deserialized document per call, so a later
+         findOneAndUpdate/updateOne/updateMany on the same row must never be
+         able to retroactively mutate a document a caller already holds
+         (e.g. a route's own pre-update `existing` read, used to detect a
+         field's before/after transition). */
+      const doc = docs.find((d) => matches(d, filter));
+      return doc ? { ...doc } : null;
     },
     async findOneAndUpdate(
       filter: Record<string, unknown>,
@@ -312,7 +319,8 @@ function createCollection() {
           return api;
         },
         async toArray() {
-          const out = [...state.docs];
+          /* Clones, for the same reason findOne clones — see its comment. */
+          const out = state.docs.map((d) => ({ ...d }));
           if (state.sortKeys.length) {
             out.sort((a, b) => {
               for (const { key, dir } of state.sortKeys) {
