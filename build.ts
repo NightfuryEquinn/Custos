@@ -1,5 +1,6 @@
 import { mkdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
+import { APP_VERSION } from "./src/lib/version";
 
 const root = process.cwd();
 const outdir = path.join(root, "dist");
@@ -98,7 +99,20 @@ const publicDir = path.join(root, "public");
 for await (const entry of new Bun.Glob("*").scan({ cwd: publicDir })) {
   const src = path.join(publicDir, entry);
   const dest = path.join(outdir, entry);
-  await Bun.write(dest, Bun.file(src));
+  if (entry === "sw.js") {
+    /* Stamp the shell cache name with the release version so `activate`
+       evicts the previous deploy's cache instead of growing the same
+       never-changing cache forever (see public/sw.js). */
+    const sw = await Bun.file(src).text();
+    const stamped = sw.replaceAll("__SW_CACHE_VERSION__", APP_VERSION);
+    if (stamped === sw) {
+      console.error("Could not find __SW_CACHE_VERSION__ placeholder in sw.js");
+      process.exit(1);
+    }
+    await Bun.write(dest, stamped);
+  } else {
+    await Bun.write(dest, Bun.file(src));
+  }
   const st = await Bun.file(dest).stat();
   console.log(` ${path.relative(root, dest)}  ${(st.size / 1024).toFixed(1)} KB`);
 }

@@ -7,10 +7,11 @@ import {
   decryptJson,
   DERIVATION_MESSAGE_PREFIX,
   deriveKeyFromSignature,
+  deriveSeriesHmacKeyFromSignature,
   LEGACY_DERIVATION_MESSAGE_PREFIX,
 } from "./e2ee";
 import { getKeyGeneration, setKeyGeneration, type KeyGeneration } from "./key-generation";
-import { ledgerKeyStore } from "./key-store";
+import { ledgerKeyStore, seriesKeyStore } from "./key-store";
 import { rekeyLedgerToCustos } from "./rekey";
 
 export type UnlockResult = {
@@ -19,14 +20,26 @@ export type UnlockResult = {
   rekeyed: boolean;
 };
 
-/** Sign a derivation message and HKDF-derive the ledger AES key. */
+/**
+ * Sign a derivation message and HKDF-derive the ledger AES key, storing its
+ * sibling series-HMAC key (see `expenseSeriesKey`) under the same address as
+ * a side effect. Every call site below immediately stores the returned key
+ * into `ledgerKeyStore` for the same address, so the two stores stay in
+ * sync with whichever key generation ends up adopted.
+ */
 async function deriveFromPrefix(idn: IdentityRecord, prefix: string): Promise<CryptoKey> {
   const message = buildDerivationMessage(idn.address, prefix);
   let signature = await walletClient.sign(idn, message);
 
   if (Array.isArray(signature)) signature = signature[0]!;
 
-  return deriveKeyFromSignature(signature);
+  const [key, seriesKey] = await Promise.all([
+    deriveKeyFromSignature(signature),
+    deriveSeriesHmacKeyFromSignature(signature),
+  ]);
+  seriesKeyStore.set(idn.address, seriesKey);
+
+  return key;
 }
 
 /**

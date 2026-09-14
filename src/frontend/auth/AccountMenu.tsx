@@ -111,7 +111,10 @@ export function AccountMenu({
   const [tzBusy, setTzBusy] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useFadeIn(menuRef, { active: open });
+
+  useEffect(() => () => clearTimeout(copiedTimer.current), []);
 
   useEffect(() => {
     api.users
@@ -246,7 +249,8 @@ export function AccountMenu({
             onClick={() => {
               copyText(account.address);
               setCopied(true);
-              setTimeout(() => setCopied(false), 1200);
+              clearTimeout(copiedTimer.current);
+              copiedTimer.current = setTimeout(() => setCopied(false), 1200);
             }}
           >
             <Icon name={copied ? "check" : "copy"} size={16} />{" "}

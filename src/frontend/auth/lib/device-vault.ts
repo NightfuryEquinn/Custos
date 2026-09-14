@@ -3,13 +3,25 @@
  * Uses PBKDF2-SHA-256 + AES-256-GCM.
  */
 
-const VAULT_VERSION = 1 as const;
-const PBKDF2_ITERATIONS = 310_000;
+/**
+ * v1 used 310,000 PBKDF2 iterations (2021 OWASP guidance); v2 raises that to
+ * 600,000 (current OWASP guidance). New vaults are always written at the
+ * current version. An existing v1 vault still unlocks (at its original
+ * iteration count) and is silently re-wrapped to the current version on the
+ * next successful unlock — see `needsRewrap` and its call site in
+ * UnlockScreen's `materializeIdentity`. Never bump PBKDF2_ITERATIONS_BY_VERSION[1]:
+ * that would make every existing v1 vault unreadable.
+ */
+const VAULT_VERSION = 2 as const;
+const PBKDF2_ITERATIONS_BY_VERSION: Record<number, number> = {
+  1: 310_000,
+  2: 600_000,
+};
 const SALT_BYTES = 16;
 const IV_BYTES = 12;
 
 type VaultBlob = {
-  v: typeof VAULT_VERSION;
+  v: number;
   salt: string;
   iv: string;
   ciphertext: string;
@@ -37,11 +49,15 @@ export function base64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
-/** Derive an AES-GCM key from a passphrase and salt. */
+/** Derive an AES-GCM key from a passphrase and salt at a given vault version's iteration count. */
 async function deriveVaultKey(
   passphrase: string,
   salt: Uint8Array<ArrayBuffer>,
+  version: number = VAULT_VERSION,
 ): Promise<CryptoKey> {
+  const iterations = PBKDF2_ITERATIONS_BY_VERSION[version];
+  if (!iterations) throw new Error("Unsupported vault format.");
+
   const material = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(passphrase),
@@ -54,7 +70,7 @@ async function deriveVaultKey(
     {
       name: "PBKDF2",
       salt,
-      iterations: PBKDF2_ITERATIONS,
+      iterations,
       hash: "SHA-256",
     },
     material,
@@ -62,6 +78,11 @@ async function deriveVaultKey(
     false,
     ["encrypt", "decrypt"],
   );
+}
+
+/** Whether an existing vault should be silently re-wrapped at the current version. */
+export function needsRewrap(vault: Pick<VaultBlob, "v">): boolean {
+  return vault.v < VAULT_VERSION;
 }
 
 /** Whether a passphrase meets the minimum local vault policy. */
@@ -89,15 +110,15 @@ export async function wrapSecrets(passphrase: string, secrets: VaultSecrets): Pr
   };
 }
 
-/** Decrypt a vault blob with the device passphrase. */
+/** Decrypt a vault blob with the device passphrase. Accepts any known vault version. */
 export async function unwrapSecrets(passphrase: string, vault: VaultBlob): Promise<VaultSecrets> {
-  if (vault.v !== VAULT_VERSION) {
+  if (!PBKDF2_ITERATIONS_BY_VERSION[vault.v]) {
     throw new Error("Unsupported vault format.");
   }
 
   const salt = base64ToBytes(vault.salt);
   const iv = base64ToBytes(vault.iv);
-  const key = await deriveVaultKey(passphrase, salt);
+  const key = await deriveVaultKey(passphrase, salt, vault.v);
 
   try {
     const plaintext = await crypto.subtle.decrypt(

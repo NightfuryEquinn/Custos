@@ -10,6 +10,7 @@ import { Identicon } from "./components/Identicon";
 import {
   checkQuizAnswers,
   isValidPassphrase,
+  needsRewrap,
   pickQuizIndices,
   unwrapSecrets,
   wrapSecrets,
@@ -23,16 +24,18 @@ import {
   unlockWithBiometric,
   wasAskedToEnrollBiometric,
 } from "./lib/biometric";
-import { copyText } from "./lib/clipboard";
+import { copySecret } from "./lib/clipboard";
 import { codenameFor } from "./lib/codename";
 import { shortAddr } from "./lib/format";
 import { identityStorage } from "./lib/identity-storage";
 import { sessionSecrets } from "./lib/session-secrets";
 import { unlockLedgerKey } from "@/frontend/lib/crypto/unlock";
+import { isValidAuthChallenge } from "@/frontend/lib/crypto/e2ee";
 import {
   emitNotifyEmailChanged,
   writeCachedNotifyEmail,
 } from "@/frontend/lib/hooks/useAccountNotifyEmail";
+import { writeCachedBudgetAlertsEnabled } from "@/frontend/lib/hooks/useBudgetAlertsEnabled";
 import { hasSharingChoiceMade, markSharingChoiceMade, setConsent } from "./lib/consent";
 import { SHARING_SIGNUP_DESCRIPTION, SHARING_SIGNUP_TITLE, SIGNUP_LEAD } from "@/lib/legal";
 import { walletClient } from "./lib/wallet";
@@ -89,6 +92,9 @@ async function finishAuth(
   sharingOptIn?: boolean,
 ) {
   const { message } = await api.auth.challenge(idn.address);
+  if (!isValidAuthChallenge(message, idn.address)) {
+    throw new Error("Received an unexpected sign-in request. Please try again.");
+  }
   let signature = await walletClient.sign(idn, message);
   if (Array.isArray(signature)) signature = signature[0]!;
   await api.auth.verify({ address: idn.address, message, signature });
@@ -98,6 +104,7 @@ async function finishAuth(
   const savedEmail = user.notifyEmail?.trim() || "";
   writeCachedNotifyEmail(savedEmail);
   if (savedEmail) emitNotifyEmailChanged();
+  writeCachedBudgetAlertsEnabled(user.budgetAlertsEnabled !== false);
 
   if (sharingOptIn !== undefined) {
     await api.consent.update(sharingOptIn);
@@ -157,6 +164,8 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
   const [termsOpen, setTermsOpen] = useState(false);
   const identities = identityStorage.list();
   const cardRef = useRef<HTMLDivElement>(null);
+  const phraseCopiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(phraseCopiedTimer.current), []);
   useEnter(cardRef);
 
   const words = useMemo(
@@ -414,7 +423,19 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
     setError("");
     setBusy(true);
     try {
-      const secrets = await unwrapSecrets(passphraseOverride ?? unlockPass, pendingIdn.vault);
+      const passValue = passphraseOverride ?? unlockPass;
+      const secrets = await unwrapSecrets(passValue, pendingIdn.vault);
+      /* Silently raise an older vault to the current format now that we
+         already have the passphrase — never re-prompt just for this. */
+      if (needsRewrap(pendingIdn.vault)) {
+        try {
+          const vault = await wrapSecrets(passValue, secrets);
+          identityStorage.upsert({ ...pendingIdn, vault });
+          setPendingIdn({ ...pendingIdn, vault });
+        } catch {
+          /* Keep the existing vault; try again on a future unlock. */
+        }
+      }
       if (
         !viaBiometric &&
         (await biometricSupported()) &&
@@ -473,6 +494,19 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
     }
   }
 
+  /*
+   * Known ordering note: for offerSource "create", this enrolls a biometric
+   * record before proceedAfterOffer() below has actually sealed and
+   * persisted the vault (that happens inside finishAuth, after a server
+   * round trip). If that round trip fails, the address ends up with a
+   * biometric record but no vault. This fails safe rather than insecure —
+   * biometricAutoUnlockIdentity() (biometric.ts) requires idn.vault to be
+   * present before it will ever use a biometric record — so the orphaned
+   * record is inert, never a way to unlock. Left as a known nit rather than
+   * reordering: this is the single most sensitive flow in the app, and a
+   * server-outcome-dependent reorder here is a poor trade for a cosmetic
+   * cleanup of dead localStorage state.
+   */
   async function acceptBiometricOffer() {
     const address = offerSource === "create" ? draft?.address : pendingIdn?.address;
     if (!address) {
@@ -565,9 +599,10 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
               className="mini-btn"
               type="button"
               onClick={() => {
-                copyText(draft.mnemonic);
+                copySecret(draft.mnemonic);
                 setPhraseCopied(true);
-                setTimeout(() => setPhraseCopied(false), 1200);
+                clearTimeout(phraseCopiedTimer.current);
+                phraseCopiedTimer.current = setTimeout(() => setPhraseCopied(false), 1200);
               }}
             >
               <Icon name={phraseCopied ? "check" : "copy"} size={14} />{" "}
@@ -891,6 +926,10 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
           placeholder="Enter your 12- or 24-word recovery phrase, separated by spaces"
           value={phrase}
           onChange={(e) => setPhrase(e.target.value)}
+          autoComplete="off"
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
         />
         {error ? <div className="auth-error">{error}</div> : null}
         <button

@@ -1,3 +1,7 @@
+/** How long a copied secret (recovery phrase) stays on the clipboard before we clear it. */
+const SECRET_CLIPBOARD_CLEAR_MS = 30_000;
+
+/** Copy non-secret text (e.g. an address) to the clipboard. */
 export function copyText(text: string): void {
   try {
     navigator.clipboard.writeText(text);
@@ -13,4 +17,32 @@ export function copyText(text: string): void {
     }
     ta.remove();
   }
+}
+
+/**
+ * Copy a secret (recovery phrase) to the clipboard. Unlike `copyText`, this
+ * never falls back to a DOM `<textarea>` — that fallback briefly puts the
+ * secret in the page's DOM, which a reveal is otherwise careful to avoid —
+ * and it auto-clears the clipboard after a short delay so the phrase isn't
+ * sitting there indefinitely, readable by any other app or synced to other
+ * devices via Universal/Cloud Clipboard.
+ *
+ * The clear is unconditional (it does not re-read the clipboard first —
+ * `clipboard-read` is a separate, stricter permission browsers may not
+ * grant this long after the user's copy gesture): if the user copied
+ * something else in the meantime, that gets cleared too. A false-positive
+ * clear of an unrelated, non-secret copy is the acceptable side of that
+ * trade against leaving a recovery phrase on the clipboard.
+ */
+export function copySecret(text: string): void {
+  try {
+    void navigator.clipboard.writeText(text);
+  } catch {
+    return;
+  }
+  setTimeout(() => {
+    navigator.clipboard.writeText("").catch(() => {
+      /* Clipboard may be unavailable (unfocused tab, permission revoked) — ignore. */
+    });
+  }, SECRET_CLIPBOARD_CLEAR_MS);
 }

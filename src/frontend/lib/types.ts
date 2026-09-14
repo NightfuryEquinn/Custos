@@ -194,9 +194,10 @@ export type FuelFill = {
   expenseId?: string;
 };
 
-/** On-device passphrase vault blob (no plaintext keys). */
+/** On-device passphrase vault blob (no plaintext keys). `v` selects the PBKDF2
+ *  iteration count — see PBKDF2_ITERATIONS_BY_VERSION in device-vault.ts. */
 export type IdentityVault = {
-  v: 1;
+  v: number;
   salt: string;
   iv: string;
   ciphertext: string;

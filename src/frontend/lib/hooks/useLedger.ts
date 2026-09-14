@@ -27,7 +27,7 @@ import {
   type EventWire,
   type ReminderContext,
 } from "@/frontend/lib/crypto/codec";
-import { ledgerKeyStore } from "@/frontend/lib/crypto/key-store";
+import { ledgerKeyStore, seriesKeyStore } from "@/frontend/lib/crypto/key-store";
 import { releaseOrphanedPlanRefs } from "@/frontend/lib/capitals";
 import { mergeCategoryBudget } from "@/frontend/lib/category-retire";
 import {
@@ -72,6 +72,13 @@ function activeWalletStorageKey(wallet: string) {
 /** Require an unlocked ledger crypto key for the given address. */
 function requireKey(address: string): CryptoKey {
   const key = ledgerKeyStore.get(address);
+  if (!key) throw new Error("Encryption key is locked");
+  return key;
+}
+
+/** Require the unlocked series-HMAC key for the given address. */
+function requireSeriesKey(address: string): CryptoKey {
+  const key = seriesKeyStore.get(address);
   if (!key) throw new Error("Encryption key is locked");
   return key;
 }
@@ -724,8 +731,9 @@ export function useLedger(walletAddress: string) {
   const saveExpenseMutation = useMutation({
     mutationFn: async (data: Omit<Expense, "id"> & { id?: string }) => {
       const cryptoKey = requireKey(wallet);
+      const seriesHmacKey = requireSeriesKey(wallet);
       if (data.id) {
-        const body = await encodeExpenseUpdate(data, cryptoKey);
+        const body = await encodeExpenseUpdate(data, cryptoKey, seriesHmacKey);
         const res = await api.expenses.update(data.id, body);
         const expense = await decodeExpense(res.expense, cryptoKey);
         return {
@@ -734,7 +742,7 @@ export function useLedger(walletAddress: string) {
           endedIds: res.endedIds ?? [],
         };
       }
-      const body = await encodeExpenseCreate(data, cryptoKey);
+      const body = await encodeExpenseCreate(data, cryptoKey, seriesHmacKey);
       const { expense } = await api.expenses.create(body);
       return {
         expense: await decodeExpense(expense, cryptoKey),
@@ -1150,6 +1158,7 @@ export function useLedger(walletAddress: string) {
       onProgress: (done: number, total: number) => void;
     }) => {
       const cryptoKey = requireKey(wallet);
+      const seriesHmacKey = requireSeriesKey(wallet);
       const matching = expensesMatchingSubs(
         allExpensesQuery.data ?? [],
         new Set(args.sourceSubIds),
@@ -1171,6 +1180,7 @@ export function useLedger(walletAddress: string) {
               ...(next.recurring ? { recurring: next.recurring } : {}),
             },
             cryptoKey,
+            seriesHmacKey,
           );
           await api.expenses.update(expense.id, body);
         },

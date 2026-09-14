@@ -111,6 +111,7 @@ export async function encodeExpenseCreate(
     | "capitalPlanId"
   >,
   key: CryptoKey,
+  seriesHmacKey: CryptoKey,
 ) {
   const payload = await encryptJson(key, {
     sub: expense.sub,
@@ -120,7 +121,7 @@ export async function encodeExpenseCreate(
   const recurring = normalizeRecurring(expense.recurring);
   const seriesKey =
     recurring !== false
-      ? await expenseSeriesKey({
+      ? await expenseSeriesKey(seriesHmacKey, {
           walletId: expense.walletId,
           sub: expense.sub,
           note: expense.note ?? "",
@@ -143,6 +144,7 @@ export async function encodeExpenseCreate(
 export async function encodeExpenseUpdate(
   expense: Partial<Omit<Expense, "id">> & Pick<Expense, "sub" | "amount" | "note">,
   key: CryptoKey,
+  seriesHmacKey: CryptoKey,
 ) {
   const payload = await encryptJson(key, {
     sub: expense.sub,
@@ -161,7 +163,7 @@ export async function encodeExpenseUpdate(
     if (recurring === false) {
       patch.seriesKey = null;
     } else if (expense.walletId) {
-      patch.seriesKey = await expenseSeriesKey({
+      patch.seriesKey = await expenseSeriesKey(seriesHmacKey, {
         walletId: expense.walletId,
         sub: expense.sub,
         note: expense.note ?? "",

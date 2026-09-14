@@ -17,6 +17,7 @@ import {
   readCachedNotifyEmail,
   writeCachedNotifyEmail,
 } from "@/frontend/lib/hooks/useAccountNotifyEmail";
+import { writeCachedBudgetAlertsEnabled } from "@/frontend/lib/hooks/useBudgetAlertsEnabled";
 
 /*
  * Data & privacy modal
@@ -82,6 +83,7 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
       .then(({ user }) => {
         setRemindersOn(user.emailRemindersEnabled !== false);
         setBudgetAlertsOn(user.budgetAlertsEnabled !== false);
+        writeCachedBudgetAlertsEnabled(user.budgetAlertsEnabled !== false);
         const email = user.notifyEmail?.trim() || "";
         setNotifyEmail(email);
         setNotifyEmailDraft(email);
@@ -131,11 +133,13 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
   const toggleBudgetAlerts = async () => {
     const next = !budgetAlertsOn;
     setBudgetAlertsOn(next);
+    writeCachedBudgetAlertsEnabled(next);
     setBudgetAlertsBusy(true);
     try {
       await api.users.updateMe({ budgetAlertsEnabled: next });
     } catch {
       setBudgetAlertsOn(!next);
+      writeCachedBudgetAlertsEnabled(!next);
     } finally {
       setBudgetAlertsBusy(false);
     }

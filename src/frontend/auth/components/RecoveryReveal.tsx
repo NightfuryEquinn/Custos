@@ -1,10 +1,10 @@
 import { Icon } from "@/frontend/components/ui";
 import { useModalMotion } from "@/frontend/lib/animate";
 import type { IdentityRecord } from "@/frontend/lib/types";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { unwrapSecrets } from "../lib/device-vault";
-import { copyText } from "../lib/clipboard";
+import { copySecret } from "../lib/clipboard";
 import { sessionSecrets } from "../lib/session-secrets";
 
 type RecoveryRevealProps = {
@@ -24,6 +24,8 @@ export function RecoveryReveal({ identity, onClose }: RecoveryRevealProps) {
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(copiedTimer.current), []);
   const words = mnemonic.split(/\s+/).filter(Boolean);
   const needsPass = !mnemonic && !!identity.vault;
 
@@ -34,7 +36,11 @@ export function RecoveryReveal({ identity, onClose }: RecoveryRevealProps) {
     setBusy(true);
     try {
       const secrets = await unwrapSecrets(passphrase, identity.vault);
-      sessionSecrets.set(identity.address, secrets);
+      /* Deliberately not cached into sessionSecrets: a one-time "let me see
+         my phrase" glance should not silently double as unlocking the
+         wallet's signing key for the rest of the tab's life. Worst case if
+         a later action needs it, the user is asked for their passphrase
+         again through the normal unlock flow. */
       setMnemonic(secrets.mnemonic);
       setShown(true);
     } catch (e) {
@@ -93,13 +99,24 @@ export function RecoveryReveal({ identity, onClose }: RecoveryRevealProps) {
             </>
           ) : (
             <>
-              <div className={`phrase-grid${shown ? "" : " blurred"}`}>
-                {words.map((w, i) => (
-                  <span key={i} className="word">
-                    <b>{i + 1}</b>
-                    {w}
-                  </span>
-                ))}
+              <div className="phrase-grid">
+                {shown
+                  ? words.map((w, i) => (
+                      <span key={i} className="word">
+                        <b>{i + 1}</b>
+                        {w}
+                      </span>
+                    ))
+                  : /* Placeholder markup only — the words themselves never enter the DOM
+                       (or the accessibility tree) until the user consents to reveal them.
+                       A CSS blur alone would still leave the real text readable via
+                       devtools/innerText/a screen reader before that consent. */
+                    words.map((_, i) => (
+                      <span key={i} className="word word--hidden" aria-hidden="true">
+                        <b>{i + 1}</b>
+                        &bull;&bull;&bull;&bull;&bull;&bull;
+                      </span>
+                    ))}
               </div>
               <div className="reveal-actions">
                 {!shown ? (
@@ -111,9 +128,10 @@ export function RecoveryReveal({ identity, onClose }: RecoveryRevealProps) {
                     className="mini-btn"
                     type="button"
                     onClick={() => {
-                      copyText(mnemonic);
+                      copySecret(mnemonic);
                       setCopied(true);
-                      setTimeout(() => setCopied(false), 1200);
+                      clearTimeout(copiedTimer.current);
+                      copiedTimer.current = setTimeout(() => setCopied(false), 1200);
                     }}
                   >
                     <Icon name={copied ? "check" : "copy"} size={14} />{" "}

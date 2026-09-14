@@ -4,7 +4,7 @@ import { TermsGate } from "@/frontend/auth/components/TermsGate";
 import { LoadingBloom } from "@/frontend/components/LoadingBloom";
 import { ThemeToggle } from "@/frontend/components/ThemeToggle";
 import { api } from "@/frontend/lib/api";
-import { ledgerKeyStore } from "@/frontend/lib/crypto/key-store";
+import { ledgerKeyStore, seriesKeyStore } from "@/frontend/lib/crypto/key-store";
 import { unlockLedgerKey } from "@/frontend/lib/crypto/unlock";
 import { identityStorage } from "@/frontend/auth/lib/identity-storage";
 import { sessionSecrets } from "@/frontend/auth/lib/session-secrets";
@@ -74,6 +74,7 @@ export function Root() {
     setSigningOut(true);
     try {
       ledgerKeyStore.clear();
+      seriesKeyStore.clear();
       sessionSecrets.clearAll();
       await logoutSession();
       setAccount(null);

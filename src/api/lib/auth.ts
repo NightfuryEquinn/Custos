@@ -3,6 +3,7 @@ import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { HTTPException } from "hono/http-exception";
 import { createHash, randomBytes } from "node:crypto";
+import { AUTH_MESSAGE_PREAMBLE, AUTH_MESSAGE_VERIFY_LINE } from "@/lib/auth-message";
 
 export const SESSION_COOKIE = "ledger_session";
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -43,10 +44,10 @@ export function buildAuthMessage(address: string, nonce: string, uri: string): s
   const issuedAt = new Date().toISOString();
 
   return [
-    "Custos wants you to sign in with your Web3 identity.",
+    AUTH_MESSAGE_PREAMBLE,
     "",
     `Address: ${normalized}`,
-    "Sign in to verify you control this key. This will not send a transaction or cost gas.",
+    AUTH_MESSAGE_VERIFY_LINE,
     "",
     `URI: ${uri}`,
     `Nonce: ${nonce}`,
