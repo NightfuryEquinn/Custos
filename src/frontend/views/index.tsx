@@ -258,6 +258,10 @@ export function Overview({
     }
     return { cum: spentPoints, earnCum: earnedPoints };
   }, [dayFlows]);
+  /** The trend line's own running total — st.spent excludes savings deposits
+   *  (it powers the Spent-card % elsewhere), which would visibly mismatch
+   *  this panel's line now that the line itself includes them. */
+  const trendSpent = cum.length ? cum[cum.length - 1]!.v : 0;
 
   const recent = st.list.slice(0, 3);
   const topPiggies = useMemo(
@@ -410,7 +414,7 @@ export function Overview({
               <span className="trend-key">
                 <i className="trend-dot" style={{ background: accent }} /> Spending
               </span>
-              <span className="trend-now">{fmtMoney(st.spent, { currency })}</span>
+              <span className="trend-now">{fmtMoney(trendSpent, { currency })}</span>
             </div>
             <div className="trend-total">
               <span className="trend-key">

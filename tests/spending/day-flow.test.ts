@@ -89,7 +89,7 @@ describe("dayFlowSeries", () => {
     ]);
   });
 
-  test("keeps savings out of spend, matching the trend line", () => {
+  test("counts a savings deposit as spend, matching the trend line and totalBudget", () => {
     const series = dayFlowSeries(
       [tx("2026-08-01", 30, "food-groceries"), tx("2026-08-01", 200, "savings-emergency")],
       "2026-08",
@@ -97,7 +97,20 @@ describe("dayFlowSeries", () => {
       1,
     );
 
-    expect(series[0]!.spent).toBe(30);
+    expect(series[0]!.spent).toBe(230);
+    // Largest first: the 200 deposit outweighs the 30 grocery run.
+    expect(series[0]!.spend.map((s) => s.id)).toEqual(["savings", "food"]);
+  });
+
+  test("nets a savings withdrawal against spend without adding a category row", () => {
+    const series = dayFlowSeries(
+      [tx("2026-08-01", 30, "food-groceries"), tx("2026-08-01", 50, "savings-emergency", "income")],
+      "2026-08",
+      INDEX,
+      1,
+    );
+
+    expect(series[0]!.spent).toBe(-20);
     expect(series[0]!.spend.map((s) => s.id)).toEqual(["food"]);
   });
 
@@ -147,8 +160,8 @@ describe("spendingChartSeries income", () => {
     const july = bars.find((b) => b.key === "2026-07")!;
 
     expect(july).toMatchObject({ spent: 100, earned: 500 });
-    // Savings stays out of spend but is not counted as income either.
-    expect(august).toMatchObject({ spent: 60, earned: 800 });
+    // Savings deposits now count toward spend, matching the trend line; income is unaffected.
+    expect(august).toMatchObject({ spent: 360, earned: 800 });
   });
 
   test("carries income through daily, quarterly, and yearly buckets", () => {
@@ -156,9 +169,9 @@ describe("spendingChartSeries income", () => {
     expect(daily.find((b) => b.key === "2026-08-05")).toMatchObject({ spent: 0, earned: 800 });
 
     const quarterly = spendingChartSeries("quarterly", expenses, "2026-08", INDEX);
-    expect(quarterly.at(-1)).toMatchObject({ key: "2026-Q3", spent: 160, earned: 1300 });
+    expect(quarterly.at(-1)).toMatchObject({ key: "2026-Q3", spent: 460, earned: 1300 });
 
     const yearly = spendingChartSeries("yearly", expenses, "2026-08", INDEX);
-    expect(yearly.at(-1)).toMatchObject({ key: "2026", spent: 160, earned: 1300 });
+    expect(yearly.at(-1)).toMatchObject({ key: "2026", spent: 460, earned: 1300 });
   });
 });
