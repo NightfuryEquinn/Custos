@@ -109,7 +109,11 @@ const COLLECTIONS: CollectionDoc[] = [
       { key: "recurring", value: "false | interval" },
       { key: "enc", value: "1" },
       { key: "payload", value: "base64 AES-GCM", note: "sub, amount, note" },
-      { key: "seriesKey?", value: "sha256 hex", note: "recurring series id" },
+      {
+        key: "seriesKey?",
+        value: "hmac-sha256 hex",
+        note: "recurring series id, keyed to your account — not reproducible from the note/subcategory alone",
+      },
       { key: "eventId?", value: "ObjectId", note: "optional link to a schedule event (plaintext)" },
       {
         key: "capitalPlanId?",
