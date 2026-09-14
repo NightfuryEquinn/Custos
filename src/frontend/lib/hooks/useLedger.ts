@@ -917,9 +917,13 @@ export function useLedger(walletAddress: string) {
            already-recurring row can trigger a server-computed multi-document
            retire, which the client cannot predict — that case keeps requiring
            a live connection, unchanged from before this queue existed. */
+        /* Overlay-aware, not the raw query caches — an expense created
+           offline isn't in either cache until its own create confirms, so
+           reading the raw data here made editing it while still offline
+           fall through to a doomed direct network call instead of queueing. */
         const existing =
-          expensesQuery.data?.find((e) => e.id === data.id) ??
-          allExpensesQuery.data?.find((e) => e.id === data.id);
+          overlaidExpenseData.find((e) => e.id === data.id) ??
+          overlaidAllExpenseData.find((e) => e.id === data.id);
         const queueable = existing ? normalizeRecurring(existing.recurring) === false : false;
         const body = await encodeExpenseUpdate(data, cryptoKey, seriesHmacKey);
 
@@ -1263,13 +1267,25 @@ export function useLedger(walletAddress: string) {
           action.type === "except"
             ? { exceptDates: [...(existing.exceptDates ?? []), action.date] }
             : { until: action.until };
+        /* A trim, not a real delete — enqueueOutbox's coalescing rule
+           deliberately does NOT annihilate this against a still-pending
+           create for the same event (see its own comment), so if the
+           event itself was created offline and hasn't confirmed yet, this
+           must wait for that create rather than 404 against a row that
+           doesn't exist server-side yet. Strict seq order already sends
+           the create first in the normal case; this only matters if that
+           create later fails permanently, in which case this entry blocks
+           instead of firing at nothing. */
+        const pendingCreate = (await listOutbox(wallet)).find(
+          (e) => e.entity === "event" && e.op === "create" && e.targetId === id,
+        );
         await enqueueOutbox({
           address: wallet,
           entity: "event",
           op: "delete",
           targetId: id,
           request: { method: "DELETE", path },
-          dependsOn: [],
+          dependsOn: pendingCreate ? [pendingCreate.opId] : [],
           overlayPatch,
           label: "Delete event",
         });

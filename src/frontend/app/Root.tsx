@@ -11,6 +11,7 @@ import { sessionSecrets } from "@/frontend/auth/lib/session-secrets";
 import { isSessionTrustFresh, markSessionVerified } from "@/frontend/auth/lib/session-trust";
 import { isOfflineFailure } from "@/frontend/lib/net/offline-failure";
 import { clearCipherCacheForAddress } from "@/frontend/lib/pwa/cipher-cache";
+import { clearOutboxForAddress } from "@/frontend/lib/sync/outbox";
 import { ThemeProvider } from "@/frontend/lib/hooks/useTheme";
 import { TERMS_VERSION } from "@/lib/legal";
 import type { Account } from "@/frontend/lib/types";
@@ -104,6 +105,11 @@ export function Root() {
         if (saved && !isSessionTrustFresh(saved.address)) {
           setAccount(null);
           void clearCipherCacheForAddress(saved.address);
+          /* Also drop any offline writes still queued for this address —
+             the whole point of the trust window (session-trust.ts) is that
+             a session with no server confirmation for this long shouldn't
+             keep accumulating local state, writes included. */
+          void clearOutboxForAddress(saved.address);
         }
       })
       .finally(() => setBooting(false));

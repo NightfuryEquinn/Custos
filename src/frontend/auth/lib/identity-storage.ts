@@ -110,8 +110,14 @@ export const identityStorage = {
 export function clearAllLocalData(): void {
   /* Every identity ever used on this device, not just the current session —
      once `ledger:identities` is wiped below, nothing can enumerate the rest
-     again, and their IndexedDB rows would otherwise sit there permanently. */
-  const knownAddresses = identityStorage.list().map((i) => i.address);
+     again, and their IndexedDB rows would otherwise sit there permanently.
+     `list()` swallows a JSON parse error and returns `[]` on a corrupt
+     `ledger:identities` — seed with the current session address too, so a
+     corrupt list never silently skips the one address this action is most
+     likely being run to actually clear. */
+  const knownAddresses = new Set(identityStorage.list().map((i) => i.address));
+  const current = identityStorage.session();
+  if (current) knownAddresses.add(current);
   pendingLegacy.clear();
   ledgerKeyStore.clear();
   seriesKeyStore.clear();

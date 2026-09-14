@@ -2,7 +2,27 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { resetFakeIdb } from "../helpers/fake-idb";
 import { connectivity } from "@/frontend/lib/net/connectivity";
 import { enqueueOutbox, listOutbox } from "@/frontend/lib/sync/outbox";
+import { identityStorage } from "@/frontend/auth/lib/identity-storage";
 import type { NewOutboxEntry } from "@/frontend/lib/sync/types";
+
+/* bun's test runtime has no browser localStorage — stub a minimal one, same
+   convention as tests/auth/session-trust.test.ts and biometric.test.ts.
+   drainOutbox refuses to run for an address that isn't the current
+   `identityStorage.session()` (the cross-account-bleed backstop), so every
+   test below needs that set to ADDRESS unless it's specifically testing
+   the mismatch case. */
+function fakeLocalStorage() {
+  const map = new Map<string, string>();
+  return {
+    getItem: (k: string) => (map.has(k) ? map.get(k)! : null),
+    setItem: (k: string, v: string) => {
+      map.set(k, v);
+    },
+    removeItem: (k: string) => {
+      map.delete(k);
+    },
+  };
+}
 
 const ADDRESS = "0xAbCdEf0000000000000000000000000000000001";
 
@@ -67,6 +87,8 @@ beforeEach(() => {
   // isOfflineFailure() falls back to `!navigator.onLine` — bun's bare `navigator`
   // has no `onLine` at all, which would misclassify every error as offline.
   Object.defineProperty(globalThis.navigator, "onLine", { value: true, configurable: true });
+  (globalThis as unknown as { localStorage: unknown }).localStorage = fakeLocalStorage();
+  identityStorage.setSession(ADDRESS);
 });
 
 describe("drainOutbox", () => {
@@ -145,6 +167,27 @@ describe("drainOutbox", () => {
   test("does nothing while offline", async () => {
     connectivity.setStatusForTests("offline");
     await enqueueOutbox(entry());
+
+    await drainOutbox(ADDRESS);
+
+    expect(await listOutbox(ADDRESS)).toHaveLength(1);
+    expect(api.calls).toHaveLength(0);
+  });
+
+  test("refuses to drain an address that isn't the current session (cross-account bleed guard)", async () => {
+    const OTHER = "0x0000000000000000000000000000000000000002";
+    await enqueueOutbox(entry({ address: OTHER }));
+    identityStorage.setSession(ADDRESS); // signed in as ADDRESS, not OTHER
+
+    await drainOutbox(OTHER);
+
+    expect(await listOutbox(OTHER)).toHaveLength(1); // untouched — never claimed, never sent
+    expect(api.calls).toHaveLength(0);
+  });
+
+  test("refuses to drain with no session at all", async () => {
+    await enqueueOutbox(entry());
+    identityStorage.setSession(null);
 
     await drainOutbox(ADDRESS);
 

@@ -14,7 +14,7 @@
  * server's sliding session TTL (`SESSION_TTL_MS`, src/api/lib/auth.ts) and
  * the read cache's own entry TTL (`cipher-cache.ts`) are both 30 days.
  */
-const TRUST_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+export const TRUST_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 const KEY = "ledger:session-verified-at";
 

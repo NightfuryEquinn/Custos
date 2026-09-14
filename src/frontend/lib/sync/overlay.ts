@@ -49,6 +49,19 @@ function mergeWire<W extends { id: string }>(base: W, patch: Record<string, unkn
   return { ...base, ...patch };
 }
 
+/**
+ * Name-only summary of a decode failure, never the error itself. The
+ * documented failure mode (a key mismatch mid-rekey) throws a WebCrypto
+ * `OperationError` with no plaintext in its message — but if a GCM tag ever
+ * verified against a payload that then failed `JSON.parse`, a V8/JSC
+ * `SyntaxError` embeds a slice of the *decrypted* text it choked on. Not
+ * reachable in the documented failure mode, but logging only the error's
+ * name costs nothing and closes that path off entirely.
+ */
+function safeErrorName(err: unknown): string {
+  return err instanceof Error ? err.name : typeof err;
+}
+
 /** How to render one list-shaped entity's pending outbox entries. */
 type OverlaySpec<T extends { id: string }, W extends { id: string }> = {
   entity: EntityKind;
@@ -123,7 +136,10 @@ export async function applyOverlay<T extends { id: string }, W extends { id: str
          entry's optimistic row can't render — surfaced for diagnosis, not
          thrown, so the rest of the overlay (and the underlying server data)
          still renders. The entry itself is untouched and still drains normally. */
-      console.error(`[sync] overlay decode failed for ${spec.entity}:${entry.targetId}`, err);
+      console.error(
+        `[sync] overlay decode failed for ${spec.entity}:${entry.targetId}`,
+        safeErrorName(err),
+      );
     }
   }
 
@@ -260,7 +276,7 @@ export async function applySingletonOverlay<T>(
   } catch (err) {
     console.error(
       `[sync] singleton overlay decode failed for ${opts.entity}:${opts.targetId}`,
-      err,
+      safeErrorName(err),
     );
     return base;
   }

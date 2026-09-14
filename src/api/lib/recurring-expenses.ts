@@ -1,4 +1,5 @@
 import { randomObjectId } from "@/api/lib/ids";
+import { createHash } from "node:crypto";
 import { getCollections, getDb } from "@/db";
 import type { ExpenseDocument } from "@/db/collections";
 import {
@@ -225,9 +226,16 @@ export async function processDueRecurringExpenses(
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        /* Never surface the legacy plaintext note/sub here — this label rides in
-           the cron JSON response body, which cron-job.org retains in job history. */
-        const label = seriesKey(template).slice(0, 8);
+        /* Never surface the legacy plaintext note/sub (or a recognizable
+           prefix of any identifier) here — this label rides in the cron
+           JSON response body, which cron-job.org retains in job history.
+           seriesKey() is already opaque for encrypted templates (an HMAC),
+           but for a legacy template it's a raw `walletId|sub|note|freq`
+           concatenation — slicing that directly would leak a wallet-id
+           prefix (or, if walletId is ever nullish, a subcategory-id
+           prefix). Hash it instead so this stays a stable-but-unrecoverable
+           grouping key either way. */
+        const label = createHash("sha256").update(seriesKey(template)).digest("hex").slice(0, 8);
         result.errors.push(`${label} (${anchorIso}): ${msg}`);
       }
     }

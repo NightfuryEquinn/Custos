@@ -24,7 +24,12 @@ export type OutboxRequest = {
   method: "POST" | "PATCH" | "PUT" | "DELETE";
   /** API path, e.g. "/expenses" or "/expenses/<id>" — no leading "/api". */
   path: string;
-  /** Already-encrypted — exactly what `apiFetch` would send. */
+  /** Exactly what `apiFetch` would send — financial fields are always
+   *  already-encrypted, but an event body also carries plaintext
+   *  `notifyDetails` (title, hold amount/category, comments) by design:
+   *  the server already stores that copy in the clear to render reminder
+   *  emails, so this is the same trust boundary as the read cache, not a
+   *  new one. See cipher-cache.ts's header comment. */
   body?: unknown;
 };
 

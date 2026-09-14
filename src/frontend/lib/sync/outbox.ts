@@ -5,6 +5,7 @@
  */
 
 import { openCustosDb, STORES, reqAsPromise, txAsPromise } from "@/frontend/lib/pwa/idb";
+import { TRUST_WINDOW_MS } from "@/frontend/auth/lib/session-trust";
 import type { NewOutboxEntry, OutboxEntry } from "./types";
 
 const STORE = STORES.outbox;
@@ -54,9 +55,20 @@ async function maxSeq(tx: IDBTransaction, address: string): Promise<number> {
  *  - a new update over a pending update → replace it (keep the old seq, so
  *    order among *other* entries doesn't shift), each encode call already
  *    produces the full-shape body, so the newest simply wins.
- *  - a new delete over a pending create for the same id → drop both; the
- *    server never saw the create, so nothing needs deleting either.
- *  - a new delete over a pending update → drop the update, keep the delete.
+ *  - a real delete (no `overlayPatch`) over a pending create for the same id
+ *    → drop both; the server never saw the create, so nothing needs
+ *    deleting either.
+ *  - a real delete over a pending update → drop the update, keep the delete.
+ *  - a *soft* delete (carries `overlayPatch` — e.g. a scoped event delete
+ *    that only trims the schedule, not a real removal) is NOT annihilated
+ *    against a pending create: it isn't actually "delete this row", so
+ *    dropping the create along with it would silently destroy a row the
+ *    user never asked to remove. Falls through to the normal append path
+ *    below like any other new entry; the caller is responsible for a
+ *    `dependsOn` on the pending create's opId if one exists (see
+ *    `deleteEventMutation` in useLedger.ts), so it can't fire before the
+ *    row exists server-side if that create later fails permanently — strict
+ *    seq order already handles the ordering in the non-failure case.
  *  - create followed later by an update → kept as two entries (different
  *    body shapes; folding one into the other risks silent field loss).
  * Never coalesces into an entry whose status is "inflight".
@@ -74,7 +86,7 @@ export async function enqueueOutbox(entry: NewOutboxEntry): Promise<OutboxEntry>
       (e as OutboxEntry).entity === entry.entity && (e as OutboxEntry).targetId === entry.targetId,
   );
 
-  if (entry.op === "delete") {
+  if (entry.op === "delete" && !entry.overlayPatch) {
     const pendingCreate = existingForTarget.find(
       (e) => e.op === "create" && e.status !== "inflight",
     );
@@ -327,6 +339,38 @@ export async function releaseOutboxEntry(opId: string): Promise<void> {
     store.put({ ...existing, status: "pending", leaseUntil: undefined } satisfies OutboxEntry);
   }
   await txAsPromise(tx);
+}
+
+/**
+ * Drop `failed`/`blocked` entries older than the trust window — the same
+ * bound `cipher-cache.ts` uses for its own entries, and for the same
+ * reason: an entry's `label` is plaintext ledger content at rest (see
+ * types.ts), and unlike the cache, the outbox had no TTL of its own. Never
+ * touches `pending`/`inflight` (still actively queued to send) or anything
+ * newer than the window (still visible in the retry/discard panel — see
+ * OfflineBanner.tsx — for a user who might still act on it). Best-effort,
+ * called opportunistically from the drain loop; never blocks a drain.
+ */
+export async function purgeStaleFailures(address: string): Promise<void> {
+  if (typeof indexedDB === "undefined") return;
+  try {
+    const db = await openCustosDb();
+    const tx = db.transaction(STORE, "readwrite");
+    const store = tx.objectStore(STORE);
+    const cutoff = Date.now() - TRUST_WINDOW_MS;
+    const range = IDBKeyRange.bound(
+      [address.toLowerCase(), -Infinity],
+      [address.toLowerCase(), Infinity],
+    );
+    const stale = (
+      (await reqAsPromise(store.index("address_seq").getAll(range))) as OutboxEntry[]
+    ).filter((e) => (e.status === "failed" || e.status === "blocked") && e.updatedAt < cutoff);
+    for (const e of stale) store.delete(e.opId);
+    await txAsPromise(tx);
+    if (stale.length) notify();
+  } catch {
+    /* ignore */
+  }
 }
 
 /** Drop every entry for an address — sign-out, or after a successful rekey. */

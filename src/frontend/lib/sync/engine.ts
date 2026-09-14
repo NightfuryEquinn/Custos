@@ -7,10 +7,12 @@
 import { apiFetch, ApiError } from "@/frontend/lib/api";
 import { isOfflineFailure } from "@/frontend/lib/net/offline-failure";
 import { connectivity } from "@/frontend/lib/net/connectivity";
+import { identityStorage } from "@/frontend/auth/lib/identity-storage";
 import {
   claimNextOutboxEntry,
   confirmOutbox,
   failOutboxPermanently,
+  purgeStaleFailures,
   rescheduleOutbox,
   releaseOutboxEntry,
 } from "./outbox";
@@ -58,11 +60,21 @@ async function sendEntry(entry: OutboxEntry): Promise<SendOutcome> {
 
 let draining = false;
 
-/** Drain every ready entry for `address`, oldest first, stopping on the first non-terminal outcome. */
+/**
+ * Drain every ready entry for `address`, oldest first, stopping on the first
+ * non-terminal outcome. Refuses to run at all if `address` isn't the
+ * currently signed-in identity — a defensive backstop, independent of
+ * whatever called this, against ever sending one account's queued writes
+ * authenticated as a different account's session cookie (see
+ * `armSyncTriggers` below for the specific bug this was written to catch).
+ */
 export async function drainOutbox(address: string): Promise<void> {
   if (draining || !connectivity.isOnline()) return;
+  const current = identityStorage.session();
+  if (!current || current.toLowerCase() !== address.toLowerCase()) return;
   draining = true;
   try {
+    void purgeStaleFailures(address);
     for (;;) {
       const entry = await claimNextOutboxEntry(address);
       if (!entry) break;
@@ -77,21 +89,35 @@ export async function drainOutbox(address: string): Promise<void> {
 
 let armed = false;
 let heartbeat: ReturnType<typeof setInterval> | undefined;
+/* The trigger listeners close over this indirectly (via `trigger` reading
+   it fresh each call) rather than over `armSyncTriggers`'s own parameter —
+   see the comment below on why that distinction is load-bearing. */
+let currentGetAddress: (() => string | null) | null = null;
 
 /**
  * Wire up the drain triggers: `online`, tab becoming visible/focused, and a
  * periodic heartbeat while online (covers a queued entry whose backoff has
  * since elapsed). No Background Sync API — iOS Safari has never shipped it,
  * and these in-page triggers cover "sync the instant the user reopens the
- * app", which is what matters for this app. Idempotent; call with the same
- * `getAddress` each time (e.g. once at app mount).
+ * app", which is what matters for this app.
+ *
+ * The DOM listeners/heartbeat are attached exactly once (guarded by `armed`)
+ * — but `getAddress` itself is *not* frozen at that first call. It's stored
+ * in a module-level variable that every call overwrites, so a later call
+ * from a fresh mount (e.g. LedgerApp remounting under a different signed-in
+ * account, per its `key={account.address}`) still takes effect even though
+ * the listeners themselves aren't re-attached. Getting this wrong previously
+ * meant the *first* account's address was drained forever, including after
+ * a different account signed in on the same tab — `drainOutbox`'s own
+ * session check above is the second, independent guard against that.
  */
 export function armSyncTriggers(getAddress: () => string | null): void {
+  currentGetAddress = getAddress;
   if (armed || typeof window === "undefined" || typeof document === "undefined") return;
   armed = true;
 
   const trigger = () => {
-    const address = getAddress();
+    const address = currentGetAddress?.();
     if (address) void drainOutbox(address);
   };
 
@@ -108,6 +134,7 @@ export function armSyncTriggers(getAddress: () => string | null): void {
 /** Test helper: undo armSyncTriggers' one-time guard. */
 export function resetSyncTriggersForTests(): void {
   armed = false;
+  currentGetAddress = null;
   clearInterval(heartbeat);
   heartbeat = undefined;
 }

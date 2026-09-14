@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { resetFakeIdb } from "../helpers/fake-idb";
+import { openCustosDb, reqAsPromise, STORES, txAsPromise } from "@/frontend/lib/pwa/idb";
 import {
   clearOutboxForAddress,
   confirmOutbox,
@@ -7,6 +8,7 @@ import {
   enqueueOutbox,
   failOutboxPermanently,
   listOutbox,
+  purgeStaleFailures,
   retryOutbox,
 } from "@/frontend/lib/sync/outbox";
 import type { NewOutboxEntry } from "@/frontend/lib/sync/types";
@@ -81,6 +83,25 @@ describe("outbox: coalescing", () => {
     );
 
     expect(await listOutbox(ADDRESS)).toHaveLength(0);
+  });
+
+  test("a soft delete (overlayPatch) over a pending create keeps both entries", async () => {
+    // Mirrors deleteEventMutation's "this"/"future" scope: the DELETE
+    // request's real effect is a trim, not a removal, so annihilating it
+    // against a still-unconfirmed create would silently destroy the whole
+    // row instead of just trimming it.
+    await enqueueOutbox(entry({ entity: "event", op: "create" }));
+    await enqueueOutbox(
+      entry({
+        entity: "event",
+        op: "delete",
+        request: { method: "DELETE", path: "/events/target-1?scope=this" },
+        overlayPatch: { exceptDates: ["2026-09-08"] },
+      }),
+    );
+
+    const list = await listOutbox(ADDRESS);
+    expect(list.map((e) => e.op)).toEqual(["create", "delete"]);
   });
 
   test("a delete over a pending update drops the update and keeps the delete", async () => {
@@ -169,6 +190,40 @@ describe("outbox: dependsOn failure cascade", () => {
     const failed = list.find((e) => e.opId === child.opId)!;
     expect(failed.status).toBe("failed");
     expect(failed.lastError?.message).toMatch(/discarded/i);
+  });
+});
+
+describe("outbox: purgeStaleFailures", () => {
+  async function backdate(opId: string, updatedAt: number): Promise<void> {
+    const db = await openCustosDb();
+    const tx = db.transaction(STORES.outbox, "readwrite");
+    const store = tx.objectStore(STORES.outbox);
+    const existing = await reqAsPromise(store.get(opId));
+    store.put({ ...(existing as object), updatedAt });
+    await txAsPromise(tx);
+  }
+
+  test("drops failed/blocked entries past the 30-day trust window", async () => {
+    const stale = await enqueueOutbox(entry({ targetId: "old" }));
+    await failOutboxPermanently(stale.opId, { message: "old failure" });
+    await backdate(stale.opId, Date.now() - 31 * 24 * 60 * 60 * 1000);
+
+    const fresh = await enqueueOutbox(entry({ targetId: "recent" }));
+    await failOutboxPermanently(fresh.opId, { message: "recent failure" });
+
+    await purgeStaleFailures(ADDRESS);
+
+    const list = await listOutbox(ADDRESS);
+    expect(list.map((e) => e.targetId)).toEqual(["recent"]);
+  });
+
+  test("never touches pending/inflight entries regardless of age", async () => {
+    const entry1 = await enqueueOutbox(entry({ targetId: "still-pending" }));
+    await backdate(entry1.opId, Date.now() - 60 * 24 * 60 * 60 * 1000);
+
+    await purgeStaleFailures(ADDRESS);
+
+    expect(await listOutbox(ADDRESS)).toHaveLength(1);
   });
 });
 
