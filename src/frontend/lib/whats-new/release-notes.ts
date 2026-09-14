@@ -39,17 +39,17 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
   {
     version: "5.1.1",
     date: "September 2026",
-    lead: "Custos now opens and unlocks with no connection at all, showing your last-synced data — and logging or editing a simple expense while offline now saves right away and quietly syncs once you're back online. Plus a Spending & Earning fix: money moved into savings now counts toward what you've spent.",
+    lead: "Custos now opens and unlocks with no connection at all, showing your last-synced data — and most edits made while offline now save right away and quietly sync once you're back online. Plus a Spending & Earning fix: money moved into savings now counts toward what you've spent.",
     highlights: [
       {
         icon: "wifi-on",
         title: "Works with no connection",
-        body: "Opening Custos with no signal now takes you straight to unlock and your last-synced ledger, instead of dropping you back to sign-in. A small indicator up top shows when you're offline.",
+        body: "Opening Custos with no signal now takes you straight to unlock and your last-synced ledger, instead of dropping you back to sign-in. A small indicator up top shows when you're offline, and how many changes are waiting to sync.",
       },
       {
         icon: "download",
-        title: "Offline expenses sync automatically",
-        body: "Log or edit a plain (non-repeating) expense with no connection and it saves immediately — Custos queues it and sends it the moment you're back online, with no need to redo anything. Editing a repeating transaction or deleting one with a scope still needs a connection, same as before.",
+        title: "Offline edits sync automatically",
+        body: "Expenses, schedule events, to-do lists, Capitals plans, vehicles, fuel fills, budgets, and categories all save immediately with no connection — Custos queues each change and sends it the moment you're back online, with nothing to redo. A few things that need the server to decide the outcome — editing a repeating transaction, a scoped delete, changing wallets, or a category transfer — still need a connection, same as before.",
       },
       {
         icon: "insights",
