@@ -21,6 +21,9 @@ const recurringFieldInputSchema = z
   .default(false);
 
 const expenseMetaSchema = z.object({
+  /** Optional client-minted id (offline write queue) — random ObjectId hex,
+   *  no embedded timestamp, same shape the server would generate itself. */
+  id: objectIdSchema.optional(),
   walletId: objectIdSchema,
   kind: txnKindSchema.optional().default("expense"),
   date: isoDateSchema,

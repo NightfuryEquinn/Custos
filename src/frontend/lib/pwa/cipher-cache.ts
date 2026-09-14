@@ -1,6 +1,8 @@
 /**
  * IndexedDB read cache for GET /api responses, verbatim.
- * Read-only offline fallback — no offline write queue.
+ * Read-only offline fallback — offline writes are queued separately, see
+ * `@/frontend/lib/sync` (the outbox), which shares this same database via
+ * `idb.ts`.
  *
  * Mostly ciphertext, but not entirely: a couple of endpoints intentionally
  * return plaintext alongside it — `/events` includes `notifyDetails` (title,
@@ -11,10 +13,9 @@
  * ENTRY_TTL_MS / MAX_ENTRIES below.
  */
 
-const DB_NAME = "custos-cache";
-/* v2 adds the `updatedAt` index the cap sweep below needs. */
-const DB_VERSION = 2;
-const STORE = "api-gets";
+import { openCustosDb, STORES } from "./idb";
+
+const STORE = STORES.apiGets;
 
 /* Without these two bounds this store only ever grows: every distinct
    query-string combination (a new month, a new filter) adds a row that
@@ -34,45 +35,6 @@ type CacheEntry = {
   body: string;
   updatedAt: number;
 };
-
-let sharedDb: Promise<IDBDatabase> | null = null;
-
-/** Open (or reuse) the cache database connection. */
-function openDb(): Promise<IDBDatabase> {
-  if (typeof indexedDB === "undefined") {
-    return Promise.reject(new Error("IndexedDB unavailable"));
-  }
-  if (!sharedDb) {
-    sharedDb = new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, DB_VERSION);
-      req.onupgradeneeded = () => {
-        const db = req.result;
-        const store = db.objectStoreNames.contains(STORE)
-          ? req.transaction!.objectStore(STORE)
-          : db.createObjectStore(STORE, { keyPath: "key" });
-        if (!store.indexNames.contains("address")) {
-          store.createIndex("address", "address", { unique: false });
-        }
-        if (!store.indexNames.contains("updatedAt")) {
-          store.createIndex("updatedAt", "updatedAt", { unique: false });
-        }
-      };
-      req.onsuccess = () => {
-        const db = req.result;
-        db.onclose = () => {
-          sharedDb = null;
-        };
-        resolve(db);
-      };
-      req.onerror = () => {
-        sharedDb = null;
-        reject(req.error ?? new Error("IndexedDB open failed"));
-      };
-    });
-  }
-
-  return sharedDb;
-}
 
 /** Build a cache key scoped to the signed-in address and API path. */
 function cacheKey(address: string, path: string): string {
@@ -120,7 +82,7 @@ export async function putCipherCache(address: string, path: string, body: unknow
   if (typeof indexedDB === "undefined") return;
 
   try {
-    const db = await openDb();
+    const db = await openCustosDb();
     const entry: CacheEntry = {
       key: cacheKey(address, path),
       address: address.toLowerCase(),
@@ -145,7 +107,7 @@ export async function getCipherCache<T>(address: string, path: string): Promise<
   if (typeof indexedDB === "undefined") return null;
 
   try {
-    const db = await openDb();
+    const db = await openCustosDb();
     const key = cacheKey(address, path);
     const entry = await new Promise<CacheEntry | undefined>((resolve, reject) => {
       const tx = db.transaction(STORE, "readonly");
@@ -171,7 +133,7 @@ export async function clearCipherCacheForAddress(address: string): Promise<void>
   if (typeof indexedDB === "undefined") return;
 
   try {
-    const db = await openDb();
+    const db = await openCustosDb();
     const addr = address.toLowerCase();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE, "readwrite");

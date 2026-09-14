@@ -58,6 +58,8 @@ import {
   Sun,
   Tag,
   Target,
+  WifiHigh,
+  WifiSlash,
   Trash,
   Wallet as WalletIcon,
   X,
@@ -351,6 +353,8 @@ const ICON_MAP: Record<string, PhosphorIcon> = {
   piggy: PiggyBank,
   capital: Target,
   car: Car,
+  "wifi-on": WifiHigh,
+  "wifi-off": WifiSlash,
 };
 
 function Icon({ name, size = 20 }: { name: string; size?: number }) {

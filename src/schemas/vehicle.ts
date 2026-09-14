@@ -6,6 +6,8 @@ const VEHICLE_TYPES = ["car", "ev", "bike", "van"] as const;
 const vehicleTypeSchema = z.enum(VEHICLE_TYPES);
 
 export const createVehicleSchema = z.object({
+  /** Optional client-minted id (offline write queue) — see expense.ts's `id`. */
+  id: objectIdSchema.optional(),
   type: vehicleTypeSchema,
   enc: e2eeVersionSchema,
   payload: encryptedPayloadSchema,
@@ -22,6 +24,8 @@ export const updateVehicleSchema = z
   });
 
 const vehicleFillMetaSchema = z.object({
+  /** Optional client-minted id (offline write queue) — see expense.ts's `id`. */
+  id: objectIdSchema.optional(),
   vehicleId: objectIdSchema,
   date: isoDateSchema,
   partial: z.boolean().optional().default(false),

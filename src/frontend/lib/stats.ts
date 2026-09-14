@@ -61,8 +61,12 @@ function quartersWindow(anchorMonth: string, size = 6) {
 }
 
 /**
- * Spend (outgoing, excluding savings envelopes) and income totals for a set of
- * transactions, rounded to cents so float drift never leaks into a bar.
+ * Spend (outgoing, including savings envelope deposits net of withdrawals)
+ * and income totals for a set of transactions, rounded to cents so float
+ * drift never leaks into a bar. Savings deposits count toward spend and
+ * withdrawals net back against it — the same convention `remaining` and
+ * `walletBalance` already use below — so this matches `totalBudget`, which
+ * already includes savings envelope budgets; income stays pure `income`.
  */
 function flowTotals(expenses: Expense[], index?: CategoryIndex) {
   let spent = 0;
@@ -70,9 +74,12 @@ function flowTotals(expenses: Expense[], index?: CategoryIndex) {
 
   for (const e of expenses) {
     const cls = classifyTx(e, index);
-    if (cls === "withdrawal" || cls === "savings") continue;
     if (cls === "income") {
       earned += e.amount;
+      continue;
+    }
+    if (cls === "withdrawal") {
+      spent -= e.amount;
       continue;
     }
     spent += e.amount;
@@ -213,8 +220,14 @@ function sealEntries(bucket?: Map<string, FlowEntry>) {
 /**
  * Per-day spend and income for `monthKey`, each broken down by category with
  * its subcategories combined. Mirrors the overview trend line: savings
- * envelopes are left out of spend. Days run 1..`upToDay` (defaults to the whole
- * month) so the series lines up with the plotted points.
+ * deposits count as spend (they show up as their own category row, same as
+ * any other spend), and withdrawals net back against the day's spend total —
+ * matching `flowTotals` above and `remaining`/`walletBalance` below, and
+ * matching `totalBudget`, which already includes savings envelope budgets.
+ * A withdrawal is a day-level adjustment, not its own category row: showing
+ * a negative-amount slice in the per-category breakdown would look broken.
+ * Days run 1..`upToDay` (defaults to the whole month) so the series lines up
+ * with the plotted points.
  */
 export function dayFlowSeries(
   expenses: Expense[],
@@ -227,11 +240,15 @@ export function dayFlowSeries(
   const last = Math.max(1, Math.min(upToDay ?? days, days));
   const spendByDay = new Map<string, Map<string, FlowEntry>>();
   const earnByDay = new Map<string, Map<string, FlowEntry>>();
+  const withdrawnByDay = new Map<string, number>();
 
   for (const e of expenses) {
     if (!inMonth(e.date, monthKey)) continue;
     const cls = classifyTx(e, index);
-    if (cls === "withdrawal" || cls === "savings") continue;
+    if (cls === "withdrawal") {
+      withdrawnByDay.set(e.date, (withdrawnByDay.get(e.date) ?? 0) + e.amount);
+      continue;
+    }
     const target = cls === "income" ? earnByDay : spendByDay;
     let bucket = target.get(e.date);
     if (!bucket) {
@@ -246,10 +263,12 @@ export function dayFlowSeries(
     const day = `${monthKey}-${pad2(d)}`;
     const spend = sealEntries(spendByDay.get(day));
     const earn = sealEntries(earnByDay.get(day));
+    const spentGross = spend.reduce((s, x) => s + x.amount, 0);
+    const withdrawn = withdrawnByDay.get(day) ?? 0;
     out.push({
       day,
       label: String(d),
-      spent: roundMoney(spend.reduce((s, x) => s + x.amount, 0)),
+      spent: roundMoney(spentGross - withdrawn),
       earned: roundMoney(earn.reduce((s, x) => s + x.amount, 0)),
       spend,
       earn,

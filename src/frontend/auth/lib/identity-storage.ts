@@ -2,6 +2,7 @@ import type { IdentityRecord, LegacyIdentitySecrets } from "@/frontend/lib/types
 import { ledgerKeyStore, seriesKeyStore } from "@/frontend/lib/crypto/key-store";
 import { sessionSecrets } from "@/frontend/auth/lib/session-secrets";
 import { clearCipherCacheForAddress } from "@/frontend/lib/pwa/cipher-cache";
+import { clearOutboxForAddress } from "@/frontend/lib/sync/outbox";
 
 /** In-memory hold for plaintext keys scrubbed from localStorage until vaulted. */
 const pendingLegacy = new Map<string, LegacyIdentitySecrets>();
@@ -99,12 +100,24 @@ export const identityStorage = {
   },
 };
 
-/** Clear ledger keys, session secrets, localStorage, and IndexedDB cipher cache. */
+/**
+ * Clear ledger keys, session secrets, localStorage, IndexedDB cipher cache,
+ * and any pending offline writes. This is the explicit "Clear local data"
+ * action (Data & privacy) — a deliberate, user-initiated wipe, so it's the
+ * one place unsynced offline writes are also discarded rather than kept for
+ * a later sync; every other sign-out path leaves the outbox intact.
+ */
 export function clearAllLocalData(): void {
   /* Every identity ever used on this device, not just the current session —
      once `ledger:identities` is wiped below, nothing can enumerate the rest
-     again, and their IndexedDB rows would otherwise sit there permanently. */
-  const knownAddresses = identityStorage.list().map((i) => i.address);
+     again, and their IndexedDB rows would otherwise sit there permanently.
+     `list()` swallows a JSON parse error and returns `[]` on a corrupt
+     `ledger:identities` — seed with the current session address too, so a
+     corrupt list never silently skips the one address this action is most
+     likely being run to actually clear. */
+  const knownAddresses = new Set(identityStorage.list().map((i) => i.address));
+  const current = identityStorage.session();
+  if (current) knownAddresses.add(current);
   pendingLegacy.clear();
   ledgerKeyStore.clear();
   seriesKeyStore.clear();
@@ -115,5 +128,8 @@ export function clearAllLocalData(): void {
     if (key?.startsWith("ledger:")) keys.push(key);
   }
   keys.forEach((key) => localStorage.removeItem(key));
-  for (const addr of knownAddresses) void clearCipherCacheForAddress(addr);
+  for (const addr of knownAddresses) {
+    void clearCipherCacheForAddress(addr);
+    void clearOutboxForAddress(addr);
+  }
 }

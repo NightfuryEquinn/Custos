@@ -31,4 +31,18 @@ describe("inline boot-script CSP hash", () => {
     expect(HTML_CONTENT_SECURITY_POLICY).not.toContain("'unsafe-inline'; style-src");
     expect(HTML_CONTENT_SECURITY_POLICY.split(";")[1]).not.toContain("unsafe-inline");
   });
+
+  test("vercel.json's static CSP header carries the same hash", () => {
+    /* vercel.json's headers apply to routes Vercel serves as static files
+       (never touching the Bun server that sets HTML_CONTENT_SECURITY_POLICY
+       at runtime), so this hash is necessarily a second, hand-maintained
+       copy of the same literal — not derived from security-headers.ts. If
+       the boot script ever changes without updating this file, the hash
+       here goes stale and the header CSP-blocks the script in production
+       with no build-time signal; this test is that signal. */
+    const vercelPath = join(import.meta.dir, "..", "..", "vercel.json");
+    const vercelConfig = readFileSync(vercelPath, "utf8");
+
+    expect(vercelConfig).toContain(HTML_BOOT_SCRIPT_HASH);
+  });
 });
