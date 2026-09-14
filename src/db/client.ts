@@ -33,7 +33,15 @@ async function openClient(uri: string): Promise<Db> {
     maxPoolSize: 10,
     maxIdleTimeMS: 30_000,
   });
-  await next.connect();
+  try {
+    await next.connect();
+  } catch (err) {
+    /* A client that never finished connecting still holds a topology and
+       heartbeat timers — close it so a failed attempt doesn't leak a handle
+       for every retry while the database is unreachable. */
+    await next.close().catch(() => {});
+    throw err;
+  }
   client = next;
   return client.db(dbName);
 }

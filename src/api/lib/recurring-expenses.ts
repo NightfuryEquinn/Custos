@@ -225,10 +225,9 @@ export async function processDueRecurringExpenses(
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        const label =
-          template.enc === 1
-            ? (template.seriesKey?.slice(0, 8) ?? "encrypted")
-            : template.note || template.sub || "recurring";
+        /* Never surface the legacy plaintext note/sub here — this label rides in
+           the cron JSON response body, which cron-job.org retains in job history. */
+        const label = seriesKey(template).slice(0, 8);
         result.errors.push(`${label} (${anchorIso}): ${msg}`);
       }
     }

@@ -1,5 +1,6 @@
 import { api } from "@/frontend/lib/api";
 import { useEffect, useState } from "react";
+import { writeCachedBudgetAlertsEnabled } from "@/frontend/lib/hooks/useBudgetAlertsEnabled";
 
 export const NOTIFY_EMAIL_CHANGED = "ledger:notify-email-changed";
 const NOTIFY_EMAIL_KEY = "ledger:notifyEmail";
@@ -42,6 +43,7 @@ export function useAccountNotifyEmail(): string {
         .then(({ user }) => {
           const next = user.notifyEmail?.trim() || "";
           writeCachedNotifyEmail(next);
+          writeCachedBudgetAlertsEnabled(user.budgetAlertsEnabled !== false);
           if (!cancelled) setEmail(next);
         })
         .catch(() => {

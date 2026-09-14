@@ -3,6 +3,7 @@ import {
   buildDerivationMessage,
   decryptJson,
   deriveKeyFromSignature,
+  deriveSeriesHmacKeyFromSignature,
   encryptJson,
   expenseSeriesKey,
   DERIVATION_MESSAGE_PREFIX,
@@ -14,6 +15,12 @@ async function keyFromWallet(wallet: HDNodeWallet) {
   const message = buildDerivationMessage(wallet.address);
   const signature = await wallet.signMessage(message);
   return deriveKeyFromSignature(signature);
+}
+
+async function seriesKeyFromWallet(wallet: HDNodeWallet) {
+  const message = buildDerivationMessage(wallet.address);
+  const signature = await wallet.signMessage(message);
+  return deriveSeriesHmacKeyFromSignature(signature);
 }
 
 describe("e2ee primitives", () => {
@@ -79,27 +86,47 @@ describe("e2ee primitives", () => {
   });
 
   test("expenseSeriesKey is stable for identical inputs", async () => {
+    const seriesKey = await seriesKeyFromWallet(Wallet.createRandom());
     const fields = {
       walletId: "abc123",
       sub: "groceries",
       note: "weekly",
       recurring: "monthly" as const,
     };
-    const a = await expenseSeriesKey(fields);
-    const b = await expenseSeriesKey(fields);
+    const a = await expenseSeriesKey(seriesKey, fields);
+    const b = await expenseSeriesKey(seriesKey, fields);
     expect(a).toBe(b);
     expect(a).toMatch(/^[a-f0-9]{64}$/);
   });
 
   test("expenseSeriesKey changes when note changes", async () => {
+    const seriesKey = await seriesKeyFromWallet(Wallet.createRandom());
     const base = {
       walletId: "abc123",
       sub: "groceries",
       note: "weekly",
       recurring: "monthly" as const,
     };
-    const a = await expenseSeriesKey(base);
-    const b = await expenseSeriesKey({ ...base, note: "monthly shop" });
+    const a = await expenseSeriesKey(seriesKey, base);
+    const b = await expenseSeriesKey(seriesKey, { ...base, note: "monthly shop" });
+    expect(a).not.toBe(b);
+  });
+
+  test("expenseSeriesKey is not reproducible without the account's series key", async () => {
+    const fields = {
+      walletId: "abc123",
+      sub: "groceries",
+      note: "weekly",
+      recurring: "monthly" as const,
+    };
+    const keyA = await seriesKeyFromWallet(Wallet.createRandom());
+    const keyB = await seriesKeyFromWallet(Wallet.createRandom());
+    const a = await expenseSeriesKey(keyA, fields);
+    const b = await expenseSeriesKey(keyB, fields);
+    /* Identical plaintext fields under two different account keys must not
+       collide — unlike the retired plain-SHA-256 construction, which anyone
+       who knew walletId/sub/recurring (all server-visible or enumerable)
+       could reproduce offline to confirm or dictionary-attack the note. */
     expect(a).not.toBe(b);
   });
 });

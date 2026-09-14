@@ -12,7 +12,11 @@ import {
   encodeTodoListCreate,
   encodeWalletFinancials,
 } from "@/frontend/lib/crypto/codec";
-import { buildDerivationMessage, deriveKeyFromSignature } from "@/frontend/lib/crypto/e2ee";
+import {
+  buildDerivationMessage,
+  deriveKeyFromSignature,
+  deriveSeriesHmacKeyFromSignature,
+} from "@/frontend/lib/crypto/e2ee";
 import { createEventSchema, updateEventSchema } from "@/schemas/event";
 import { Wallet } from "ethers";
 
@@ -23,9 +27,17 @@ async function testKey() {
   return deriveKeyFromSignature(signature);
 }
 
+/** Derive a test series-HMAC key, paired with `testKey`'s AES key. */
+async function testSeriesKey() {
+  const wallet = Wallet.createRandom();
+  const signature = await wallet.signMessage(buildDerivationMessage(wallet.address));
+  return deriveSeriesHmacKeyFromSignature(signature);
+}
+
 describe("crypto codec", () => {
   test("encodeExpenseCreate encrypts secrets and leaves metadata plaintext", async () => {
     const key = await testKey();
+    const seriesKey = await testSeriesKey();
     const wire = await encodeExpenseCreate(
       {
         walletId: "507f1f77bcf86cd799439011",
@@ -37,6 +49,7 @@ describe("crypto codec", () => {
         recurring: false,
       },
       key,
+      seriesKey,
     );
     expect(wire.enc).toBe(1);
     expect(wire.payload).toBeTruthy();
@@ -52,6 +65,7 @@ describe("crypto codec", () => {
 
   test("recurring expenses include a stable seriesKey", async () => {
     const key = await testKey();
+    const seriesKey = await testSeriesKey();
     const a = await encodeExpenseCreate(
       {
         walletId: "507f1f77bcf86cd799439011",
@@ -63,6 +77,7 @@ describe("crypto codec", () => {
         recurring: "monthly",
       },
       key,
+      seriesKey,
     );
     const b = await encodeExpenseCreate(
       {
@@ -75,13 +90,35 @@ describe("crypto codec", () => {
         recurring: "monthly",
       },
       key,
+      seriesKey,
     );
     expect(a.seriesKey).toMatch(/^[a-f0-9]{64}$/);
     expect(a.seriesKey).toBe(b.seriesKey);
   });
 
+  test("seriesKey is not reproducible from plaintext fields alone (different account, same fields)", async () => {
+    const key = await testKey();
+    const otherSeriesKey = await testSeriesKey();
+    const fields = {
+      walletId: "507f1f77bcf86cd799439011",
+      kind: "expense" as const,
+      date: "2026-07-01",
+      sub: "internet",
+      amount: 99,
+      note: "fiber",
+      recurring: "monthly" as const,
+    };
+    const a = await encodeExpenseCreate(fields, key, await testSeriesKey());
+    const b = await encodeExpenseCreate(fields, key, otherSeriesKey);
+    /* Same plaintext fields, different account-scoped HMAC keys: the digest
+       must differ, unlike the old plain SHA-256 (which anyone who knew the
+       fields, including a server, could reproduce without any key at all). */
+    expect(a.seriesKey).not.toBe(b.seriesKey);
+  });
+
   test("decodeExpense decrypts enc=1 payloads", async () => {
     const key = await testKey();
+    const seriesKey = await testSeriesKey();
     const wire = await encodeExpenseCreate(
       {
         walletId: "507f1f77bcf86cd799439011",
@@ -93,6 +130,7 @@ describe("crypto codec", () => {
         recurring: false,
       },
       key,
+      seriesKey,
     );
     const decoded = await decodeExpense({ id: "exp1", ...wire }, key);
     expect(decoded).toMatchObject({

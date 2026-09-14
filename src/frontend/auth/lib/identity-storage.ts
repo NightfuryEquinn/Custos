@@ -1,5 +1,5 @@
 import type { IdentityRecord, LegacyIdentitySecrets } from "@/frontend/lib/types";
-import { ledgerKeyStore } from "@/frontend/lib/crypto/key-store";
+import { ledgerKeyStore, seriesKeyStore } from "@/frontend/lib/crypto/key-store";
 import { sessionSecrets } from "@/frontend/auth/lib/session-secrets";
 import { clearCipherCacheForAddress } from "@/frontend/lib/pwa/cipher-cache";
 
@@ -101,9 +101,13 @@ export const identityStorage = {
 
 /** Clear ledger keys, session secrets, localStorage, and IndexedDB cipher cache. */
 export function clearAllLocalData(): void {
-  const sessionAddr = identityStorage.session();
+  /* Every identity ever used on this device, not just the current session —
+     once `ledger:identities` is wiped below, nothing can enumerate the rest
+     again, and their IndexedDB rows would otherwise sit there permanently. */
+  const knownAddresses = identityStorage.list().map((i) => i.address);
   pendingLegacy.clear();
   ledgerKeyStore.clear();
+  seriesKeyStore.clear();
   sessionSecrets.clearAll();
   const keys: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {
@@ -111,5 +115,5 @@ export function clearAllLocalData(): void {
     if (key?.startsWith("ledger:")) keys.push(key);
   }
   keys.forEach((key) => localStorage.removeItem(key));
-  if (sessionAddr) void clearCipherCacheForAddress(sessionAddr);
+  for (const addr of knownAddresses) void clearCipherCacheForAddress(addr);
 }

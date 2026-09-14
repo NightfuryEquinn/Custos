@@ -89,7 +89,6 @@ export const listExpensesQuerySchema = z.object({
     .enum(["true", "false"])
     .optional()
     .transform((v) => (v === undefined ? undefined : v === "true")),
-  sub: subcategoryIdSchema.optional(),
 });
 
 export type Expense = z.infer<typeof expenseSchema>;

@@ -36,6 +36,33 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "5.0.1",
+    date: "September 2026",
+    lead: "A security and privacy hardening pass: sign-in is now double-checked against tampering, budget alert emails respect your notification settings before anything leaves your device, and recovery-phrase handling and local caches got a cleanup.",
+    highlights: [
+      {
+        icon: "shield",
+        title: "Sign-in double-checked",
+        body: "Custos now verifies the exact shape of every sign-in request before your wallet signs it, closing a theoretical path a compromised server could have used toward your encryption key.",
+      },
+      {
+        icon: "bell",
+        title: "Budget alerts respect your settings",
+        body: "Budget alert emails now only leave your device when alerts are turned on and a notify email is set. Previously that check only happened after the message had already reached the server.",
+      },
+      {
+        icon: "info",
+        title: "Recovery phrase handling, tightened",
+        body: "Viewing your recovery phrase, copying it, and importing one all got safer: the phrase no longer lingers in a shared cache after a one-time reveal, copies clear from your clipboard after 30 seconds, and your keyboard won't offer to autocomplete or spell-check the words.",
+      },
+      {
+        icon: "sparkle",
+        title: "Cleaner local caches",
+        body: "The offline cache and service worker now clean up after themselves — old entries expire, deploys clear out stale cached files, and switching between multiple identities on one device no longer leaves orphaned data behind.",
+      },
+    ],
+  },
+  {
     version: "5.0.0",
     date: "September 2026",
     lead: "Face ID and Touch ID now prompt on their own when you open Custos, the old 'we may share your data' claim is retired for good, and optional tips or a monthly Supporter subscription are the only way this ever gets funded.",

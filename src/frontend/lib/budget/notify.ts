@@ -4,6 +4,8 @@ import type { CategoryIndex } from "@/frontend/lib/categories";
 import type { Budgets, Expense, FinancialWallet, LedgerEvent } from "@/frontend/lib/types";
 import { budgetAlertDedupeKey, evaluateBudgetAlerts, type BudgetAlert } from "@/lib/budget-alerts";
 import { monthStats } from "@/frontend/lib/stats";
+import { readCachedBudgetAlertsEnabled } from "@/frontend/lib/hooks/useBudgetAlertsEnabled";
+import { readCachedNotifyEmail } from "@/frontend/lib/hooks/useAccountNotifyEmail";
 
 const LOCAL_SENT_KEY = "ledger:budget-alerts-sent";
 
@@ -116,22 +118,31 @@ export async function maybeNotifyBudgetAlerts(opts: {
     await showBudgetAlertNotification(alert, opts.currency);
   }
 
-  try {
-    await api.budgetAlerts.notify({
-      walletId: opts.wallet.id,
-      walletName: opts.wallet.name,
-      month: opts.month,
-      alerts: fresh.map((a) => ({
-        categoryId: a.categoryId,
-        categoryName: a.categoryName,
-        spent: a.spent,
-        budget: a.budget,
-        level: a.level,
-        currency: opts.currency,
-      })),
-    });
-  } catch {
-    /* Email may be unset or Resend unconfigured — in-tab notification still fired above. */
+  /*
+   * Gate egress on the device's own cached preference *before* building the
+   * request — the plaintext wallet/category names and amounts below must
+   * never leave the browser when alerts are off or no notify email is set.
+   * The server enforces the same rule on receipt (src/api/lib/budget-alerts.ts),
+   * but that check runs after the payload has already crossed the network.
+   */
+  if (readCachedBudgetAlertsEnabled() && readCachedNotifyEmail()) {
+    try {
+      await api.budgetAlerts.notify({
+        walletId: opts.wallet.id,
+        walletName: opts.wallet.name,
+        month: opts.month,
+        alerts: fresh.map((a) => ({
+          categoryId: a.categoryId,
+          categoryName: a.categoryName,
+          spent: a.spent,
+          budget: a.budget,
+          level: a.level,
+          currency: opts.currency,
+        })),
+      });
+    } catch {
+      /* Email may be unset or Resend unconfigured — in-tab notification still fired above. */
+    }
   }
 
   markSent(

@@ -13,7 +13,7 @@ import type {
   Vehicle,
   FuelFill,
 } from "@/frontend/lib/types";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   buildBackupPlain,
@@ -119,9 +119,17 @@ export function ImportExportModal({
   const eventCount = events.length;
   const todoTaskCount = todoLists.reduce((n, l) => n + l.tasks.length, 0);
 
+  const flashTimers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  useEffect(
+    () => () => {
+      flashTimers.current.forEach(clearTimeout);
+    },
+    [],
+  );
+
   const flash = (setter: (v: boolean) => void) => {
     setter(true);
-    setTimeout(() => setter(false), 2200);
+    flashTimers.current.push(setTimeout(() => setter(false), 2200));
   };
 
   const isCsvFile = (file: File) => {

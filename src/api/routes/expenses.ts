@@ -29,7 +29,7 @@ expensesRoutes.use("*", sessionAuth);
 
 expensesRoutes.get("/", zValidator("query", listExpensesQuerySchema), async (c) => {
   const accountId = c.get("accountId");
-  const { month, recurring, sub, walletId, kind, from, to, limit, before, beforeId } =
+  const { month, recurring, walletId, kind, from, to, limit, before, beforeId } =
     c.req.valid("query");
   const { expenses } = getCollections(getDb());
 
@@ -58,7 +58,6 @@ expensesRoutes.get("/", zValidator("query", listExpensesQuerySchema), async (c) 
   } else if (recurring === false) {
     filter.recurring = false;
   }
-  if (sub) filter.sub = sub;
 
   const docs = await expenses.find(filter).sort({ date: -1, _id: -1 }).limit(limit).toArray();
   const { hasMore, nextBefore, nextBeforeId } = pageCursorFromDocs(docs, limit);

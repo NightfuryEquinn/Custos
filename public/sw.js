@@ -1,5 +1,9 @@
 /* Custos service worker — app shell cache only (read path). */
-const SHELL_CACHE = "custos-shell-v1";
+/* __SW_CACHE_VERSION__ is substituted with APP_VERSION at build time (see
+   build.ts) so `activate` below actually evicts the previous deploy's
+   shell cache instead of writing into the same never-changing cache name
+   forever. Unsubstituted in dev — fine, dev has no deploy boundary. */
+const SHELL_CACHE = "custos-shell-__SW_CACHE_VERSION__";
 const SHELL_URLS = ["/", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {

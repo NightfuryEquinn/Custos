@@ -109,10 +109,22 @@ export async function enrollBiometric(
   const prfSalt = crypto.getRandomValues(new Uint8Array(32));
   const userId = crypto.getRandomValues(new Uint8Array(16));
 
+  /* Explicit rather than left to the WebAuthn default (which resolves to the
+     same value here — the calling origin's effective domain) so a
+     credential scope this narrow is a documented decision, not an accident:
+     preview/branch deploys on a different hostname correctly get their own,
+     non-portable credential. `location` is absent under `bun test`'s
+     browser-less runtime — the default (undefined `id`) is fine there since
+     navigator.credentials is stubbed in that environment anyway. */
+  const rp =
+    typeof location !== "undefined"
+      ? { id: location.hostname, name: "Custos" }
+      : { name: "Custos" };
+
   const credential = (await navigator.credentials.create({
     publicKey: {
       challenge: crypto.getRandomValues(new Uint8Array(32)),
-      rp: { name: "Custos" },
+      rp,
       user: { id: userId, name: address, displayName: codename },
       pubKeyCredParams: [{ type: "public-key", alg: -7 }],
       authenticatorSelection: {

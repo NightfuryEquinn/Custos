@@ -2,7 +2,12 @@ import { useEnter } from "@/frontend/lib/animate";
 import { Brand } from "@/frontend/components/Brand";
 import { Icon } from "@/frontend/components/ui";
 import { identityStorage } from "@/frontend/auth/lib/identity-storage";
-import { unwrapSecrets, wrapSecrets, isValidPassphrase } from "@/frontend/auth/lib/device-vault";
+import {
+  unwrapSecrets,
+  wrapSecrets,
+  isValidPassphrase,
+  needsRewrap,
+} from "@/frontend/auth/lib/device-vault";
 import {
   biometricEnrolled,
   biometricSupported,
@@ -40,7 +45,21 @@ async function materializeIdentity(
     const secrets = await unwrapSecrets(passphrase, idn.vault);
     sessionSecrets.set(idn.address, secrets);
 
-    return { ...idn, ...secrets };
+    /* Silently raise an older vault (weaker PBKDF2 iteration count) to the
+       current format now that we already have the passphrase in hand —
+       never re-prompt just for this. Best-effort: a failure here still
+       leaves the account usable at its current (still valid) vault. */
+    let vault = idn.vault;
+    if (needsRewrap(idn.vault)) {
+      try {
+        vault = await wrapSecrets(passphrase, secrets);
+        identityStorage.upsert({ ...idn, vault });
+      } catch {
+        /* Keep the existing vault; try again on a future unlock. */
+      }
+    }
+
+    return { ...idn, vault, ...secrets };
   }
 
   /* Legacy plaintext in memory only — require passphrase to vault before unlock. */

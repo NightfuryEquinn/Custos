@@ -1,6 +1,7 @@
 import { E2EE_VERSION } from "@/schemas/encryption";
 import { getAddress } from "ethers";
 import { normalizeRecurring, type RecurringField } from "@/lib/recurring";
+import { AUTH_MESSAGE_PREAMBLE, AUTH_MESSAGE_VERIFY_LINE } from "@/lib/auth-message";
 
 /** Current ledger-key derivation message prefix (Custos). */
 export const DERIVATION_MESSAGE_PREFIX = "Custos data encryption key v1";
@@ -102,6 +103,51 @@ export function buildDerivationMessage(
   return `${prefix}\n\nAddress: ${getAddress(address)}`;
 }
 
+/**
+ * Validate that a server-issued sign-in challenge has the exact SIWE-style
+ * shape `buildAuthMessage` (server-side) produces for this address, and does
+ * not carry either ledger-key derivation message.
+ *
+ * The wallet signs a sign-in challenge with ordinary, deterministic ECDSA
+ * (personal_sign) and that signature is POSTed straight back to the server
+ * for verification. The ledger key is HKDF-derived from the signature over a
+ * *different*, purely client-built message (`buildDerivationMessage`). If a
+ * malicious or compromised server (or a MITM, or stored XSS) could get the
+ * client to sign the derivation message under the guise of a login
+ * challenge, the identical signature it returns would double as the ledger
+ * key handed straight to that server — a full E2EE bypass with no need to
+ * ever touch the key store. Never sign a challenge that fails this check.
+ */
+export function isValidAuthChallenge(message: string, address: string): boolean {
+  if (
+    message.includes(DERIVATION_MESSAGE_PREFIX) ||
+    message.includes(LEGACY_DERIVATION_MESSAGE_PREFIX)
+  ) {
+    return false;
+  }
+
+  let normalized: string;
+  try {
+    normalized = getAddress(address);
+  } catch {
+    return false;
+  }
+
+  const lines = message.split("\n");
+  if (lines.length !== 8) return false;
+  if (lines[0] !== AUTH_MESSAGE_PREAMBLE) return false;
+  if (lines[1] !== "") return false;
+  if (lines[2] !== `Address: ${normalized}`) return false;
+  if (lines[3] !== AUTH_MESSAGE_VERIFY_LINE) return false;
+  if (lines[4] !== "") return false;
+  if (!lines[5] || lines[5] === "URI: " || !lines[5].startsWith("URI: ")) return false;
+  if (!lines[6] || lines[6] === "Nonce: " || !lines[6].startsWith("Nonce: ")) return false;
+  if (!lines[7]?.startsWith("Issued At: ")) return false;
+
+  const issuedAt = Date.parse(lines[7].slice("Issued At: ".length));
+  return !Number.isNaN(issuedAt);
+}
+
 function hexToBytes(hex: string): Uint8Array {
   const clean = hex.startsWith("0x") ? hex.slice(2) : hex;
   const bytes = new Uint8Array(clean.length / 2);
@@ -130,6 +176,7 @@ function bytesToHex(bytes: ArrayBuffer | Uint8Array): string {
 }
 
 const HKDF_INFO = new TextEncoder().encode("ledger-e2ee-aes-gcm-v1");
+const SERIES_HMAC_INFO = new TextEncoder().encode("ledger-e2ee-series-hmac-v1");
 
 export async function deriveKeyFromSignature(signature: string): Promise<CryptoKey> {
   const sigBytes = hexToBytes(signature);
@@ -146,6 +193,30 @@ export async function deriveKeyFromSignature(signature: string): Promise<CryptoK
     { name: "AES-GCM", length: 256 },
     false,
     ["encrypt", "decrypt"],
+  );
+}
+
+/**
+ * Derive the non-extractable HMAC key used to build recurring-expense series
+ * keys (see `expenseSeriesKey`). Same signature, same HKDF construction as
+ * `deriveKeyFromSignature`, but a distinct `info` label so this key is
+ * independent of — and cannot be recovered from — the ledger encryption key.
+ */
+export async function deriveSeriesHmacKeyFromSignature(signature: string): Promise<CryptoKey> {
+  const sigBytes = hexToBytes(signature);
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    sigBytes as BufferSource,
+    "HKDF",
+    false,
+    ["deriveKey"],
+  );
+  return crypto.subtle.deriveKey(
+    { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(0), info: SERIES_HMAC_INFO },
+    keyMaterial,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
   );
 }
 
@@ -171,13 +242,25 @@ export async function decryptJson<T>(key: CryptoKey, payload: string): Promise<T
   return JSON.parse(new TextDecoder().decode(plaintext)) as T;
 }
 
-export async function expenseSeriesKey(fields: {
-  walletId: string;
-  sub: string;
-  note: string;
-  recurring: RecurringField | unknown;
-}): Promise<string> {
+/**
+ * Group a recurring expense's occurrences under one opaque, server-matchable
+ * key without exposing its note or subcategory. HMAC-SHA256 under a
+ * per-account key derived from the wallet signature (never sent to, or
+ * knowable by, the server) — previously an unsalted SHA-256 digest of the
+ * same fields, which let a server that already knows `walletId` (its own
+ * data) and the small enumerable space of `sub`/`recurring` values run an
+ * offline dictionary attack recovering the plaintext note.
+ */
+export async function expenseSeriesKey(
+  seriesHmacKey: CryptoKey,
+  fields: {
+    walletId: string;
+    sub: string;
+    note: string;
+    recurring: RecurringField | unknown;
+  },
+): Promise<string> {
   const raw = `${fields.walletId}|${fields.sub}|${fields.note}|${normalizeRecurring(fields.recurring)}`;
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
-  return bytesToHex(digest);
+  const mac = await crypto.subtle.sign("HMAC", seriesHmacKey, new TextEncoder().encode(raw));
+  return bytesToHex(mac);
 }
