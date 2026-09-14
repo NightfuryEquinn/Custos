@@ -28,6 +28,7 @@ import {
   type ReminderContext,
 } from "@/frontend/lib/crypto/codec";
 import { ledgerKeyStore, seriesKeyStore } from "@/frontend/lib/crypto/key-store";
+import { connectivity } from "@/frontend/lib/net/connectivity";
 import { releaseOrphanedPlanRefs } from "@/frontend/lib/capitals";
 import { mergeCategoryBudget } from "@/frontend/lib/category-retire";
 import {
@@ -211,8 +212,10 @@ export function useLedger(walletAddress: string) {
           /* Migrate legacy plaintext name/financials into the E2EE payload.
              Fire-and-forget: `decoded` already holds the values being sent,
              so this load doesn't need the round trip's echo back — a first
-             load shouldn't block on a one-time migration write. */
-          if (!wire.enc || wire.name != null) {
+             load shouldn't block on a one-time migration write. Skipped
+             offline (this data may itself be a stale cache-fallback read) —
+             a later online load retries it. */
+          if ((!wire.enc || wire.name != null) && connectivity.isOnline()) {
             void encodeWalletFinancials(
               {
                 name: decoded.name,
@@ -242,23 +245,28 @@ export function useLedger(walletAddress: string) {
 
       /* Both branches below persist the returned value in the background —
          it's already what's being returned to the query, so this load
-         doesn't need to wait for the write to land. */
+         doesn't need to wait for the write to land. Skipped offline; a
+         later online load retries. */
       if (wire.seed) {
         const defaults = cloneDefaultCategories();
-        void encodeCategories(defaults, cryptoKey)
-          .then((encrypted) => api.categories.update(encrypted))
-          .catch(() => {
-            /* A later load retries seeding. */
-          });
+        if (connectivity.isOnline()) {
+          void encodeCategories(defaults, cryptoKey)
+            .then((encrypted) => api.categories.update(encrypted))
+            .catch(() => {
+              /* A later load retries seeding. */
+            });
+        }
         return defaults;
       }
 
       if (!wire.enc && wire.categories) {
-        void encodeCategories(wire.categories, cryptoKey)
-          .then((encrypted) => api.categories.update(encrypted))
-          .catch(() => {
-            /* A later load retries the migration. */
-          });
+        if (connectivity.isOnline()) {
+          void encodeCategories(wire.categories, cryptoKey)
+            .then((encrypted) => api.categories.update(encrypted))
+            .catch(() => {
+              /* A later load retries the migration. */
+            });
+        }
         return wire.categories;
       }
 
@@ -484,30 +492,39 @@ export function useLedger(walletAddress: string) {
         const page = await api.events.list({ month, limit: LIST_PAGE_LIMIT, before, beforeId });
         const decoded = await Promise.all(
           page.events.map(async (wire) => {
-            if (!wire.enc && wire.title) {
-              const body = await encodeEventUpdate(
-                {
-                  title: wire.title,
-                  comments: wire.comments ?? [],
-                  customLabel: wire.customLabel,
-                  customGlyph: wire.customGlyph,
-                  catId: wire.catId,
-                  date: wire.date,
-                  endDate: wire.endDate ?? null,
-                  allDay: wire.allDay,
-                  time: wire.time,
-                  endTime: wire.endTime ?? null,
-                  repeat: wire.repeat,
-                  exceptDates: wire.exceptDates,
-                  until: wire.until,
-                  notify: wire.notify,
-                  lead: wire.lead,
-                  email: wire.email ?? "",
-                },
-                cryptoKey,
-              );
-              const { event } = await api.events.update(wire.id, body);
-              return decodeEvent(event, cryptoKey);
+            /* Migrate a legacy plaintext event into the E2EE payload. Only
+               attempted online — this data may itself be a stale
+               cache-fallback read, and the write would hard-fail offline
+               anyway; either way, decode `wire` directly and let a later
+               online load retry the migration. */
+            if (!wire.enc && wire.title && connectivity.isOnline()) {
+              try {
+                const body = await encodeEventUpdate(
+                  {
+                    title: wire.title,
+                    comments: wire.comments ?? [],
+                    customLabel: wire.customLabel,
+                    customGlyph: wire.customGlyph,
+                    catId: wire.catId,
+                    date: wire.date,
+                    endDate: wire.endDate ?? null,
+                    allDay: wire.allDay,
+                    time: wire.time,
+                    endTime: wire.endTime ?? null,
+                    repeat: wire.repeat,
+                    exceptDates: wire.exceptDates,
+                    until: wire.until,
+                    notify: wire.notify,
+                    lead: wire.lead,
+                    email: wire.email ?? "",
+                  },
+                  cryptoKey,
+                );
+                const { event } = await api.events.update(wire.id, body);
+                return decodeEvent(event, cryptoKey);
+              } catch {
+                /* A later load retries the migration. */
+              }
             }
 
             return decodeEvent(wire, cryptoKey);
@@ -515,12 +532,15 @@ export function useLedger(walletAddress: string) {
         );
 
         /* Fire-and-forget: notifyDetails only affects a future reminder send,
-           not anything this load renders, so it shouldn't hold up the query. */
-        void backfillReminderDetails(
-          page.events.map((wire, i) => ({ wire, event: decoded[i]! })),
-          activeWallet?.currency,
-          categoryIndex.catById,
-        );
+           not anything this load renders, so it shouldn't hold up the query.
+           Skipped offline; a later online load retries. */
+        if (connectivity.isOnline()) {
+          void backfillReminderDetails(
+            page.events.map((wire, i) => ({ wire, event: decoded[i]! })),
+            activeWallet?.currency,
+            categoryIndex.catById,
+          );
+        }
 
         collected.push(...decoded);
         if (!page.hasMore || !page.nextBefore) break;
@@ -548,10 +568,11 @@ export function useLedger(walletAddress: string) {
       const cryptoKey = requireKey(wallet);
       return Promise.all(
         todoLists.map(async (wire) => {
-          if (!wire.enc && wire.name) {
+          if (!wire.enc && wire.name && connectivity.isOnline()) {
             /* Fire-and-forget: decoding `wire` directly already gives the
                same result the round trip's echo would, so this load
-               doesn't need to wait for the migration write to land. */
+               doesn't need to wait for the migration write to land.
+               Skipped offline; a later online load retries. */
             void encodeTodoListUpdate(
               { name: wire.name, icon: wire.icon ?? "📋", tasks: wire.tasks ?? [] },
               cryptoKey,

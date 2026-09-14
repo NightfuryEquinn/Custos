@@ -36,6 +36,7 @@ import {
   writeCachedNotifyEmail,
 } from "@/frontend/lib/hooks/useAccountNotifyEmail";
 import { writeCachedBudgetAlertsEnabled } from "@/frontend/lib/hooks/useBudgetAlertsEnabled";
+import { markSessionVerified } from "@/frontend/auth/lib/session-trust";
 import { hasSharingChoiceMade, markSharingChoiceMade, setConsent } from "./lib/consent";
 import { SHARING_SIGNUP_DESCRIPTION, SHARING_SIGNUP_TITLE, SIGNUP_LEAD } from "@/lib/legal";
 import { walletClient } from "./lib/wallet";
@@ -98,6 +99,7 @@ async function finishAuth(
   let signature = await walletClient.sign(idn, message);
   if (Array.isArray(signature)) signature = signature[0]!;
   await api.auth.verify({ address: idn.address, message, signature });
+  markSessionVerified(idn.address);
   const codename = codenameFor(idn.address);
   const { user } = await api.users.upsert({ address: idn.address, codename });
   /* Rehydrate after PWA clear: localStorage was wiped, DB still has the email. */

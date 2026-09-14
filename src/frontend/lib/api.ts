@@ -12,18 +12,11 @@ import type {
 import { getCipherCache, putCipherCache } from "@/frontend/lib/pwa/cipher-cache";
 import { identityStorage } from "@/frontend/auth/lib/identity-storage";
 import type { TourPreference } from "@/schemas/profile";
+import { ApiError } from "@/frontend/lib/net/api-error";
+import { isOfflineFailure } from "@/frontend/lib/net/offline-failure";
+import { connectivity } from "@/frontend/lib/net/connectivity";
 
-export class ApiError extends Error {
-  status: number;
-  retryAfterMs?: number;
-
-  constructor(status: number, message: string, retryAfterMs?: number) {
-    super(message);
-    this.name = "ApiError";
-    this.status = status;
-    this.retryAfterMs = retryAfterMs;
-  }
-}
+export { ApiError };
 
 type ApiProfile = {
   id: string;
@@ -79,6 +72,7 @@ const CACHEABLE_GET_PREFIXES = [
   "/profile",
   "/vehicles",
   "/users",
+  "/capital-plans",
 ];
 
 /** Whether a GET path may fall back to the local ciphertext cache. */
@@ -110,6 +104,9 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
+    /* Any response at all — even a non-2xx one — proves the network reached
+       the server, which is worth more than the stale `navigator.onLine`. */
+    connectivity.observe("reached-server");
 
     if (!res.ok) {
       const payload = (await res.json().catch(() => ({}))) as { error?: string };
@@ -134,14 +131,10 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
        those mean the data changed, so a stale read beats blanking the whole
        app. A 401/403/404 means the request itself is wrong and must not be
        papered over with cache. */
-    const status = err instanceof ApiError ? err.status : undefined;
-    const isAbort = err instanceof DOMException && err.name === "AbortError";
-    const cacheableFailure =
-      err instanceof TypeError ||
-      isAbort ||
-      !navigator.onLine ||
-      status === 429 ||
-      (!!status && status >= 500);
+    const cacheableFailure = isOfflineFailure(err);
+    if (err instanceof TypeError || (err instanceof DOMException && err.name === "AbortError")) {
+      connectivity.observe("network-failure");
+    }
 
     if (address && isCacheableGet(path, method) && cacheableFailure) {
       const cached = await getCipherCache<T>(address, path);

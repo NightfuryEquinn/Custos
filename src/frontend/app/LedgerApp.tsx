@@ -7,6 +7,7 @@ import type { TodoImportList } from "@/frontend/auth/lib/import-todos";
 import { restoreBackupToLedger } from "@/frontend/auth/lib/restore-backup";
 import { useEnter } from "@/frontend/lib/animate";
 import { LoadingBloom } from "@/frontend/components/LoadingBloom";
+import { OfflineBanner } from "@/frontend/components/OfflineBanner";
 import { ThemeToggle } from "@/frontend/components/ThemeToggle";
 import { WalletManageModal, WalletSwitcher } from "@/frontend/components/Wallets";
 import {
@@ -680,6 +681,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
               </button>
             </div>
             <div className="tb-actions">
+              <OfflineBanner />
               <ThemeToggle />
               <AccountMenu
                 account={account}
