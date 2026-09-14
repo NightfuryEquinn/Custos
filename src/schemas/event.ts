@@ -154,6 +154,8 @@ const eventSchema = z.object({
 
 export const createEventSchema = z
   .object({
+    /** Optional client-minted id (offline write queue) — see expense.ts's `id`. */
+    id: objectIdSchema.optional(),
     catId: eventCategoryIdSchema,
     date: isoDateSchema,
     endDate: isoDateSchema.nullable().optional(),

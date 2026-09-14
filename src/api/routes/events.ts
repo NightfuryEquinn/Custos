@@ -1,5 +1,6 @@
 import { notFound } from "@/api/lib/errors";
 import { randomObjectId } from "@/api/lib/ids";
+import { insertOwned } from "@/api/lib/insert-idempotent";
 import { keepReminderDetails, reminderDetailsUpdate } from "@/api/lib/reminder-details";
 import {
   clearReminderLogsForEvent,
@@ -116,13 +117,13 @@ eventsRoutes.post("/", zValidator("json", createEventSchema), async (c) => {
   const now = new Date();
   const { events } = getCollections(getDb());
 
-  const { expenseId, notifyDetails, email: _ignoredEmail, ...rest } = body;
+  const { id, expenseId, notifyDetails, email: _ignoredEmail, ...rest } = body;
   const keepDetails = keepReminderDetails({
     details: notifyDetails,
     notify: rest.notify,
   });
-  const result = await events.insertOne({
-    _id: randomObjectId(),
+  const { doc, created } = await insertOwned(events, {
+    _id: id ? new ObjectId(id) : randomObjectId(),
     accountId,
     ...rest,
     ...(keepDetails ? { notifyDetails } : {}),
@@ -131,18 +132,19 @@ eventsRoutes.post("/", zValidator("json", createEventSchema), async (c) => {
     updatedAt: now,
   });
 
-  const doc = await events.findOne({ _id: result.insertedId });
-  if (!doc) notFound("Event not found");
+  /* Only on a genuine new insert — a replayed create (offline write queue
+     retry) must not re-send the confirmation/immediate reminder email. */
+  if (created) {
+    void sendEventConfirmation(doc).catch((err) =>
+      console.error("[reminders] confirmation email failed:", err),
+    );
+    /* If the remind-at time is in the current poll window, send now instead of waiting for cron. */
+    void sendImmediateReminderIfDue(doc).catch((err) =>
+      console.error("[reminders] immediate reminder failed:", err),
+    );
+  }
 
-  void sendEventConfirmation(doc).catch((err) =>
-    console.error("[reminders] confirmation email failed:", err),
-  );
-  /* If the remind-at time is in the current poll window, send now instead of waiting for cron. */
-  void sendImmediateReminderIfDue(doc).catch((err) =>
-    console.error("[reminders] immediate reminder failed:", err),
-  );
-
-  return c.json({ event: serializeDoc(doc) }, 201);
+  return c.json({ event: serializeDoc(doc) }, created ? 201 : 200);
 });
 
 eventsRoutes.patch("/:id", zValidator("json", updateEventSchema), async (c) => {

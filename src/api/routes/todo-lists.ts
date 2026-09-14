@@ -1,5 +1,6 @@
 import { notFound } from "@/api/lib/errors";
 import { randomObjectId } from "@/api/lib/ids";
+import { insertOwned } from "@/api/lib/insert-idempotent";
 import { serializeDoc, serializeDocs } from "@/api/lib/serialize";
 import type { SessionVariables } from "@/api/middleware/session";
 import { sessionAuth } from "@/api/middleware/session";
@@ -27,8 +28,8 @@ todoListsRoutes.post("/", zValidator("json", createTodoListSchema), async (c) =>
   const { todoLists } = getCollections(getDb());
   const now = new Date();
 
-  const result = await todoLists.insertOne({
-    _id: randomObjectId(),
+  const { doc, created } = await insertOwned(todoLists, {
+    _id: body.id ? new ObjectId(body.id) : randomObjectId(),
     accountId,
     enc: body.enc,
     payload: body.payload,
@@ -36,10 +37,7 @@ todoListsRoutes.post("/", zValidator("json", createTodoListSchema), async (c) =>
     updatedAt: now,
   });
 
-  const doc = await todoLists.findOne({ _id: result.insertedId });
-  if (!doc) notFound("List not found");
-
-  return c.json({ todoList: serializeDoc(doc) }, 201);
+  return c.json({ todoList: serializeDoc(doc) }, created ? 201 : 200);
 });
 
 todoListsRoutes.patch("/:id", zValidator("json", updateTodoListSchema), async (c) => {

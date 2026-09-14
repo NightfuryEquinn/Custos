@@ -1,5 +1,6 @@
 import { badRequest, notFound } from "@/api/lib/errors";
 import { idForms, randomObjectId } from "@/api/lib/ids";
+import { insertOwned } from "@/api/lib/insert-idempotent";
 import { serializeDoc, serializeDocs } from "@/api/lib/serialize";
 import type { SessionVariables } from "@/api/middleware/session";
 import { sessionAuth } from "@/api/middleware/session";
@@ -104,8 +105,8 @@ walletsRoutes.post("/", zValidator("json", createWalletSchema), async (c) => {
   const count = await financialWallets.countDocuments({ accountId });
   const now = new Date();
 
-  const result = await financialWallets.insertOne({
-    _id: randomObjectId(),
+  const { doc, created } = await insertOwned(financialWallets, {
+    _id: body.id ? new ObjectId(body.id) : randomObjectId(),
     accountId,
     currency: body.currency,
     fundingMode: body.fundingMode,
@@ -116,10 +117,7 @@ walletsRoutes.post("/", zValidator("json", createWalletSchema), async (c) => {
     updatedAt: now,
   });
 
-  const doc = await financialWallets.findOne({ _id: result.insertedId });
-  if (!doc) notFound("Wallet not found");
-
-  return c.json({ wallet: serializeDoc(doc) }, 201);
+  return c.json({ wallet: serializeDoc(doc) }, created ? 201 : 200);
 });
 
 walletsRoutes.patch("/:id", zValidator("json", updateWalletSchema), async (c) => {

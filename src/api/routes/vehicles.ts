@@ -1,5 +1,6 @@
 import { notFound } from "@/api/lib/errors";
 import { randomObjectId } from "@/api/lib/ids";
+import { insertOwned } from "@/api/lib/insert-idempotent";
 import { applyDateIdCursor, pageCursorFromDocs } from "@/api/lib/pagination";
 import { serializeDoc, serializeDocs } from "@/api/lib/serialize";
 import type { SessionVariables } from "@/api/middleware/session";
@@ -34,8 +35,8 @@ vehiclesRoutes.post("/", zValidator("json", createVehicleSchema), async (c) => {
   const { vehicles } = getCollections(getDb());
   const now = new Date();
 
-  const result = await vehicles.insertOne({
-    _id: randomObjectId(),
+  const { doc, created } = await insertOwned(vehicles, {
+    _id: body.id ? new ObjectId(body.id) : randomObjectId(),
     accountId,
     type: body.type,
     enc: body.enc,
@@ -44,10 +45,7 @@ vehiclesRoutes.post("/", zValidator("json", createVehicleSchema), async (c) => {
     updatedAt: now,
   });
 
-  const doc = await vehicles.findOne({ _id: result.insertedId });
-  if (!doc) notFound("Vehicle not found");
-
-  return c.json({ vehicle: serializeDoc(doc) }, 201);
+  return c.json({ vehicle: serializeDoc(doc) }, created ? 201 : 200);
 });
 
 vehiclesRoutes.patch("/:id", zValidator("json", updateVehicleSchema), async (c) => {
@@ -128,8 +126,8 @@ vehiclesRoutes.post("/fills", zValidator("json", createVehicleFillSchema), async
   const vehicle = await vehicles.findOne({ _id: new ObjectId(body.vehicleId), accountId });
   if (!vehicle) notFound("Vehicle not found");
 
-  const result = await vehicleFills.insertOne({
-    _id: randomObjectId(),
+  const { doc, created } = await insertOwned(vehicleFills, {
+    _id: body.id ? new ObjectId(body.id) : randomObjectId(),
     accountId,
     vehicleId: new ObjectId(body.vehicleId),
     date: body.date,
@@ -141,10 +139,7 @@ vehiclesRoutes.post("/fills", zValidator("json", createVehicleFillSchema), async
     updatedAt: now,
   });
 
-  const doc = await vehicleFills.findOne({ _id: result.insertedId });
-  if (!doc) notFound("Fill not found");
-
-  return c.json({ fill: serializeDoc(doc) }, 201);
+  return c.json({ fill: serializeDoc(doc) }, created ? 201 : 200);
 });
 
 vehiclesRoutes.patch("/fills/:id", zValidator("json", updateVehicleFillSchema), async (c) => {

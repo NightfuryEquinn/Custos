@@ -1,5 +1,6 @@
 import { notFound } from "@/api/lib/errors";
 import { idForms, randomObjectId } from "@/api/lib/ids";
+import { insertOwned } from "@/api/lib/insert-idempotent";
 import { serializeDoc, serializeDocs } from "@/api/lib/serialize";
 import type { SessionVariables } from "@/api/middleware/session";
 import { sessionAuth } from "@/api/middleware/session";
@@ -27,8 +28,8 @@ capitalPlansRoutes.post("/", zValidator("json", createCapitalPlanSchema), async 
   const { capitalPlans } = getCollections(getDb());
   const now = new Date();
 
-  const result = await capitalPlans.insertOne({
-    _id: randomObjectId(),
+  const { doc, created } = await insertOwned(capitalPlans, {
+    _id: body.id ? new ObjectId(body.id) : randomObjectId(),
     accountId,
     enc: body.enc,
     payload: body.payload,
@@ -36,10 +37,7 @@ capitalPlansRoutes.post("/", zValidator("json", createCapitalPlanSchema), async 
     updatedAt: now,
   });
 
-  const doc = await capitalPlans.findOne({ _id: result.insertedId });
-  if (!doc) notFound("Plan not found");
-
-  return c.json({ capitalPlan: serializeDoc(doc) }, 201);
+  return c.json({ capitalPlan: serializeDoc(doc) }, created ? 201 : 200);
 });
 
 capitalPlansRoutes.patch("/:id", zValidator("json", updateCapitalPlanSchema), async (c) => {

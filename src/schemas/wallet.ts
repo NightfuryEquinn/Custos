@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { accountIdSchema, budgetsSchema } from "./common";
+import { accountIdSchema, budgetsSchema, objectIdSchema } from "./common";
 import { encryptedPayloadSchema, e2eeVersionSchema } from "./encryption";
 
 export const CURRENCY_CODES = [
@@ -55,6 +55,8 @@ const financialWalletSchema = z.object({
 });
 
 export const createWalletSchema = z.object({
+  /** Optional client-minted id (offline write queue) — see expense.ts's `id`. */
+  id: objectIdSchema.optional(),
   currency: currencyCodeSchema,
   fundingMode: fundingModeSchema.optional().default("monthly"),
   enc: e2eeVersionSchema,

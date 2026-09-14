@@ -6,6 +6,7 @@ import {
 } from "@/api/lib/expense-delete-scope";
 import { buildExpenseUpdate } from "@/api/lib/expense-update";
 import { idForms, randomObjectId } from "@/api/lib/ids";
+import { insertOwned } from "@/api/lib/insert-idempotent";
 import { applyDateIdCursor, pageCursorFromDocs } from "@/api/lib/pagination";
 import { serializeDoc, serializeDocs } from "@/api/lib/serialize";
 import type { SessionVariables } from "@/api/middleware/session";
@@ -86,8 +87,8 @@ expensesRoutes.post("/", zValidator("json", createExpenseSchema), async (c) => {
     badRequest("seriesKey is required for encrypted recurring expenses");
   }
 
-  const result = await expenses.insertOne({
-    _id: randomObjectId(),
+  const { doc, created } = await insertOwned(expenses, {
+    _id: body.id ? new ObjectId(body.id) : randomObjectId(),
     accountId,
     walletId: new ObjectId(body.walletId),
     kind: body.kind ?? "expense",
@@ -102,10 +103,7 @@ expensesRoutes.post("/", zValidator("json", createExpenseSchema), async (c) => {
     updatedAt: now,
   });
 
-  const doc = await expenses.findOne({ _id: result.insertedId });
-  if (!doc) notFound("Expense not found");
-
-  return c.json({ expense: serializeDoc(doc) }, 201);
+  return c.json({ expense: serializeDoc(doc) }, created ? 201 : 200);
 });
 
 expensesRoutes.patch("/:id", zValidator("json", updateExpenseSchema), async (c) => {

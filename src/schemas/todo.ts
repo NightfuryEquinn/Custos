@@ -1,6 +1,6 @@
 import { TODO_ICON_OPTIONS } from "@/lib/glyphs";
 import { z } from "zod";
-import { accountIdSchema } from "./ids";
+import { accountIdSchema, objectIdSchema } from "./ids";
 import { encryptedPayloadSchema, e2eeVersionSchema } from "./encryption";
 
 const TODO_ICONS = TODO_ICON_OPTIONS;
@@ -33,6 +33,8 @@ const todoListSchema = z.object({
 });
 
 export const createTodoListSchema = z.object({
+  /** Optional client-minted id (offline write queue) — see expense.ts's `id`. */
+  id: objectIdSchema.optional(),
   enc: e2eeVersionSchema,
   payload: encryptedPayloadSchema,
 });

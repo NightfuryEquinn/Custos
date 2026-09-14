@@ -235,6 +235,13 @@ function createCollection() {
     },
     async insertOne(doc: Record<string, unknown>) {
       const _id = (doc._id as ObjectId) ?? new ObjectId();
+      if (docs.some((d) => d._id instanceof ObjectId && d._id.equals(_id))) {
+        /* Mirrors Mongo's real duplicate-key error shape closely enough for
+           insert-idempotent.ts's `err.code === 11000` check. */
+        const err = new Error(`E11000 duplicate key error: _id ${_id.toHexString()}`);
+        (err as Error & { code: number }).code = 11000;
+        throw err;
+      }
       const stored = { ...doc, _id } as Doc;
       docs.push(stored);
       return { insertedId: _id, acknowledged: true };

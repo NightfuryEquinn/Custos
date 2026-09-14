@@ -19,3 +19,7 @@ export function forbidden(message = "Forbidden"): never {
 export function tooManyRequests(message = "Too many requests"): never {
   throw new HTTPException(429, { message });
 }
+
+export function conflict(message = "Conflict"): never {
+  throw new HTTPException(409, { message });
+}
