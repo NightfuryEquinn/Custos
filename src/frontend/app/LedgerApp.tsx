@@ -690,7 +690,6 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
               </button>
             </div>
             <div className="tb-actions">
-              <OfflineBanner address={account.address} />
               <ThemeToggle />
               <AccountMenu
                 account={account}
@@ -714,6 +713,9 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
                 onWhatsNew={openWhatsNew}
               />
             </div>
+          </div>
+          <div className="tb-row tb-row--status">
+            <OfflineBanner address={account.address} />
           </div>
           {view !== "transparency" ? (
             <div className="tb-row tb-row--tools">
