@@ -557,9 +557,15 @@ export function Transparency() {
               key on this browser; encrypted backups download to your machine only. Optional Face ID
               / Touch ID unlock runs entirely in the browser through WebAuthn — it can prompt on its
               own when you open the app, but the server never receives the credential, the
-              assertion, or any signal that a biometric check happened. The installable PWA may
-              cache ciphertext locally for offline reads — saves still need the network. Older rows
-              may still carry legacy plaintext columns from before E2EE payloads.
+              assertion, or any signal that a biometric check happened. The installable PWA caches
+              ciphertext locally so the app opens, unlocks, and reads your last-synced data with no
+              connection at all — a session with no server confirmation is trusted offline for 30
+              days before it's dropped. Logging or editing a plain expense (or deleting one with no
+              recurrence scope) also works offline: the change is queued already-encrypted — the
+              same local database the read cache uses — and sent automatically once you reconnect,
+              never needing the ledger key again to do so. Editing an already-recurring expense,
+              scoped deletes, and every other entity type still need a connection. Older rows may
+              still carry legacy plaintext columns from before E2EE payloads.
             </p>
           </div>
         </div>

@@ -14,7 +14,8 @@ type HighlightIcon =
   | "capital"
   | "car"
   | "list"
-  | "tags";
+  | "tags"
+  | "wifi-on";
 
 export type ReleaseHighlight = {
   icon: HighlightIcon;
@@ -35,6 +36,28 @@ export type ReleaseNotes = {
  * re-announces the popup to every device that has not seen that version.
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
+  {
+    version: "5.1.1",
+    date: "September 2026",
+    lead: "Custos now opens and unlocks with no connection at all, showing your last-synced data — and logging or editing a simple expense while offline now saves right away and quietly syncs once you're back online. Plus a Spending & Earning fix: money moved into savings now counts toward what you've spent.",
+    highlights: [
+      {
+        icon: "wifi-on",
+        title: "Works with no connection",
+        body: "Opening Custos with no signal now takes you straight to unlock and your last-synced ledger, instead of dropping you back to sign-in. A small indicator up top shows when you're offline.",
+      },
+      {
+        icon: "download",
+        title: "Offline expenses sync automatically",
+        body: "Log or edit a plain (non-repeating) expense with no connection and it saves immediately — Custos queues it and sends it the moment you're back online, with no need to redo anything. Editing a repeating transaction or deleting one with a scope still needs a connection, same as before.",
+      },
+      {
+        icon: "insights",
+        title: "Savings now count as spending",
+        body: "The Spending & Earning chart and its budget line were disagreeing whenever you moved money into savings — the budget line already counted it, the spend line didn't. Now they match: a savings deposit counts as spend, and a withdrawal is credited back.",
+      },
+    ],
+  },
   {
     version: "5.0.1",
     date: "September 2026",
