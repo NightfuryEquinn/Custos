@@ -25,10 +25,15 @@ import {
   encodeVehicleUpdate,
   encodeWalletFinancials,
   type EventWire,
+  type ExpenseWire,
   type ReminderContext,
 } from "@/frontend/lib/crypto/codec";
 import { ledgerKeyStore, seriesKeyStore } from "@/frontend/lib/crypto/key-store";
 import { connectivity } from "@/frontend/lib/net/connectivity";
+import { clientObjectId } from "@/frontend/lib/sync/object-id";
+import { enqueueOutbox } from "@/frontend/lib/sync/outbox";
+import { drainOutbox } from "@/frontend/lib/sync/engine";
+import { usePendingExpenseOverlay } from "@/frontend/lib/sync/useOutbox";
 import { releaseOrphanedPlanRefs } from "@/frontend/lib/capitals";
 import { mergeCategoryBudget } from "@/frontend/lib/category-retire";
 import {
@@ -372,17 +377,27 @@ export function useLedger(walletAddress: string) {
     enabled: cryptoReady,
   });
 
+  /* Pending offline creates/updates/deletes layered on top of the
+     server-derived rows — see src/frontend/lib/sync/overlay.ts. Rebuilt
+     from the durable outbox on every render, so it survives a reload while
+     still offline (unlike an in-memory optimistic patch). */
+  const overlaidExpenseData = usePendingExpenseOverlay(
+    wallet,
+    expensesQuery.data,
+    ledgerKeyStore.get(wallet),
+  );
+
   /* Was a bare .map() in the render body — re-running over up to 10,000 rows
      on every LedgerApp render (any modal open, any FAB toggle), not just
      when the underlying data actually changed. */
   const decodedExpenses = useMemo(
     () =>
-      (expensesQuery.data ?? []).map((e) => ({
+      overlaidExpenseData.map((e) => ({
         ...e,
         kind: e.kind ?? "expense",
         recurring: normalizeRecurring(e.recurring),
       })),
-    [expensesQuery.data],
+    [overlaidExpenseData],
   );
   /* Null plans means "not loaded", not "no plans exist" — healing against an
      empty roster would strip every live assignment. */
@@ -753,8 +768,37 @@ export function useLedger(walletAddress: string) {
     mutationFn: async (data: Omit<Expense, "id"> & { id?: string }) => {
       const cryptoKey = requireKey(wallet);
       const seriesHmacKey = requireSeriesKey(wallet);
+
       if (data.id) {
+        /* Safe to queue offline only when the expense being edited is not
+           currently part of a recurring series — shouldRetireOldExpenseSeries
+           (src/api/lib/expense-delete-scope.ts) never retires anything for
+           an expense whose *existing* recurring value is already false,
+           regardless of what the edit changes it to. Editing an
+           already-recurring row can trigger a server-computed multi-document
+           retire, which the client cannot predict — that case keeps requiring
+           a live connection, unchanged from before this queue existed. */
+        const existing =
+          expensesQuery.data?.find((e) => e.id === data.id) ??
+          allExpensesQuery.data?.find((e) => e.id === data.id);
+        const queueable = existing ? normalizeRecurring(existing.recurring) === false : false;
         const body = await encodeExpenseUpdate(data, cryptoKey, seriesHmacKey);
+
+        if (queueable) {
+          await enqueueOutbox({
+            address: wallet,
+            entity: "expense",
+            op: "update",
+            targetId: data.id,
+            request: { method: "PATCH", path: `/expenses/${data.id}`, body },
+            dependsOn: [],
+            label: data.note || "Expense",
+          });
+          void drainOutbox(wallet);
+          const expense = await decodeExpense({ id: data.id, ...body } as ExpenseWire, cryptoKey);
+          return { expense, deletedIds: [] as string[], endedIds: [] as string[] };
+        }
+
         const res = await api.expenses.update(data.id, body);
         const expense = await decodeExpense(res.expense, cryptoKey);
         return {
@@ -763,10 +807,25 @@ export function useLedger(walletAddress: string) {
           endedIds: res.endedIds ?? [],
         };
       }
+
+      /* A brand-new expense never retires anything — always safe to queue,
+         recurring or not. Client-mints the id so the row (and anything that
+         links to it — an event, a Capitals plan) is final immediately. */
+      const id = clientObjectId();
       const body = await encodeExpenseCreate(data, cryptoKey, seriesHmacKey);
-      const { expense } = await api.expenses.create(body);
+      await enqueueOutbox({
+        address: wallet,
+        entity: "expense",
+        op: "create",
+        targetId: id,
+        request: { method: "POST", path: "/expenses", body: { id, ...body } },
+        dependsOn: [],
+        label: data.note || "Expense",
+      });
+      void drainOutbox(wallet);
+      const expense = await decodeExpense({ id, ...body } as ExpenseWire, cryptoKey);
       return {
-        expense: await decodeExpense(expense, cryptoKey),
+        expense,
         deletedIds: [] as string[],
         endedIds: [] as string[],
       };
@@ -815,8 +874,28 @@ export function useLedger(walletAddress: string) {
   });
 
   const deleteExpenseMutation = useMutation({
-    mutationFn: ({ id, opts }: { id: string; opts?: DeleteScopeOpts }) =>
-      api.expenses.remove(id, opts),
+    mutationFn: async ({ id, opts }: { id: string; opts?: DeleteScopeOpts }) => {
+      /* A scope-based delete has the server compute deletedIds/skippedId
+         across potentially many rows and cascade-unlink events/fills — that
+         can't be predicted client-side, so it keeps requiring a live
+         connection, unchanged. A scopeless delete is always a single
+         document (recurring or not — the server only takes the scoped path
+         when `scope` is present), so it's always safe to queue. */
+      if (!opts?.scope) {
+        await enqueueOutbox({
+          address: wallet,
+          entity: "expense",
+          op: "delete",
+          targetId: id,
+          request: { method: "DELETE", path: `/expenses/${id}` },
+          dependsOn: [],
+          label: "Delete expense",
+        });
+        void drainOutbox(wallet);
+        return { ok: true, deletedIds: [id] as string[] | undefined, skippedId: undefined };
+      }
+      return api.expenses.remove(id, opts);
+    },
     onSuccess: (res, { id, opts }) => {
       queryClient.setQueryData<Expense[]>(keys.expenses(wallet), (prev = []) => {
         if (res.skippedId) {

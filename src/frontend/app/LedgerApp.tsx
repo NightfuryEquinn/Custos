@@ -6,6 +6,7 @@ import type { EventImportRow } from "@/frontend/auth/lib/import-events";
 import type { TodoImportList } from "@/frontend/auth/lib/import-todos";
 import { restoreBackupToLedger } from "@/frontend/auth/lib/restore-backup";
 import { useEnter } from "@/frontend/lib/animate";
+import { armSyncTriggers, drainOutbox } from "@/frontend/lib/sync/engine";
 import { LoadingBloom } from "@/frontend/components/LoadingBloom";
 import { OfflineBanner } from "@/frontend/components/OfflineBanner";
 import { ThemeToggle } from "@/frontend/components/ThemeToggle";
@@ -174,6 +175,14 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
   useEffect(() => {
     if (welcomeDue) setWelcomeOpen(true);
   }, [welcomeDue]);
+
+  /* Arm the offline write queue's drain triggers once, then try an
+     immediate drain on mount (covers "reopened the app while online with
+     something still queued from last time"). */
+  useEffect(() => {
+    armSyncTriggers(() => account.address);
+    void drainOutbox(account.address);
+  }, [account.address]);
 
   /* Server profile is the cross-device source of truth for the accent perk;
      mirror it into the ThemeProvider (which also writes the localStorage
@@ -681,7 +690,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
               </button>
             </div>
             <div className="tb-actions">
-              <OfflineBanner />
+              <OfflineBanner address={account.address} />
               <ThemeToggle />
               <AccountMenu
                 account={account}

@@ -121,6 +121,12 @@ function createConnectivityStore() {
     probe(): Promise<NetStatus> {
       return probe();
     },
+    /** Test helper: force a status directly, bypassing the probe. */
+    setStatusForTests(next: NetStatus): void {
+      clearProbe();
+      status = next;
+      notify();
+    },
   };
 }
 

@@ -87,13 +87,19 @@ function isCacheableGet(path: string, method: string): boolean {
    no timeout anywhere in this file. */
 const REQUEST_TIMEOUT_MS = 20_000;
 
-async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+/**
+ * Low-level fetch/timeout/ApiError plumbing, with no cache fallback — shared
+ * by `request()` below and the offline write queue's drain loop
+ * (`@/frontend/lib/sync/engine.ts`), so the queue doesn't duplicate this and
+ * inherits the same connectivity observation for free.
+ */
+export async function apiFetch<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const { body, headers, signal, ...rest } = opts;
   const method = (rest.method ?? (body !== undefined ? "POST" : "GET")).toUpperCase();
-  const address = identityStorage.session();
 
+  let res: Response;
   try {
-    const res = await fetch(`/api${path}`, {
+    res = await fetch(`/api${path}`, {
       ...rest,
       method,
       credentials: "include",
@@ -104,23 +110,38 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
-    /* Any response at all — even a non-2xx one — proves the network reached
-       the server, which is worth more than the stale `navigator.onLine`. */
-    connectivity.observe("reached-server");
-
-    if (!res.ok) {
-      const payload = (await res.json().catch(() => ({}))) as { error?: string };
-      const retryHeader = res.headers.get("Retry-After");
-      const retryAfterMs = retryHeader ? Number(retryHeader) * 1000 : undefined;
-      throw new ApiError(
-        res.status,
-        payload.error ?? res.statusText,
-        Number.isFinite(retryAfterMs) && retryAfterMs! > 0 ? retryAfterMs : undefined,
-      );
+  } catch (err) {
+    if (err instanceof TypeError || (err instanceof DOMException && err.name === "AbortError")) {
+      connectivity.observe("network-failure");
     }
+    throw err;
+  }
+  /* Any response at all — even a non-2xx one — proves the network reached
+     the server, which is worth more than the stale `navigator.onLine`. */
+  connectivity.observe("reached-server");
 
-    if (res.status === 204) return undefined as T;
-    const json = (await res.json()) as T;
+  if (!res.ok) {
+    const payload = (await res.json().catch(() => ({}))) as { error?: string };
+    const retryHeader = res.headers.get("Retry-After");
+    const retryAfterMs = retryHeader ? Number(retryHeader) * 1000 : undefined;
+    throw new ApiError(
+      res.status,
+      payload.error ?? res.statusText,
+      Number.isFinite(retryAfterMs) && retryAfterMs! > 0 ? retryAfterMs : undefined,
+    );
+  }
+
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
+}
+
+async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+  const { body } = opts;
+  const method = (opts.method ?? (body !== undefined ? "POST" : "GET")).toUpperCase();
+  const address = identityStorage.session();
+
+  try {
+    const json = await apiFetch<T>(path, opts);
     if (address && isCacheableGet(path, method)) {
       void putCipherCache(address, path, json);
     }
@@ -131,12 +152,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
        those mean the data changed, so a stale read beats blanking the whole
        app. A 401/403/404 means the request itself is wrong and must not be
        papered over with cache. */
-    const cacheableFailure = isOfflineFailure(err);
-    if (err instanceof TypeError || (err instanceof DOMException && err.name === "AbortError")) {
-      connectivity.observe("network-failure");
-    }
-
-    if (address && isCacheableGet(path, method) && cacheableFailure) {
+    if (address && isCacheableGet(path, method) && isOfflineFailure(err)) {
       const cached = await getCipherCache<T>(address, path);
       if (cached != null) return cached;
     }

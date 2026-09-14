@@ -13,6 +13,7 @@ import {
 import { getKeyGeneration, setKeyGeneration, type KeyGeneration } from "./key-generation";
 import { ledgerKeyStore, seriesKeyStore } from "./key-store";
 import { rekeyLedgerToCustos } from "./rekey";
+import { listOutbox } from "@/frontend/lib/sync/outbox";
 
 export type UnlockResult = {
   generation: KeyGeneration;
@@ -111,6 +112,16 @@ export async function unlockLedgerKey(idn: IdentityRecord): Promise<UnlockResult
   }
 
   ledgerKeyStore.set(idn.address, legacyKey);
+
+  /* A queued offline write holds ciphertext under the key about to be
+     replaced — rekeying now would make it permanently undecryptable once
+     replayed. In practice this legacy migration and a non-empty queue can't
+     really coincide (the queue only exists on a build new enough to already
+     be on the "custos" key generation), but fail loud rather than silently
+     corrupt data if it somehow did. */
+  if ((await listOutbox(idn.address)).length > 0) {
+    throw new Error("Cannot migrate the encryption key while offline changes are pending sync.");
+  }
 
   const newKey = await deriveFromPrefix(idn, DERIVATION_MESSAGE_PREFIX);
   await rekeyLedgerToCustos(legacyKey, newKey);
