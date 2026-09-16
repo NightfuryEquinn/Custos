@@ -1,5 +1,6 @@
 import { CsvImportPanel, type CsvImportPreview } from "@/frontend/auth/components/CsvImportPanel";
 import { Icon } from "@/frontend/components/ui";
+import { api } from "@/frontend/lib/api";
 import { ledgerKeyStore } from "@/frontend/lib/crypto/key-store";
 import { useModalMotion } from "@/frontend/lib/animate";
 import type {
@@ -165,6 +166,11 @@ export function ImportExportModal({
     try {
       const key = ledgerKeyStore.get(accountAddress);
       if (!key) throw new Error("Unlock your ledger before exporting a backup.");
+      const [{ user }, { profile }, { consent }] = await Promise.all([
+        api.users.me(),
+        api.profile.get(),
+        api.consent.get(),
+      ]);
       const plain = buildBackupPlain({
         address: accountAddress,
         wallets,
@@ -175,6 +181,19 @@ export function ImportExportModal({
         capitalPlans,
         vehicles,
         vehicleFills,
+        settings: {
+          codename: user.codename,
+          notifyEmail: user.notifyEmail,
+          timezone: user.timezone,
+          emailRemindersEnabled: user.emailRemindersEnabled,
+          budgetAlertsEnabled: user.budgetAlertsEnabled,
+          tourPreference: profile.tourPreference,
+          toursSeen: profile.toursSeen,
+          accent: profile.accent,
+          navTabs: profile.navTabs,
+          navOrder: profile.navOrder,
+          consentOptedIn: consent.optedIn,
+        },
       });
       const file = await encryptBackup(key, plain);
       downloadEncryptedBackup(file);
@@ -406,7 +425,9 @@ export function ImportExportModal({
 
             <p className="dm-subhead">Encrypted Backup</p>
             <p className="dm-note">
-              Client-side AES pack unlocked with your ledger key. Not stored on the server.
+              Client-side AES pack unlocked with your ledger key. Not stored on the server. Covers
+              your ledger data plus account and profile settings (notify email, timezone, accent,
+              nav layout).
             </p>
             <button
               className="primary-btn full"

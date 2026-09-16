@@ -1,9 +1,9 @@
-import { useEnter, useModalMotion, useStagger } from "@/frontend/lib/animate";
+import { useEnter, useModalMotion } from "@/frontend/lib/animate";
 import { ConfirmDialog, EmptyState, Icon } from "@/frontend/components/ui";
 import { slugId } from "@/frontend/lib/categories";
 import type { TodoList, TodoTask } from "@/frontend/lib/types";
 import { TODO_ICON_OPTIONS } from "@/lib/glyphs";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 /*
@@ -24,6 +24,9 @@ type TodoListViewProps = {
   onDelete: (id: string) => Promise<unknown>;
 };
 
+/** Imperative handle so the shell's quick-add FAB can trigger New List. */
+export type TodoListViewHandle = { openAdd: () => void };
+
 type EditorMode = { type: "add-list" } | { type: "edit-list"; listId: string } | null;
 
 function taskId(title: string, existing: TodoTask[]) {
@@ -32,7 +35,10 @@ function taskId(title: string, existing: TodoTask[]) {
   return `${base}_${Date.now().toString(36).slice(-4)}`;
 }
 
-export function TodoListView({ todoLists, onSave, onDelete }: TodoListViewProps) {
+export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(function TodoListView(
+  { todoLists, onSave, onDelete },
+  ref,
+) {
   const [lists, setLists] = useState(todoLists);
   const [activeId, setActiveId] = useState<string | null>(todoLists[0]?.id ?? null);
   const [editor, setEditor] = useState<EditorMode>(null);
@@ -62,12 +68,6 @@ export function TodoListView({ todoLists, onSave, onDelete }: TodoListViewProps)
   }, [todoLists, activeId]);
 
   const active = useMemo(() => lists.find((l) => l.id === activeId) ?? null, [lists, activeId]);
-
-  const stats = useMemo(() => {
-    const totalTasks = lists.reduce((n, l) => n + l.tasks.length, 0);
-    const doneTasks = lists.reduce((n, l) => n + l.tasks.filter((t) => t.done).length, 0);
-    return { lists: lists.length, totalTasks, doneTasks };
-  }, [lists]);
 
   const persistList = async (
     data: Partial<TodoList> & { id?: string; name?: string; icon?: string },
@@ -114,6 +114,8 @@ export function TodoListView({ todoLists, onSave, onDelete }: TodoListViewProps)
     setIcon("📋");
     setError("");
   };
+
+  useImperativeHandle(ref, () => ({ openAdd: openAddList }));
 
   const openEditList = (list: TodoList) => {
     setEditor({ type: "edit-list", listId: list.id });
@@ -183,33 +185,10 @@ export function TodoListView({ todoLists, onSave, onDelete }: TodoListViewProps)
 
   const editorTitle = editor?.type === "add-list" ? "New List" : editor ? "Edit List" : "";
   const viewRef = useRef<HTMLDivElement>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
   useEnter(viewRef);
-  useStagger(gridRef, ".summary-card");
 
   return (
     <div ref={viewRef} className="view">
-      <div ref={gridRef} className="summary-grid sg-3" data-tour="tour-todos-summary">
-        <div className="summary-card">
-          <div className="sc-label">Lists</div>
-          <div className="sc-value">{stats.lists}</div>
-        </div>
-        <div className="summary-card">
-          <div className="sc-label">Tasks</div>
-          <div className="sc-value">{stats.totalTasks}</div>
-        </div>
-        <div className="summary-card tone-ok">
-          <div className="sc-label">Completed</div>
-          <div className="sc-value">{stats.doneTasks}</div>
-        </div>
-      </div>
-
-      <div className="todo-toolbar" data-tour="tour-todos-toolbar">
-        <button className="primary-btn" type="button" onClick={openAddList}>
-          <Icon name="plus" size={15} /> New List
-        </button>
-      </div>
-
       {lists.length ? (
         <>
           <div className="todo-list-tabs" data-tour="tour-todos-tabs">
@@ -322,12 +301,7 @@ export function TodoListView({ todoLists, onSave, onDelete }: TodoListViewProps)
       ) : (
         <section className="panel" data-tour="tour-todos-tabs">
           <div data-tour="tour-todos-tasks">
-            <EmptyState title="No Lists Yet" sub="Create a list to start tracking tasks." />
-            <div className="todo-empty-action">
-              <button className="primary-btn" type="button" onClick={openAddList}>
-                <Icon name="plus" size={15} /> New List
-              </button>
-            </div>
+            <EmptyState title="No Lists Yet" sub="Use the + button to create one." />
           </div>
         </section>
       )}
@@ -435,4 +409,4 @@ export function TodoListView({ todoLists, onSave, onDelete }: TodoListViewProps)
       ) : null}
     </div>
   );
-}
+});

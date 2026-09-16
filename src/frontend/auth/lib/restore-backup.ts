@@ -13,7 +13,7 @@ import type {
   TodoList,
   Vehicle,
 } from "@/frontend/lib/types";
-import type { LedgerBackupPlain } from "./encrypted-backup";
+import type { BackupSettings, LedgerBackupPlain } from "./encrypted-backup";
 
 type BackupRestoreApi = {
   saveCategories: (categories: Category[]) => Promise<unknown>;
@@ -24,6 +24,12 @@ type BackupRestoreApi = {
   saveCapitalPlan: (plan: Omit<CapitalPlan, "id"> & { id?: string }) => Promise<unknown>;
   saveVehicle: (vehicle: Omit<Vehicle, "id"> & { id?: string }) => Promise<Vehicle>;
   saveVehicleFill: (fill: Omit<FuelFill, "id"> & { id?: string }) => Promise<unknown>;
+  /** Account preferences — codename, notify email, timezone, reminder toggles. */
+  updateUser?: (settings: BackupSettings) => Promise<unknown>;
+  /** Profile preferences — tour state, accent, nav layout. */
+  updateProfile?: (settings: BackupSettings) => Promise<unknown>;
+  /** Data-sharing opt-in preference. */
+  updateConsent?: (optedIn: boolean) => Promise<unknown>;
 };
 
 export type BackupRestoreResult = {
@@ -35,6 +41,7 @@ export type BackupRestoreResult = {
   capitalPlans: number;
   vehicles: number;
   vehicleFills: number;
+  settings: boolean;
   failed: number;
 };
 
@@ -66,6 +73,7 @@ export async function restoreBackupToLedger(
     capitalPlans: 0,
     vehicles: 0,
     vehicleFills: 0,
+    settings: false,
     failed: 0,
   };
 
@@ -190,5 +198,33 @@ export async function restoreBackupToLedger(
     }
   }
 
+  if (plain.settings) {
+    try {
+      await restoreSettings(plain.settings, api);
+      result.settings = true;
+    } catch {
+      result.failed++;
+    }
+  }
+
   return result;
+}
+
+/** Apply the backup's account/profile preferences via the update APIs. */
+async function restoreSettings(settings: BackupSettings, api: BackupRestoreApi): Promise<void> {
+  const { codename, notifyEmail, timezone, emailRemindersEnabled, budgetAlertsEnabled } = settings;
+  const userPatch = { codename, notifyEmail, timezone, emailRemindersEnabled, budgetAlertsEnabled };
+  if (api.updateUser && Object.values(userPatch).some((v) => v !== undefined)) {
+    await api.updateUser(userPatch);
+  }
+
+  const { tourPreference, toursSeen, accent, navTabs, navOrder } = settings;
+  const profilePatch = { tourPreference, toursSeen, accent, navTabs, navOrder };
+  if (api.updateProfile && Object.values(profilePatch).some((v) => v !== undefined)) {
+    await api.updateProfile(profilePatch);
+  }
+
+  if (api.updateConsent && settings.consentOptedIn !== undefined) {
+    await api.updateConsent(settings.consentOptedIn);
+  }
 }

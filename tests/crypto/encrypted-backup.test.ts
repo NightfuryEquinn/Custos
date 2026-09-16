@@ -89,6 +89,46 @@ describe("encrypted backup", () => {
     expect(restored.address).toBe(address);
   });
 
+  test("encrypt / decrypt round-trip includes settings", async () => {
+    const { key, address } = await testKey();
+    const plain = buildBackupPlain({
+      address,
+      wallets: [],
+      categories: [],
+      expenses: [],
+      events: [],
+      todoLists: [],
+      settings: {
+        codename: "Maple Owl",
+        notifyEmail: "you@mail.com",
+        timezone: "Asia/Kuala_Lumpur",
+        emailRemindersEnabled: true,
+        budgetAlertsEnabled: false,
+        tourPreference: "guided",
+        toursSeen: ["shell"],
+        accent: "moss",
+        navTabs: ["overview", "budgets"],
+        navOrder: ["overview", "budgets", "insights"],
+        consentOptedIn: false,
+      },
+    });
+    const restored = await decryptBackup(key, await encryptBackup(key, plain));
+    expect(restored.settings).toEqual(plain.settings);
+  });
+
+  test("buildBackupPlain omits settings when not given", async () => {
+    const { address } = await testKey();
+    const plain = buildBackupPlain({
+      address,
+      wallets: [],
+      categories: [],
+      expenses: [],
+      events: [],
+      todoLists: [],
+    });
+    expect(plain.settings).toBeUndefined();
+  });
+
   test("parseBackupFile accepts legacy format id", () => {
     const raw = JSON.stringify({
       format: "sched-ledger-backup",

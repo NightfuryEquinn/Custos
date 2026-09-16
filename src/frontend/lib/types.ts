@@ -1,6 +1,7 @@
 import type { RecurringInterval } from "@/lib/recurring";
+import type { ViewId } from "@/lib/views";
 
-export type { RecurringInterval };
+export type { RecurringInterval, ViewId };
 
 export type Expense = {
   id: string;
@@ -73,21 +74,6 @@ export type Account = {
   codename: string;
   injected?: boolean;
 };
-
-export type ViewId =
-  | "overview"
-  | "transactions"
-  | "budgets"
-  | "calculator"
-  | "categories"
-  | "schedule"
-  | "insights"
-  | "recurring"
-  | "todos"
-  | "piggies"
-  | "capitals"
-  | "vehicles"
-  | "transparency";
 
 export type MonthEntry = {
   key: string;

@@ -1,5 +1,6 @@
 import type { ViewId } from "@/frontend/lib/types";
 import type { StepOptionsButton, Tour } from "shepherd.js";
+import "shepherd.js/dist/css/shepherd.css";
 import { getViewTourSteps, SHELL_TOUR_STEPS } from "./steps";
 
 export type TourKind = ViewId | "shell";
@@ -50,34 +51,46 @@ function waitForElement(selector: string, timeout = 2500): Promise<Element | nul
   });
 }
 
-function bindButtons(tour: Tour, steps: ReturnType<typeof getViewTourSteps>) {
-  return steps.map((step) => ({
-    ...step,
-    buttons: step.buttons?.map((button): StepOptionsButton => {
-      const { kind, ...rest } = button;
-      if (kind === "back") return { ...rest, action: () => tour.back() };
-      if (kind === "complete") return { ...rest, action: () => tour.complete() };
+/* Several nav anchors share one `data-tour` id — the desktop sidebar, the
+   More sheet, and the bottom tab bar are all in the DOM, with only one
+   visible per breakpoint. Shepherd's own string lookup takes the first
+   match (the display:none sidebar on a phone) and then hides the popup as a
+   hidden reference. `getClientRects()` is empty for display:none and
+   non-empty for the position:fixed bottom nav, unlike `offsetParent`. */
+function visibleMatch(selector: string): HTMLElement | null {
+  const all = [...document.querySelectorAll<HTMLElement>(selector)];
 
-      return { ...rest, action: () => tour.next() };
-    }),
-    beforeShowPromise: async () => {
-      const selector = typeof step.attachTo?.element === "string" ? step.attachTo.element : null;
-      if (selector) await waitForElement(selector);
-      if (step.beforeShowPromise) await step.beforeShowPromise();
-    },
-  }));
+  return all.find((el) => el.getClientRects().length > 0) ?? null;
+}
+
+function bindButtons(tour: Tour, steps: ReturnType<typeof getViewTourSteps>) {
+  return steps.map((step) => {
+    const selector = typeof step.attachTo?.element === "string" ? step.attachTo.element : null;
+
+    return {
+      ...step,
+      attachTo: selector
+        ? { ...step.attachTo, element: () => visibleMatch(selector) }
+        : step.attachTo,
+      buttons: step.buttons?.map((button): StepOptionsButton => {
+        const { kind, ...rest } = button;
+        if (kind === "back") return { ...rest, action: () => tour.back() };
+        if (kind === "complete") return { ...rest, action: () => tour.complete() };
+
+        return { ...rest, action: () => tour.next() };
+      }),
+      beforeShowPromise: async () => {
+        if (selector) await waitForElement(selector);
+        if (step.beforeShowPromise) await step.beforeShowPromise();
+      },
+    };
+  });
 }
 
 async function createTour(kind: TourKind, { onDone }: RunTourOptions): Promise<Tour> {
   teardownActiveTour();
 
-  /* Deferred alongside the JS: a static top-level import of this CSS pulled
-     it into every load's blocking stylesheet even for users who never open
-     a tour — `LedgerApp.tsx` imports this module eagerly for `useLedgerTour`. */
-  const [{ default: Shepherd }] = await Promise.all([
-    import("shepherd.js"),
-    import("shepherd.js/dist/css/shepherd.css"),
-  ]);
+  const { default: Shepherd } = await import("shepherd.js");
 
   const steps = kind === "shell" ? SHELL_TOUR_STEPS : getViewTourSteps(kind);
   const tour = new Shepherd.Tour({

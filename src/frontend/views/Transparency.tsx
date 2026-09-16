@@ -35,11 +35,6 @@ const COLLECTIONS: CollectionDoc[] = [
       { key: "emailRemindersEnabled?", value: "true" },
       { key: "budgetAlertsEnabled?", value: "true" },
       {
-        key: "supporterSince?",
-        value: "ISO date",
-        note: "set only by the manual grant script — a monthly Supporter subscription perk",
-      },
-      {
         key: "lastSeenAt?",
         value: "ISO date",
         note: `Login / session activity; stale accounts purged after ${ACCOUNT_STALE_DAYS} days`,
@@ -63,7 +58,17 @@ const COLLECTIONS: CollectionDoc[] = [
       {
         key: "accent?",
         value: '"moss"',
-        note: "Supporter accent perk; undefined means default (clay)",
+        note: "Free accent color pick; undefined means default (clay)",
+      },
+      {
+        key: "navTabs?",
+        value: '["overview", "budgets", …]',
+        note: "Mobile tab-bar picks, in order; undefined means never customized",
+      },
+      {
+        key: "navOrder?",
+        value: '["overview", "budgets", …]',
+        note: "Sidebar order; undefined means never customized",
       },
       { key: "createdAt / updatedAt", value: "ISO dates" },
     ],
@@ -121,6 +126,11 @@ const COLLECTIONS: CollectionDoc[] = [
         note: "optional link to a Capitals plan when savings is assigned (plaintext)",
       },
       { key: "skipped?", value: "false", note: "soft-delete for recurring cron" },
+      {
+        key: "lastScannedAt?",
+        value: "ISO date",
+        note: "cron scan cursor for posting recurring rows — oldest/never-scanned first",
+      },
       { key: "createdAt / updatedAt", value: "ISO dates" },
     ],
   },
@@ -160,6 +170,11 @@ const COLLECTIONS: CollectionDoc[] = [
         key: "expenseId?",
         value: "ObjectId",
         note: "optional link when a bill payment was logged",
+      },
+      {
+        key: "lastScannedAt?",
+        value: "ISO date",
+        note: "cron scan cursor for reminder delivery — oldest/never-scanned first",
       },
       { key: "createdAt / updatedAt", value: "ISO dates" },
     ],
@@ -254,6 +269,11 @@ const COLLECTIONS: CollectionDoc[] = [
         note: "legacy sessions keyed by address only until backfill",
       },
       { key: "tokenHash", value: "hashed cookie token (rotated on sliding renewal)" },
+      {
+        key: "prevTokenHash? / prevTokenValidUntil?",
+        value: "hash / Date",
+        note: "brief grace window after rotation, so concurrent requests on the old cookie don't 401",
+      },
       { key: "userAgent / ip", value: "client metadata" },
       { key: "createdAt / lastSeenAt / expiresAt", value: "Dates" },
       { key: "revokedAt?", value: "Date" },
@@ -270,7 +290,8 @@ const COLLECTIONS: CollectionDoc[] = [
         value: "base64",
         note: "required verbatim to encrypt each push payload",
       },
-      { key: "createdAt / updatedAt", value: "ISO dates" },
+      { key: "userAgent?", value: "client metadata" },
+      { key: "createdAt / lastSeenAt", value: "ISO dates" },
     ],
   },
   {
@@ -296,6 +317,11 @@ const COLLECTIONS: CollectionDoc[] = [
       "Dedupes budget-near-limit email and push delivery (client evaluates; server delivers)",
     fields: [
       { key: "accountId", value: '"64b6…"', note: "users._id hex (opaque)" },
+      {
+        key: "userAddress?",
+        value: '"0xabc…"',
+        note: "legacy ownership key; unset after backfill",
+      },
       { key: "walletId / categoryId", value: "ids" },
       { key: "month", value: '"2026-07"' },
       { key: "level", value: '"warning" | "exceeded"' },
@@ -343,6 +369,7 @@ const RELATIONSHIP_CHART = `flowchart TB
     Auth["auth_nonces · sessions"]
     Push["push_subscriptions"]
     Logs["reminder_logs · budget_alert_logs"]
+    RateLimits["rate_limits<br/>infra-scoped, not user-owned"]
     Users --> Profile
     Users --> Wallets
     Users --> Cats
@@ -351,6 +378,7 @@ const RELATIONSHIP_CHART = `flowchart TB
     Users --> Todos
     Users --> Caps
     Users --> Vehicles
+    Users --> Fills
     Users --> Consent
     Users --> Auth
     Users --> Push
@@ -371,9 +399,6 @@ const RELATIONSHIP_CHART = `flowchart TB
   Key -.->|"AES-256-GCM"| Fills
 `;
 
-/** Mobile uses the same top-to-bottom relationship map as desktop. */
-const RELATIONSHIP_CHART_MOBILE = RELATIONSHIP_CHART;
-
 const E2EE_CHART = `flowchart TB
   Plain["Plain fields<br/>dates · kinds · schedule metadata<br/>reminder prefs · link ids"]
   Enc["AES-256-GCM encrypt<br/>with ledger key"]
@@ -387,13 +412,10 @@ const E2EE_CHART = `flowchart TB
   DB --> DbOut --> Decr --> Ready
 `;
 
-/** Mobile: same write path stacked top-to-bottom. */
-const E2EE_CHART_MOBILE = E2EE_CHART;
-
 /** Hosting and scheduler roles — free-tier stack (vertical for readability). */
 const SYSTEM_CHART = `flowchart TB
   Browser["Browser<br/>unlock · encrypt · PWA cache"]
-  Vercel["Vercel Hobby<br/>host SPA + API<br/>Analytics only"]
+  Vercel["Vercel Hobby<br/>host SPA + API<br/>Analytics + Speed Insights"]
   Atlas[("MongoDB Atlas M0<br/>ciphertext + metadata")]
   Cron["cron-job.org<br/>HTTP poll every ~15 min"]
   Resend["Resend<br/>reminder / alert email"]
@@ -406,48 +428,14 @@ const SYSTEM_CHART = `flowchart TB
   Vercel -->|"send push"| PushSvc
 `;
 
-const SYSTEM_CHART_MOBILE = SYSTEM_CHART;
-
-const MOBILE_MQ = "(max-width: 860px)";
-
 /** Read the current color theme for Mermaid. */
 function readTheme(): "dark" | "neutral" {
   return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "neutral";
 }
 
-/** Track whether the viewport matches the tablet/mobile breakpoint. */
-function useIsMobile() {
-  const [mobile, setMobile] = useState(() =>
-    typeof window !== "undefined" ? window.matchMedia(MOBILE_MQ).matches : false,
-  );
-
-  useEffect(() => {
-    const mq = window.matchMedia(MOBILE_MQ);
-    /** Sync React state when the media query flips. */
-    const onChange = () => setMobile(mq.matches);
-
-    onChange();
-    mq.addEventListener("change", onChange);
-
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-
-  return mobile;
-}
-
-function MermaidDiagram({
-  chart,
-  mobileChart,
-  label,
-}: {
-  chart: string;
-  mobileChart?: string;
-  label: string;
-}) {
+function MermaidDiagram({ chart, label }: { chart: string; label: string }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const reactId = useId().replace(/:/g, "");
-  const isMobile = useIsMobile();
-  const activeChart = isMobile && mobileChart ? mobileChart : chart;
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -469,7 +457,7 @@ function MermaidDiagram({
           flowchart: { curve: "basis", htmlLabels: true, padding: 12 },
         });
         const id = `mmd-${reactId}-${Math.random().toString(36).slice(2, 8)}`;
-        const { svg } = await mermaid.render(id, activeChart);
+        const { svg } = await mermaid.render(id, chart);
         if (cancelled || !hostRef.current) return;
         hostRef.current.innerHTML = svg;
         setError(null);
@@ -492,7 +480,7 @@ function MermaidDiagram({
       cancelled = true;
       obs.disconnect();
     };
-  }, [activeChart, reactId]);
+  }, [chart, reactId]);
 
   return (
     <div className="transparency-diagram" role="img" aria-label={label}>
@@ -543,46 +531,43 @@ export function Transparency() {
             <p className="panel-sub">
               Custos is private by design: your browser derives a ledger key from your wallet
               signature, encrypts secrets with AES-256-GCM, and syncs ciphertext to MongoDB Atlas.
-              Vercel hosts the app and API (plus Analytics / Speed Insights) but does not run cron.
-              cron-job.org is the only scheduler — it polls
-              <code> GET /api/cron/reminders </code>
-              about every fifteen minutes for email reminders, push notifications, and recurring
-              expense rows. Optional email uses Resend; push delivery uses FCM, Apple Push, or
-              Mozilla&apos;s service depending on the browser. UI typefaces (Young Serif, Schibsted
-              Grotesk, Azeret Mono from <code>fonts.css</code>) ship with the app as self-hosted SIL
-              OFL files — no third-party font CDN. Mermaid diagrams below stack top-to-bottom so
-              they stay readable at every width. On desktop you navigate from the sidebar; on phone
-              and tablet portrait a five-tab bar (Overview, Schedule, Transactions, To-Do, More)
-              opens a sheet for the remaining views. A device passphrase wraps your in-app recovery
-              key on this browser; encrypted backups download to your machine only. Optional Face ID
-              / Touch ID unlock runs entirely in the browser through WebAuthn — it can prompt on its
-              own when you open the app, but the server never receives the credential, the
-              assertion, or any signal that a biometric check happened. The installable PWA caches
-              ciphertext locally so the app opens, unlocks, and reads your last-synced data with no
-              connection at all — a session with no server confirmation is trusted offline for 30
-              days before it's dropped. Creating or editing expenses, schedule events, to-do lists,
-              Capitals plans, vehicles, fuel fills, wallet budgets, and categories also works
-              offline: each change is queued already-encrypted — the same local database the read
-              cache uses, no new plaintext exposure — and sent automatically once you reconnect,
-              never needing the ledger key again to do so. A handful of operations still need a
-              connection because the server, not the client, decides their outcome: editing an
-              already-recurring expense, a scoped (this/future/all) expense delete, wallet
-              create/rename/set-default/delete, deleting a Capitals plan, category transfer, backup
-              restore, and rekey (which refuses to run while anything is still queued, since a
-              queued write is ciphertext under the key being replaced). Older rows may still carry
-              legacy plaintext columns from before E2EE payloads.
             </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="panel" data-tour="tour-transparency-system">
-        <div className="panel-head panel-head--stack">
-          <div>
-            <h2>Hosting &amp; Jobs</h2>
-            <p className="panel-sub">
-              Free-tier roles: Vercel hosts, Atlas stores, cron-job.org schedules; typefaces ship
-              with the app
+            <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
+              Free-tier hosting: Vercel serves the app and API (Analytics + Speed Insights) but runs
+              no cron — cron-job.org is the only scheduler, polling{" "}
+              <code>GET /api/cron/reminders</code> about every fifteen minutes for email reminders,
+              push notifications, and recurring expense rows. Optional email uses Resend; push
+              delivery uses FCM, Apple Push, or Mozilla&apos;s service depending on the browser. UI
+              typefaces (Young Serif, Schibsted Grotesk, Azeret Mono from <code>fonts.css</code>)
+              ship with the app as self-hosted SIL OFL files — no third-party font CDN.
+            </p>
+            <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
+              On desktop you navigate from the sidebar; on phone and tablet portrait a tab bar —
+              customizable, four views by default — plus a More sheet for the rest replaces it. A
+              device passphrase wraps your in-app recovery key on this browser; encrypted backups
+              download to your machine only. Optional Face ID / Touch ID unlock runs entirely in the
+              browser through WebAuthn — it can prompt on its own when you open the app, but the
+              server never receives the credential, the assertion, or any signal that a biometric
+              check happened.
+            </p>
+            <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
+              The installable PWA caches ciphertext locally so the app opens, unlocks, and reads
+              your last-synced data with no connection at all — a session with no server
+              confirmation is trusted offline for 30 days before it&apos;s dropped. Creating or
+              editing expenses, schedule events, to-do lists, Capitals plans, vehicles, fuel fills,
+              wallet budgets, and categories also works offline: each change is queued
+              already-encrypted — the same local database the read cache uses, no new plaintext
+              exposure — and sent automatically once you reconnect, never needing the ledger key
+              again to do so.
+            </p>
+            <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
+              A handful of operations still need a connection because the server, not the client,
+              decides their outcome: editing an already-recurring expense, a scoped
+              (this/future/all) expense delete, wallet create/rename/set-default/delete, deleting a
+              Capitals plan, category transfer, backup restore, and rekey (which refuses to run
+              while anything is still queued, since a queued write is ciphertext under the key being
+              replaced). Older rows may still carry legacy plaintext columns from before E2EE
+              payloads.
             </p>
           </div>
         </div>
@@ -596,23 +581,27 @@ export function Transparency() {
               Even with E2EE, plaintext metadata remains for queries and accurate schedule reminders
               (day-level dates, multi-day <code>endDate</code> / <code>endTime</code> span bounds,
               and lead times are intentional — not bucketed). Owned documents are keyed by an opaque{" "}
-              <code>accountId</code> (<code>users._id</code>); the SIWE wallet address lives only on{" "}
-              <code>users</code> for login. The server can still see that address, session cookies
-              (HttpOnly, rotated on sliding renewal), wallet currencies/funding modes, expense
-              dates/kinds/recurrence flags, schedule timing including multi-day spans, your account
-              notify email and reminder lead times, and that a budget-alert or reminder delivery
-              occurred — but not transaction amounts, wallet names, category trees, notes, event
-              titles, or to-do text. Budget alerts are a deliberate exception: the client sends
-              cleartext <code>spent</code>, <code>budget</code>, <code>categoryName</code>, and
-              optional <code>walletName</code> so the email or push can name the category and
-              amounts. Schedule reminders with notify on also store <code>notifyDetails</code> — the
-              title, budget hold, and comments the notification carries — only while notify is
-              enabled; switching it off deletes that copy. Linking a bill payment stores plaintext{" "}
+              <code>accountId</code> (<code>users._id</code>); the SIWE wallet address itself lives
+              on <code>users</code> for login, plus legacy <code>sessions</code> and the one-time{" "}
+              <code>auth_nonces</code> sign-in challenge — nowhere else. The server can still see
+              that address, session cookies (HttpOnly, rotated on sliding renewal), wallet
+              currencies/funding modes, expense dates/kinds/recurrence flags, schedule timing
+              including multi-day spans, your account notify email and reminder lead times, and that
+              a budget-alert or reminder delivery occurred — but not transaction amounts, wallet
+              names, category trees, notes, event titles, or to-do text.
+            </p>
+            <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
+              Budget alerts are a deliberate exception: the client sends cleartext{" "}
+              <code>spent</code>, <code>budget</code>, <code>categoryName</code>, and optional{" "}
+              <code>walletName</code> so the email or push can name the category and amounts.
+              Schedule reminders with notify on also store <code>notifyDetails</code> — the title,
+              budget hold, and comments the notification carries — only while notify is enabled;
+              switching it off deletes that copy. Linking a bill payment stores plaintext{" "}
               <code>eventId</code> / <code>expenseId</code> references only; assigning savings to a
               Capitals plan stores <code>capitalPlanId</code> on the expense (link id only, not
-              amounts). A fuel fill's vehicle type stays plaintext for the vocabulary switch
-              (car/EV/bike/van), and logging it to the ledger stores a plaintext{" "}
-              <code>expenseId</code> on the fill — again a link id only, never amounts.
+              amounts). A vehicle&apos;s type (car/EV/bike/van) stays plaintext for the vocabulary
+              switch, and logging a fill to the ledger stores a plaintext <code>expenseId</code> on
+              the fill — again a link id only, never amounts.
             </p>
             <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
               If the same auth key is ever used on-chain, chain analysis can correlate it with this
@@ -621,34 +610,6 @@ export function Transparency() {
               an identity/behavior graph without decrypting ciphertext. E2EE does not remove
               data-protection obligations for plaintext metadata under regimes like GDPR/CCPA — not
               legal advice; get a lawyer&apos;s read if you ship commercially.
-            </p>
-            <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
-              Automatic Face ID / Touch ID unlock changes nothing here: the server still only sees a
-              normal signature-based sign-in and cannot tell a biometric unlock from a typed
-              passphrase.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="panel" data-tour="tour-transparency-flow">
-        <div className="panel-head panel-head--stack">
-          <div>
-            <h2>Data Relationships</h2>
-            <p className="panel-sub">
-              Opaque accountId anchors every user-owned collection; SIWE address stays on users
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="panel" data-tour="tour-transparency-e2ee">
-        <div className="panel-head panel-head--stack">
-          <div>
-            <h2>Encrypted Write Path</h2>
-            <p className="panel-sub">
-              Categories, events, todos, expenses, capital plans, vehicles/fills, and wallet
-              names/budgets are AES-256-GCM encrypted client-side before save
             </p>
           </div>
         </div>
@@ -681,27 +642,26 @@ export function Transparency() {
         <div className="transparency-diagram-stack">
           <div>
             <h3 className="transparency-diagram-title">Hosting &amp; Jobs</h3>
-            <MermaidDiagram
-              chart={SYSTEM_CHART}
-              mobileChart={SYSTEM_CHART_MOBILE}
-              label="System Hosting Flowchart"
-            />
+            <p className="panel-sub">
+              Free-tier roles: Vercel hosts, Atlas stores, cron-job.org schedules; typefaces ship
+              with the app
+            </p>
+            <MermaidDiagram chart={SYSTEM_CHART} label="System Hosting Flowchart" />
           </div>
-          <div>
+          <div data-tour="tour-transparency-flow">
             <h3 className="transparency-diagram-title">Data Relationships</h3>
-            <MermaidDiagram
-              chart={RELATIONSHIP_CHART}
-              mobileChart={RELATIONSHIP_CHART_MOBILE}
-              label="Collection Relationship Flowchart"
-            />
+            <p className="panel-sub">
+              Opaque accountId anchors every user-owned collection; SIWE address stays on users
+            </p>
+            <MermaidDiagram chart={RELATIONSHIP_CHART} label="Collection Relationship Flowchart" />
           </div>
-          <div>
+          <div data-tour="tour-transparency-e2ee">
             <h3 className="transparency-diagram-title">Encrypted Write Path</h3>
-            <MermaidDiagram
-              chart={E2EE_CHART}
-              mobileChart={E2EE_CHART_MOBILE}
-              label="E2EE save flowchart"
-            />
+            <p className="panel-sub">
+              Categories, events, todos, expenses, capital plans, vehicles/fills, and wallet
+              names/budgets are AES-256-GCM encrypted client-side before save
+            </p>
+            <MermaidDiagram chart={E2EE_CHART} label="E2EE save flowchart" />
           </div>
         </div>
       </section>

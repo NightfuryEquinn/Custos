@@ -786,7 +786,7 @@
             "applicationSubCategory": "Personal budgeting and expense tracking",
             "operatingSystem": "Web browser, Android, iOS",
             "browserRequirements": "Requires a modern browser with WebCrypto support",
-            "softwareVersion": "5.1.1",
+            "softwareVersion": "6.0.0",
             "description": "Custos is a private expense ledger, schedule, and to-do app. Track spending across wallets and 29 currencies, plan bills and events with email and push reminders, and sign in with a Web3 wallet — the server only ever sees ciphertext.",
             "image": "https://nightfuryequinn.github.io/Custos/og-image.png",
             "screenshot": "https://nightfuryequinn.github.io/Custos/og-image.png",
@@ -818,7 +818,7 @@
               "Vehicles with fuel and charging cost tracking",
               "Budget alerts and multiple named to-do lists",
               "Encrypted backup, CSV export and import",
-              "Installable PWA with offline reads",
+              "Installable PWA with an offline write queue",
               "WCAG 2.1 AA accessible dark mode with high-contrast theme tokens"
             ]
           },
@@ -863,7 +863,7 @@
                 "name": "Is Custos free?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Yes — every feature is free on the official hosted app, and always will be. Optional tips and a monthly Supporter subscription (a badge and a choice of accent colors) help fund it, but never gate anything. The source is public for transparency under a proprietary license, which means it is not free to self-host, rebrand, or offer as a competing service; those uses need a written commercial agreement."
+                  "text": "Yes — every feature is free on the official hosted app, and always will be. Optional tips help fund it, but never gate anything. The source is public for transparency under a proprietary license, which means it is not free to self-host, rebrand, or offer as a competing service; those uses need a written commercial agreement."
                 }
               },
               {
@@ -879,7 +879,7 @@
                 "name": "Can I install Custos on my phone?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Yes. It is an installable PWA — add it to your home screen on Android or iOS and it runs like a native app, with Web Push reminders delivered even when it is closed. An IndexedDB ciphertext cache keeps your ledger readable offline; writing new entries still needs a connection."
+                  "text": "Yes. It is an installable PWA — add it to your home screen on Android or iOS and it runs like a native app, with Web Push reminders delivered even when it is closed. An IndexedDB ciphertext cache keeps your ledger readable offline, and most edits (expenses, schedule, to-dos, Capitals, vehicles, budgets, categories) queue already-encrypted and sync automatically once you reconnect."
                 }
               },
               {
@@ -931,7 +931,7 @@
         <canvas id="hero-canvas" aria-hidden="true"></canvas>
         <div class="wrap">
           <div class="badge">
-            <span class="ver">v5.1.1</span> <span class="dot"></span> End-to-end encrypted · Web3
+            <span class="ver">v6.0.0</span> <span class="dot"></span> End-to-end encrypted · Web3
             sign-in · No email or password
           </div>
           <h1>Your money and schedule,<br /><span class="grad">encrypted end-to-end.</span></h1>
@@ -1056,8 +1056,8 @@
               <div class="icon">📲</div>
               <h3>Installable PWA</h3>
               <p>
-                Add Custos to your home screen and keep reading your ledger offline from an
-                encrypted local cache.
+                Add Custos to your home screen — read and edit your ledger offline from an encrypted
+                local cache; edits queue and sync once you reconnect.
               </p>
             </div>
             <div class="card">
@@ -1240,8 +1240,8 @@
                 never stored server-side
               </li>
               <li>
-                Revoke devices, clear local data, and manage third-party data-sharing consent
-                anytime
+                Revoke devices and clear local data anytime — nothing is ever shared with third
+                parties
               </li>
               <li>
                 In-app Transparency view maps exactly what the server can and can't infer, with
@@ -1268,7 +1268,7 @@
           </div>
           <div class="stat">
             <h3>PWA</h3>
-            <p>installable, works offline for reads</p>
+            <p>installable, works offline — reads and edits</p>
           </div>
         </div>
       </section>
@@ -1326,11 +1326,10 @@
               <summary>Is Custos free?</summary>
               <p>
                 Yes — every feature is free on the official hosted app, and always will be. Optional
-                <a href="offers.html#support">tips and a monthly Supporter subscription</a> (a badge
-                and a choice of accent colors) help fund it, but never gate anything. The source is
-                public for transparency under a proprietary license, which means it is not free to
-                self-host, rebrand, or offer as a competing service; those uses need a written
-                commercial agreement.
+                <a href="offers.html#support">tips</a> help fund it, but never gate anything. The
+                source is public for transparency under a proprietary license, which means it is not
+                free to self-host, rebrand, or offer as a competing service; those uses need a
+                written commercial agreement.
               </p>
             </details>
             <details class="faq-item">
@@ -1356,8 +1355,9 @@
               <p>
                 Yes. It is an installable PWA — add it to your home screen on Android or iOS and it
                 runs like a native app, with Web Push reminders delivered even when it is closed. An
-                IndexedDB ciphertext cache keeps your ledger readable offline; writing new entries
-                still needs a connection.
+                IndexedDB ciphertext cache keeps your ledger readable offline, and most edits
+                (expenses, schedule, to-dos, Capitals, vehicles, budgets, categories) queue
+                already-encrypted and sync automatically once you reconnect.
               </p>
             </details>
             <details class="faq-item">
@@ -1475,8 +1475,8 @@
           </div>
         </div>
         <p class="foot-note">
-          Custos v5.1.1 — private expense ledger, schedule, and to-do app. E2EE by default. Free on
-          the official host, always — optional tips and a monthly Supporter subscription (<a
+          © 2026 Yip Zi Xian. Custos v6.0.0 — private expense ledger, schedule, and to-do app. E2EE
+          by default. Free on the official host, always — optional tips (<a
             href="offers.html#support"
             >ways to support</a
           >) never gate a feature. Source public for transparency under the

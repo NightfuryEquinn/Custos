@@ -17,22 +17,11 @@ function navTarget(view: ViewId): string {
   return `[data-tour="tour-nav-${view}"]`;
 }
 
-/** Extra mobile hint when a view lives under the More sheet (≤860px). */
-function moreNavHint(view: ViewId): string {
-  const inMore = new Set<ViewId>([
-    "budgets",
-    "recurring",
-    "vehicles",
-    "categories",
-    "piggies",
-    "capitals",
-    "calculator",
-    "insights",
-    "transparency",
-  ]);
-  if (!inMore.has(view)) return "";
-
-  return " On phone and tablet, open More in the tab bar first.";
+/* Extra mobile hint for a view that isn't always on the tab bar. Nav is now
+   user-customizable (Account menu → Navigation), so this can no longer name
+   a fixed set of views or claim exactly where one lives. */
+function moreNavHint(): string {
+  return " On phone and tablet, find it in the tab bar, or under More.";
 }
 
 function btn(text: string, kind: TourButtonKind): TourStepButton {
@@ -77,7 +66,7 @@ export const SHELL_TOUR_STEPS: TourStep[] = [
   step(
     "shell-nav",
     "Navigation",
-    "Jump between Overview, tasks, schedule, transactions, and more. On desktop, use the sidebar. On phone and tablet, use the five-tab bar at the bottom — Budget, Capitals, Insights, and the rest live under More.",
+    "Jump between Overview, tasks, schedule, transactions, and more. On desktop, use the sidebar. On phone and tablet, use the tab bar at the bottom — everything else lives under More. Customize both from the account menu.",
     ".sidebar .nav, .bottom-nav",
     "right",
   ),
@@ -98,7 +87,7 @@ export const SHELL_TOUR_STEPS: TourStep[] = [
   step(
     "shell-fab",
     "Quick Add",
-    "Use the floating button to add a transaction or calendar event from anywhere in the app.",
+    "A quick-add button appears here on Schedule, Transactions, Budgets, Recurring, Vehicles, and Capitals — it adds whatever that view manages.",
     '[data-tour="tour-fab"]',
     "top",
   ),
@@ -121,27 +110,9 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
       "right",
     ),
     step(
-      "overview-summary",
-      "Summary Cards",
-      "These four cards show your pool, spending, savings, and remaining balance for the month.",
-      '[data-tour="tour-overview-summary"]',
-    ),
-    step(
-      "overview-oldest-todo",
-      "Recent To-Do",
-      "Up to three of your oldest to-do lists — tap to open TO-DO List.",
-      '[data-tour="tour-overview-oldest-todo"]',
-    ),
-    step(
-      "overview-today-schedule",
-      "Recent Schedule",
-      "Up to three remaining events for today, based on the current time when Overview loads.",
-      '[data-tour="tour-overview-today-schedule"]',
-    ),
-    step(
       "overview-trend",
       "Spending & Earning Trend",
-      "Track cumulative spending and earning against your total budget as the month progresses. Hover any day to see what you spent and earned, broken down by category.",
+      "Track cumulative spending and earning against your total budget as the month progresses, plus what you've saved and have remaining. Hover any day to see what you spent and earned, broken down by category.",
       '[data-tour="tour-overview-trend"]',
       "top",
     ),
@@ -155,20 +126,26 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "overview-recent",
       "Recent Transaction",
-      "Up to three of your latest transactions. Tap one to edit, or View More for the full list.",
+      "Every transaction logged today. Tap one to edit, or View More for the full list.",
       '[data-tour="tour-overview-recent"]',
     ),
     step(
-      "overview-piggies",
-      "Piggies",
-      "Your top savings categories at a glance — tap View More for the full Piggies view.",
-      '[data-tour="tour-overview-piggies"]',
+      "overview-today-schedule",
+      "Recent Schedule",
+      "Every event on today's calendar, earliest first.",
+      '[data-tour="tour-overview-today-schedule"]',
+    ),
+    step(
+      "overview-oldest-todo",
+      "Pending To-Dos",
+      "Every list that still has an unchecked task — tap to open TO-DO List.",
+      '[data-tour="tour-overview-oldest-todo"]',
     ),
     lastStep(
       "overview-capitals",
       "Capitals",
       "Planning something big — a marriage, a trip, a loan? Capitals tracks a total budget, paid progress, what is still unspent from the savings you assigned to it, and a monthly save amount toward your target date." +
-        moreNavHint("capitals"),
+        moreNavHint(),
       navTarget("capitals"),
       "right",
     ),
@@ -180,19 +157,6 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
       "Organize tasks into separate lists — groceries, work, travel, and more.",
       navTarget("todos"),
       "right",
-    ),
-    step(
-      "todos-summary",
-      "List Stats",
-      "Quick counts for lists, total tasks, and completed items.",
-      '[data-tour="tour-todos-summary"]',
-    ),
-    step(
-      "todos-toolbar",
-      "New List",
-      "Create a named list with an icon to keep tasks grouped.",
-      '[data-tour="tour-todos-toolbar"]',
-      "bottom",
     ),
     step(
       "todos-tabs",
@@ -218,7 +182,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "schedule-summary",
       "At a Glance",
-      "See how many events you have, the next reminder, and email alerts queued.",
+      "See how many events you have this month and when your next reminder is due.",
       '[data-tour="tour-schedule-summary"]',
     ),
     step(
@@ -231,7 +195,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     lastStep(
       "schedule-agenda",
       "Agenda",
-      "Browse day by day, add events with New Event (optional email reminders — a reminder always fires at the event itself too), and review what's coming up.",
+      "Shows what's coming up this week. Select a day on the calendar to focus it here, or click an empty day to add an event.",
       '[data-tour="tour-schedule-agenda"]',
     ),
   ],
@@ -252,7 +216,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "transactions-filters",
       "Category Filters",
-      "Narrow the list to one category or income only.",
+      "Pick any number of categories and subcategories to narrow the list.",
       '[data-tour="tour-txn-filters"]',
     ),
     lastStep(
@@ -266,7 +230,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "budgets-nav",
       "Budgets",
-      "Set how much you plan to spend in each category for the month." + moreNavHint("budgets"),
+      "Set how much you plan to spend in each category for the month." + moreNavHint(),
       navTarget("budgets"),
       "right",
     ),
@@ -287,7 +251,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "calculator-nav",
       "Calculator",
-      "Plan budgets from income after custom tax deductions." + moreNavHint("calculator"),
+      "Plan budgets from income after custom tax deductions." + moreNavHint(),
       navTarget("calculator"),
       "right",
     ),
@@ -312,13 +276,13 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "calculator-allocate",
       "Allocate",
-      "Toggle Percent or Amount, then fill each expense category until the total is 100% or net after tax.",
+      "Fill each expense category with an amount up to what's left after tax.",
       '[data-tour="tour-calculator-allocate"]',
     ),
     lastStep(
       "calculator-apply",
       "Apply",
-      "Confirm to replace all expense category budgets on the active wallet.",
+      "Confirm to apply the amounts above to those expense category budgets.",
       '[data-tour="tour-calculator-apply"]',
       "top",
     ),
@@ -327,15 +291,14 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "categories-nav",
       "Categories",
-      "Your expense and income taxonomy — categories and subcategories." +
-        moreNavHint("categories"),
+      "Your expense and income taxonomy — categories and subcategories." + moreNavHint(),
       navTarget("categories"),
       "right",
     ),
     step(
       "categories-toolbar",
-      "Filter & Add",
-      "Filter by type or add new expense, savings, and income categories.",
+      "Filter",
+      "Filter by type here — add a new category from the + button.",
       '[data-tour="tour-categories-toolbar"]',
     ),
     lastStep(
@@ -349,7 +312,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "recurring-nav",
       "Recurring",
-      "Fixed charges that repeat monthly, quarterly, or yearly." + moreNavHint("recurring"),
+      "Fixed charges that repeat monthly, quarterly, or yearly." + moreNavHint(),
       navTarget("recurring"),
       "right",
     ),
@@ -370,15 +333,9 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "piggies-nav",
       "Piggies",
-      "One glance at every savings category and its lifetime balance." + moreNavHint("piggies"),
+      "One glance at every savings category and its lifetime balance." + moreNavHint(),
       navTarget("piggies"),
       "right",
-    ),
-    step(
-      "piggies-summary",
-      "Totals",
-      "Total saved across every piggy, net flow across piggies and Capitals, savings rate, and your current saving streak. The full Saving Insights read lives on the Insights view.",
-      '[data-tour="tour-piggies-summary"]',
     ),
     lastStep(
       "piggies-grid",
@@ -391,23 +348,10 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "capitals-nav",
       "Capitals",
-      "Plan for big future expenses — marriage, trips, loans, or anything custom. Set a total budget and a target date to see how much to save each month; assign savings deposits to a plan and paying an item spends them down." +
-        moreNavHint("capitals"),
+      "Plan for big future expenses — marriage, trips, loans, or anything custom. Start from a template or build a fully custom plan, set a total budget and a target date to see how much to save each month; assign savings deposits to a plan and paying an item spends them down." +
+        moreNavHint(),
       navTarget("capitals"),
       "right",
-    ),
-    step(
-      "capitals-summary",
-      "Totals",
-      "Total planned, total paid, what is still unspent of everything set aside, monthly saving and what is still to save across every plan, and how many plans have an upcoming target date.",
-      '[data-tour="tour-capitals-summary"]',
-    ),
-    step(
-      "capitals-toolbar",
-      "New Plan",
-      "Start from a template — marriage, trip, car loan, house loan — or build a fully custom plan. You can set a total budget and optional target date.",
-      '[data-tour="tour-capitals-toolbar"]',
-      "bottom",
     ),
     lastStep(
       "capitals-grid",
@@ -421,15 +365,15 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
       "vehicles-nav",
       "Vehicles",
       "Track fuel or charging costs per vehicle — cars, EVs, bikes, and vans each get their own history and Fuel Insights." +
-        moreNavHint("vehicles"),
+        moreNavHint(),
       navTarget("vehicles"),
       "right",
     ),
     step(
-      "vehicles-summary",
-      "Totals",
-      "Vehicle count, total spend across your fleet, cost per km for the selected vehicle, and when you last logged a fill or charge.",
-      '[data-tour="tour-vehicles-summary"]',
+      "vehicles-insights",
+      "Fuel Insights",
+      "Consumption trend, price timing, running cost projection, and cadence — generated once the selected vehicle has enough fill history.",
+      '[data-tour="tour-vehicles-insights"]',
     ),
     step(
       "vehicles-grid",
@@ -437,25 +381,18 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
       "Tap a card to select it. EVs automatically switch every label to kWh, charge, and kWh/100km.",
       '[data-tour="tour-vehicles-grid"]',
     ),
-    step(
+    lastStep(
       "vehicles-log",
       "Fill / Charge Log",
       "Every fill-up or charge for the selected vehicle, with price, quantity, odometer, and an optional Log to record it as a real transaction.",
       '[data-tour="tour-vehicles-log"]',
-    ),
-    lastStep(
-      "vehicles-insights",
-      "Fuel Insights",
-      "Consumption trend, price timing, running cost projection, and cadence — generated once a vehicle has enough fill history.",
-      '[data-tour="tour-vehicles-insights"]',
-      "top",
     ),
   ],
   insights: [
     step(
       "insights-nav",
       "Insights",
-      "Longer-range trends, comparisons, and currency views." + moreNavHint("insights"),
+      "Longer-range trends, comparisons, and currency views." + moreNavHint(),
       navTarget("insights"),
       "right",
     ),
@@ -466,10 +403,10 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
       '[data-tour="tour-insights-fx"]',
     ),
     step(
-      "insights-standout",
-      "What Stands Out",
-      "A ranked feed of forecasts, budget risk, and anomalies — generated from your spending, not just described after the fact.",
-      '[data-tour="tour-insights-standout"]',
+      "insights-trends",
+      "Breakdowns",
+      "Category trends vs last month and your top subcategories this month.",
+      '[data-tour="tour-insights-trends"]',
     ),
     step(
       "insights-habits",
@@ -484,12 +421,6 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
       '[data-tour="tour-insights-chart"]',
       "top",
     ),
-    step(
-      "insights-trends",
-      "Breakdowns",
-      "Category trends vs last month and your top subcategories this month.",
-      '[data-tour="tour-insights-trends"]',
-    ),
     lastStep(
       "insights-income",
       "Income",
@@ -502,7 +433,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "transparency-nav",
       "Transparency",
-      "A read-only map of how Custos stores your data in MongoDB." + moreNavHint("transparency"),
+      "A read-only map of how Custos stores your data in MongoDB." + moreNavHint(),
       navTarget("transparency"),
       "right",
     ),

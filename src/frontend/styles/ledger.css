@@ -116,7 +116,7 @@
 }
 
 /*
- * Supporter accent perk — one pair per name, keyed off [data-accent]
+ * Accent color pick — one pair per name, keyed off [data-accent]
  * on <html>. Must come after the :root[data-theme] blocks above: [data-accent]
  * has the same specificity (0,2,0) as :root[data-theme="light"], so the light
  * case is decided by source order and silently no-ops if moved earlier.
@@ -340,137 +340,15 @@ h3 {
   transform: scale(1.06);
 }
 
-.add-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sp-2);
-  background: var(--accent);
-  color: var(--accent-contrast, #fff);
-  font-weight: 600;
-  border-radius: var(--r-lg);
-  padding: 12px 16px;
-  font-size: 15px;
-  transition:
-    filter 0.15s,
-    transform 0.05s;
-  white-space: nowrap;
-}
-
-.add-btn:hover {
-  filter: brightness(1.05);
-}
-
-.add-btn:active {
-  transform: translateY(1px);
-}
-
-.add-btn--top {
-  padding: 9px 16px;
-}
-
-/* Floating action button + speed dial */
+/* Floating action button — one direct, context-aware quick-add */
 .fab-wrap {
   position: fixed;
   z-index: 35;
-  right: max(24px, env(safe-area-inset-right));
+  right: max(16px, env(safe-area-inset-right));
   bottom: max(24px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-}
-
-.fab-actions {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 12px);
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 10px;
-  pointer-events: none;
-}
-
-.fab-action {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 48px;
-  height: 48px;
-  padding: 0;
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  color: var(--ink);
-  border: 1px solid var(--border);
-  box-shadow:
-    0 2px 8px rgba(30, 40, 60, 0.12),
-    0 6px 16px -6px rgba(30, 40, 60, 0.2);
-  opacity: 0;
-  transform: translateY(10px) scale(0.88);
-  transition:
-    opacity var(--dur-fast) var(--ease),
-    transform var(--dur-fast) var(--ease),
-    filter 0.15s,
-    width var(--dur-fast) var(--ease),
-    padding var(--dur-fast) var(--ease);
-  overflow: hidden;
-  justify-content: center;
-  visibility: hidden;
-}
-
-.fab-action-label {
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  max-width: 0;
-  opacity: 0;
-  overflow: hidden;
-  transition:
-    max-width var(--dur-fast) var(--ease),
-    opacity var(--dur-fast) var(--ease),
-    margin var(--dur-fast) var(--ease);
-  margin-right: 0;
-}
-
-.fab-wrap.open .fab-actions {
-  pointer-events: auto;
-}
-
-.fab-wrap.open .fab-action {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  width: auto;
-  padding: 0 14px 0 12px;
-  visibility: visible;
-}
-
-.fab-wrap.open .fab-action:nth-child(1) {
-  transition-delay: 40ms;
-}
-
-.fab-wrap.open .fab-action:nth-child(2) {
-  transition-delay: 80ms;
-}
-
-.fab-wrap.open .fab-action-label {
-  max-width: 120px;
-  opacity: 1;
-  margin-right: 2px;
-}
-
-.fab-action:hover {
-  filter: brightness(1.03);
-  border-color: var(--border-strong);
-}
-
-.fab-action:active {
-  transform: translateY(1px) scale(0.97);
-}
-
-:root[data-theme="dark"] .fab-action {
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.3),
-    0 6px 16px -6px rgba(0, 0, 0, 0.45);
 }
 
 .fab {
@@ -506,14 +384,6 @@ h3 {
 
 .fab:active {
   transform: translateY(1px) scale(0.97);
-}
-
-.fab-wrap.open .fab {
-  transform: rotate(180deg);
-}
-
-.fab-wrap.open .fab:active {
-  transform: rotate(180deg) scale(0.97);
 }
 
 /* Main column & topbar */
@@ -866,38 +736,6 @@ h3 {
   cursor: default;
 }
 
-/* Per-type add-category buttons: colour reads as the thing the button creates. */
-.primary-btn--expense {
-  background: #5b7a8a;
-}
-
-.primary-btn--savings {
-  background: #7a6fa5;
-}
-
-.primary-btn--income {
-  background: #6f8b6f;
-}
-
-/* Dark: pastel fills need dark label ink; white-on-pastel failed AA (~2.7–3.4:1) */
-:root[data-theme="dark"] .primary-btn--expense {
-  background: #82a3a6;
-  color: #1a1714;
-  font-weight: 700;
-}
-
-:root[data-theme="dark"] .primary-btn--savings {
-  background: #b09cc0;
-  color: #1a1714;
-  font-weight: 700;
-}
-
-:root[data-theme="dark"] .primary-btn--income {
-  background: #9db487;
-  color: #1a1714;
-  font-weight: 700;
-}
-
 .primary-btn.lg,
 .ghost-btn.lg {
   padding: 14px 20px;
@@ -917,7 +755,6 @@ h3 {
 /* Every button gets `cursor: pointer` from the base reset, so a disabled one
    still reads as clickable unless it is dimmed and the cursor reset here. */
 .fab:disabled,
-.fab-action:disabled,
 .icon-btn:disabled,
 .mini-btn:disabled,
 .link-btn:disabled,
@@ -1165,9 +1002,16 @@ textarea::placeholder {
   transform: translateX(18px);
 }
 
-/* Segmented control */
+/* Segmented control
+   `inline-grid` + `1fr` columns gives every button the SAME width — sized
+   to the widest label's max-content — with no JS measuring. When a
+   container forces a width on `.seg` (e.g. `.modal.sm .seg` below), the
+   same `1fr` columns divide that width evenly instead; either way no
+   label ever truncates. */
 .seg {
-  display: inline-flex;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
@@ -1181,6 +1025,7 @@ textarea::placeholder {
   font-size: 13px;
   font-weight: 600;
   color: var(--ink-soft);
+  white-space: nowrap;
   transition:
     background var(--dur) var(--ease),
     color var(--dur) var(--ease),
@@ -1475,20 +1320,6 @@ textarea::placeholder {
 .accent-swatch:disabled {
   opacity: 0.6;
   cursor: default;
-}
-
-.am-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  margin-left: 6px;
-  padding: 1px 7px;
-  border-radius: var(--r-full);
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
-  color: var(--accent);
-  font-size: 10.5px;
-  font-weight: 700;
-  vertical-align: middle;
 }
 
 .am-addr {
@@ -2296,6 +2127,15 @@ textarea::placeholder {
   margin-top: 7px;
 }
 
+.sc-foot {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
 .tone-spent .sc-value {
   color: var(--ink);
 }
@@ -2365,18 +2205,6 @@ textarea::placeholder {
   max-width: 280px;
 }
 
-.insights-fx-note {
-  margin: 0;
-  font-size: 12.5px;
-  color: var(--ink-faint);
-  line-height: 1.4;
-  text-align: right;
-}
-
-.insights-fx-note.is-error {
-  color: var(--danger);
-}
-
 .profile-head {
   align-items: center;
   flex-wrap: wrap;
@@ -2384,6 +2212,10 @@ textarea::placeholder {
 
 .profile-head .seg {
   flex: none;
+}
+
+.profile-head-solo {
+  justify-content: flex-end;
 }
 
 .profile-locked {
@@ -2657,13 +2489,6 @@ textarea::placeholder {
   color: var(--ink);
 }
 
-.profile-meta {
-  margin: 10px 0 0;
-  font-size: 12.5px;
-  color: var(--ink-faint);
-  line-height: 1.4;
-}
-
 .profile-copy {
   display: flex;
   flex-direction: column;
@@ -2697,7 +2522,10 @@ textarea::placeholder {
 
 .profile-signals {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* auto-fit collapses empty tracks — Spending Habit renders only one tile
+     (Busiest Day) here now, so this stretches it full-width instead of
+     leaving two dead columns from the old fixed 3-up grid. */
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
   padding-top: 14px;
   border-top: 1px solid var(--hair);
@@ -2734,62 +2562,6 @@ textarea::placeholder {
   font-size: 12px;
   color: var(--ink-soft);
   line-height: 1.4;
-}
-
-.profile-driver {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-top: 14px;
-  border-top: 1px solid var(--hair);
-}
-
-.pdrv-row {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  grid-template-rows: auto auto;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  background: var(--surface-2);
-}
-
-.pdrv-name {
-  min-width: 0;
-  font-size: 13px;
-  color: var(--ink-soft);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pdrv-bar {
-  /* Row must be explicit: with only grid-column set, auto-placement can't
-     fit this full-width bar into row 1 (icon+name already sit there), so
-     it claims row 2 on its own — then .pdrv-amt, also unpositioned, gets
-     pushed to a new row 3 instead of sitting beside the name. */
-  grid-column: 1 / -1;
-  grid-row: 2;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--surface-3);
-  overflow: hidden;
-}
-
-.pdrv-fill {
-  height: 100%;
-  border-radius: inherit;
-  background: var(--profile-accent, var(--accent));
-  transition: width var(--dur) var(--ease);
-}
-
-.pdrv-amt {
-  font-size: 13px;
-  font-family: var(--font-num);
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
 }
 
 .profile-trajectory {
@@ -3028,21 +2800,6 @@ textarea::placeholder {
   align-items: start;
 }
 
-.ov-grid--charts {
-  align-items: stretch;
-}
-
-.ov-grid--charts > .panel {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.ov-grid--charts .donut-wrap {
-  flex: 1;
-}
-
 .trend-now {
   font-family: var(--font-num);
   font-weight: 600;
@@ -3050,18 +2807,11 @@ textarea::placeholder {
   letter-spacing: -0.15px;
 }
 
-.trend-head {
-  flex-wrap: wrap;
-}
-
-.trend-head h2 {
-  white-space: normal;
-}
-
-.trend-totals {
-  display: flex;
-  gap: var(--sp-5);
-  flex: none;
+.trend-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3) var(--sp-5);
+  margin-bottom: var(--sp-5);
 }
 
 .trend-total {
@@ -3094,6 +2844,30 @@ textarea::placeholder {
   color: var(--ok);
 }
 
+.trend-dot--saved {
+  background: var(--saved);
+}
+
+.trend-now--saved {
+  color: var(--saved);
+}
+
+.trend-dot--ok {
+  background: var(--ok);
+}
+
+.trend-now--ok {
+  color: var(--ok);
+}
+
+.trend-dot--danger {
+  background: var(--danger);
+}
+
+.trend-now--danger {
+  color: var(--danger);
+}
+
 /* Chart hover cards (trend by day, month-over-month bars) */
 .chart-hoverable {
   position: relative;
@@ -3114,7 +2888,7 @@ textarea::placeholder {
 }
 
 .chart-tip--brief {
-  min-width: 168px;
+  min-width: 270px;
 }
 
 .ctip-day {
@@ -3160,6 +2934,7 @@ textarea::placeholder {
   font-family: var(--font-num);
   font-size: 12.5px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .ctip-total.is-up {
@@ -3325,12 +3100,6 @@ textarea::placeholder {
   text-align: right;
 }
 
-.lg-pct {
-  font-family: var(--font-num);
-  font-weight: 600;
-  color: var(--ink);
-}
-
 .legend-block {
   display: flex;
   flex-direction: column;
@@ -3338,9 +3107,19 @@ textarea::placeholder {
 
 .legend-row {
   display: grid;
-  grid-template-columns: 18px 20px 1fr auto auto;
+  grid-template-columns: 18px 20px 1fr auto;
   align-items: center;
   column-gap: 9px;
+  width: 100%;
+  text-align: left;
+  padding: 3px 4px;
+  margin-inline: -4px;
+  border-radius: var(--r-md);
+  transition: background 0.12s;
+}
+
+.legend-row:hover {
+  background: var(--surface-2);
 }
 
 .legend-expand {
@@ -3352,19 +3131,15 @@ textarea::placeholder {
   color: var(--ink-faint);
 }
 
-.legend-expand:disabled {
-  cursor: default;
-}
-
 .legend-expand svg {
   transition: transform var(--dur) var(--ease);
 }
 
-.legend-expand[aria-expanded="true"] svg {
+.legend-row[aria-expanded="true"] .legend-expand svg {
   transform: rotate(0deg);
 }
 
-.legend-expand[aria-expanded="false"] svg {
+.legend-row[aria-expanded="false"] .legend-expand svg {
   transform: rotate(-90deg);
 }
 
@@ -3568,17 +3343,31 @@ textarea::placeholder {
   color: var(--ink);
 }
 
-.txn-count {
-  font-size: 13px;
-  color: var(--ink-soft);
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.filter-chips {
+.txn-filters {
   display: flex;
+  align-items: center;
   gap: var(--sp-2);
   flex-wrap: wrap;
+}
+
+.txn-filter-wrap {
+  width: auto;
+  min-width: 160px;
+}
+
+.txn-filter-clear {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-md);
+  color: var(--ink-faint);
+  flex: none;
+}
+
+.txn-filter-clear:hover {
+  background: var(--surface-2);
+  color: var(--ink);
 }
 
 .fchip {
@@ -3616,84 +3405,6 @@ textarea::placeholder {
   box-shadow: var(--shadow);
 }
 
-.filter-chips--sub {
-  margin-top: -2px;
-}
-
-.filter-chips--sub .fchip {
-  padding: 5px 11px;
-  font-size: 12.5px;
-}
-
-.txn-breakdown {
-  padding: 10px 16px;
-}
-
-.txn-breakdown-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  color: var(--ink);
-}
-
-.txn-breakdown-head svg {
-  transition: transform var(--dur) var(--ease);
-  color: var(--ink-faint);
-}
-
-.txn-breakdown-head[aria-expanded="false"] svg {
-  transform: rotate(-90deg);
-}
-
-.txn-breakdown-reveal {
-  display: grid;
-  grid-template-rows: 1fr;
-  opacity: 1;
-  transition:
-    grid-template-rows var(--dur-slow) var(--ease),
-    opacity var(--dur) var(--ease);
-}
-
-.txn-breakdown-reveal.is-collapsed {
-  grid-template-rows: 0fr;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.txn-breakdown-list {
-  list-style: none;
-  margin: 0;
-  padding: 8px 0 0;
-  min-height: 0;
-  overflow: hidden;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: var(--sp-3);
-}
-
-.txn-breakdown-row {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  width: 100%;
-  padding: var(--sp-3);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  font-size: 13px;
-}
-
-.txn-breakdown-row:hover {
-  background: var(--surface-2);
-}
-
-.tb-count {
-  color: var(--ink-faint);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
 .txn-panel {
   padding-top: 6px;
 }
@@ -3712,6 +3423,10 @@ textarea::placeholder {
   letter-spacing: 0.03em;
   padding: 14px 4px 8px;
   border-bottom: 1px solid var(--hair);
+}
+
+.txn-group-total {
+  align-self: flex-end;
 }
 
 .txn {
@@ -4146,12 +3861,6 @@ textarea::placeholder {
   flex-wrap: wrap;
 }
 
-.cat-toolbar-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
 .cat-tree {
   display: flex;
   flex-direction: column;
@@ -4331,10 +4040,10 @@ textarea::placeholder {
   flex-wrap: wrap;
 }
 
-.cat-block-meta {
-  flex-basis: 100%;
-  font-size: 12px;
-  color: var(--ink-soft);
+/* The shared .wallet-badge margin-left is redundant with this row's own
+   gap — without this, the first badge gets 8px of dead space before it. */
+.cat-block-tags .wallet-badge:first-child {
+  margin-left: 0;
 }
 
 .cat-block-actions {
@@ -4414,26 +4123,12 @@ textarea::placeholder {
     opacity var(--dur) var(--ease);
 }
 
-.cat-sub-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-left: 0.5rem;
-}
-
 .cat-sub-name {
   flex: 1;
   min-width: 0;
+  margin-left: 0.5rem;
   font-size: 14px;
   font-weight: 500;
-}
-
-.cat-sub-id {
-  font-size: 11px;
-  color: var(--ink-faint);
-  flex: none;
 }
 
 .cat-sub-actions {
@@ -4943,53 +4638,6 @@ textarea::placeholder {
   }
 }
 
-.calculator-alloc-head {
-  flex-wrap: wrap;
-  align-items: flex-start;
-  /* Panel-head's default space-between pins the mode toggle to the far edge
-     of this (often much wider) panel, leaving a big empty gap next to the
-     short title. Keep the toggle right after the copy instead. */
-  justify-content: flex-start;
-  gap: var(--sp-4);
-}
-
-.calculator-alloc-head-copy {
-  min-width: 0;
-  /* Content width, not stretched to fill the row — flex-grow here is what
-     pushed the toggle away from the title in the first place. */
-  flex: 0 1 auto;
-}
-
-.calculator-alloc-head-copy h2 {
-  white-space: normal;
-}
-
-.calculator-alloc-mode {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  flex: 0 0 auto;
-}
-
-.calculator-alloc-mode .mini-btn {
-  font-size: 12px;
-  min-height: 44px;
-}
-
-.calculator-alloc-mode .mini-btn.is-active,
-.calculator-alloc-mode .calculator-preset-toggle.is-active {
-  background: var(--ink);
-  color: var(--bg);
-  border-color: var(--ink);
-}
-
-.calculator-alloc-mode .mini-btn.is-active:hover:not(:disabled),
-.calculator-alloc-mode .calculator-preset-toggle.is-active:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ink) 88%, var(--bg));
-  color: var(--bg);
-  border-color: var(--ink);
-}
-
 .calculator-alloc-progress {
   margin: 0 0 16px;
   padding: 14px 16px;
@@ -5238,12 +4886,6 @@ textarea::placeholder {
   gap: var(--sp-2);
   margin-top: var(--sp-2);
   padding-bottom: var(--sp-4);
-}
-
-.calculator-apply-hint {
-  margin: 0;
-  font-size: 13px;
-  color: var(--ink-faint);
 }
 
 .primary-btn.calculator-apply-success:disabled {
@@ -5757,7 +5399,7 @@ textarea::placeholder {
 
 .capital-card-body {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: var(--sp-4);
 }
 
@@ -5773,7 +5415,7 @@ textarea::placeholder {
   inset: 0;
   display: grid;
   place-items: center;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
   font-family: var(--font-mono);
 }
@@ -5784,40 +5426,47 @@ textarea::placeholder {
   gap: 2px;
 }
 
+.capital-card-body .capital-card-stats {
+  flex: 1;
+  justify-content: space-between;
+}
+
 .capital-total {
   font-size: 18px;
   font-weight: 700;
   font-family: var(--font-mono);
 }
 
-/* The "from item estimates" hint sits inline after the budget, which is bold
-   mono — reset both so it reads as an aside rather than part of the figure. */
-.capital-total .capital-tag {
-  margin-left: 6px;
-  font-family: var(--font-body);
+.capital-paid {
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.cap-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.cap-row-label {
+  color: var(--ink-faint);
+}
+
+.cap-row-value {
+  font-family: var(--font-mono);
   font-weight: 400;
 }
 
-.capital-paid {
-  font-size: 12px;
-  color: var(--ink-faint);
-}
-
-.capital-unspent {
-  font-size: 12px;
-  color: var(--saved);
-  font-family: var(--font-mono);
-}
-
-.capital-monthly {
-  font-size: 12px;
-  color: var(--ink-faint);
-  font-family: var(--font-mono);
-}
-
-.capital-overpaid {
+.cap-row--overpaid {
   color: var(--danger);
   font-weight: 600;
+}
+
+.cap-divider {
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
 }
 
 .capital-item-list {
@@ -6284,11 +5933,11 @@ textarea::placeholder {
   gap: 9px;
 }
 
-.ag-span {
-  flex: none;
+.ag-span-row {
+  font-size: 11px;
+  color: var(--ink-faint);
   font-family: var(--font-num);
   font-feature-settings: "tnum";
-  white-space: nowrap;
 }
 
 .ag-bell {
@@ -7583,15 +7232,11 @@ textarea::placeholder {
   font-size: 12px;
   color: var(--ink-faint);
   line-height: 1.5;
-  margin: 11px 0 0;
+  margin: 11px 0 14px;
 }
 
 .dm-note--pull {
   margin-top: -6px;
-}
-
-.dm-note--gap {
-  margin-bottom: 14px;
 }
 
 .dm-div {
@@ -7963,6 +7608,61 @@ textarea::placeholder {
   color: var(--ink-soft);
 }
 
+/* Navigation customization modal */
+.nav-tab-preview {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
+}
+
+.nav-tab-preview-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.nav-tab-preview-empty {
+  color: var(--ink-faint);
+  border-style: dashed;
+}
+
+.nav-tab-preview-more {
+  color: var(--ink-soft);
+}
+
+.nav-order-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-order-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.nav-order-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
 /* ── 14. Utilities & loading states ───────────────────────────────── */
 .u-gap-top {
   margin-top: var(--sp-3);
@@ -8247,10 +7947,6 @@ textarea::placeholder {
     line-height: 1.45;
   }
 
-  .txn-breakdown-list {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  }
-
   /* Modals — keep usable on tablet / large phone */
   .modal-scrim.center {
     padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
@@ -8332,9 +8028,6 @@ textarea::placeholder {
   }
   .insights-fx-select {
     max-width: none;
-  }
-  .insights-fx-note {
-    text-align: left;
   }
   .transparency-grid {
     grid-template-columns: 1fr;
@@ -8439,13 +8132,6 @@ textarea::placeholder {
     min-width: 0;
     width: 100%;
   }
-  .txn-count {
-    white-space: normal;
-    line-height: 1.4;
-  }
-  .filter-chips {
-    gap: 8px;
-  }
   .fchip {
     padding: 8px 14px;
   }
@@ -8470,22 +8156,12 @@ textarea::placeholder {
     align-self: flex-start;
     width: auto;
   }
-  .cat-toolbar-actions {
-    display: flex;
-    flex-direction: row;
-    gap: 8px;
-  }
-  .cat-toolbar-actions .primary-btn {
-    flex: 1;
-    justify-content: center;
-    padding: 10px 8px;
-  }
   .cat-block-head {
     display: grid;
     grid-template-columns: auto auto minmax(0, 1fr) auto;
     grid-template-areas:
-      "expand glyph name tags"
-      "meta meta meta actions";
+      "expand glyph name actions"
+      "tags tags tags tags";
     align-items: center;
     gap: 8px 10px;
     padding: 14px;
@@ -8505,11 +8181,6 @@ textarea::placeholder {
   }
   .cat-block-tags {
     grid-area: tags;
-    flex-wrap: nowrap;
-  }
-  .cat-block-meta {
-    grid-area: meta;
-    margin-top: 0;
   }
   .cat-block-actions {
     grid-area: actions;
@@ -8520,15 +8191,6 @@ textarea::placeholder {
   }
   .cat-sub-list {
     padding: 0 12px 12px;
-  }
-  .cat-sub-main {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-  }
-  .cat-sub-name {
-    flex: none;
-    width: 100%;
   }
 
   /* Insights — category trends */
@@ -8628,9 +8290,6 @@ textarea::placeholder {
   .fab-wrap {
     bottom: calc(88px + env(safe-area-inset-bottom));
   }
-  .fab-wrap.open .fab-action-label {
-    max-width: 90px;
-  }
   .scroll-pad {
     height: 104px;
   }
@@ -8671,10 +8330,6 @@ textarea::placeholder {
   }
   .summary-card {
     flex-basis: auto;
-  }
-
-  .txn-breakdown-list {
-    grid-template-columns: 1fr;
   }
 
   /* Topbar */
@@ -8927,15 +8582,11 @@ textarea::placeholder {
   /* Transactions */
   .txn {
     display: grid;
-    grid-template-columns: 34px 36px 1fr auto;
-    grid-template-areas: "date glyph main amt" ". actions actions actions";
+    grid-template-columns: 36px 1fr auto;
+    grid-template-areas: "glyph main amt" "actions actions actions";
     align-items: center;
     gap: 8px 10px;
     padding: 12px 0;
-  }
-  .txn-date {
-    grid-area: date;
-    width: auto;
   }
   .txn-glyph {
     grid-area: glyph;
@@ -8964,11 +8615,6 @@ textarea::placeholder {
   }
 
   /* Categories */
-  .cat-toolbar-actions .primary-btn {
-    padding: 10px 4px;
-    font-size: 12.5px;
-    gap: 4px;
-  }
   .cat-block-head {
     padding: 12px;
   }
@@ -9066,6 +8712,16 @@ textarea::placeholder {
     padding-left: 50px;
     min-width: 0;
     font-size: 14px;
+  }
+
+  /* Budgets — amount drops to its own row under the category name */
+  .be-amt {
+    width: 100%;
+    text-align: right;
+  }
+  .be-edit {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   /* Calendar */

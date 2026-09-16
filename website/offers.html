@@ -6,7 +6,7 @@
     <title>Custos — Support & Offers</title>
     <meta
       name="description"
-      content="Optional ways to support Custos — tips, a monthly Supporter subscription, and a couple of disclosed affiliate offers. Free features never depend on any of this."
+      content="Optional ways to support Custos — tips and a couple of disclosed affiliate offers. Free features never depend on any of this."
     />
     <link rel="canonical" href="https://nightfuryequinn.github.io/Custos/offers.html" />
     <meta name="robots" content="index, follow" />
@@ -44,6 +44,7 @@
         font-family: var(--font-body);
         line-height: 1.6;
         letter-spacing: var(--tracking);
+        overflow-x: hidden;
       }
       a {
         color: inherit;
@@ -163,12 +164,47 @@
       }
       footer {
         border-top: 1px solid var(--border);
-        padding: 32px 0;
+        padding: 32px 24px;
       }
       .foot-note {
+        max-width: 900px;
+        margin: 0 auto;
         color: var(--text-dim);
         font-size: 0.78rem;
         text-align: center;
+      }
+
+      @media (max-width: 860px) {
+        .wrap {
+          padding: 0 20px;
+        }
+        nav {
+          padding: 16px 20px;
+        }
+        main {
+          padding: 48px 0 64px;
+        }
+        footer {
+          padding: 28px 20px;
+        }
+      }
+
+      @media (max-width: 600px) {
+        .wrap {
+          padding: 0 18px;
+        }
+        nav {
+          padding: 14px 18px;
+        }
+        main {
+          padding: 40px 0 56px;
+        }
+        .card {
+          padding: 18px;
+        }
+        footer {
+          padding: 24px 18px;
+        }
       }
     </style>
   </head>
@@ -185,11 +221,10 @@
     <main>
       <div class="wrap">
         <h1>Support & Offers</h1>
-        <p style="color: var(--text-dim); max-width: 640px">
+        <p style="color: var(--text-dim); max-width: 640px; margin-bottom: 44px">
           Custos is free on the official host with full features, and always will be. Everything on
-          this page is optional and never gates a feature — tips and the monthly Supporter
-          subscription keep the lights on; the affiliate offers below are how the free version of
-          the site itself is funded.
+          this page is optional and never gates a feature — tips keep the lights on; the affiliate
+          offers below are how the free version of the site itself is funded.
         </p>
 
         <div class="disclosure" id="support">
@@ -226,28 +261,6 @@
                 target="_blank"
                 rel="noreferrer noopener"
                 >Sponsor →</a
-              >
-            </div>
-          </div>
-        </section>
-
-        <section>
-          <h2>Supporter</h2>
-          <p class="lead">
-            A monthly subscription: a badge next to your name in the app and a choice of accent
-            colors. Checkout asks for the wallet address you sign in with — the perk typically
-            appears within 24 hours.
-          </p>
-          <div class="grid">
-            <div class="card">
-              <h3>Lemon Squeezy</h3>
-              <p>Recommended checkout — handles tax as merchant of record.</p>
-              <a
-                class="cta"
-                href="https://custos-nightfuryequinn.lemonsqueezy.com/checkout"
-                target="_blank"
-                rel="noreferrer noopener"
-                >Become a Supporter →</a
               >
             </div>
           </div>
@@ -303,8 +316,15 @@
 
     <footer>
       <p class="foot-note">
-        Custos — private expense ledger, schedule, and to-do app.
-        <a href="index.html" style="text-decoration: underline">Back to the site</a>.
+        © 2026 Yip Zi Xian. Custos — private expense ledger, schedule, and to-do app. Source public
+        for transparency under the
+        <a
+          href="https://github.com/NightfuryEquinn/Custos/blob/develop/LICENSE"
+          target="_blank"
+          rel="noopener"
+          style="text-decoration: underline"
+          >Custos Proprietary License</a
+        >. <a href="index.html" style="text-decoration: underline">Back to the site</a>.
       </p>
     </footer>
   </body>

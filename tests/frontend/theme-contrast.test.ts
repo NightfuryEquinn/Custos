@@ -94,7 +94,7 @@ function parseAccentBlock(selector: string): { accent: string; contrast: string 
 
 const ACCENT_NAMES = ["moss", "azure", "berry"];
 
-describe.each(ACCENT_NAMES)("Supporter accent '%s' (WCAG 2.1 AA)", (name) => {
+describe.each(ACCENT_NAMES)("Accent '%s' (WCAG 2.1 AA)", (name) => {
   test("light: --accent on --surface >= 3.0:1, --accent-contrast on --accent >= 4.5:1", () => {
     const { accent, contrast: onAccent } = parseAccentBlock(`:root\\[data-accent="${name}"\\]`);
     expect(contrast(accent, light.surface!)).toBeGreaterThanOrEqual(3.0);

@@ -28,6 +28,8 @@ function serializeProfile(doc: {
   toursSeen?: string[];
   termsVersion?: string;
   accent?: string;
+  navTabs?: string[];
+  navOrder?: string[];
   createdAt: Date;
 }) {
   const serialized = serializeDoc(doc);
@@ -43,6 +45,10 @@ function serializeProfile(doc: {
     termsVersion: serialized.termsVersion,
     /* Undefined reads as the default "clay" accent on the client. */
     accent: serialized.accent,
+    /* Undefined means "never customized" — the client falls back to the
+       built-in nav defaults. */
+    navTabs: serialized.navTabs,
+    navOrder: serialized.navOrder,
     /* Account age tells the client whether to announce release notes. */
     createdAt: serialized.createdAt.toISOString(),
   };

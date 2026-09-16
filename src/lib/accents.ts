@@ -1,5 +1,5 @@
 /**
- * Supporter accent perk — the shared name/hex map. Lives here
+ * Accent color pick — the shared name/hex map. Lives here
  * (not @/frontend/lib/theme) so both the frontend theme module and the
  * server-side profile schema (which validates `accent` on PATCH /profile)
  * can import the same list without a schema depending on frontend UI code.

@@ -7,8 +7,8 @@
  */
 
 /** Bump when the Terms text changes in a way that needs re-acceptance. */
-export const TERMS_VERSION = "2026-09-13";
-export const TERMS_UPDATED = "September 13, 2026";
+export const TERMS_VERSION = "2026-09-16";
+export const TERMS_UPDATED = "September 16, 2026";
 
 export const SHARING_LEGAL_PARAGRAPH =
   "Custos does not share your data with anyone, and never has. The data-sharing switch under " +
@@ -16,8 +16,7 @@ export const SHARING_LEGAL_PARAGRAPH =
   "that does not exist yet — if one is ever built, it will be described here and announced " +
   "before any data leaves your device. Transaction amounts, titles, and notes stay end-to-end " +
   "encrypted either way. Custos is free on the official host with full features; optional " +
-  "tips and a monthly Supporter subscription help fund it, and neither gates anything in " +
-  "the core ledger.";
+  "tips help fund it, and never gate anything in the core ledger.";
 
 export const SHARING_CARD_TITLE = "Share Anonymized Category Totals";
 
@@ -38,5 +37,5 @@ export const SHARING_SIGNUP_DESCRIPTION =
   "shared today; change this anytime under Account → Data & privacy.";
 
 export const SIGNUP_LEAD =
-  "Custos is free on the official host with full features. Optional tips and a monthly " +
-  "Supporter subscription help keep the lights on — never a paywall on the ledger itself.";
+  "Custos is free on the official host with full features. Optional tips help keep the " +
+  "lights on — never a paywall on the ledger itself.";

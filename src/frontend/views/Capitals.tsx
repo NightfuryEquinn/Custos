@@ -1,20 +1,17 @@
 import { Donut } from "@/frontend/charts";
 import { DatePicker } from "@/frontend/components/DateTimePicker";
-import { ConfirmDialog, EmptyState, Icon, SummaryCard } from "@/frontend/components/ui";
+import { ConfirmDialog, EmptyState, Icon } from "@/frontend/components/ui";
 import {
   newCapitalItem,
-  planBudget,
   planBudgetProgress,
   planIsOverbudget,
   planMoney,
   planMonthlySave,
   planSavedTotal,
-  planIsUpcoming,
-  plansTotalMonthlySave,
 } from "@/frontend/lib/capitals";
 import { CAPITAL_TEMPLATES, type CapitalTemplate } from "@/frontend/lib/capitalTemplates";
-import { dayLabel, fmtMoney } from "@/frontend/lib/data";
-import { useEnter, useModalMotion, useStagger } from "@/frontend/lib/animate";
+import { fmtMoney } from "@/frontend/lib/data";
+import { useEnter, useModalMotion } from "@/frontend/lib/animate";
 import type {
   CapitalItem,
   CapitalPlan,
@@ -23,7 +20,7 @@ import type {
   Expense,
 } from "@/frontend/lib/types";
 import { TODO_ICON_OPTIONS } from "@/lib/glyphs";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 /*
@@ -49,19 +46,26 @@ type CapitalsProps = {
   onLogItem: (plan: CapitalPlan, item: CapitalItem) => void;
 };
 
+/** Imperative handle so the shell's quick-add FAB can trigger New Plan. */
+export type CapitalsHandle = { openAdd: () => void };
+
 type EditorMode = { type: "add-plan" } | { type: "edit-plan"; planId: string } | null;
 
 const ICONS = TODO_ICON_OPTIONS;
 
-export function Capitals({
-  capitalPlans,
-  savingsTxns,
-  categoryIndex,
-  currency,
-  onSavePlan,
-  onDeletePlan,
-  onLogItem,
-}: CapitalsProps) {
+/** "14 Mar 2027" — a plan's target date can be years out, so include the year. */
+function dueDateLabel(iso: string) {
+  return new Date(iso + "T00:00:00").toLocaleString("en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+export const Capitals = forwardRef<CapitalsHandle, CapitalsProps>(function Capitals(
+  { capitalPlans, savingsTxns, categoryIndex, currency, onSavePlan, onDeletePlan, onLogItem },
+  ref,
+) {
   const [plans, setPlans] = useState(capitalPlans);
   const [editor, setEditor] = useState<EditorMode>(null);
   const [templateId, setTemplateId] = useState<CapitalTemplateId>("custom");
@@ -93,34 +97,8 @@ export function Capitals({
   }, [capitalPlans]);
 
   const money = (n: number) => fmtMoney(n, { currency });
-  /* One pass per plan: the individual helpers each re-scan savingsTxns. */
-  const totals = useMemo(
-    () =>
-      plans.reduce(
-        (acc, p) => {
-          const m = planMoney(p, savingsTxns, categoryIndex);
-
-          return {
-            planned: acc.planned + m.budget,
-            paid: acc.paid + m.paid,
-            saved: acc.saved + m.saved,
-            unspent: acc.unspent + m.unspent,
-            remaining: acc.remaining + m.remainingNeed,
-          };
-        },
-        { planned: 0, paid: 0, saved: 0, unspent: 0, remaining: 0 },
-      ),
-    [plans, savingsTxns, categoryIndex],
-  );
-  const upcoming = useMemo(() => plans.filter((p) => planIsUpcoming(p)).length, [plans]);
-  const totalMonthlySave = useMemo(
-    () => plansTotalMonthlySave(plans, new Date(), savingsTxns, categoryIndex),
-    [plans, savingsTxns, categoryIndex],
-  );
   const viewRef = useRef<HTMLDivElement>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
   useEnter(viewRef);
-  useStagger(gridRef, ".summary-card");
 
   const persistPlan = async (data: Partial<CapitalPlan> & { id?: string }) => {
     setBusy(true);
@@ -148,6 +126,8 @@ export function Capitals({
     setInitialBudget("");
     setError("");
   };
+
+  useImperativeHandle(ref, () => ({ openAdd: openAddPlan }));
 
   const openEditPlan = (plan: CapitalPlan) => {
     setEditor({ type: "edit-plan", planId: plan.id });
@@ -312,11 +292,6 @@ export function Capitals({
           title="No Plans Yet"
           sub="Start a plan for a big future expense — set a budget and target date to see how much to save each month."
         />
-        <div className="todo-empty-action">
-          <button className="primary-btn" type="button" onClick={openAddPlan}>
-            <Icon name="plus" size={15} /> New Plan
-          </button>
-        </div>
         {renderEditor()}
       </div>
     );
@@ -444,51 +419,11 @@ export function Capitals({
 
   return (
     <div ref={viewRef} className="view">
-      <div ref={gridRef} className="summary-grid sg-5" data-tour="tour-capitals-summary">
-        <SummaryCard
-          label="Total Planned"
-          value={money(totals.planned)}
-          sub={`${plans.length} ${plans.length === 1 ? "plan" : "plans"}`}
-        />
-        <SummaryCard
-          label="Total Paid"
-          tone="saved"
-          value={money(totals.paid)}
-          sub={
-            totals.planned ? `${Math.round((totals.paid / totals.planned) * 100)}% of planned` : ""
-          }
-        />
-        <SummaryCard
-          label="Total Unspent"
-          tone="ok"
-          value={money(totals.unspent)}
-          sub={`of ${money(totals.saved)} set aside`}
-        />
-        <SummaryCard
-          label="Monthly Saving"
-          tone="ok"
-          value={money(totalMonthlySave)}
-          sub={`${money(totals.remaining)} still to save`}
-        />
-        <SummaryCard
-          label="Upcoming"
-          value={String(upcoming)}
-          sub="plans with a future target date"
-        />
-      </div>
-
-      <div className="todo-toolbar" data-tour="tour-capitals-toolbar">
-        <button className="primary-btn" type="button" onClick={openAddPlan}>
-          <Icon name="plus" size={15} /> New Plan
-        </button>
-      </div>
-
       {error ? <p className="auth-error">{error}</p> : null}
 
       <div className="capital-grid" data-tour="tour-capitals-grid">
         {plans.map((plan) => {
           const m = planMoney(plan, savingsTxns, categoryIndex);
-          const derivedBudget = planBudget(plan) <= 0 && m.budget > 0;
           const progress = planBudgetProgress(plan);
           const overbudget = planIsOverbudget(plan);
           const monthlySave = planMonthlySave(plan, new Date(), savingsTxns, categoryIndex);
@@ -514,7 +449,7 @@ export function Capitals({
                 <div className="capital-card-title">
                   <h3>{plan.name}</h3>
                   {plan.targetDate ? (
-                    <span className="capital-tag">Due {dayLabel(plan.targetDate)}</span>
+                    <span className="capital-tag">Due {dueDateLabel(plan.targetDate)}</span>
                   ) : null}
                 </div>
                 <div className="capital-card-actions">
@@ -538,8 +473,8 @@ export function Capitals({
                 <div className="capital-ring">
                   <Donut
                     data={donutData}
-                    size={80}
-                    thickness={10}
+                    size={120}
+                    thickness={20}
                     onHover={() => {}}
                     activeId={null}
                   />
@@ -548,32 +483,40 @@ export function Capitals({
                   </div>
                 </div>
                 <div className="capital-card-stats">
-                  <div className="capital-total">
-                    {money(m.budget)}
-                    {derivedBudget ? (
-                      <span className="capital-tag">from item estimates</span>
-                    ) : null}
+                  <div className="cap-row">
+                    <span className="cap-row-label">Total</span>
+                    <span className="cap-row-value">{money(m.budget)}</span>
                   </div>
-                  <div className="capital-paid">
-                    {money(m.paid)} paid
-                    {m.saved > 0 && m.outOfPocket > 0
-                      ? ` · ${money(m.outOfPocket)} out of pocket`
-                      : ""}
+                  <div className="cap-row">
+                    <span className="cap-row-label">Paid</span>
+                    <span className="cap-row-value">{money(m.paid)}</span>
                   </div>
                   {m.saved > 0 ? (
-                    <div className="capital-unspent">
-                      {m.unspent === m.saved
-                        ? `${money(m.unspent)} unspent`
-                        : `${money(m.saved)} saved · ${money(m.unspent)} unspent`}
+                    <>
+                      <div className="cap-row">
+                        <span className="cap-row-label">Saved</span>
+                        <span className="cap-row-value">{money(m.saved)}</span>
+                      </div>
+                      <div className="cap-row">
+                        <span className="cap-row-label">Unspent</span>
+                        <span className="cap-row-value">{money(m.unspent)}</span>
+                      </div>
+                    </>
+                  ) : null}
+                  <div className="cap-divider" />
+                  {overbudget ? (
+                    <div className="cap-row cap-row--overpaid">Overpaid</div>
+                  ) : monthlySave !== null ? (
+                    <div className="cap-row">
+                      <span className="cap-row-label">Save/mo</span>
+                      <span className="cap-row-value">{money(monthlySave)}</span>
                     </div>
                   ) : null}
-                  {overbudget ? (
-                    <div className="capital-monthly capital-overpaid">Overpaid</div>
-                  ) : monthlySave !== null ? (
-                    <div className="capital-monthly">Save {money(monthlySave)}/mo</div>
-                  ) : null}
                   {m.budget > 0 && m.remainingNeed > 0 ? (
-                    <div className="capital-monthly">{money(m.remainingNeed)} still to save</div>
+                    <div className="cap-row">
+                      <span className="cap-row-label">Still to Save</span>
+                      <span className="cap-row-value">{money(m.remainingNeed)}</span>
+                    </div>
                   ) : null}
                 </div>
               </div>
@@ -743,4 +686,4 @@ export function Capitals({
       ) : null}
     </div>
   );
-}
+});

@@ -14,10 +14,6 @@ const userSchema = z.object({
   budgetAlertsEnabled: z.boolean().optional(),
   /* Last authenticated activity (login or session renew); used for stale-account purge. */
   lastSeenAt: z.coerce.date().optional(),
-  /* Set only by scripts/grant-supporter.ts — deliberately absent from
-     updateUserSchema below, since PATCH /users/me does `$set: { ...body }`
-     and a field in the update schema is one any user could grant themselves. */
-  supporterSince: z.coerce.date().optional(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });

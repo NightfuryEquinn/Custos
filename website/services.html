@@ -43,6 +43,7 @@
         font-family: var(--font-body);
         line-height: 1.6;
         letter-spacing: var(--tracking);
+        overflow-x: hidden;
       }
       a {
         color: inherit;
@@ -165,19 +166,53 @@
       }
       footer {
         border-top: 1px solid var(--border);
-        padding: 32px 0;
+        padding: 32px 24px;
       }
       .foot-note {
+        max-width: 900px;
+        margin: 0 auto;
         color: var(--text-dim);
         font-size: 0.78rem;
         text-align: center;
       }
+
+      @media (max-width: 860px) {
+        .wrap {
+          padding: 0 20px;
+        }
+        nav {
+          padding: 16px 20px;
+        }
+        main {
+          padding: 48px 0 64px;
+        }
+        footer {
+          padding: 28px 20px;
+        }
+      }
+
       @media (max-width: 600px) {
+        .wrap {
+          padding: 0 18px;
+        }
+        nav {
+          padding: 14px 18px;
+        }
+        main {
+          padding: 40px 0 56px;
+        }
         .band {
           grid-template-columns: 1fr;
+          padding: 18px;
         }
         .band .price {
           text-align: left;
+        }
+        .cta-box {
+          padding: 20px;
+        }
+        footer {
+          padding: 24px 18px;
         }
       }
     </style>
@@ -263,8 +298,15 @@
 
     <footer>
       <p class="foot-note">
-        Custos — private expense ledger, schedule, and to-do app.
-        <a href="index.html" style="text-decoration: underline">Back to the site</a>.
+        © 2026 Yip Zi Xian. Custos — private expense ledger, schedule, and to-do app. Source public
+        for transparency under the
+        <a
+          href="https://github.com/NightfuryEquinn/Custos/blob/develop/LICENSE"
+          target="_blank"
+          rel="noopener"
+          style="text-decoration: underline"
+          >Custos Proprietary License</a
+        >. <a href="index.html" style="text-decoration: underline">Back to the site</a>.
       </p>
     </footer>
   </body>

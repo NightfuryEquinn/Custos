@@ -12,15 +12,15 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 
 ### Ledger
 
-- **Overview, transactions, budgets, insights, recurring** — monthly expense tracking with charts, category breakdowns, and budget progress (including **Held** amounts reserved by schedule envelope holds); from 1280px up, Transactions and Budget by Category use two-column card grids for denser reading
+- **Overview, transactions, budgets, insights, recurring** — monthly expense tracking with charts, category breakdowns, and budget progress (including **Reserved** amounts held by schedule envelope holds); from 1280px up, Transactions and Budget by Category use two-column card grids for denser reading
 - **Piggies** — one-glance tracker for every savings category ("piggy") and its subcategories ("piglets"): lifetime balance derived from deposits minus withdrawals (excluding savings assigned to a Capitals plan), an optional target and deadline with a progress ring, and a **Saving Insights** engine (savings rate, streak, best month, pace-vs-deadline projections) surfaced on the Insights view. Saving Insights spans **Piggies and Capitals together**: assigned deposits count toward the wallet-wide rate, net, streak, and best month (split out as piggies vs capitals) and every plan gets a pace line — set aside, left to save, monthly pace, and funded / on pace / behind / overpaid — while per-piggy pace stays capital-free. The Piggies view keeps the totals row and each card's on-track status. Linked from Overview, Budgets, and Categories; exports to its own CSV
 - **Capitals** — planner for big future expenses (marriage, trips, car/house loans, or a custom plan): start from a template or blank, set a **total budget** (or let it fall back to the sum of your item estimates), check off line items as paid, and assign savings deposits to the plan to build up its pot. **Saved** is everything you have put in, **Unspent** is what is left of it once paid items have drawn it down, and **still to save** is the unpaid budget less that remaining pot — divided by the months until your target, that is the **monthly save** hint (or **Overpaid** when paid exceeds budget). Summaries roll the same figures up across plans, **Log** records a real payment straight into a prefilled expense that links back to the item, and deleting a plan returns its assigned deposits to their savings envelopes rather than stranding them. Capitals and Vehicles cards stay one column until 1280px, then open to two columns
 - **Subcategory breakdowns** — Overview's By Category card and Transactions both expand a category into its subcategories (Transactions uses a responsive card grid when a category filter is active)
-- **Calculator** — client-side budgeting helper with a side-by-side Income / Tax Collection setup on wider screens, a live allocation progress bar, and responsive category cards: deduct custom tax lines from income, allocate net by category percent or amount, then apply to wallet budgets with confirmation; includes Malaysia-oriented presets (EPF / SOCSO / EIS / PCB ballpark / SST) that never leave the browser
+- **Calculator** — client-side budgeting helper with a side-by-side Income / Tax Collection setup on wider screens, a live allocation progress bar, and responsive category cards: deduct custom tax lines from income, allocate net across categories by amount (partial allocation is fine — apply once the total is at or under net), then apply to wallet budgets with confirmation; includes Malaysia-oriented presets (EPF / SOCSO / EIS / PCB ballpark / SST) that never leave the browser
 - **Multiple wallets** — create wallets in 29 currencies; monthly-income or starting-balance funding modes
 - **Custom categories** — editable expense, savings, and income category/subcategory taxonomy with glyphs and colors; unused categories and subcategories (built-in or custom) can be deleted, in-use ones are archived so history keeps its type, and archived items can be transferred onto another category; at 1280px and wider, Your Taxonomy and Budget by Category use two-column card grids
 - **Recurring transactions** — monthly, quarterly, or yearly; auto-posted on due dates via cron-job.org; delete scopes for one occurrence, this-and-future, or the whole series; destructive deletes ask for confirmation first
-- **Insights** — FX conversion, a ranked **What Stands Out** feed (month-end spend forecast with a confidence band, over-budget categories before the month ends, unusually large charges, category spend drift, and new/stopped/creeping recurring charges), month-over-month charts (daily/monthly/quarterly/yearly), an earnings line plotted against spending on the overview trend, per-category hover breakdowns on charts and recent rows, and spending habits (unlock after five active transaction days)
+- **Insights** — FX conversion, category trends and top subcategories up front, month-over-month charts (daily/monthly/quarterly/yearly) with per-category hover breakdowns, a spending-habit style profile (unlocks after five active transaction days), an income section with income trends/top sources and an income profile, and Saving Insights (Piggies + Capitals pace)
 - **Vehicles** — track fuel or charging costs per vehicle (car, EV, bike, or van): log fill-ups or charges with price, quantity, odometer, and station, with an optional partial-fill flag and **Log** to link one to a real ledger transaction. An EV automatically switches every label to kWh, charge, and kWh/100km instead of litres and fill-ups. A **Fuel Insights** engine (same ranked-card model as Transaction Insights) surfaces consumption trend, price timing, running-cost projection, and cadence once a vehicle has logged enough history
 
 ### Schedule & tasks
@@ -40,7 +40,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - **Dark mode** — system-aware theme toggle, persisted locally; dark palette targets **WCAG 2.1 AA** contrast (≥ 4.5:1 normal text, ≥ 3.0:1 large text / UI chrome) with brighter secondary ink (`--ink-faint`), clearer card borders, high-contrast filled controls (`--accent-contrast`), and vivid status / progress fills
 - **Typography** — Young Serif (display), Schibsted Grotesk (UI), and Azeret Mono (amounts), self-hosted SIL OFL faces in `src/frontend/styles/fonts.css` and shared with the marketing site; summary amounts stay 20–24px and reflow on narrow screens so long figures do not overflow
 - **Sessions & privacy** — HttpOnly session cookies with sliding token rotation, revoke devices, clear local data, and third-party data-sharing consent under **Account → Data & privacy**
-- **Encrypted backup** — download/restore an encrypted ledger pack (wallets, categories, transactions, schedule, todos, Capitals plans, and Vehicles) encrypted with your ledger key (client-only; not stored on the server) via **Account → Exports & imports**
+- **Encrypted backup** — download/restore an encrypted pack (wallets, categories, transactions, schedule, todos, Capitals plans, Vehicles, and your account/profile settings — notify email, timezone, accent, nav layout) encrypted with your ledger key (client-only; not stored on the server) via **Account → Exports & imports**
 - **CSV export & import** — transactions (with categories), schedule events, and to-do lists (plaintext spreadsheet portability)
 - **Encrypted ledger** — amounts, wallet names, categories, notes, schedule titles, budget holds, and to-dos encrypted client-side; unlock with your wallet key each session
 - **Offline unlock & reads** — installable app shell + IndexedDB ciphertext cache; opens and unlocks with no connection at all on a returning device, showing the last-synced ledger. A locally-restored session without any server confirmation is trusted for 30 days (matching the session/cache TTLs) before it's dropped
@@ -48,7 +48,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - **Budget alerts** — email when a category nears or exceeds its monthly budget (E2EE-safe: client evaluates and sends names/amounts; server only delivers)
 - **Transparency** — in-app map of hosting roles, what the server can infer, MongoDB collections, E2EE vs plaintext fields, and data relationships (Mermaid diagrams rendered top-to-bottom for readability)
 - **Guided tour** — Shepherd.js walkthrough for each main view. On first sign-in a welcome modal asks whether to take the guided tour or explore alone; the answer is stored on the ledger profile (`tourPreference`), so it follows the user across devices rather than living in this browser's `localStorage`. Dismissing a tour counts as having seen it. Replay any view's tour from the **?** beside the page title, or **Account → Take a Tour**
-- **Mobile navigation** — at ≤860px the sidebar becomes a five-tab bar (Overview, Schedule, Transactions, To-Do, More) with a bottom sheet for the remaining views; the tab bar stays fixed while content scrolls
+- **Mobile navigation** — at ≤860px the sidebar becomes a tab bar (customizable, four views by default) with a bottom sheet for the remaining views; the tab bar stays fixed while content scrolls
 - **What's New** — release notes open once per device per app version (see [Versioning](#versioning)), and stay reachable from **Account → What's New**
 
 ### Security
@@ -60,7 +60,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - Ownership uses opaque `accountId` (`users._id`); the SIWE address stays on `users` for login only
 - New document ids are random ObjectIds (no embedded creation timestamp)
 - Signature verification, Mongo-backed rate limiting (in-memory fallback), security headers (HTML CSP allow-lists the one inline boot script by content hash instead of `'unsafe-inline'`), in-memory profile cache with a periodic sweep so it cannot grow unbounded
-- Automated tests for crypto unlock/codec, device vault (including PBKDF2 iteration migration), encrypted backup, biometric auto-unlock selection, sign-in challenge validation, reminder email privacy, calculator, spending habits, session auth, budget-alert evaluation, envelope holds, multi-day and recurring schedule math, push dedupe, compound list pagination, cron scan cursors, security-header parity, the inline-script CSP hash, the ranked-insight model, transaction and fuel insights, vehicle routes, and the release-notes gate (`bun test`)
+- Automated tests for crypto unlock/codec, device vault (including PBKDF2 iteration migration), encrypted backup (including account/profile settings), biometric auto-unlock selection, sign-in challenge validation, reminder email privacy, calculator, spending habits, income profile, session auth, budget-alert evaluation, envelope holds, multi-day and recurring schedule math, push dedupe, compound list pagination, cron scan cursors, security-header parity, the inline-script CSP hash, the ranked-insight model, fuel insights, vehicle routes, and the release-notes gate (`bun test`)
 
 ## Tech stack
 
@@ -99,23 +99,30 @@ src/
 ├── db/                   # MongoDB client, collections, indexes, URI resolver
 ├── schemas/              # Zod schemas (shared API validation)
 ├── lib/                  # glyphs, recurring, schedule, timezone, budget-alerts, security-headers,
-│                         # delete-scope, account-retention, version (shared)
+│                         # delete-scope, account-retention, version, accents, auth-message,
+│                         # legal, support-links (shared)
 └── frontend/
     ├── app/              # Root, LedgerApp
     ├── auth/             # wallet sign-in, device vault, backups, account menu, session UI
     ├── assets/           # logo
     ├── charts/           # SVG charts (donut, trend, MoM bars)
-    ├── components/       # Brand, ThemeToggle, Wallets, MobileBottomNav, pickers, shared UI
+    ├── components/       # Brand, ThemeToggle, Wallets, pickers, shared UI (incl. MobileBottomNav)
     ├── lib/
     │   ├── budget/         # in-tab budget-alert notifications
     │   ├── crypto/         # E2EE codec, key derivation, unlock flow
-    │   ├── insights/       # shared ranked-card model (types, rank, txInsights)
+    │   ├── insights/       # shared ranked-card model (types, rank) used by Fuel Insights
     │   ├── push/           # Web Push permission + subscription lifecycle
     │   ├── pwa/            # service worker registration + IndexedDB cipher cache
+    │   ├── sync/           # offline write queue (outbox, overlay, drain engine)
+    │   ├── net/            # connectivity detection, ApiError, offline-failure classification
     │   ├── hooks/          # useLedger, useTheme
     │   ├── animate.ts      # anime.js motion hooks (modals, views, pickers)
     │   ├── tour/           # guided tour steps and runner
     │   ├── whats-new/      # release notes, per-device seen state, auto-show gate
+    │   ├── fx.ts             # currency conversion for Insights
+    │   ├── calculator.ts     # tax deduction + category allocation math
+    │   ├── stats.ts          # shared transaction classification helpers
+    │   ├── theme.ts          # light/dark preference + accent color resolution
     │   ├── piggies.ts        # savings balance model (deposits − withdrawals, targets)
     │   ├── savingsInsights.ts # streaks, pace, projections for Piggies + Insights
     │   ├── fuelInsights.ts    # per-vehicle fuel/power metrics, vocabulary, ranked insights
@@ -123,13 +130,16 @@ src/
     │   ├── capitalTemplates.ts # built-in Capitals templates (marriage, trip, car/house loan)
     │   └── envelope-holds.ts  # schedule ↔ budget hold math
     ├── styles/           # ledger.css (theme tokens + layout)
-    ├── views/            # Overview, Transactions, Budgets, Calculator, Categories,
-    │                     # Recurring, Insights, Piggies, Capitals, Vehicles, Schedule, TodoList, Transparency
+    ├── views/            # Calculator, Capitals, Categories, Piggies, Schedule, TodoList,
+    │                     # Transparency, Vehicles, index.tsx (Overview, Transactions,
+    │                     # Budgets, Recurring, Insights)
     └── main.tsx
 public/                   # PWA manifest + service worker (copied into dist/ on build)
-scripts/                  # MongoDB maintenance (drop/list, stale-user prune, reminder_log backfill)
-tests/                    # auth, crypto, calculator, spending, schedule, budget/holds, pagination,
-                          # cron scans, push routes, security headers, whats-new, insights, vehicles
+scripts/                  # MongoDB maintenance (account wipe, stale-user prune, index sync)
+tests/                    # auth, crypto, calculator, spending, income, schedule, budget/holds,
+                          # pagination, cron scans, push routes, security headers, whats-new,
+                          # insights, piggies, capitals, vehicles, sync, net, stats, seo, tour,
+                          # categories, events, expenses, fx, and more
 build.ts                  # Production build (dist/ + api/handler.js)
 ```
 
@@ -166,9 +176,8 @@ On Windows, Bun may fail to resolve `mongodb+srv` DNS; the app auto-converts to 
 
 ```bash
 bun run db:indexes       # sync indexes — run once against a fresh database
-bun run db:list          # list collections
-bun run db:drop expenses events --yes   # drop specific collection(s)
-bun run db:drop:all --yes  # drop all app collections
+bun run db:prune-stale   # scripts/prune-stale-users.ts — see below for flags
+bun run db:wipe-account -- --account-id <hex> --dry-run  # wipe one account's data
 ```
 
 Connectivity check: `curl http://localhost:3000/` (expect `200`)
@@ -233,9 +242,9 @@ The in-app **Transparency** view documents hosting roles, what the server can in
 
 ```bash
 bun dev
-bun test        # crypto, reminders, calculator, spending habits, session auth, budget alerts,
-                # envelope holds, schedule recurrence/multi-day, push dedupe, ranked insights,
-                # transaction/fuel insights, vehicle routes, release-notes gate
+bun test        # crypto, reminders, calculator, spending habits, income profile, session auth,
+                # budget alerts, envelope holds, schedule recurrence/multi-day, push dedupe,
+                # ranked insights, fuel insights, vehicle routes, release-notes gate
 bun run typecheck  # tsc --noEmit
 bun run knip       # unused files/exports/deps
 ```
@@ -255,6 +264,8 @@ curl http://localhost:3000/
 The user-facing version lives in [`src/lib/version.ts`](src/lib/version.ts) as `APP_VERSION`, mirrored by `"version"` in `package.json`. It is shown under **Sign Out** in the account menu.
 
 Release notes are a newest-first list in [`src/frontend/lib/whats-new/release-notes.ts`](src/frontend/lib/whats-new/release-notes.ts). Prepend a new entry and bump `APP_VERSION` to re-announce: the modal opens on the next load of every device that has not seen that version, because seen-state is stored per version in `localStorage` under `ledger:whatsnew:v1`. The modal scrolls the full changelog; **Got It** stays fixed at the bottom.
+
+A version bump also needs three strings in [`website/index.html`](website/index.html) updated to match (`"softwareVersion"` in the JSON-LD, the `<span class="ver">` hero badge, and the `Custos v… —` footer line) — `tests/whats-new/release-notes.test.ts` enforces all three stay in sync with `APP_VERSION`. The service worker's cache-bust string in `public/sw.js` is derived automatically by `build.ts` at build time — never hand-edit it.
 
 The only quiet case is a device that already saw the current version. New accounts get the notes too — after the welcome modal and any guided tour finish, so the three never overlap: welcome modal → tour (if chosen) → What's New.
 
@@ -429,10 +440,9 @@ curl -sS -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/j
 
 ## Support Custos
 
-The official hosted app is free with full features, and always will be — nothing below gates the ledger, encryption, exports, or backups. **Account → Support Custos** links to:
+The official hosted app is free with full features, and always will be — nothing below gates the ledger, encryption, exports, or backups. Accent colors are free for every account. **Account → Support Custos** links to:
 
 - **Tips** — Ko-fi or GitHub Sponsors, one-off or recurring.
-- **Supporter** — a monthly subscription via Lemon Squeezy for a badge next to your name and a choice of accent colors. Checkout collects the wallet address you sign in with; the perk is granted with [`scripts/grant-supporter.ts`](scripts/grant-supporter.ts) and typically appears within 24 hours. Grant/revoke is a manual, one-off flag — it does not automatically track subscription status.
 - Disclosed, non-personalized affiliate offers and B2B services on the [website](https://nightfuryequinn.github.io/Custos/offers.html) — never inside the app, never near ledger content.
 
 ## License

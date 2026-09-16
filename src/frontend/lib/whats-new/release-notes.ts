@@ -37,6 +37,38 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "6.0.0",
+    date: "September 2026",
+    lead: "A decluttering pass across Insights and Transparency, encrypted backups that now cover your account settings too, a simpler Support Custos (accent colors are free for everyone now), and a quicker way to log a fill-up.",
+    highlights: [
+      {
+        icon: "insights",
+        title: "Insights, decluttered",
+        body: "Category trends and top subcategories now lead the page, Spending Habit reads as its own section, and a pile of redundant subtitles and metric tiles across Spending, Income, and Savings are gone. Income trends and top sources now lead the Income section too.",
+      },
+      {
+        icon: "shield",
+        title: "Transparency, rewritten",
+        body: "Shorter, corrected, and less repetitive — the same collection detail and diagrams, without three near-empty panels and a paragraph that said the same thing twice.",
+      },
+      {
+        icon: "download",
+        title: "Backups now cover your settings",
+        body: "Encrypted backup and restore now include your account and profile preferences — notify email, timezone, accent, and nav layout — not just ledger data.",
+      },
+      {
+        icon: "sparkle",
+        title: "Support, simplified",
+        body: "Removed the paid Supporter tier and its payment link. Accent colors are free for everyone now; tipping via Ko-fi or GitHub Sponsors stays.",
+      },
+      {
+        icon: "car",
+        title: "One tap to log a fill-up",
+        body: "The Vehicles quick-add button now opens Add Fill Up directly. With more than one vehicle, pick which one first — with just one, it skips straight to the form.",
+      },
+    ],
+  },
+  {
     version: "5.1.1",
     date: "September 2026",
     lead: "Custos now opens and unlocks with no connection at all, showing your last-synced data — and most edits made while offline now save right away and quietly sync once you're back online. Plus a Spending & Earning fix: money moved into savings now counts toward what you've spent.",

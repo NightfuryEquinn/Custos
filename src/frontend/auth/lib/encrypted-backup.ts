@@ -13,7 +13,9 @@ import type {
   LedgerEvent,
   TodoList,
   Vehicle,
+  ViewId,
 } from "@/frontend/lib/types";
+import type { TourPreference } from "@/schemas/profile";
 
 export const BACKUP_FORMAT = "custos-backup" as const;
 /** Pre-rename backup format — accepted on import only. */
@@ -21,6 +23,26 @@ export const LEGACY_BACKUP_FORMAT = "sched-ledger-backup" as const;
 export const BACKUP_VERSION = 1 as const;
 
 type BackupFormat = typeof BACKUP_FORMAT | typeof LEGACY_BACKUP_FORMAT;
+
+/**
+ * Portable account/profile preferences — deliberately excludes
+ * `currentMonth` (session-current, not worth restoring) and `termsVersion`
+ * (must only ever come from the live re-acceptance flow, never be silently
+ * restored).
+ */
+export type BackupSettings = {
+  codename?: string;
+  notifyEmail?: string;
+  timezone?: string;
+  emailRemindersEnabled?: boolean;
+  budgetAlertsEnabled?: boolean;
+  tourPreference?: TourPreference;
+  toursSeen?: string[];
+  accent?: string;
+  navTabs?: ViewId[];
+  navOrder?: ViewId[];
+  consentOptedIn?: boolean;
+};
 
 export type LedgerBackupPlain = {
   format: BackupFormat;
@@ -36,6 +58,8 @@ export type LedgerBackupPlain = {
   capitalPlans?: CapitalPlan[];
   vehicles?: Vehicle[];
   vehicleFills?: FuelFill[];
+  /** Present on backups from 6.0.0 onward; omitted on older exports. */
+  settings?: BackupSettings;
 };
 
 type EncryptedBackupFile = {
@@ -63,6 +87,7 @@ export function buildBackupPlain(input: {
   capitalPlans?: CapitalPlan[];
   vehicles?: Vehicle[];
   vehicleFills?: FuelFill[];
+  settings?: BackupSettings;
 }): LedgerBackupPlain {
   return {
     format: BACKUP_FORMAT,
@@ -77,6 +102,7 @@ export function buildBackupPlain(input: {
     capitalPlans: input.capitalPlans,
     vehicles: input.vehicles,
     vehicleFills: input.vehicleFills,
+    settings: input.settings,
   };
 }
 

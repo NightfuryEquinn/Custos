@@ -5,7 +5,7 @@ import type { LedgerBackupPlain } from "@/frontend/auth/lib/encrypted-backup";
 import type { EventImportRow } from "@/frontend/auth/lib/import-events";
 import type { TodoImportList } from "@/frontend/auth/lib/import-todos";
 import { restoreBackupToLedger } from "@/frontend/auth/lib/restore-backup";
-import { useEnter } from "@/frontend/lib/animate";
+import { useEnter, useModalMotion } from "@/frontend/lib/animate";
 import { armSyncTriggers, drainOutbox } from "@/frontend/lib/sync/engine";
 import { LoadingBloom } from "@/frontend/components/LoadingBloom";
 import { OfflineBanner } from "@/frontend/components/OfflineBanner";
@@ -19,8 +19,9 @@ import {
   Sidebar,
 } from "@/frontend/components/ui";
 import { CURRENT_MONTH_KEY, MONTHS, TODAY_ISO } from "@/frontend/lib/data";
+import { resolveNav } from "@/frontend/lib/nav";
 import { releaseHoldForOccurrence, restoreHoldForOccurrence } from "@/frontend/lib/envelope-holds";
-import { ApiError } from "@/frontend/lib/api";
+import { api, ApiError } from "@/frontend/lib/api";
 import { useLedger } from "@/frontend/lib/hooks/useLedger";
 import { useTheme } from "@/frontend/lib/hooks/useTheme";
 import { useLedgerTour, type TourKind } from "@/frontend/lib/tour";
@@ -46,7 +47,14 @@ import {
   Transactions,
 } from "@/frontend/views";
 import type { Piggy, Piglet } from "@/frontend/lib/piggies";
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
+/* Type-only — lets the FAB call each view's imperative "open add" handle
+   without pulling either module into the eager bundle. */
+import type { CapitalsHandle } from "@/frontend/views/Capitals";
+import type { CategoriesHandle } from "@/frontend/views/Categories";
+import type { TodoListViewHandle } from "@/frontend/views/TodoList";
+import type { VehiclesHandle } from "@/frontend/views/Vehicles";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 /* Schedule and its EventModal share one file — deferring both keeps the
    calendar/reminder logic out of the initial bundle for anyone who never
@@ -155,9 +163,20 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
   const [evModal, setEvModal] = useState<LedgerEvent | { add: true; date: string } | null>(null);
   const [evOccurrenceIso, setEvOccurrenceIso] = useState<string | undefined>(undefined);
   const [walletModal, setWalletModal] = useState(false);
-  const [fabOpen, setFabOpen] = useState(false);
+  /** Vehicles' own vehicle-switcher, opened from the FAB when there are 2+. */
+  const [vehiclePickerOpen, setVehiclePickerOpen] = useState(false);
+  const vehiclePickerScrimRef = useRef<HTMLDivElement>(null);
+  const vehiclePickerPanelRef = useRef<HTMLDivElement>(null);
+  const { requestClose: requestCloseVehiclePicker } = useModalMotion(
+    vehiclePickerScrimRef,
+    vehiclePickerPanelRef,
+    { variant: "picker", active: vehiclePickerOpen },
+  );
   const monthInitialized = useRef(false);
-  const fabRef = useRef<HTMLDivElement>(null);
+  const vehiclesRef = useRef<VehiclesHandle>(null);
+  const capitalsRef = useRef<CapitalsHandle>(null);
+  const todoListRef = useRef<TodoListViewHandle>(null);
+  const categoriesRef = useRef<CategoriesHandle>(null);
   const tourReady = !ledger.isLoading && !ledger.error && !!ledger.profile;
   const { setTourState, tourPreference, toursSeen } = ledger;
   const {
@@ -193,6 +212,13 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
   useEffect(() => {
     if (profileAccent) setAccentName(profileAccent);
   }, [profileAccent, setAccentName]);
+
+  /* Custom nav layout, also account-wide. Undefined fields (never customized)
+     fall back to the built-in defaults inside resolveNav. */
+  const { sidebarItems, tabItems, moreItems } = useMemo(
+    () => resolveNav(ledgerProfile?.navOrder, ledgerProfile?.navTabs),
+    [ledgerProfile?.navOrder, ledgerProfile?.navTabs],
+  );
 
   /* A 401/403 mid-session (expired cookie, revoked session) used to render
      the same "API is down" screen with no way out but a manual reload —
@@ -256,22 +282,6 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
       }),
     [setTourState],
   );
-
-  useEffect(() => {
-    if (!fabOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setFabOpen(false);
-    };
-    const onPointer = (e: MouseEvent) => {
-      if (fabRef.current && !fabRef.current.contains(e.target as Node)) setFabOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    document.addEventListener("mousedown", onPointer);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.removeEventListener("mousedown", onPointer);
-    };
-  }, [fabOpen]);
 
   useEffect(() => {
     if (ledgerIsLoading || ledgerError || monthInitialized.current || !ledgerProfile) return;
@@ -549,6 +559,9 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
         saveVehicleFill: async (f) => {
           await ledger.saveVehicleFill(f);
         },
+        updateUser: (settings) => api.users.updateMe(settings),
+        updateProfile: (settings) => api.profile.update(settings),
+        updateConsent: (optedIn) => api.consent.update(optedIn),
       },
     );
   };
@@ -672,9 +685,43 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
     categoryIndex: ledger.categoryIndex,
   };
 
+  /* Quick-add is context-aware: one direct action per view, not a menu. Views
+     not listed here get no FAB at all. */
+  const fabByView: Record<ViewId, { label: string; onClick: () => void } | null> = {
+    overview: null,
+    todos: { label: "New List", onClick: () => todoListRef.current?.openAdd() },
+    schedule: {
+      label: "New Event",
+      onClick: () => {
+        setEvOccurrenceIso(undefined);
+        setEvModal({ add: true, date: TODAY_ISO });
+      },
+    },
+    transactions: { label: "New Transaction", onClick: () => setModal({ add: true }) },
+    budgets: { label: "New Transaction", onClick: () => setModal({ add: true }) },
+    recurring: { label: "New Transaction", onClick: () => setModal({ add: true }) },
+    vehicles:
+      ledger.vehicles.length === 0
+        ? null
+        : {
+            label: "Add Fill Up",
+            onClick: () =>
+              ledger.vehicles.length >= 2
+                ? setVehiclePickerOpen(true)
+                : vehiclesRef.current?.openAddFillForSelected(),
+          },
+    categories: { label: "New Category", onClick: () => categoriesRef.current?.openAdd() },
+    piggies: null,
+    capitals: { label: "New Plan", onClick: () => capitalsRef.current?.openAdd() },
+    calculator: null,
+    insights: null,
+    transparency: null,
+  };
+  const fabAction = fabByView[view];
+
   return (
     <div className="app">
-      <Sidebar view={view} setView={setView} />
+      <Sidebar view={view} setView={setView} items={sidebarItems} />
       <main className="main">
         <header className="topbar">
           <div className="tb-row tb-row--main">
@@ -711,6 +758,9 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
                 onRestoreBackup={restoreBackup}
                 onTakeTour={() => startViewTour(view)}
                 onWhatsNew={openWhatsNew}
+                navSidebarItems={sidebarItems}
+                navTabItems={tabItems}
+                onSaveNavPrefs={ledger.setNavPrefs}
               />
             </div>
           </div>
@@ -751,7 +801,6 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
                 balanceExpenses={ledger.balanceExpenses}
                 todoLists={ledger.todoLists}
                 events={events}
-                savingsTxns={ledger.savingsTxns}
                 setView={setView}
                 onEdit={setModal}
                 onEditEvent={(ev: LedgerEvent) => openEvent(ev, TODAY_ISO)}
@@ -771,6 +820,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
             )}
             {view === "todos" && (
               <TodoListView
+                ref={todoListRef}
                 todoLists={ledger.todoLists}
                 onSave={ledger.saveTodoList}
                 onDelete={ledger.deleteTodoList}
@@ -800,6 +850,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
             )}
             {view === "categories" && (
               <CategoriesView
+                ref={categoriesRef}
                 categoryIndex={ledger.categoryIndex}
                 onSave={ledger.saveCategories}
                 usedSubIds={ledger.usedSubIds}
@@ -822,6 +873,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
             )}
             {view === "capitals" && (
               <Capitals
+                ref={capitalsRef}
                 capitalPlans={ledger.capitalPlans}
                 savingsTxns={ledger.savingsTxns}
                 categoryIndex={ledger.categoryIndex}
@@ -833,9 +885,9 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
             )}
             {view === "vehicles" && (
               <Vehicles
+                ref={vehiclesRef}
                 vehicles={ledger.vehicles}
                 fills={ledger.vehicleFills}
-                fillsLoading={ledger.vehicleFillsLoading}
                 currency={currency}
                 onSaveVehicle={ledger.saveVehicle}
                 onDeleteVehicle={ledger.deleteVehicle}
@@ -854,60 +906,63 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
         </div>
       </main>
 
-      <MobileBottomNav view={view} setView={setView} />
+      <MobileBottomNav view={view} setView={setView} tabItems={tabItems} moreItems={moreItems} />
 
-      <div
-        ref={fabRef}
-        data-tour="tour-fab"
-        className={
-          "fab-wrap" +
-          (fabOpen ? " open" : "") +
-          (view === "transparency" ? " fab-wrap--hidden" : "")
-        }
-      >
-        <div className="fab-actions" aria-hidden={!fabOpen}>
+      <div data-tour="tour-fab" className={"fab-wrap" + (fabAction ? "" : " fab-wrap--hidden")}>
+        {fabAction ? (
+          /* A write is in flight somewhere in the app: opening a second editor
+             on top of it invites a duplicate submit, so hold the quick-add. */
           <button
-            className="fab-action"
+            className="fab"
             type="button"
-            aria-label="Add Event"
-            tabIndex={fabOpen ? 0 : -1}
+            aria-label={fabAction.label}
             disabled={isSaving}
-            onClick={() => {
-              setFabOpen(false);
-              setEvModal({ add: true, date: TODAY_ISO });
-            }}
+            onClick={fabAction.onClick}
           >
-            <Icon name="calendar" size={20} />
-            <span className="fab-action-label">Event</span>
+            <Icon name="plus" size={24} />
           </button>
-          <button
-            className="fab-action"
-            type="button"
-            aria-label="Add Transaction"
-            tabIndex={fabOpen ? 0 : -1}
-            disabled={isSaving}
-            onClick={() => {
-              setFabOpen(false);
-              setModal({ add: true });
-            }}
-          >
-            <Icon name="list" size={20} />
-            <span className="fab-action-label">Transaction</span>
-          </button>
-        </div>
-        {/* A write is in flight somewhere in the app: opening a second editor
-            on top of it invites a duplicate submit, so hold the quick-add. */}
-        <button
-          className="fab"
-          type="button"
-          aria-label={fabOpen ? "Close Add Menu" : "Open Add Menu"}
-          aria-expanded={fabOpen}
-          disabled={isSaving}
-          onClick={() => setFabOpen((o) => !o)}
-        >
-          <Icon name="chevU" size={26} />
-        </button>
+        ) : null}
       </div>
+
+      {vehiclePickerOpen
+        ? createPortal(
+            <div
+              ref={vehiclePickerScrimRef}
+              className="picker-scrim"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) {
+                  requestCloseVehiclePicker(() => setVehiclePickerOpen(false));
+                }
+              }}
+            >
+              <div
+                ref={vehiclePickerPanelRef}
+                className="picker-menu picker-menu--category"
+                role="listbox"
+                aria-label="Add Fill Up For"
+              >
+                <div className="picker-category-list">
+                  {ledger.vehicles.map((v) => (
+                    <button
+                      key={v.id}
+                      type="button"
+                      role="option"
+                      className="picker-category-item"
+                      onClick={() => {
+                        vehiclesRef.current?.openAddFillFor(v.id);
+                        requestCloseVehiclePicker(() => setVehiclePickerOpen(false));
+                      }}
+                    >
+                      <span className="pci-glyph">{v.glyph}</span>
+                      <span className="pci-label">{v.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
       {modal && activeWallet ? (
         <AddExpenseModal

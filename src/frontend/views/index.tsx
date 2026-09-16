@@ -1,4 +1,4 @@
-import { useEnter, useStagger } from "@/frontend/lib/animate";
+import { useEnter, useModalMotion, useStagger } from "@/frontend/lib/animate";
 import { FadeIn } from "@/frontend/components/FadeIn";
 import { AreaTrend, Donut, MiniSpark, MoMBars } from "@/frontend/charts";
 import { CapitalPaceList } from "@/frontend/components/CapitalPaceList";
@@ -7,7 +7,6 @@ import {
   CatGlyph,
   EmptyState,
   Icon,
-  InsightFeed,
   Segmented,
   SummaryCard,
   TransactionRow,
@@ -18,7 +17,6 @@ import {
   isSpendingCategory,
   spendingCategoriesFor,
 } from "@/frontend/lib/categories";
-import { computeTxInsights } from "@/frontend/lib/insights/txInsights";
 import { buildPiggies } from "@/frontend/lib/piggies";
 import { computeSavingsInsights } from "@/frontend/lib/savingsInsights";
 import {
@@ -31,7 +29,6 @@ import {
   eventDaysForDay,
   fmtBudgetLimit,
   fmtMoney,
-  fmtMoneyShort,
   getCurrency,
   isBudgetSet,
   monthLabel,
@@ -40,22 +37,19 @@ import {
   roundMoney,
   weekdayLabel,
 } from "@/frontend/lib/data";
-import { fetchFxRates, fxConvert, fxRateLabel } from "@/frontend/lib/fx";
+import { fetchFxRates, fxConvert } from "@/frontend/lib/fx";
 import { evaluateExpression, isPlainNumber } from "@/frontend/lib/arithmetic";
 import {
   INCOME_MIN_EVENTS,
   INCOME_MIN_MONTHS,
   assessIncomeProfile,
   buildIncomeNarrative,
-  buildIncomeNudge,
   declaresMonthlyIncome,
-  describeIncomeTrend,
   type IncomeWindow,
 } from "@/frontend/lib/incomeProfile";
 import {
   assessSpendingHabit,
   buildHabitNarrative,
-  buildHabitNudge,
   describeHabitShift,
   habitTrajectory,
   type HabitPeriod,
@@ -96,6 +90,7 @@ import type {
 import { displayGlyph } from "@/lib/glyphs";
 import type { DeleteScope } from "@/lib/delete-scope";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 /*
  * Ledger views
@@ -111,9 +106,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 /** Trailing window Saving Insights reads on the Insights view. */
 const SAVINGS_WINDOW_MONTHS = 12;
 
-/** Up to `limit` lists in API order (oldest first). */
-function oldestTodoLists(todoLists: TodoList[], limit = 3) {
-  return todoLists.slice(0, limit);
+/** Every list (main category) that still has at least one incomplete task. */
+function pendingTodoLists(todoLists: TodoList[]) {
+  return todoLists.filter((list) => list.tasks.some((t) => !t.done));
 }
 
 /** ISO date YYYY-MM-DD for a Date. */
@@ -121,25 +116,9 @@ function isoDateOf(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** HH:MM clock string for a Date. */
-function clockHm(d: Date) {
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-/**
- * Today's events that have not yet passed at `now`, earliest first, capped at `limit`.
- * Timed events before the current clock are omitted; all-day events stay for the whole day.
- */
-function remainingTodayEvents(events: LedgerEvent[], now: Date, limit = 3) {
-  const todayIso = isoDateOf(now);
-  const nowHm = clockHm(now);
-
-  return eventDaysForDay(events, todayIso)
-    .filter(
-      /* A run already under way stays listed regardless of its start time. */
-      (day) => day.dayIndex > 0 || day.ev.allDay || (day.ev.time || "00:00") >= nowHm,
-    )
-    .slice(0, limit);
+/** Every event covering today, earliest first. */
+function todaysEvents(events: LedgerEvent[], now: Date) {
+  return eventDaysForDay(events, isoDateOf(now));
 }
 
 /** Used wherever a wallet is legitimately absent (still loading, no wallet selected). */
@@ -176,7 +155,6 @@ type OverviewProps = {
   categoryIndex: CategoryIndex;
   todoLists?: TodoList[];
   events?: LedgerEvent[];
-  savingsTxns?: Expense[];
   setView: (view: ViewId) => void;
   onEdit: (expense: Expense) => void;
   onEditEvent: (event: LedgerEvent) => void;
@@ -184,7 +162,7 @@ type OverviewProps = {
 };
 
 // ── Overview ────────────────────────────────────────────────────────
-/** Home summary: spend, todos, today's schedule, trend, and recent transactions. */
+/** Home summary: trend, today's transactions and schedule, and pending to-do lists. */
 export function Overview({
   expenses,
   budgets,
@@ -194,7 +172,6 @@ export function Overview({
   categoryIndex,
   todoLists = [],
   events = [],
-  savingsTxns = [],
   balanceExpenses,
   setView,
   onEdit,
@@ -213,8 +190,8 @@ export function Overview({
   const isMobile = useIsMobile();
   const donutSize = isMobile ? 168 : 188;
   const donutThickness = isMobile ? 24 : 26;
-  const recentTodos = useMemo(() => oldestTodoLists(todoLists, 3), [todoLists]);
-  const todayEvents = useMemo(() => remainingTodayEvents(events, loadedAt, 3), [events, loadedAt]);
+  const pendingTodos = useMemo(() => pendingTodoLists(todoLists), [todoLists]);
+  const todayEvents = useMemo(() => todaysEvents(events, loadedAt), [events, loadedAt]);
 
   const donutData = useMemo(
     () =>
@@ -258,170 +235,55 @@ export function Overview({
     }
     return { cum: spentPoints, earnCum: earnedPoints };
   }, [dayFlows]);
-  /** The trend line's own running total — st.spent excludes savings deposits
-   *  (it powers the Spent-card % elsewhere), which would visibly mismatch
-   *  this panel's line now that the line itself includes them. */
-  const trendSpent = cum.length ? cum[cum.length - 1]!.v : 0;
+  /** The trend line's own running total includes savings deposits (it
+   *  mirrors the chart's budget line, which counts the savings envelope) —
+   *  pull that back out so the Spending figure doesn't double up with the
+   *  Saved figure next to it. */
+  const trendSpent = (cum.length ? cum[cum.length - 1]!.v : 0) - st.saved;
 
-  const recent = st.list.slice(0, 3);
-  const topPiggies = useMemo(
-    () =>
-      buildPiggies(savingsTxns, categoryIndex)
-        .sort((a, b) => b.balance - a.balance)
-        .slice(0, 3),
-    [savingsTxns, categoryIndex],
-  );
+  const todayIso = isoDateOf(loadedAt);
+  const recent = st.list.filter((e) => e.date === todayIso);
   const { accent } = useTheme();
-  const spentPct = st.spendingBudget ? st.spent / st.spendingBudget : 0;
   const activeCat = hoverCat;
-  const isStarting = wallet?.fundingMode === "starting";
-  const poolLabel = isStarting ? "Balance" : "Income";
-  const poolValue = isStarting ? st.balance : st.monthlyPool;
-  const poolSub = isStarting
-    ? `starting ${fmtMoney(wallet?.startingBalance ?? 0, { currency })}`
-    : st.earned
-      ? `${fmtMoney(wallet?.income ?? 0, { currency })} + ${fmtMoney(st.earned, { currency })} earned`
-      : monthLabel(month, true);
   const viewRef = useRef<HTMLDivElement>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
   useEnter(viewRef);
-  useStagger(gridRef, ".summary-card");
 
   return (
     <div ref={viewRef} className="view">
-      <div ref={gridRef} className="summary-grid" data-tour="tour-overview-summary">
-        <SummaryCard label={poolLabel} value={fmtMoney(poolValue, { currency })} sub={poolSub} />
-        <SummaryCard
-          label="Spent"
-          tone="spent"
-          value={fmtMoney(st.spent, { currency })}
-          sub={`${Math.round(spentPct * 100)}% of budget`}
-        />
-        <SummaryCard
-          label="Saved"
-          tone="saved"
-          value={fmtMoney(st.saved, { currency })}
-          sub={st.monthlyPool ? `${Math.round((st.saved / st.monthlyPool) * 100)}% of pool` : ""}
-        />
-        <SummaryCard
-          label={isStarting ? "Available" : "Remaining"}
-          tone={st.remaining < 0 ? "danger" : "ok"}
-          value={fmtMoney(st.remaining, { currency })}
-          sub={isStarting ? "current wallet balance" : "after spend & savings"}
-        />
-      </div>
-
-      <div className="ov-grid">
-        <section className="panel" data-tour="tour-overview-oldest-todo">
-          <div className="panel-head panel-head--row">
-            <h2>Recent To-Do</h2>
-            <button className="link-btn" onClick={() => setView("todos")}>
-              View More
-            </button>
-          </div>
-          <div className="recent-list">
-            {recentTodos.length ? (
-              recentTodos.map((list) => {
-                const done = list.tasks.filter((t) => t.done).length;
-                const total = list.tasks.length;
-
-                return (
-                  <button
-                    key={list.id}
-                    type="button"
-                    className="recent-row"
-                    onClick={() => setView("todos")}
-                  >
-                    <span className="rr-glyph" style={{ background: "var(--surface-3)" }}>
-                      {list.icon}
-                    </span>
-                    <span className="rr-main">
-                      <span className="rr-note">{list.name}</span>
-                      <span className="rr-sub">
-                        {total ? `${done}/${total} done` : "No Tasks Yet"}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })
-            ) : (
-              <EmptyState title="No Lists Yet" sub="Create a to-do list to get started." />
-            )}
-          </div>
-        </section>
-
-        <section className="panel" data-tour="tour-overview-today-schedule">
-          <div className="panel-head panel-head--row">
-            <h2>Recent Schedule</h2>
-            <button className="link-btn" onClick={() => setView("schedule")}>
-              View More
-            </button>
-          </div>
-          <div className="recent-list">
-            {todayEvents.length ? (
-              todayEvents.map((day) => {
-                const ev = day.ev;
-                /* eventCatMeta always resolves to a real entry (EVENT_CAT_BY_ID.custom is
-                 * always present) — noUncheckedIndexedAccess just can't see that, so fall
-                 * back to the same "custom" meta it would already have picked. */
-                const cat = eventCatMeta(ev) ?? {
-                  id: "custom",
-                  name: "Custom",
-                  color: "#8a7355",
-                  glyph: "✨",
-                };
-
-                return (
-                  <button
-                    key={ev.id}
-                    type="button"
-                    className="recent-row"
-                    onClick={() => (onEditEvent ? onEditEvent(ev) : setView("schedule"))}
-                  >
-                    <span className="rr-glyph" style={glyphTint(cat.color)}>
-                      {displayGlyph(cat.glyph, cat.id)}
-                    </span>
-                    <span className="rr-main">
-                      <span className="rr-note">{ev.title}</span>
-                      <span className="rr-sub">
-                        {cat.name} · {eventTimeLabel(ev, day)}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })
-            ) : (
-              <EmptyState
-                title="Nothing Left Today"
-                sub="No upcoming events for the rest of today."
-              />
-            )}
-          </div>
-        </section>
-      </div>
-
       <section className="panel trend-panel" data-tour="tour-overview-trend">
-        <div className="panel-head trend-head">
-          <div>
-            <h2>Spending & Earning this Month</h2>
-            <p className="panel-sub">
-              Cumulative · hover a day for its categories · dashed line is total budget{" "}
-              {fmtMoneyShort(st.totalBudget, currency)}
-            </p>
+        <div className="trend-stats">
+          <div className="trend-total">
+            <span className="trend-key">
+              <i className="trend-dot" style={{ background: accent }} /> Spending
+            </span>
+            <span className="trend-now">{fmtMoney(trendSpent, { currency })}</span>
           </div>
-          <div className="trend-totals">
-            <div className="trend-total">
-              <span className="trend-key">
-                <i className="trend-dot" style={{ background: accent }} /> Spending
-              </span>
-              <span className="trend-now">{fmtMoney(trendSpent, { currency })}</span>
-            </div>
-            <div className="trend-total">
-              <span className="trend-key">
-                <i className="trend-dot trend-dot--earn" /> Earning
-              </span>
-              <span className="trend-now trend-now--earn">{fmtMoney(st.earned, { currency })}</span>
-            </div>
+          <div className="trend-total">
+            <span className="trend-key">
+              <i className="trend-dot trend-dot--earn" /> Earning
+            </span>
+            <span className="trend-now trend-now--earn">{fmtMoney(st.earned, { currency })}</span>
+          </div>
+          <div className="trend-total">
+            <span className="trend-key">
+              <i className="trend-dot trend-dot--saved" /> Saved
+            </span>
+            <span className="trend-now trend-now--saved">{fmtMoney(st.saved, { currency })}</span>
+          </div>
+          <div className="trend-total">
+            <span className="trend-key">
+              <i
+                className={
+                  "trend-dot" + (st.remaining < 0 ? " trend-dot--danger" : " trend-dot--ok")
+                }
+              />
+              Remaining
+            </span>
+            <span
+              className={"trend-now" + (st.remaining < 0 ? " trend-now--danger" : " trend-now--ok")}
+            >
+              {fmtMoney(st.remaining, { currency })}
+            </span>
           </div>
         </div>
         <AreaTrend
@@ -435,171 +297,208 @@ export function Overview({
         />
       </section>
 
-      <div className="ov-grid ov-grid--charts">
-        <section className="panel donut-panel" data-tour="tour-overview-donut">
-          <div className="panel-head">
-            <h2>By Category</h2>
-          </div>
-          <div className="donut-wrap">
-            <div className="donut-stage">
-              <Donut
-                data={donutData}
-                size={donutSize}
-                thickness={donutThickness}
-                onHover={setHoverCat}
-                activeId={activeCat}
-              />
-              <div className="donut-center">
-                <div className="dc-label">
-                  {activeCat ? (categoryIndex.catById[activeCat]?.name ?? "Total") : "Total"}
-                </div>
-                <div className="dc-value">
-                  {fmtMoney(activeCat ? st.byCat[activeCat] || 0 : totalAll, { currency })}
-                </div>
+      <section className="panel donut-panel" data-tour="tour-overview-donut">
+        <div className="panel-head">
+          <h2>By Category</h2>
+        </div>
+        <div className="donut-wrap">
+          <div className="donut-stage">
+            <Donut
+              data={donutData}
+              size={donutSize}
+              thickness={donutThickness}
+              onHover={setHoverCat}
+              activeId={activeCat}
+            />
+            <div className="donut-center">
+              <div className="dc-label">
+                {activeCat ? (categoryIndex.catById[activeCat]?.name ?? "Total") : "Total"}
+              </div>
+              <div className="dc-value">
+                {fmtMoney(activeCat ? st.byCat[activeCat] || 0 : totalAll, { currency })}
               </div>
             </div>
-            {donutData.length ? (
-              <ul className="legend">
-                {donutData.map((d) => {
-                  const open = expandedCat[d.id] ?? false;
-                  const subs = categoryIndex.catById[d.id]?.subs ?? [];
-                  const subRows = subs
-                    .map((s) => ({ ...s, value: st.bySub[s.id] || 0 }))
-                    .filter((s) => s.value > 0)
-                    .sort((a, b) => b.value - a.value);
-
-                  return (
-                    <li
-                      key={d.id}
-                      className={"legend-block" + (activeCat && activeCat !== d.id ? " dim" : "")}
-                    >
-                      <div
-                        className="legend-row"
-                        onMouseEnter={() => setHoverCat(d.id)}
-                        onMouseLeave={() => setHoverCat(null)}
-                        onTouchStart={() => setHoverCat(d.id)}
-                      >
-                        <button
-                          type="button"
-                          className="legend-expand"
-                          disabled={!subRows.length}
-                          aria-expanded={open}
-                          aria-label={`${open ? "Collapse" : "Expand"} ${d.label} subcategories`}
-                          onClick={() => setExpandedCat((e) => ({ ...e, [d.id]: !open }))}
-                        >
-                          {subRows.length ? <Icon name="chevD" size={14} /> : null}
-                        </button>
-                        <span className="lg-swatch">{d.glyph}</span>
-                        <span className="lg-name">{d.label}</span>
-                        <span className="lg-amt">{fmtMoney(d.value, { currency })}</span>
-                        <span className="lg-pct">{Math.round((d.value / totalAll) * 100)}%</span>
-                      </div>
-                      {subRows.length ? (
-                        <div className={"legend-sub-reveal" + (open ? "" : " is-collapsed")}>
-                          <ul className="legend-sub-list">
-                            {subRows.map((s) => (
-                              <li key={s.id}>
-                                <span className="lg-name">{s.name}</span>
-                                <span className="lg-amt lg-sub-amt">
-                                  {fmtMoney(s.value, { currency })}
-                                </span>
-                                <span className="lg-pct">
-                                  {Math.round((s.value / totalAll) * 100)}%
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <EmptyState
-                title="No Spending Yet"
-                sub="Categories fill in as you log transactions."
-              />
-            )}
           </div>
-        </section>
-
-        <section className="panel" data-tour="tour-overview-recent">
-          <div className="panel-head panel-head--row">
-            <h2>Recent Transaction</h2>
-            <button className="link-btn" onClick={() => setView("transactions")}>
-              View More
-            </button>
-          </div>
-          <div className="recent-list">
-            {recent.length ? (
-              recent.map((e) => {
-                const cat = categoryIndex.catById[catOf(e.sub, categoryIndex)];
-                if (!cat) return null;
+          {donutData.length ? (
+            <ul className="legend">
+              {donutData.map((d) => {
+                const open = expandedCat[d.id] ?? false;
+                const subs = categoryIndex.catById[d.id]?.subs ?? [];
+                const subRows = subs
+                  .map((s) => ({ ...s, value: st.bySub[s.id] || 0 }))
+                  .filter((s) => s.value > 0)
+                  .sort((a, b) => b.value - a.value);
 
                 return (
-                  <button key={e.id} className="recent-row" onClick={() => onEdit(e)}>
-                    <span className="rr-glyph" style={glyphTint(cat.color)}>
-                      {displayGlyph(cat.glyph, cat.id)}
-                    </span>
-                    <span className="rr-main">
-                      <span className="rr-note">{e.note}</span>
-                      <span className="rr-sub">
-                        {categoryIndex.subById[e.sub]?.name ?? e.sub} · {dayLabel(e.date)}
+                  <li
+                    key={d.id}
+                    className={"legend-block" + (activeCat && activeCat !== d.id ? " dim" : "")}
+                  >
+                    <button
+                      type="button"
+                      className="legend-row"
+                      aria-expanded={subRows.length ? open : undefined}
+                      aria-label={
+                        subRows.length
+                          ? `${open ? "Collapse" : "Expand"} ${d.label} subcategories`
+                          : d.label
+                      }
+                      onClick={() => {
+                        if (!subRows.length) return;
+                        setExpandedCat((e) => ({ ...e, [d.id]: !open }));
+                      }}
+                      onMouseEnter={() => setHoverCat(d.id)}
+                      onMouseLeave={() => setHoverCat(null)}
+                      onTouchStart={() => setHoverCat(d.id)}
+                    >
+                      <span className="legend-expand">
+                        {subRows.length ? <Icon name="chevD" size={14} /> : null}
                       </span>
-                    </span>
-                    <span className={"rr-amt" + (isIncome(e) ? " income" : " expense")}>
-                      {isIncome(e) ? "+" : "−"}
-                      {fmtMoney(e.amount, { currency })}
-                    </span>
-                  </button>
+                      <span className="lg-swatch">{d.glyph}</span>
+                      <span className="lg-name">{d.label}</span>
+                      <span className="lg-amt">{fmtMoney(d.value, { currency })}</span>
+                    </button>
+                    {subRows.length ? (
+                      <div className={"legend-sub-reveal" + (open ? "" : " is-collapsed")}>
+                        <ul className="legend-sub-list">
+                          {subRows.map((s) => (
+                            <li key={s.id}>
+                              <span className="lg-name">{s.name}</span>
+                              <span className="lg-amt lg-sub-amt">
+                                {fmtMoney(s.value, { currency })}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </li>
                 );
-              })
-            ) : (
-              <EmptyState title="No Transactions Yet" sub="Add your first one for this month." />
-            )}
-          </div>
-        </section>
-      </div>
+              })}
+            </ul>
+          ) : (
+            <EmptyState title="No Spending Yet" sub="Categories fill in as you log transactions." />
+          )}
+        </div>
+      </section>
 
-      <section className="panel" data-tour="tour-overview-piggies">
+      <section className="panel" data-tour="tour-overview-recent">
         <div className="panel-head panel-head--row">
-          <h2>Piggies</h2>
-          <button className="link-btn" onClick={() => setView("piggies")}>
+          <h2>Recent Transaction</h2>
+          <button className="link-btn" onClick={() => setView("transactions")}>
             View More
           </button>
         </div>
         <div className="recent-list">
-          {topPiggies.length ? (
-            topPiggies.map((p) => (
-              <button
-                key={p.catId}
-                type="button"
-                className="recent-row"
-                onClick={() => setView("piggies")}
-              >
-                <span className="rr-glyph" style={glyphTint(p.color)}>
-                  {displayGlyph(p.glyph, p.catId)}
-                </span>
-                <span className="rr-main">
-                  <span className="rr-note">{p.name}</span>
-                  <span className="rr-sub">
-                    {fmtMoney(p.balance, { currency })}
-                    {p.target ? ` of ${fmtMoney(p.target, { currency })}` : ""}
+          {recent.length ? (
+            recent.map((e) => {
+              const cat = categoryIndex.catById[catOf(e.sub, categoryIndex)];
+              if (!cat) return null;
+
+              return (
+                <button key={e.id} className="recent-row" onClick={() => onEdit(e)}>
+                  <span className="rr-glyph" style={glyphTint(cat.color)}>
+                    {displayGlyph(cat.glyph, cat.id)}
                   </span>
-                </span>
-                {p.progress !== null ? (
-                  <span className="rr-amt">
-                    {Math.round(Math.min(1, Math.max(0, p.progress)) * 100)}%
+                  <span className="rr-main">
+                    <span className="rr-note">{e.note}</span>
+                    <span className="rr-sub">
+                      {categoryIndex.subById[e.sub]?.name ?? e.sub} · {dayLabel(e.date)}
+                    </span>
                   </span>
-                ) : null}
-              </button>
-            ))
+                  <span className={"rr-amt" + (isIncome(e) ? " income" : " expense")}>
+                    {isIncome(e) ? "+" : "−"}
+                    {fmtMoney(e.amount, { currency })}
+                  </span>
+                </button>
+              );
+            })
           ) : (
-            <EmptyState
-              title="No Piggies Yet"
-              sub="Add a savings category to start tracking one."
-            />
+            <EmptyState title="No Transactions Today" sub="Add one to see it here." />
+          )}
+        </div>
+      </section>
+
+      <section className="panel" data-tour="tour-overview-today-schedule">
+        <div className="panel-head panel-head--row">
+          <h2>Recent Schedule</h2>
+          <button className="link-btn" onClick={() => setView("schedule")}>
+            View More
+          </button>
+        </div>
+        <div className="recent-list">
+          {todayEvents.length ? (
+            todayEvents.map((day) => {
+              const ev = day.ev;
+              /* eventCatMeta always resolves to a real entry (EVENT_CAT_BY_ID.custom is
+               * always present) — noUncheckedIndexedAccess just can't see that, so fall
+               * back to the same "custom" meta it would already have picked. */
+              const cat = eventCatMeta(ev) ?? {
+                id: "custom",
+                name: "Custom",
+                color: "#8a7355",
+                glyph: "✨",
+              };
+
+              return (
+                <button
+                  key={ev.id}
+                  type="button"
+                  className="recent-row"
+                  onClick={() => (onEditEvent ? onEditEvent(ev) : setView("schedule"))}
+                >
+                  <span className="rr-glyph" style={glyphTint(cat.color)}>
+                    {displayGlyph(cat.glyph, cat.id)}
+                  </span>
+                  <span className="rr-main">
+                    <span className="rr-note">{ev.title}</span>
+                    <span className="rr-sub">
+                      {cat.name} · {eventTimeLabel(ev, day)}
+                    </span>
+                  </span>
+                </button>
+              );
+            })
+          ) : (
+            <EmptyState title="Nothing Today" sub="No events scheduled for today." />
+          )}
+        </div>
+      </section>
+
+      <section className="panel" data-tour="tour-overview-oldest-todo">
+        <div className="panel-head panel-head--row">
+          <h2>Pending To-Dos</h2>
+          <button className="link-btn" onClick={() => setView("todos")}>
+            View More
+          </button>
+        </div>
+        <div className="recent-list">
+          {pendingTodos.length ? (
+            pendingTodos.map((list) => {
+              const done = list.tasks.filter((t) => t.done).length;
+              const total = list.tasks.length;
+
+              return (
+                <button
+                  key={list.id}
+                  type="button"
+                  className="recent-row"
+                  onClick={() => setView("todos")}
+                >
+                  <span className="rr-glyph" style={{ background: "var(--surface-3)" }}>
+                    {list.icon}
+                  </span>
+                  <span className="rr-main">
+                    <span className="rr-note">{list.name}</span>
+                    <span className="rr-sub">
+                      {total ? `${done}/${total} done` : "No Tasks Yet"}
+                    </span>
+                  </span>
+                </button>
+              );
+            })
+          ) : (
+            <EmptyState title="Nothing Pending" sub="Every list is done, or create a new one." />
           )}
         </div>
       </section>
@@ -616,6 +515,107 @@ type TransactionsProps = {
   onDelete: (id: string, opts?: { scope?: DeleteScope; fromDate?: string }) => void | Promise<void>;
 };
 
+type FilterOption = { id: string; label: string; glyph?: string; catId?: string };
+
+/** Multi-select dropdown for the Transactions category/subcategory filters. */
+function MultiFilterDropdown({
+  label,
+  options,
+  selected,
+  onToggle,
+}: {
+  label: string;
+  options: FilterOption[];
+  selected: Set<string>;
+  onToggle: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const scrimRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "picker", active: open });
+
+  useEffect(() => {
+    if (!open) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [open]);
+
+  const triggerLabel =
+    selected.size === 0
+      ? `All ${label}`
+      : selected.size === 1
+        ? (options.find((o) => selected.has(o.id))?.label ?? `1 ${label}`)
+        : `${selected.size} ${label}`;
+
+  const menu = open
+    ? createPortal(
+        <div
+          ref={scrimRef}
+          className="picker-scrim"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) requestClose(() => setOpen(false));
+          }}
+        >
+          <div
+            ref={panelRef}
+            className="picker-menu picker-menu--category"
+            role="listbox"
+            aria-multiselectable="true"
+            aria-label={label}
+          >
+            <div className="picker-category-list">
+              {options.map((o) => {
+                const active = selected.has(o.id);
+                return (
+                  <button
+                    key={o.id}
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    className={"picker-category-item" + (active ? " active" : "")}
+                    onClick={() => onToggle(o.id)}
+                  >
+                    {o.glyph ? <CatGlyph glyph={o.glyph} id={o.catId ?? o.id} /> : null}
+                    <span className="pci-label">{o.label}</span>
+                    {active ? <Icon name="check" size={14} /> : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <div className="picker-wrap txn-filter-wrap">
+      <button
+        type="button"
+        className="picker-trigger"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="picker-trigger-label">{triggerLabel}</span>
+        <Icon name="chevD" size={16} />
+      </button>
+      {menu}
+    </div>
+  );
+}
+
 // ── Transactions ────────────────────────────────────────────────────
 export function Transactions({
   expenses,
@@ -626,17 +626,17 @@ export function Transactions({
   onDelete,
 }: TransactionsProps) {
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState("all");
-  const [subFilter, setSubFilter] = useState<string | null>(null);
-  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const [selectedCats, setSelectedCats] = useState<Set<string>>(new Set());
+  const [selectedSubs, setSelectedSubs] = useState<Set<string>>(new Set());
 
-  const filterCat =
-    filter !== "all" && filter !== "income" ? categoryIndex.catById[filter] : undefined;
-
-  const { catFilteredRows, list, netTotal, dates, groups } = useMemo(() => {
+  const { dates, groups } = useMemo(() => {
     let rows = monthExpenses(expenses, month);
-    if (filter === "income") rows = rows.filter(isIncome);
-    else if (filter !== "all") rows = rows.filter((e) => catOf(e.sub, categoryIndex) === filter);
+    if (selectedCats.size) {
+      rows = rows.filter((e) =>
+        selectedCats.has(isIncome(e) ? "income" : catOf(e.sub, categoryIndex)),
+      );
+    }
+    if (selectedSubs.size) rows = rows.filter((e) => selectedSubs.has(e.sub));
     if (q.trim()) {
       const s = q.toLowerCase();
       rows = rows.filter(
@@ -648,25 +648,15 @@ export function Transactions({
             .includes(s),
       );
     }
-    const catRows = rows;
-    const subRows = sortExpensesByDateDesc(
-      subFilter ? rows.filter((e) => e.sub === subFilter) : rows,
-    );
-    const net = subRows.reduce((s, e) => s + (isIncome(e) ? e.amount : -e.amount), 0);
+    const subRows = sortExpensesByDateDesc(rows);
     const byDate: Record<string, typeof subRows> = {};
     subRows.forEach((e) => {
       (byDate[e.date] = byDate[e.date] || []).push(e);
     });
     const sortedDates = Object.keys(byDate).sort((a, b) => (a < b ? 1 : -1));
 
-    return {
-      catFilteredRows: catRows,
-      list: subRows,
-      netTotal: net,
-      dates: sortedDates,
-      groups: byDate,
-    };
-  }, [expenses, month, filter, subFilter, q, categoryIndex]);
+    return { dates: sortedDates, groups: byDate };
+  }, [expenses, month, selectedCats, selectedSubs, q, categoryIndex]);
 
   const sortedCats = useMemo(
     () =>
@@ -676,28 +666,61 @@ export function Transactions({
     [categoryIndex.categories],
   );
 
-  const subBreakdown = useMemo(() => {
-    if (!filterCat) return [];
-    const totals: Record<string, { count: number; amount: number }> = {};
-    catFilteredRows.forEach((e) => {
-      if (!e.sub) return;
-      const t = (totals[e.sub] = totals[e.sub] || { count: 0, amount: 0 });
-      t.count += 1;
-      t.amount += e.amount;
+  const categoryOptions = useMemo<FilterOption[]>(
+    () =>
+      sortedCats.map((c) => ({
+        id: c.type === "income" ? "income" : c.id,
+        label: c.name,
+        glyph: c.glyph,
+        catId: c.id,
+      })),
+    [sortedCats],
+  );
+
+  /** Subs of only the selected categories — empty (and the dropdown hidden) until one is picked. */
+  const subOptions = useMemo<FilterOption[]>(
+    () =>
+      selectedCats.size
+        ? sortedCats
+            .filter((c) => selectedCats.has(c.type === "income" ? "income" : c.id))
+            .flatMap((c) => c.subs.map((s) => ({ id: s.id, label: s.name })))
+        : [],
+    [sortedCats, selectedCats],
+  );
+
+  /* A sub stays selected only while its parent category is — deselecting the
+     category should drop its subs from the filter too, not leave them
+     silently still narrowing the list. */
+  useEffect(() => {
+    setSelectedSubs((prev) => {
+      if (!prev.size) return prev;
+      const validIds = new Set(subOptions.map((o) => o.id));
+      const next = new Set([...prev].filter((id) => validIds.has(id)));
+      return next.size === prev.size ? prev : next;
     });
-    const catTotal = Object.values(totals).reduce((s, t) => s + t.amount, 0);
+  }, [subOptions]);
 
-    return filterCat.subs
-      .map((s) => ({ ...s, ...(totals[s.id] || { count: 0, amount: 0 }) }))
-      .filter((s) => s.count > 0)
-      .sort((a, b) => b.amount - a.amount)
-      .map((s) => ({ ...s, pct: catTotal ? Math.round((s.amount / catTotal) * 100) : 0 }));
-  }, [catFilteredRows, filterCat]);
-
-  const selectFilter = (key: string) => {
-    setFilter(key);
-    setSubFilter(null);
+  const toggleCat = (id: string) => {
+    setSelectedCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
+  const toggleSub = (id: string) => {
+    setSelectedSubs((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const clearFilters = () => {
+    setSelectedCats(new Set());
+    setSelectedSubs(new Set());
+  };
+
   const viewRef = useRef<HTMLDivElement>(null);
   const filterPanelRef = useRef<HTMLElement>(null);
   useEnter(viewRef);
@@ -714,89 +737,36 @@ export function Transactions({
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
-        <div className="txn-count">
-          {list.length} entries · {netTotal >= 0 ? "+" : "−"}
-          {fmtMoney(Math.abs(netTotal), { currency })} net
-        </div>
       </div>
-      <div className="filter-chips" data-tour="tour-txn-filters">
-        <button
-          className={"fchip" + (filter === "all" ? " active" : "")}
-          onClick={() => selectFilter("all")}
-        >
-          All
-        </button>
-        {sortedCats.map((c) => {
-          const key = c.type === "income" ? "income" : c.id;
-
-          return (
-            <button
-              key={c.id}
-              className={"fchip" + (filter === key ? " active" : "")}
-              onClick={() => selectFilter(key)}
-            >
-              <CatGlyph glyph={c.glyph} id={c.id} /> <span className="btn-label">{c.name}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {filterCat ? (
-        <div className="filter-chips filter-chips--sub" data-tour="tour-txn-sub-filters">
-          <button
-            className={"fchip" + (subFilter === null ? " active" : "")}
-            onClick={() => setSubFilter(null)}
-          >
-            All Subs
-          </button>
-          {filterCat.subs.map((s) => (
-            <button
-              key={s.id}
-              className={"fchip" + (subFilter === s.id ? " active" : "")}
-              onClick={() => setSubFilter(s.id)}
-            >
-              <span className="btn-label">{s.name}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      {filterCat && subBreakdown.length ? (
-        <section className="panel txn-breakdown">
+      <div className="txn-filters" data-tour="tour-txn-filters">
+        <MultiFilterDropdown
+          label="Categories"
+          options={categoryOptions}
+          selected={selectedCats}
+          onToggle={toggleCat}
+        />
+        {selectedCats.size > 0 ? (
+          <MultiFilterDropdown
+            label="Subcategories"
+            options={subOptions}
+            selected={selectedSubs}
+            onToggle={toggleSub}
+          />
+        ) : null}
+        {selectedCats.size > 0 || selectedSubs.size > 0 ? (
           <button
             type="button"
-            className="txn-breakdown-head"
-            aria-expanded={breakdownOpen}
-            onClick={() => setBreakdownOpen((v) => !v)}
+            className="txn-filter-clear"
+            aria-label="Clear filters"
+            onClick={clearFilters}
           >
-            <h2>Breakdown</h2>
-            <Icon name="chevD" size={16} />
+            <Icon name="close" size={14} />
           </button>
-          <div className={"txn-breakdown-reveal" + (breakdownOpen ? "" : " is-collapsed")}>
-            <ul className="txn-breakdown-list">
-              {subBreakdown.map((s) => (
-                <li key={s.id}>
-                  <button
-                    type="button"
-                    className="txn-breakdown-row"
-                    onClick={() => setSubFilter(s.id)}
-                  >
-                    <span className="lg-name">{s.name}</span>
-                    <span className="tb-count">
-                      {s.count} {s.count === 1 ? "txn" : "txns"}
-                    </span>
-                    <span className="lg-sub-amt">{fmtMoney(s.amount, { currency })}</span>
-                    <span className="lg-pct">{s.pct}%</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-      ) : null}
+        ) : null}
+      </div>
 
       <section
-        key={filter + ":" + subFilter + ":" + q}
+        key={[...selectedCats].join(",") + ":" + [...selectedSubs].join(",") + ":" + q}
         ref={filterPanelRef}
         className="panel txn-panel txn-panel--filter"
         data-tour="tour-txn-list"
@@ -810,10 +780,11 @@ export function Transactions({
             return (
               <div key={d} className="txn-group">
                 <div className="txn-group-head">
-                  <span>
-                    {dayLabel(d)} · {weekdayLabel(d)}
-                  </span>
-                  <span>
+                  <div className="txn-date">
+                    <div className="txn-day">{new Date(d + "T00:00:00").getDate()}</div>
+                    <div className="txn-wd">{weekdayLabel(d)}</div>
+                  </div>
+                  <span className="txn-group-total">
                     {(() => {
                       const dayNet = dayRows.reduce(
                         (s, e) => s + (isIncome(e) ? e.amount : -e.amount),
@@ -906,41 +877,20 @@ export function Budgets({
   return (
     <div ref={viewRef} className="view">
       <div ref={gridRef} className="summary-grid sg-5" data-tour="tour-budgets-summary">
-        <SummaryCard
-          label="Total Budget"
-          value={fmtMoney(totalBudget, { currency })}
-          sub="across all categories"
-        />
-        <SummaryCard
-          label="Spent so Far"
-          tone="spent"
-          value={fmtMoney(totalSpent, { currency })}
-          sub={`${Math.round((totalSpent / (totalBudget || 1)) * 100)}% used`}
-        />
-        <SummaryCard
-          label="Saved"
-          tone="saved"
-          value={fmtMoney(st.saved, { currency })}
-          sub={st.monthlyPool ? `${Math.round((st.saved / st.monthlyPool) * 100)}% of pool` : ""}
-        />
-        <SummaryCard
-          label="Held"
-          tone="saved"
-          value={fmtMoney(totalHeld, { currency })}
-          sub="all scheduled reserves this month"
-        />
+        <SummaryCard label="Total Budget" value={fmtMoney(totalBudget, { currency })} />
+        <SummaryCard label="Spent so Far" tone="spent" value={fmtMoney(totalSpent, { currency })} />
+        <SummaryCard label="Saved" tone="saved" value={fmtMoney(st.saved, { currency })} />
+        <SummaryCard label="Reserved" tone="saved" value={fmtMoney(totalHeld, { currency })} />
         <SummaryCard
           label="Available"
           tone={totalAvailable < 0 ? "danger" : "ok"}
           value={fmtMoney(totalAvailable, { currency })}
-          sub={monthLabel(month, true)}
         />
       </div>
 
       <section className="panel">
         <div className="panel-head">
           <h2>Budget by Category</h2>
-          <p className="panel-sub">Tap an amount to allocate</p>
         </div>
         <div className="budget-edit-list" data-tour="tour-budgets-list">
           {categoryIndex.expenseCategories.map((c) => {
@@ -1030,10 +980,7 @@ export function Budgets({
                       {fmtMoney(held, { currency })} held
                     </span>
                   ) : (
-                    <span>
-                      {fmtMoney(budget - spent, { currency })} remaining ·{" "}
-                      {Math.round(spentPct * 100)}% used
-                    </span>
+                    <span>{fmtMoney(budget - spent, { currency })} remaining</span>
                   )}
                   <span className="be-subs">{c.subs.map((s) => s.name).join(" · ")}</span>
                 </div>
@@ -1075,7 +1022,6 @@ export function Insights({
   const [viewCurrency, setViewCurrency] = useState(currency);
   const [fxRates, setFxRates] = useState<Record<string, number> | null>(null);
   const [fxStatus, setFxStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
-  const [fxError, setFxError] = useState("");
 
   useEffect(() => {
     setViewCurrency(currency);
@@ -1085,18 +1031,16 @@ export function Insights({
     let cancelled = false;
     setFxStatus("loading");
     setFxRates(null);
-    setFxError("");
     fetchFxRates(currency)
       .then((fx) => {
         if (cancelled) return;
         setFxRates(fx.rates);
         setFxStatus("ready");
       })
-      .catch((err) => {
+      .catch(() => {
         if (cancelled) return;
         setFxRates({ [currency]: 1 });
         setFxStatus("error");
-        setFxError(err instanceof Error ? err.message : "Could not load rates");
         setViewCurrency(currency);
       });
     return () => {
@@ -1121,15 +1065,6 @@ export function Insights({
   );
   const totalBudget = Object.values(spendingBudgets).reduce((s, v) => s + v, 0);
   const chartMonths = useMemo(() => monthsWindow(month), [month]);
-
-  const txInsights = useMemo(
-    () =>
-      computeTxInsights(expenses, budgets, month, categoryIndex, Number(totalBudget), { money }),
-    // `money` is a fresh closure every render — depend on its real inputs instead, so an
-    // unrelated re-render doesn't rebuild the whole ranked feed.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [expenses, budgets, month, categoryIndex, totalBudget, currency, displayCurrency, fxRates],
-  );
 
   /*
    * Insights only carries the wallet-scoped 36-month `expenses` window (not
@@ -1214,15 +1149,6 @@ export function Insights({
     [chartPeriod, totalBudget, month, currency, displayCurrency, fxRates],
   );
   const activeChartKey = chartActiveKey(chartPeriod, month);
-  const perMonth = useMemo(
-    () =>
-      chartMonths.map((mo) => ({
-        key: mo.key,
-        label: monthLabel(mo.key, false).split(" ")[0],
-        spent: roundMoney(monthlyAgg.get(mo.key)?.spent || 0),
-      })),
-    [chartMonths, monthlyAgg],
-  );
   const cur = useMemo(
     () => monthStats(expenses, budgets, wallet ?? EMPTY_WALLET, month, categoryIndex),
     [expenses, budgets, wallet, month, categoryIndex],
@@ -1277,8 +1203,6 @@ export function Insights({
     .sort((a, b) => b.v - a.v)
     .slice(0, 6);
   const maxSub = topSubs.length ? (topSubs[0]?.v ?? 1) : 1;
-
-  const avgSpent = roundMoney(perMonth.reduce((s, m) => s + m.spent, 0) / perMonth.length);
 
   // ── Income ────────────────────────────────────────────────────────
   /** Income totals per subcategory for one month's transactions. */
@@ -1352,32 +1276,9 @@ export function Insights({
     .slice(0, 6);
   const maxIncomeSub = topIncomeSubs.length ? (topIncomeSubs[0]?.v ?? 1) : 1;
 
-  const avgEarned = roundMoney(
-    chartMonths.reduce((s, mo) => s + (monthlyAgg.get(mo.key)?.earned || 0), 0) /
-      chartMonths.length,
-  );
   const earnedDelta = prev ? cur.earned - prev.earned : 0;
   const netKept = cur.earned - cur.spent;
   const keptPct = cur.earned ? Math.round((netKept / cur.earned) * 100) : 0;
-  const rateLine = fxRateLabel(currency, displayCurrency, fxRates);
-  const fxNote =
-    fxStatus === "loading"
-      ? "Fetching live rates…"
-      : fxStatus === "error"
-        ? fxError || "Rate unavailable — showing wallet currency"
-        : displayCurrency !== currency && rateLine
-          ? `View only · ${rateLine}`
-          : "Wallet currency";
-
-  const chartPeriodSub =
-    chartPeriod === "daily"
-      ? `Daily spend in ${monthLabel(month, true)} · dashed line is daily budget`
-      : chartPeriod === "quarterly"
-        ? "Total spend by quarter · dashed line is quarterly budget · tap a bar to view"
-        : chartPeriod === "yearly"
-          ? "Total spend by year · dashed line is yearly budget · tap a bar to view"
-          : "Total spend · dashed line is budget · tap a bar to view";
-  const chartSub = `${chartPeriodSub} · hover for spend & income`;
 
   const habit = useMemo(
     () => assessSpendingHabit(expenses, habitPeriod, month, categoryIndex),
@@ -1395,11 +1296,10 @@ export function Insights({
     if (habit.status !== "ready") return null;
     return {
       narrative: buildHabitNarrative(habit.style.id, habit.metrics, { money }),
-      nudge: buildHabitNudge(habit.style.id, habit.metrics, { money }),
       shift: describeHabitShift(habitTrail),
     };
     // `money` is a fresh closure every render — depend on its real inputs instead, so an
-    // unrelated re-render doesn't rebuild the narrative/nudge strings.
+    // unrelated re-render doesn't rebuild the narrative/shift strings.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [habit, habitTrail, currency, displayCurrency, fxRates]);
   const incomeProfile = useMemo(
@@ -1410,27 +1310,12 @@ export function Insights({
     if (incomeProfile.status !== "ready") return null;
     return {
       narrative: buildIncomeNarrative(incomeProfile.style.id, incomeProfile.metrics, { money }),
-      nudge: buildIncomeNudge(incomeProfile.style.id, incomeProfile.metrics, { money }),
-      trend: describeIncomeTrend(incomeProfile.metrics),
     };
     // Same reasoning as habitStory: `money` is a fresh closure every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incomeProfile, currency, displayCurrency, fxRates]);
-  const incomeTrailMax = useMemo(
-    () =>
-      incomeProfile.status === "ready"
-        ? Math.max(...incomeProfile.metrics.monthly.map((m) => Math.max(m.earned, m.spent)), 1)
-        : 1,
-    [incomeProfile],
-  );
   const showDeclaredIncomeNote = declaresMonthlyIncome(wallet);
 
-  const habitSub =
-    habitPeriod === "month"
-      ? `Based on outgoing spend in ${habit.periodLabel} · updates with the selected month`
-      : habitPeriod === "year"
-        ? `Based on outgoing spend in ${habit.periodLabel} · updates with the selected year`
-        : `Based on outgoing spend in ${habit.periodLabel} · rolling window, ignores month boundaries`;
   const viewRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   useEnter(viewRef);
@@ -1451,258 +1336,7 @@ export function Insights({
             badgeFor={(code) => (code === currency ? "wallet" : null)}
           />
         </div>
-        <p className={"insights-fx-note" + (fxStatus === "error" ? " is-error" : "")}>{fxNote}</p>
       </div>
-
-      <section className="panel" data-tour="tour-insights-standout">
-        <div className="panel-head">
-          <h2>What Stands Out</h2>
-          <p className="panel-sub">
-            Forecasts, budget risk, and anomalies, generated from {monthLabel(month, true)}.
-          </p>
-        </div>
-        <InsightFeed insights={txInsights} emptyLabel="Nothing stands out this month." />
-      </section>
-
-      <section className="panel insights-habits" data-tour="tour-insights-habits">
-        <div className="panel-head profile-head">
-          <div>
-            <h2>Spending Habit</h2>
-            <p className="panel-sub">{habitSub}</p>
-          </div>
-          <Segmented
-            options={[
-              { v: "month", label: "Per Month" },
-              { v: "year", label: "Per Year" },
-              { v: "rolling90", label: "Last 90 Days" },
-            ]}
-            value={habitPeriod}
-            onChange={setHabitPeriod}
-          />
-        </div>
-
-        {habit.status === "insufficient" ? (
-          <div className="profile-locked">
-            <div className="profile-locked-mark" aria-hidden="true">
-              ◌
-            </div>
-            <div className="profile-locked-copy">
-              <p className="profile-locked-title">Style unlocks after 5 days of transactions</p>
-              <p className="profile-locked-sub">
-                {habit.daysHave === 0
-                  ? `No outgoing spend days yet in ${habit.periodLabel}.`
-                  : `${habit.daysHave} of ${habit.daysNeeded} active days in ${habit.periodLabel}.`}{" "}
-                {habit.daysNeeded - habit.daysHave} more spending days to unlock.
-              </p>
-            </div>
-            <div
-              className="profile-progress"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={habit.daysNeeded}
-              aria-valuenow={habit.daysHave}
-              aria-label="Transaction Days Toward Habit Unlock"
-            >
-              <div
-                className="profile-progress-fill"
-                style={{ width: `${(habit.daysHave / habit.daysNeeded) * 100}%` }}
-              />
-            </div>
-          </div>
-        ) : (
-          <div className={"profile-result profile-tinted style-" + habit.style.id}>
-            <div className="profile-top">
-              <div className="profile-identity">
-                <div className="profile-crown">
-                  <p className="profile-temperament">{habit.style.temperament}</p>
-                  <span className={"profile-confidence conf-" + habit.confidence.level}>
-                    {habit.confidence.level} confidence
-                  </span>
-                </div>
-                <h3 className="profile-title">
-                  {habit.style.title}
-                  {habit.blend.secondary && (
-                    <span className="profile-blend">
-                      {" "}
-                      with a {habit.blend.secondary.trait} streak
-                    </span>
-                  )}
-                </h3>
-                <p className="profile-meta">
-                  {habit.activeDays} active days · {habit.txCount} transactions ·{" "}
-                  {money(habit.metrics.total)} in {habit.periodLabel}
-                </p>
-              </div>
-              {habitStory && (
-                <div className="profile-copy">
-                  <div className="profile-block">
-                    <p className="profile-kicker">Data Pattern</p>
-                    <p>{habitStory.narrative.pattern}</p>
-                  </div>
-                  <div className="profile-block">
-                    <p className="profile-kicker">Behavior</p>
-                    <p>{habitStory.narrative.behavior}</p>
-                  </div>
-                  <div className="profile-block is-nudge">
-                    <p className="profile-kicker">Try This</p>
-                    <p>{habitStory.nudge}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="profile-signals">
-              <div className="profile-signal">
-                <p className="psig-label">Median charge</p>
-                <p className="psig-value">{money(habit.metrics.medianAmt)}</p>
-                <p className="psig-hint">p90 {money(habit.metrics.p90)}</p>
-              </div>
-              <div className="profile-signal">
-                <p className="psig-label">Amount swing</p>
-                <p className="psig-value">{habit.metrics.amountCv.toFixed(2)}×</p>
-                <p className="psig-hint">lower is steadier</p>
-              </div>
-              <div className="profile-signal">
-                <p className="psig-label">Typical gap</p>
-                <p className="psig-value">{habit.metrics.medianGap}d</p>
-                <p className="psig-hint">longest quiet {habit.metrics.longestQuiet}d</p>
-              </div>
-              <div className="profile-signal">
-                <p className="psig-label">Busiest day</p>
-                <p className="psig-value">
-                  {habit.metrics.topDowSampleDate
-                    ? weekdayLabel(habit.metrics.topDowSampleDate)
-                    : "—"}
-                </p>
-                <p className="psig-hint">
-                  {Math.round(habit.metrics.topDowShare * 100)}% of transactions
-                </p>
-              </div>
-              <div className="profile-signal">
-                <p className="psig-label">Biggest cluster</p>
-                <p className="psig-value">
-                  {habit.metrics.biggestCluster
-                    ? `${habit.metrics.biggestCluster.size} tx / ${habit.metrics.biggestCluster.spanDays}d`
-                    : "—"}
-                </p>
-                <p className="psig-hint">
-                  {habit.metrics.biggestCluster
-                    ? Math.round(habit.metrics.biggestCluster.share * 100)
-                    : 0}
-                  % of spend
-                </p>
-              </div>
-              <div className="profile-signal">
-                <p className="psig-label">On a schedule</p>
-                <p className="psig-value">{Math.round(habit.metrics.recurringShare * 100)}%</p>
-                <p className="psig-hint">{habit.metrics.recurringCount} recurring charges</p>
-              </div>
-            </div>
-
-            {habit.metrics.categories.length > 0 && (
-              <div className="profile-driver">
-                {habit.metrics.categories.slice(0, 3).map((cat) => (
-                  <div key={cat.id} className="pdrv-row">
-                    <CatGlyph glyph={cat.glyph} id={cat.id} />
-                    <div className="pdrv-name">{cat.name}</div>
-                    <div className="pdrv-bar">
-                      <div
-                        className="pdrv-fill"
-                        style={{ width: `${Math.round(cat.share * 100)}%` }}
-                      />
-                    </div>
-                    <div className="pdrv-amt">{money(cat.amount)}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="profile-trajectory">
-              <p className="ptrl-note">{habitStory?.shift}</p>
-              <div className="ptrl-grid">
-                {habitTrail.map((pt) => {
-                  const isReady = pt.status === "ready";
-                  return (
-                    <button
-                      key={pt.monthKey}
-                      type="button"
-                      className={
-                        "ptrl-col profile-tinted " +
-                        (isReady ? "style-" + pt.styleId : "") +
-                        (pt.monthKey === month ? " is-active" : "")
-                      }
-                      onClick={() => setMonth(pt.monthKey)}
-                      disabled={!isReady}
-                    >
-                      <div
-                        className={"ptrl-bar" + (isReady ? "" : " is-empty")}
-                        style={{
-                          height: isReady
-                            ? `${Math.max(6, (pt.spend / habitTrailMaxSpend) * 100)}%`
-                            : "4px",
-                        }}
-                      />
-                      <p className="ptrl-label">{monthLabel(pt.monthKey, false).split(" ")[0]}</p>
-                      <p className="ptrl-style">{isReady ? pt.tag : "—"}</p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-      </section>
-
-      <div ref={gridRef} className="summary-grid sg-3">
-        <SummaryCard
-          label="This Month"
-          tone="spent"
-          value={money(cur.spent)}
-          sub={monthLabel(month, false)}
-        />
-        <SummaryCard
-          label="Vs Last Month"
-          tone={prev && cur.spent > prev.spent ? "danger" : "saved"}
-          value={
-            prev
-              ? (cur.spent >= prev.spent ? "+" : "−") + money(Math.abs(cur.spent - prev.spent))
-              : "—"
-          }
-          sub={
-            prev
-              ? `${Math.round((Math.abs(cur.spent - prev.spent) / (prev.spent || 1)) * 100)}% ${cur.spent >= prev.spent ? "higher" : "lower"}`
-              : "no prior data"
-          }
-        />
-        <SummaryCard label="6-Month Average" value={money(avgSpent)} sub="monthly spend" />
-      </div>
-
-      <section className="panel" data-tour="tour-insights-chart">
-        <div className="panel-head insights-chart-head">
-          <div>
-            <h2>Month Over Month</h2>
-            <p className="panel-sub">{chartSub}</p>
-          </div>
-          <Segmented
-            options={[
-              { v: "daily", label: "Daily" },
-              { v: "monthly", label: "Monthly" },
-              { v: "quarterly", label: "Quarterly" },
-              { v: "yearly", label: "Yearly" },
-            ]}
-            value={chartPeriod}
-            onChange={setChartPeriod}
-          />
-        </div>
-        <MoMBars
-          months={chartBars}
-          accent={accent}
-          activeKey={activeChartKey}
-          onSelect={(key) => setMonth(chartSelectionMonth(chartPeriod, key))}
-          budget={chartBudget}
-          format={money}
-        />
-      </section>
 
       <div className="ov-grid" data-tour="tour-insights-trends">
         <section className="panel">
@@ -1762,102 +1396,80 @@ export function Insights({
         </section>
       </div>
 
-      <div className="insights-section" data-tour="tour-insights-income">
+      <div className="insights-section" data-tour="tour-insights-habits">
         <div className="insights-section-head">
-          <h2>Income</h2>
-          <p className="panel-sub">Where money came in, and how much of it survived the month</p>
+          <h2>Spending Habit</h2>
         </div>
-
         <section className="panel">
-          <div className="panel-head profile-head">
-            <div>
-              <h2>Income Profile</h2>
-              <p className="panel-sub">
-                {incomeProfile.status === "ready"
-                  ? `Based on income in ${incomeProfile.windowLabel}`
-                  : `Needs a bit more history · ${incomeProfile.windowLabel}`}
-              </p>
-            </div>
+          <div className="panel-head profile-head profile-head-solo">
             <Segmented
               options={[
-                { v: "6mo", label: "Last 6 Months" },
-                { v: "12mo", label: "Last 12 Months" },
+                { v: "month", label: "Per Month" },
+                { v: "year", label: "Per Year" },
+                { v: "rolling90", label: "Last 90 Days" },
               ]}
-              value={incomeWindow}
-              onChange={setIncomeWindow}
+              value={habitPeriod}
+              onChange={setHabitPeriod}
             />
           </div>
 
-          {incomeProfile.status === "insufficient" ? (
+          {habit.status === "insufficient" ? (
             <div className="profile-locked">
               <div className="profile-locked-mark" aria-hidden="true">
                 ◌
               </div>
               <div className="profile-locked-copy">
-                <p className="profile-locked-title">
-                  Profile unlocks after {INCOME_MIN_EVENTS} payments across {INCOME_MIN_MONTHS}{" "}
-                  months
-                </p>
+                <p className="profile-locked-title">Style unlocks after 5 days of transactions</p>
                 <p className="profile-locked-sub">
-                  {incomeProfile.txHave === 0
-                    ? `No income logged yet in ${incomeProfile.windowLabel}.`
-                    : `${incomeProfile.txHave} of ${incomeProfile.txNeeded} payments · ${incomeProfile.monthsHave} of ${incomeProfile.monthsNeeded} months in ${incomeProfile.windowLabel}.`}
+                  {habit.daysHave === 0
+                    ? `No outgoing spend days yet in ${habit.periodLabel}.`
+                    : `${habit.daysHave} of ${habit.daysNeeded} active days in ${habit.periodLabel}.`}{" "}
+                  {habit.daysNeeded - habit.daysHave} more spending days to unlock.
                 </p>
               </div>
               <div
                 className="profile-progress"
                 role="progressbar"
                 aria-valuemin={0}
-                aria-valuemax={incomeProfile.txNeeded}
-                aria-valuenow={Math.min(incomeProfile.txHave, incomeProfile.txNeeded)}
-                aria-label="Payments Toward Income Profile Unlock"
+                aria-valuemax={habit.daysNeeded}
+                aria-valuenow={habit.daysHave}
+                aria-label="Transaction Days Toward Habit Unlock"
               >
                 <div
                   className="profile-progress-fill"
-                  style={{
-                    width: `${Math.min(100, (incomeProfile.txHave / incomeProfile.txNeeded) * 100)}%`,
-                  }}
+                  style={{ width: `${(habit.daysHave / habit.daysNeeded) * 100}%` }}
                 />
               </div>
             </div>
           ) : (
-            <div className={"profile-result profile-tinted style-" + incomeProfile.style.id}>
+            <div className={"profile-result profile-tinted style-" + habit.style.id}>
               <div className="profile-top">
                 <div className="profile-identity">
                   <div className="profile-crown">
-                    <p className="profile-temperament">{incomeProfile.style.temperament}</p>
-                    <span className={"profile-confidence conf-" + incomeProfile.confidence.level}>
-                      {incomeProfile.confidence.level} confidence
+                    <p className="profile-temperament">{habit.style.temperament}</p>
+                    <span className={"profile-confidence conf-" + habit.confidence.level}>
+                      {habit.confidence.level} confidence
                     </span>
                   </div>
                   <h3 className="profile-title">
-                    {incomeProfile.style.title}
-                    {incomeProfile.blend.secondary && (
+                    {habit.style.title}
+                    {habit.blend.secondary && (
                       <span className="profile-blend">
                         {" "}
-                        with a {incomeProfile.blend.secondary.trait} streak
+                        with a {habit.blend.secondary.trait} streak
                       </span>
                     )}
                   </h3>
-                  <p className="profile-meta">
-                    {incomeProfile.metrics.monthsWithIncome} of{" "}
-                    {incomeProfile.metrics.monthsInWindow} months · {incomeProfile.metrics.txCount}{" "}
-                    payments · {money(incomeProfile.metrics.total)} in {incomeProfile.windowLabel}
-                  </p>
                 </div>
-                {incomeStory && (
+                {habitStory && (
                   <div className="profile-copy">
                     <div className="profile-block">
                       <p className="profile-kicker">Data Pattern</p>
-                      <p>{incomeStory.narrative.pattern}</p>
+                      <p>{habitStory.narrative.pattern}</p>
                     </div>
                     <div className="profile-block">
                       <p className="profile-kicker">Behavior</p>
-                      <p>{incomeStory.narrative.behavior}</p>
-                    </div>
-                    <div className="profile-block is-nudge">
-                      <p className="profile-kicker">Try This</p>
-                      <p>{incomeStory.nudge}</p>
+                      <p>{habitStory.narrative.behavior}</p>
                     </div>
                   </div>
                 )}
@@ -1865,133 +1477,107 @@ export function Insights({
 
               <div className="profile-signals">
                 <div className="profile-signal">
-                  <p className="psig-label">Typical payment</p>
-                  <p className="psig-value">{money(incomeProfile.metrics.medianAmt)}</p>
-                  <p className="psig-hint">largest {money(incomeProfile.metrics.maxAmt)}</p>
-                </div>
-                <div className="profile-signal">
-                  <p className="psig-label">Payment swing</p>
-                  <p className="psig-value">{incomeProfile.metrics.amountCv.toFixed(2)}×</p>
-                  <p className="psig-hint">lower is steadier</p>
-                </div>
-                <div className="profile-signal">
-                  <p className="psig-label">Cadence</p>
-                  <p className="psig-value">{incomeProfile.metrics.medianGap}d</p>
-                  <p className="psig-hint">
-                    {incomeProfile.metrics.topDom
-                      ? `payday ~day ${incomeProfile.metrics.topDom}`
-                      : "no clear payday"}
-                  </p>
-                </div>
-                <div className="profile-signal">
-                  <p className="psig-label">Source mix</p>
+                  <p className="psig-label">Busiest day</p>
                   <p className="psig-value">
-                    {incomeProfile.metrics.sourceCount} source
-                    {incomeProfile.metrics.sourceCount === 1 ? "" : "s"}
+                    {habit.metrics.topDowSampleDate
+                      ? weekdayLabel(habit.metrics.topDowSampleDate)
+                      : "—"}
                   </p>
                   <p className="psig-hint">
-                    top {Math.round(incomeProfile.metrics.topSourceShare * 100)}%
-                  </p>
-                </div>
-                <div className="profile-signal">
-                  <p className="psig-label">Reliable floor</p>
-                  <p className="psig-value">{money(incomeProfile.metrics.monthlyMin)}</p>
-                  <p className="psig-hint">
-                    lowest of {incomeProfile.metrics.monthsInWindow} months
-                  </p>
-                </div>
-                <div className="profile-signal">
-                  <p className="psig-label">Covers spend</p>
-                  <p className="psig-value">
-                    {incomeProfile.metrics.monthsCovered}/{incomeProfile.metrics.monthsInWindow}
-                  </p>
-                  <p className="psig-hint">
-                    keeps {Math.round(incomeProfile.metrics.meanSavingsRate * 100)}%
+                    {Math.round(habit.metrics.topDowShare * 100)}% of transactions
                   </p>
                 </div>
               </div>
 
-              {incomeProfile.metrics.sources.length > 0 && (
-                <div className="profile-driver">
-                  {incomeProfile.metrics.sources.slice(0, 3).map((src) => (
-                    <div key={src.id} className="pdrv-row">
-                      <CatGlyph glyph={src.glyph} id={src.id} />
-                      <div className="pdrv-name">
-                        {src.name} · {src.parentName}
-                      </div>
-                      <div className="pdrv-bar">
-                        <div
-                          className="pdrv-fill"
-                          style={{ width: `${Math.round(src.share * 100)}%` }}
-                        />
-                      </div>
-                      <div className="pdrv-amt">{money(src.amount)}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
               <div className="profile-trajectory">
-                <p className="ptrl-note">{incomeStory?.trend}</p>
+                <p className="ptrl-note">{habitStory?.shift}</p>
                 <div className="ptrl-grid">
-                  {incomeProfile.metrics.monthly.map((pt) => (
-                    <button
-                      key={pt.monthKey}
-                      type="button"
-                      className={
-                        "ptrl-col profile-tinted style-" +
-                        incomeProfile.style.id +
-                        (pt.monthKey === month ? " is-active" : "")
-                      }
-                      onClick={() => setMonth(pt.monthKey)}
-                    >
-                      <div
-                        className={"ptrl-bar" + (pt.covered ? "" : " is-short")}
-                        style={{ height: `${Math.max(6, (pt.earned / incomeTrailMax) * 100)}%` }}
-                      />
-                      <p className="ptrl-label">{pt.label}</p>
-                      <p className="ptrl-style">{money(pt.earned)}</p>
-                    </button>
-                  ))}
+                  {habitTrail.map((pt) => {
+                    const isReady = pt.status === "ready";
+                    return (
+                      <button
+                        key={pt.monthKey}
+                        type="button"
+                        className={
+                          "ptrl-col profile-tinted " +
+                          (isReady ? "style-" + pt.styleId : "") +
+                          (pt.monthKey === month ? " is-active" : "")
+                        }
+                        onClick={() => setMonth(pt.monthKey)}
+                        disabled={!isReady}
+                      >
+                        <div
+                          className={"ptrl-bar" + (isReady ? "" : " is-empty")}
+                          style={{
+                            height: isReady
+                              ? `${Math.max(6, (pt.spend / habitTrailMaxSpend) * 100)}%`
+                              : "4px",
+                          }}
+                        />
+                        <p className="ptrl-label">{monthLabel(pt.monthKey, false).split(" ")[0]}</p>
+                        <p className="ptrl-style">{isReady ? pt.tag : "—"}</p>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
           )}
-
-          {showDeclaredIncomeNote && (
-            <p className="profile-callout">
-              Wallet declares {money(wallet?.income ?? 0)}/mo on top of logged income. Logged income
-              averages{" "}
-              {incomeProfile.status === "ready" ? money(incomeProfile.metrics.monthlyMean) : "—"}
-              /mo — if your salary is logged as a transaction, the pool counts it twice.
-            </p>
-          )}
         </section>
+      </div>
 
-        <div className="summary-grid sg-4">
-          <SummaryCard
-            label="Income This Month"
-            tone="saved"
-            value={money(cur.earned)}
-            sub={monthLabel(month, false)}
+      <div ref={gridRef} className="summary-grid sg-2">
+        <SummaryCard
+          label="This Month"
+          tone="spent"
+          value={money(cur.spent)}
+          sub={monthLabel(month, false)}
+        />
+        <SummaryCard
+          label="Vs Last Month"
+          tone={prev && cur.spent > prev.spent ? "danger" : "saved"}
+          value={
+            prev
+              ? (cur.spent >= prev.spent ? "+" : "−") + money(Math.abs(cur.spent - prev.spent))
+              : "—"
+          }
+          sub={
+            prev
+              ? `${Math.round((Math.abs(cur.spent - prev.spent) / (prev.spent || 1)) * 100)}% ${cur.spent >= prev.spent ? "higher" : "lower"}`
+              : "no prior data"
+          }
+        />
+      </div>
+
+      <section className="panel" data-tour="tour-insights-chart">
+        <div className="panel-head insights-chart-head">
+          <div>
+            <h2>Month Over Month</h2>
+          </div>
+          <Segmented
+            options={[
+              { v: "daily", label: "Daily" },
+              { v: "monthly", label: "Monthly" },
+              { v: "quarterly", label: "Quarterly" },
+              { v: "yearly", label: "Yearly" },
+            ]}
+            value={chartPeriod}
+            onChange={setChartPeriod}
           />
-          <SummaryCard
-            label="Vs Last Month"
-            tone={!prev || earnedDelta === 0 ? undefined : earnedDelta > 0 ? "saved" : "danger"}
-            value={prev ? (earnedDelta >= 0 ? "+" : "−") + money(Math.abs(earnedDelta)) : "—"}
-            sub={
-              prev
-                ? `${Math.round((Math.abs(earnedDelta) / (prev.earned || 1)) * 100)}% ${earnedDelta >= 0 ? "higher" : "lower"}`
-                : "no prior data"
-            }
-          />
-          <SummaryCard label="6-Month Average" value={money(avgEarned)} sub="monthly income" />
-          <SummaryCard
-            label="Net Kept"
-            tone={netKept < 0 ? "danger" : "ok"}
-            value={money(netKept)}
-            sub={cur.earned ? `${keptPct}% of income kept` : "no income recorded"}
-          />
+        </div>
+        <MoMBars
+          months={chartBars}
+          accent={accent}
+          activeKey={activeChartKey}
+          onSelect={(key) => setMonth(chartSelectionMonth(chartPeriod, key))}
+          budget={chartBudget}
+          format={money}
+        />
+      </section>
+
+      <div className="insights-section" data-tour="tour-insights-income">
+        <div className="insights-section-head">
+          <h2>Income</h2>
         </div>
 
         <div className="ov-grid">
@@ -2066,27 +1652,138 @@ export function Insights({
             </div>
           </section>
         </div>
+
+        <section className="panel">
+          <div className="panel-head profile-head">
+            <div>
+              <h2>Income Profile</h2>
+              <p className="panel-sub">
+                {incomeProfile.status === "ready"
+                  ? `Based on income in ${incomeProfile.windowLabel}`
+                  : `Needs a bit more history · ${incomeProfile.windowLabel}`}
+              </p>
+            </div>
+            <Segmented
+              options={[
+                { v: "6mo", label: "Last 6 Months" },
+                { v: "12mo", label: "Last 12 Months" },
+              ]}
+              value={incomeWindow}
+              onChange={setIncomeWindow}
+            />
+          </div>
+
+          {incomeProfile.status === "insufficient" ? (
+            <div className="profile-locked">
+              <div className="profile-locked-mark" aria-hidden="true">
+                ◌
+              </div>
+              <div className="profile-locked-copy">
+                <p className="profile-locked-title">
+                  Profile unlocks after {INCOME_MIN_EVENTS} payments across {INCOME_MIN_MONTHS}{" "}
+                  months
+                </p>
+                <p className="profile-locked-sub">
+                  {incomeProfile.txHave === 0
+                    ? `No income logged yet in ${incomeProfile.windowLabel}.`
+                    : `${incomeProfile.txHave} of ${incomeProfile.txNeeded} payments · ${incomeProfile.monthsHave} of ${incomeProfile.monthsNeeded} months in ${incomeProfile.windowLabel}.`}
+                </p>
+              </div>
+              <div
+                className="profile-progress"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={incomeProfile.txNeeded}
+                aria-valuenow={Math.min(incomeProfile.txHave, incomeProfile.txNeeded)}
+                aria-label="Payments Toward Income Profile Unlock"
+              >
+                <div
+                  className="profile-progress-fill"
+                  style={{
+                    width: `${Math.min(100, (incomeProfile.txHave / incomeProfile.txNeeded) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className={"profile-result profile-tinted style-" + incomeProfile.style.id}>
+              <div className="profile-top">
+                <div className="profile-identity">
+                  <div className="profile-crown">
+                    <p className="profile-temperament">{incomeProfile.style.temperament}</p>
+                    <span className={"profile-confidence conf-" + incomeProfile.confidence.level}>
+                      {incomeProfile.confidence.level} confidence
+                    </span>
+                  </div>
+                  <h3 className="profile-title">
+                    {incomeProfile.style.title}
+                    {incomeProfile.blend.secondary && (
+                      <span className="profile-blend">
+                        {" "}
+                        with a {incomeProfile.blend.secondary.trait} streak
+                      </span>
+                    )}
+                  </h3>
+                </div>
+                {incomeStory && (
+                  <div className="profile-copy">
+                    <div className="profile-block">
+                      <p className="profile-kicker">Data Pattern</p>
+                      <p>{incomeStory.narrative.pattern}</p>
+                    </div>
+                    <div className="profile-block">
+                      <p className="profile-kicker">Behavior</p>
+                      <p>{incomeStory.narrative.behavior}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {showDeclaredIncomeNote && (
+            <p className="profile-callout">
+              Wallet declares {money(wallet?.income ?? 0)}/mo on top of logged income. Logged income
+              averages{" "}
+              {incomeProfile.status === "ready" ? money(incomeProfile.metrics.monthlyMean) : "—"}
+              /mo — if your salary is logged as a transaction, the pool counts it twice.
+            </p>
+          )}
+        </section>
+
+        <div className="summary-grid sg-3">
+          <SummaryCard
+            label="Income This Month"
+            tone="saved"
+            value={money(cur.earned)}
+            sub={monthLabel(month, false)}
+          />
+          <SummaryCard
+            label="Vs Last Month"
+            tone={!prev || earnedDelta === 0 ? undefined : earnedDelta > 0 ? "saved" : "danger"}
+            value={prev ? (earnedDelta >= 0 ? "+" : "−") + money(Math.abs(earnedDelta)) : "—"}
+            sub={
+              prev
+                ? `${Math.round((Math.abs(earnedDelta) / (prev.earned || 1)) * 100)}% ${earnedDelta >= 0 ? "higher" : "lower"}`
+                : "no prior data"
+            }
+          />
+          <SummaryCard
+            label="Net Kept"
+            tone={netKept < 0 ? "danger" : "ok"}
+            value={money(netKept)}
+            sub={cur.earned ? `${keptPct}% of income kept` : "no income recorded"}
+          />
+        </div>
       </div>
 
       <section className="panel insights-savings" data-tour="tour-insights-savings">
         <div className="panel-head">
           <div>
             <h2>Saving Insights</h2>
-            <p className="panel-sub">Piggies and Capitals · trailing 12 months on this wallet</p>
           </div>
         </div>
-        <div className="summary-grid sg-4">
-          <SummaryCard
-            label="Savings Rate"
-            value={`${Math.round(savingsInsights.savingsRate * 100)}%`}
-            sub="of income saved"
-          />
-          <SummaryCard
-            label="Net This Window"
-            tone={savingsInsights.netFlow < 0 ? "danger" : "saved"}
-            value={money(savingsInsights.netFlow)}
-            sub="deposits minus withdrawals"
-          />
+        <div className="summary-grid sg-2">
           <SummaryCard
             label="To Capitals"
             tone="ok"
@@ -2141,22 +1838,16 @@ export function Recurring({ expenses, month, currency, categoryIndex, onEdit }: 
   return (
     <div ref={viewRef} className="view">
       <div ref={gridRef} className="summary-grid sg-2" data-tour="tour-recurring-summary">
-        <SummaryCard
-          label="Recurring this Month"
-          value={fmtMoney(total, { currency })}
-          sub={`${list.length} scheduled ${list.length === 1 ? "charge" : "charges"}`}
-        />
+        <SummaryCard label="Recurring this Month" value={fmtMoney(total, { currency })} />
         <SummaryCard
           label="Monthly Equivalent"
           tone="spent"
           value={fmtMoney(monthlyEq, { currency })}
-          sub="normalized across intervals"
         />
       </div>
       <section className="panel">
         <div className="panel-head">
           <h2>Fixed & Recurring</h2>
-          <p className="panel-sub">Auto-posted on due dates from your last amount</p>
         </div>
         <div className="rec-list" data-tour="tour-recurring-list">
           {list.length ? (

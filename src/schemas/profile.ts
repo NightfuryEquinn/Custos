@@ -2,8 +2,25 @@ import { z } from "zod";
 import { accountIdSchema, monthKeySchema } from "./common";
 import { TERMS_VERSION } from "@/lib/legal";
 import { ACCENT_NAMES } from "@/lib/accents";
+import { TAB_SLOTS, VIEW_IDS } from "@/lib/views";
 
 const accentSchema = z.enum(ACCENT_NAMES as [string, ...string[]]);
+
+const viewIdSchema = z.enum(VIEW_IDS);
+const uniqueIds = (ids: string[]) => new Set(ids).size === ids.length;
+
+/** Exactly the mobile tab-bar picks, in display order. */
+const navTabsSchema = z
+  .array(viewIdSchema)
+  .length(TAB_SLOTS)
+  .refine(uniqueIds, "Tab picks must be unique");
+/* Lenient on length (not exactly VIEW_IDS.length) so a client's stale order —
+   from before a view existed, or one it never touched — still validates; the
+   frontend's resolveNav() fills any gaps against the current view list. */
+const navOrderSchema = z
+  .array(viewIdSchema)
+  .max(VIEW_IDS.length)
+  .refine(uniqueIds, "Sidebar order must not repeat a view");
 
 /**
  * How the user answered the first-run tour prompt.
@@ -29,11 +46,12 @@ const ledgerProfileSchema = z.object({
      localStorage) so it follows the account across devices and survives
      Clear Local Data; undefined means "never accepted". */
   termsVersion: z.string().max(32).optional(),
-  /* Supporter accent perk. The server does not check supporterSince
-     before accepting a write — a non-supporter who forges this just gets a
-     different shade of brown; enforce server-side if a perk is ever worth
-     more than a colour. */
+  /* Accent color pick — free for every account, no gate to check. */
   accent: accentSchema.optional(),
+  /* Custom nav layout. Undefined means "never customized" — the client falls
+     back to the built-in defaults, so there's nothing to seed here. */
+  navTabs: navTabsSchema.optional(),
+  navOrder: navOrderSchema.optional(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -47,6 +65,8 @@ export const updateProfileSchema = z
        version it was never shown. */
     termsVersion: z.literal(TERMS_VERSION).optional(),
     accent: accentSchema.optional(),
+    navTabs: navTabsSchema.optional(),
+    navOrder: navOrderSchema.optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "At least one field is required",

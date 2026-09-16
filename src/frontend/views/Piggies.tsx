@@ -1,6 +1,6 @@
-import { useEnter, useStagger } from "@/frontend/lib/animate";
+import { useEnter } from "@/frontend/lib/animate";
 import { Donut, MiniSpark } from "@/frontend/charts";
-import { CatGlyph, EmptyState, Icon, SummaryCard, glyphTint } from "@/frontend/components/ui";
+import { CatGlyph, EmptyState, Icon, glyphTint } from "@/frontend/components/ui";
 import { dayLabel, fmtMoney, monthsWindow } from "@/frontend/lib/data";
 import { buildPiggies, type Piggy, type Piglet } from "@/frontend/lib/piggies";
 import { computeSavingsInsights, monthlyNetForCat } from "@/frontend/lib/savingsInsights";
@@ -52,11 +52,8 @@ export function Piggies({
   const sparkMonths = useMemo(() => monthsWindow(month, SPARK_MONTHS), [month]);
 
   const money = (n: number) => fmtMoney(n, { currency });
-  const totalBalance = piggies.reduce((s, p) => s + p.balance, 0);
   const viewRef = useRef<HTMLDivElement>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
   useEnter(viewRef);
-  useStagger(gridRef, ".summary-card");
 
   if (!piggies.length) {
     return (
@@ -75,35 +72,6 @@ export function Piggies({
 
   return (
     <div ref={viewRef} className="view">
-      <div ref={gridRef} className="summary-grid" data-tour="tour-piggies-summary">
-        <SummaryCard
-          label="Total Saved"
-          tone="saved"
-          value={money(totalBalance)}
-          sub={`${piggies.length} ${piggies.length === 1 ? "piggy" : "piggies"}`}
-        />
-        <SummaryCard
-          label="Net This Window"
-          tone={insights.netFlow < 0 ? "danger" : "saved"}
-          value={money(insights.netFlow)}
-          sub={
-            insights.capitalNetFlow !== 0
-              ? `${money(insights.piggyNetFlow)} piggies · ${money(insights.capitalNetFlow)} capitals`
-              : "trailing 12 months"
-          }
-        />
-        <SummaryCard
-          label="Savings Rate"
-          value={`${Math.round(insights.savingsRate * 100)}%`}
-          sub="of income saved"
-        />
-        <SummaryCard
-          label="Streak"
-          value={String(insights.currentStreak)}
-          sub={insights.currentStreak === 1 ? "month saving" : "months saving"}
-        />
-      </div>
-
       <div className="piggy-grid" data-tour="tour-piggies-grid">
         {piggies.map((piggy) => {
           const pace = paceById.get(piggy.catId);

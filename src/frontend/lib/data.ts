@@ -496,7 +496,7 @@ export function fmtMoney(n: number, opts: { cents?: boolean; currency?: string }
     maximumFractionDigits: opts.cents === false ? 0 : 2,
   });
 
-  return `${n < 0 ? "−" : ""}${cur.symbol}${s}`;
+  return `${n < 0 ? "−" : ""}${cur.symbol} ${s}`;
 }
 
 /** Whether a budget limit is a positive finite number. */
@@ -507,15 +507,6 @@ export function isBudgetSet(n: unknown): n is number {
 /** Format a budget limit, or "Unset" when none is set. */
 export function fmtBudgetLimit(n: unknown, opts: { currency?: string } = {}) {
   return isBudgetSet(n) ? fmtMoney(n, opts) : "Unset";
-}
-
-/** Compact currency format (e.g. RM1.2k). */
-export function fmtMoneyShort(n: number, currency?: string) {
-  const cur = getCurrency(currency);
-
-  if (Math.abs(n) >= 1000) return `${cur.symbol}${(n / 1000).toFixed(1)}k`;
-
-  return `${cur.symbol}${Math.round(n)}`;
 }
 
 /** Format a YYYY-MM key as a month label. */

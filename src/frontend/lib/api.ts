@@ -1,4 +1,4 @@
-import type { Account, FinancialWallet } from "./types";
+import type { Account, FinancialWallet, ViewId } from "./types";
 import type {
   CapitalPlanWire,
   CategoriesWire,
@@ -27,8 +27,11 @@ type ApiProfile = {
   toursSeen: string[];
   /* Version of the Terms this account has accepted; undefined = never. */
   termsVersion?: string;
-  /* Supporter accent perk; undefined = default "clay". */
+  /* Accent color pick; undefined = default "clay". */
   accent?: string;
+  /* Custom nav layout; undefined = never customized, use the built-in defaults. */
+  navTabs?: ViewId[];
+  navOrder?: ViewId[];
   /* ISO timestamp of profile creation. */
   createdAt: string;
 };
@@ -50,8 +53,6 @@ type ApiUser = {
   timezone?: string;
   emailRemindersEnabled?: boolean;
   budgetAlertsEnabled?: boolean;
-  /* ISO timestamp set only by the manual grant script; undefined = not a supporter. */
-  supporterSince?: string;
 };
 
 type ApiConsent = {
@@ -250,7 +251,13 @@ export const api = {
       body: Partial<
         Pick<
           ApiProfile,
-          "currentMonth" | "tourPreference" | "toursSeen" | "termsVersion" | "accent"
+          | "currentMonth"
+          | "tourPreference"
+          | "toursSeen"
+          | "termsVersion"
+          | "accent"
+          | "navTabs"
+          | "navOrder"
         >
       >,
     ) {

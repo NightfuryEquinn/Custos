@@ -1,18 +1,15 @@
 import { useEnter, useModalMotion, useStagger } from "@/frontend/lib/animate";
 import { CatGlyph, EmptyState, Icon, SummaryCard } from "@/frontend/components/ui";
 import {
-  allocateBudgets,
   budgetsFromAmounts,
   computeNet,
   isValidAllocationAmounts,
-  isValidAllocationTotal,
   isValidTaxTotal,
   MY_TAX_PRESETS,
-  percentsFromAmounts,
   sumPercents,
   type TaxPreset,
 } from "@/frontend/lib/calculator";
-import { fmtMoney, getCurrency, roundMoney } from "@/frontend/lib/data";
+import { fmtMoney, getCurrency } from "@/frontend/lib/data";
 import {
   preventNegativeKeys,
   preventWheelChange,
@@ -26,15 +23,12 @@ import { createPortal } from "react-dom";
  * Calculator — budgeting helper
  * ─────────────────────────────
  * Client-side only: deduct custom tax lines from income, allocate the
- * net across expense categories by percent or amount, then optionally
- * apply the result to wallet budgets via a confirmation modal.
+ * net across expense categories by amount, then optionally apply the
+ * result to wallet budgets via a confirmation modal.
  * Layout: Income + Tax Collection share a setup grid on wider screens;
- * Allocate by Category uses a live progress bar, a Percent/Amount
- * toggle, and responsive cards.
+ * Allocate by Category uses a live progress bar and responsive cards.
  * Typography: Young Serif / Schibsted Grotesk / Azeret Mono via fonts.css.
  */
-
-type AllocMode = "percent" | "amount";
 
 type TaxLine = {
   id: string;
@@ -81,9 +75,7 @@ export function Calculator({
   const expenseCategories = categoryIndex.expenseCategories;
   const [grossDraft, setGrossDraft] = useState("");
   const [taxLines, setTaxLines] = useState<TaxLine[]>(() => [emptyTaxLine(0)]);
-  const [pctByCat, setPctByCat] = useState<Record<string, string>>({});
   const [amtByCat, setAmtByCat] = useState<Record<string, string>>({});
-  const [allocMode, setAllocMode] = useState<AllocMode>("percent");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [applied, setApplied] = useState(false);
   const titleId = useId();
@@ -106,7 +98,6 @@ export function Calculator({
   useEffect(() => {
     const ids = expenseCategories.map((c) => c.id);
 
-    setPctByCat((prev) => alignDraftMap(prev, ids));
     setAmtByCat((prev) => alignDraftMap(prev, ids));
   }, [expenseCategories]);
 
@@ -117,15 +108,6 @@ export function Calculator({
   const net = taxOk ? computeNet(gross, taxPercents) : 0;
   const taxAmount = taxOk ? Math.max(0, gross - net) : 0;
 
-  const allocations = useMemo(
-    () =>
-      expenseCategories.map((c) => ({
-        id: c.id,
-        pct: parseNonNeg(pctByCat[c.id] ?? ""),
-      })),
-    [expenseCategories, pctByCat],
-  );
-
   const amountRows = useMemo(
     () =>
       expenseCategories.map((c) => ({
@@ -135,26 +117,22 @@ export function Calculator({
     [expenseCategories, amtByCat],
   );
 
-  const allocSum = sumPercents(allocations.map((a) => a.pct));
   const allocAmtSum = amountRows.reduce((sum, row) => sum + row.amount, 0);
   const allocOk =
     expenseCategories.length > 0 &&
-    (allocMode === "percent"
-      ? isValidAllocationTotal(allocations.map((a) => a.pct))
-      : net > 0 &&
-        isValidAllocationAmounts(
-          amountRows.map((a) => a.amount),
-          net,
-        ));
+    allocAmtSum > 0 &&
+    net > 0 &&
+    isValidAllocationAmounts(
+      amountRows.map((a) => a.amount),
+      net,
+    );
   const canApply = gross > 0 && taxOk && allocOk;
 
   const computed = useMemo(() => {
     if (!canApply) return {};
 
-    return allocMode === "percent"
-      ? allocateBudgets(net, allocations)
-      : budgetsFromAmounts(net, amountRows);
-  }, [canApply, net, allocations, amountRows, allocMode]);
+    return budgetsFromAmounts(amountRows);
+  }, [canApply, amountRows]);
 
   /** Which presets currently have rows in the tax list. */
   const activeTaxPresetIds = useMemo(() => {
@@ -236,29 +214,8 @@ export function Calculator({
     if (applied) setApplied(false);
   };
 
-  /** Switch percent/amount input, converting drafts when net is positive. */
-  const switchAllocMode = (next: AllocMode) => {
-    if (next === allocMode) return;
-
-    markDirty();
-
-    if (net > 0) {
-      const ids = expenseCategories.map((c) => c.id);
-
-      if (next === "amount") {
-        setAmtByCat(draftsFromValues(ids, allocateBudgets(net, allocations)));
-      } else {
-        setPctByCat(draftsFromValues(ids, percentsFromAmounts(net, amountRows)));
-      }
-    }
-
-    setAllocMode(next);
-  };
-
-  const remainingAlloc = 100 - allocSum;
   const remainingAmt = net - allocAmtSum;
-  const fillPct = allocMode === "percent" ? allocSum : net > 0 ? (allocAmtSum / net) * 100 : 0;
-  const remainingOver = allocMode === "percent" ? remainingAlloc < 0 : remainingAmt < 0;
+  const fillPct = net > 0 ? (allocAmtSum / net) * 100 : 0;
   const cur = getCurrency(currency);
   const viewRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -267,23 +224,12 @@ export function Calculator({
 
   return (
     <div ref={viewRef} className="view">
-      <div ref={gridRef} className="summary-grid sg-3" data-tour="tour-calculator-summary">
-        <SummaryCard
-          label="Gross Income"
-          value={fmtMoney(gross, { currency })}
-          sub="calculator draft"
-        />
-        <SummaryCard
-          label="Tax Total"
-          tone="spent"
-          value={fmtMoney(taxAmount, { currency })}
-          sub={taxOk ? `${formatPct(taxSum)} of gross` : "tax exceeds 100%"}
-        />
+      <div ref={gridRef} className="summary-grid sg-2" data-tour="tour-calculator-summary">
+        <SummaryCard label="Tax Total" tone="spent" value={fmtMoney(taxAmount, { currency })} />
         <SummaryCard
           label="Net After Tax"
           tone={taxOk ? "ok" : "danger"}
           value={fmtMoney(net, { currency })}
-          sub="available to allocate"
         />
       </div>
 
@@ -291,7 +237,6 @@ export function Calculator({
         <section className="panel" data-tour="tour-calculator-income">
           <div className="panel-head">
             <h2>Income</h2>
-            <p className="panel-sub">Prefills from wallet income — edits stay on this screen</p>
           </div>
           <label className="fld-label">Gross amount</label>
           <div className="amount-field">
@@ -316,10 +261,6 @@ export function Calculator({
         <section className="panel" data-tour="tour-calculator-tax">
           <div className="panel-head">
             <h2>Tax Collection</h2>
-            <p className="panel-sub">
-              Custom titles and percentages — not saved. Toggle MY presets on to add lines, off to
-              remove them (multiple allowed; estimates only).
-            </p>
           </div>
           <div className="calculator-presets" role="group" aria-label="Tax presets">
             {MY_TAX_PRESETS.map((preset) => {
@@ -412,39 +353,8 @@ export function Calculator({
       </div>
 
       <section className="panel" data-tour="tour-calculator-allocate">
-        <div className="panel-head calculator-alloc-head">
-          <div className="calculator-alloc-head-copy">
-            <h2>Allocate by Category</h2>
-            <p className="panel-sub">
-              {allocMode === "percent"
-                ? "Percentages must total 100%"
-                : "Amounts must total net after tax"}
-            </p>
-          </div>
-          <div className="calculator-alloc-mode" role="radiogroup" aria-label="Allocation input">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={allocMode === "percent"}
-              className={
-                "mini-btn calculator-preset-toggle" + (allocMode === "percent" ? " is-active" : "")
-              }
-              onClick={() => switchAllocMode("percent")}
-            >
-              Percent
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={allocMode === "amount"}
-              className={
-                "mini-btn calculator-preset-toggle" + (allocMode === "amount" ? " is-active" : "")
-              }
-              onClick={() => switchAllocMode("amount")}
-            >
-              Amount
-            </button>
-          </div>
+        <div className="panel-head">
+          <h2>Allocate by Category</h2>
         </div>
 
         {!expenseCategories.length ? (
@@ -459,35 +369,20 @@ export function Calculator({
                 "calculator-alloc-progress" +
                 (allocOk
                   ? " calculator-alloc-progress--ok"
-                  : remainingOver
+                  : remainingAmt < 0
                     ? " calculator-alloc-progress--over"
                     : " calculator-alloc-progress--under")
               }
               role="status"
-              aria-label={
-                allocMode === "percent"
-                  ? `Allocated ${formatPct(allocSum)}`
-                  : `Allocated ${fmtMoney(allocAmtSum, { currency })} of ${fmtMoney(net, { currency })}`
-              }
+              aria-label={`Allocated ${fmtMoney(allocAmtSum, { currency })} of ${fmtMoney(net, { currency })}`}
             >
               <div className="calculator-alloc-progress-head">
                 <span>Allocation</span>
                 <span className="num">
-                  {allocMode === "percent" ? (
-                    <>
-                      {formatPct(allocSum)}
-                      {allocOk
-                        ? " — ready"
-                        : ` — ${formatPct(Math.abs(remainingAlloc))} ${remainingAlloc > 0 ? "left" : "over"}`}
-                    </>
-                  ) : (
-                    <>
-                      {fmtMoney(allocAmtSum, { currency })}
-                      {allocOk
-                        ? " — ready"
-                        : ` — ${fmtMoney(Math.abs(remainingAmt), { currency })} ${remainingAmt > 0 ? "left" : "over"}`}
-                    </>
-                  )}
+                  {fmtMoney(allocAmtSum, { currency })}
+                  {allocOk
+                    ? " — ready"
+                    : ` — ${fmtMoney(Math.abs(remainingAmt), { currency })} ${remainingAmt > 0 ? "left" : "over"}`}
                 </span>
               </div>
               <div className="calculator-alloc-track" aria-hidden="true">
@@ -500,17 +395,8 @@ export function Calculator({
 
             <div className="calculator-alloc-list">
               {expenseCategories.map((c) => {
-                const pct = parseNonNeg(pctByCat[c.id] ?? "");
                 const amountDraft = parseNonNeg(amtByCat[c.id] ?? "");
-                const derivedAmount = canApply
-                  ? (computed[c.id] ?? 0)
-                  : roundMoney((net * pct) / 100);
-                const derivedPct =
-                  net > 0
-                    ? canApply
-                      ? ((computed[c.id] ?? 0) / net) * 100
-                      : (amountDraft / net) * 100
-                    : 0;
+                const derivedPct = net > 0 ? (amountDraft / net) * 100 : 0;
 
                 return (
                   <div key={c.id} className="calculator-alloc-row">
@@ -519,59 +405,28 @@ export function Calculator({
                       <span>{c.name}</span>
                     </div>
                     <div className="calculator-alloc-controls">
-                      {allocMode === "percent" ? (
-                        <>
-                          <div className="calculator-alloc-amt num">
-                            {fmtMoney(derivedAmount, { currency })}
-                          </div>
-                          <div className="calculator-pct-field">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              inputMode="decimal"
-                              placeholder="0"
-                              value={pctByCat[c.id] ?? ""}
-                              onChange={(e) => {
-                                markDirty();
-                                setPctByCat((prev) => ({
-                                  ...prev,
-                                  [c.id]: stripNegativeInput(e.target.value),
-                                }));
-                              }}
-                              onKeyDown={preventNegativeKeys}
-                              onWheel={preventWheelChange}
-                              aria-label={`${c.name} percent`}
-                            />
-                            <span className="calculator-pct-suffix">%</span>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="calculator-alloc-amt num">{formatPct(derivedPct)}</div>
-                          <div className="calculator-pct-field calculator-amt-field">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              inputMode="decimal"
-                              placeholder="0.00"
-                              value={amtByCat[c.id] ?? ""}
-                              onChange={(e) => {
-                                markDirty();
-                                setAmtByCat((prev) => ({
-                                  ...prev,
-                                  [c.id]: stripNegativeInput(e.target.value),
-                                }));
-                              }}
-                              onKeyDown={preventNegativeKeys}
-                              onWheel={preventWheelChange}
-                              aria-label={`${c.name} amount`}
-                            />
-                            <span className="calculator-pct-suffix">{cur.symbol}</span>
-                          </div>
-                        </>
-                      )}
+                      <div className="calculator-alloc-amt num">{formatPct(derivedPct)}</div>
+                      <div className="calculator-pct-field calculator-amt-field">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          value={amtByCat[c.id] ?? ""}
+                          onChange={(e) => {
+                            markDirty();
+                            setAmtByCat((prev) => ({
+                              ...prev,
+                              [c.id]: stripNegativeInput(e.target.value),
+                            }));
+                          }}
+                          onKeyDown={preventNegativeKeys}
+                          onWheel={preventWheelChange}
+                          aria-label={`${c.name} amount`}
+                        />
+                        <span className="calculator-pct-suffix">{cur.symbol}</span>
+                      </div>
                     </div>
                   </div>
                 );
@@ -590,9 +445,6 @@ export function Calculator({
         >
           {applied ? "Apply Successful" : "Apply to Budgets"}
         </button>
-        <p className="calculator-apply-hint">
-          Replaces every expense category budget on the active wallet.
-        </p>
       </div>
 
       {confirmOpen
@@ -684,24 +536,6 @@ function alignDraftMap(prev: Record<string, string>, ids: string[]): Record<stri
 
   for (const id of ids) {
     next[id] = prev[id] ?? "";
-  }
-
-  return next;
-}
-
-/** Stringify a positive number for an allocation draft; zero → empty. */
-function draftFromNumber(n: number): string {
-  if (!Number.isFinite(n) || n <= 0) return "";
-
-  return String(n);
-}
-
-/** Build category draft strings from a computed number map. */
-function draftsFromValues(ids: string[], values: Record<string, number>): Record<string, string> {
-  const next: Record<string, string> = {};
-
-  for (const id of ids) {
-    next[id] = draftFromNumber(values[id] ?? 0);
   }
 
   return next;

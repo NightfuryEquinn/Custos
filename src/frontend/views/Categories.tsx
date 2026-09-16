@@ -27,7 +27,7 @@ import {
 } from "@/frontend/lib/category-transfer";
 import type { Category, CategoryIndex, Expense } from "@/frontend/lib/types";
 import { CATEGORY_GLYPH_OPTIONS, DEFAULT_GLYPH, displayGlyph } from "@/lib/glyphs";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 /*
@@ -83,13 +83,13 @@ type EditorMode =
 
 const GLYPHS = CATEGORY_GLYPH_OPTIONS;
 
-export function Categories({
-  categoryIndex,
-  onSave,
-  usedSubIds,
-  expenses,
-  onTransfer,
-}: CategoriesViewProps) {
+/** Imperative handle so the shell's quick-add FAB can trigger New Category. */
+export type CategoriesHandle = { openAdd: () => void };
+
+export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(function Categories(
+  { categoryIndex, onSave, usedSubIds, expenses, onTransfer },
+  ref,
+) {
   // Hold the FULL taxonomy: `persist` writes this list wholesale, so dropping
   // archived entries here would delete them on the next save.
   const [categories, setCategories] = useState(categoryIndex.allCategories);
@@ -186,9 +186,10 @@ export function Categories({
     }
   };
 
-  /** Open the add-category editor for the given type. */
-  const openAddCat = (catType: CategoryType) => {
-    setEditor({ type: "add-cat", catType });
+  /** Open the add-category editor. Type defaults to Expense — switchable via
+      the in-modal tab. */
+  const openAddCat = () => {
+    setEditor({ type: "add-cat", catType: "expense" });
     setName("");
     setGlyph(DEFAULT_GLYPH);
     setColor(nextCategoryColor(categories));
@@ -196,6 +197,8 @@ export function Categories({
     setDeadline("");
     setError("");
   };
+
+  useImperativeHandle(ref, () => ({ openAdd: openAddCat }));
 
   /** Open the add-subcategory editor. */
   const openAddSub = (catId: string) => {
@@ -508,9 +511,6 @@ export function Categories({
 
   useEnter(viewRef);
 
-  const liveSubTotal = activeCategories.reduce((n, c) => n + liveSubs(c).length, 0);
-  const archivedCount = archivedCategories.length + archivedLiveSubs.length;
-
   return (
     <div ref={viewRef} className="view">
       <div className="cat-toolbar" data-tour="tour-categories-toolbar">
@@ -524,39 +524,12 @@ export function Categories({
           value={filter}
           onChange={setFilter}
         />
-        <div className="cat-toolbar-actions">
-          <button
-            className="primary-btn primary-btn--expense"
-            type="button"
-            onClick={() => openAddCat("expense")}
-          >
-            <Icon name="plus" size={15} /> Expense
-          </button>
-          <button
-            className="primary-btn primary-btn--savings"
-            type="button"
-            onClick={() => openAddCat("savings")}
-          >
-            <Icon name="plus" size={15} /> Savings
-          </button>
-          <button
-            className="primary-btn primary-btn--income"
-            type="button"
-            onClick={() => openAddCat("income")}
-          >
-            <Icon name="plus" size={15} /> Income
-          </button>
-        </div>
       </div>
 
       <section className="panel">
         <div className="panel-head">
           <div>
             <h2>Your Taxonomy</h2>
-            <p className="panel-sub">
-              {activeCategories.length} categories · {liveSubTotal} subcategories
-              {archivedCount ? ` · ${archivedCount} archived` : ""}
-            </p>
           </div>
         </div>
 
@@ -601,11 +574,6 @@ export function Categories({
                       <div className="cat-block-tags">
                         {cat.builtin ? <span className="wallet-badge">Built-in</span> : null}
                         <span className="wallet-badge">{typeLabel(catType)}</span>
-                      </div>
-                      <div className="cat-block-meta">
-                        {live.length} subcategories
-                        {catType === "savings" && cat.target ? ` · goal ${cat.target}` : ""}
-                        {catType === "savings" && cat.deadline ? ` by ${cat.deadline}` : ""}
                       </div>
                     </div>
                     <div className="cat-block-actions">
@@ -662,10 +630,7 @@ export function Categories({
 
                         return (
                           <li key={sub.id} className="cat-sub-row">
-                            <div className="cat-sub-main">
-                              <span className="cat-sub-name">{sub.name}</span>
-                              <span className="cat-sub-id num">{sub.id}</span>
-                            </div>
+                            <span className="cat-sub-name">{sub.name}</span>
                             <div className="cat-sub-actions">
                               <button
                                 type="button"
@@ -854,6 +819,18 @@ export function Categories({
                 </div>
                 <div className="modal-body modal-scroll">
                   <div className="dm-sec">
+                    {editor.type === "add-cat" ? (
+                      <Segmented
+                        options={[
+                          { v: "expense", label: "Expense" },
+                          { v: "savings", label: "Savings" },
+                          { v: "income", label: "Income" },
+                        ]}
+                        value={editor.catType}
+                        onChange={(catType) => setEditor({ type: "add-cat", catType })}
+                      />
+                    ) : null}
+
                     <label className="fld-label" htmlFor="cat-name">
                       Name
                     </label>
@@ -1130,4 +1107,4 @@ export function Categories({
       ) : null}
     </div>
   );
-}
+});

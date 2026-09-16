@@ -20,6 +20,7 @@ import {
   dayLabel,
   eventCatMeta,
   eventDaysByMonth,
+  eventDaysForDay,
   eventSpanLabel,
   eventTimeLabel,
   fmtCommentTime,
@@ -56,6 +57,15 @@ const WD = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 /* EVENT_CATS always has a "custom" entry, so this is the safe default when an
  * event's own catId can't be resolved to a known category. */
 const FALLBACK_CAT_META = EVENT_CATS.find((c) => c.id === "custom")!;
+
+/** Occurrences covering each day in [startIso, endIso], earliest first per day. */
+function occurrencesInRange(events: LedgerEvent[], startIso: string, endIso: string) {
+  const out: Array<EventDay<LedgerEvent>> = [];
+  for (let iso = startIso; iso <= endIso; iso = shiftIso(iso, 1)) {
+    out.push(...eventDaysForDay(events, iso));
+  }
+  return out;
+}
 
 function normalizeLead(lead: string, allDay: boolean): string {
   const allowed = leadTimesForEvent(allDay);
@@ -215,7 +225,6 @@ function AgendaEventRow({
         </span>
         <span className="ag-sub">
           <span>{c.name}</span>
-          {spanLabel ? <span className="ag-span">{spanLabel}</span> : null}
           {ev.notify ? (
             <span className="ag-bell">
               <Icon name="bell" size={11} />
@@ -223,6 +232,7 @@ function AgendaEventRow({
             </span>
           ) : null}
         </span>
+        {spanLabel ? <span className="ag-span-row">{spanLabel}</span> : null}
       </span>
       <span className="ag-time">{eventTimeLabel(ev, day)}</span>
     </button>
@@ -278,10 +288,21 @@ export function Schedule({
     return () => clearInterval(id);
   }, []);
 
+  /* "Upcoming this Week" runs today through the end of the current
+     Monday-first week — independent of the month boundary above, since a
+     week can spill into next month while the summary cards below stay
+     scoped to the selected month. */
+  const todayDow = (new Date(TODAY_ISO + "T00:00:00").getDay() + 6) % 7; // 0=Mon..6=Sun
+  const weekEndIso = shiftIso(TODAY_ISO, 6 - todayDow);
+  const weekAgenda = useMemo(
+    () => (isCurrent ? occurrencesInRange(events, TODAY_ISO, weekEndIso) : []),
+    [events, isCurrent, weekEndIso],
+  );
+
   /** Agenda with each recurring series reduced to its next occurrence. */
   const upcoming = useMemo(
-    () => (isCurrent ? collapseRecurringToNext(agenda, now) : agenda),
-    [agenda, isCurrent, now],
+    () => (isCurrent ? collapseRecurringToNext(weekAgenda, now) : agenda),
+    [weekAgenda, agenda, isCurrent, now],
   );
 
   const upcomingByDay = useMemo(() => {
@@ -298,7 +319,13 @@ export function Schedule({
   }, [upcoming, isCurrent]);
 
   const nextRem = agenda.find((o) => o.ev.notify && o.dayIndex === 0);
-  const alertsCount = occStarts.filter((o) => o.ev.notify).length;
+  /* A day with 2+ notifying all-day events has no single "the" reminder —
+     the card lists each instead of picking one arbitrarily (alphabetical,
+     via Array.find above). */
+  const nextRemDayEvents = nextRem
+    ? agenda.filter((o) => o.iso === nextRem.iso && o.dayIndex === 0 && o.ev.allDay && o.ev.notify)
+    : [];
+  const nextRemMultiple = nextRemDayEvents.length >= 2;
 
   const defaultFocusDay =
     isCurrent && TODAY_ISO >= monthStart && TODAY_ISO <= monthEnd ? TODAY_ISO : monthStart;
@@ -328,7 +355,7 @@ export function Schedule({
   const agendaEmpty = showFullUpcoming ? upcomingByDay.length === 0 : focusedEvents.length === 0;
   const canPrevDay = !showFullUpcoming && navAnchor > monthStart;
   const canNextDay = !showFullUpcoming && navAnchor < monthEnd;
-  const upcomingTitle = isCurrent ? "Upcoming" : "Agenda";
+  const upcomingTitle = isCurrent ? "Upcoming this Week" : "Agenda";
   const viewRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   useEnter(viewRef);
@@ -336,7 +363,7 @@ export function Schedule({
 
   return (
     <div ref={viewRef} className="view">
-      <div ref={gridRef} className="summary-grid sg-3" data-tour="tour-schedule-summary">
+      <div ref={gridRef} className="summary-grid sg-2" data-tour="tour-schedule-summary">
         <SummaryCard
           label="Events this Month"
           value={String(occStarts.length)}
@@ -347,114 +374,23 @@ export function Schedule({
           tone="ok"
           value={nextRem ? dayLabel(nextRem.iso) : "—"}
           sub={
-            nextRem
-              ? `${nextRem.ev.title} · ${leadLabel(nextRem.ev.lead, nextRem.ev.allDay).toLowerCase()}`
-              : "no upcoming reminders"
+            !nextRem || nextRemMultiple
+              ? nextRem
+                ? undefined
+                : "no upcoming reminders"
+              : `${nextRem.ev.title} · ${leadLabel(nextRem.ev.lead, nextRem.ev.allDay).toLowerCase()}`
           }
-        />
-        <SummaryCard
-          label="Email Reminders"
-          value={String(alertsCount)}
-          sub="occurrences will notify you"
+          foot={
+            nextRemMultiple
+              ? nextRemDayEvents.map((o) => <div key={o.ev.id}>{o.ev.title}</div>)
+              : undefined
+          }
         />
       </div>
 
-      <section className="panel" data-tour="tour-schedule-agenda">
-        <div className="panel-head panel-head--agenda">
-          <div className="agenda-head">
-            <button
-              type="button"
-              className="agenda-nav-btn"
-              disabled={!canPrevDay}
-              onClick={() => navigateDay(-1)}
-              aria-label="Previous Day"
-            >
-              <Icon name="chevL" size={18} />
-            </button>
-            <div className="agenda-head-main">
-              <h2>{upcomingTitle}</h2>
-              <p className="panel-sub">
-                {showFullUpcoming
-                  ? `${upcoming.length} ${upcoming.length === 1 ? "event" : "events"} from ${dayLabel(TODAY_ISO)} · earliest first`
-                  : `${dayLabel(viewDay)} · ${weekdayLabel(viewDay)} · ${focusedEvents.length} ${focusedEvents.length === 1 ? "event" : "events"}`}
-              </p>
-            </div>
-            <button
-              type="button"
-              className="agenda-nav-btn"
-              disabled={!canNextDay}
-              onClick={() => navigateDay(1)}
-              aria-label="Next Day"
-            >
-              <Icon name="chevR" size={18} />
-            </button>
-          </div>
-        </div>
-        <div className={"agenda" + (agendaEmpty ? " agenda--empty" : "")}>
-          {showFullUpcoming ? (
-            upcomingByDay.length ? (
-              upcomingByDay.map(({ iso, days }) => (
-                <div key={iso} className="agenda-group">
-                  <div className="agenda-date">
-                    <span className="agenda-dnum">{new Date(iso + "T00:00:00").getDate()}</span>
-                    <span className="agenda-dwd">{weekdayLabel(iso)}</span>
-                  </div>
-                  <div className="agenda-items">
-                    {days.map((day) => (
-                      <AgendaEventRow
-                        key={`${iso}-${day.ev.id}`}
-                        day={day}
-                        currency={currency}
-                        onEditEvent={onEditEvent}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <EmptyState
-                title="No Upcoming Events"
-                sub="Nothing scheduled from today onward — add an event or pick another day on the calendar."
-              />
-            )
-          ) : focusedEvents.length ? (
-            <div className="agenda-group">
-              <div className="agenda-date">
-                <span className="agenda-dnum">{new Date(viewDay + "T00:00:00").getDate()}</span>
-                <span className="agenda-dwd">{weekdayLabel(viewDay)}</span>
-              </div>
-              <div className="agenda-items">
-                {focusedEvents.map((day) => (
-                  <AgendaEventRow
-                    key={day.ev.id}
-                    day={day}
-                    currency={currency}
-                    onEditEvent={onEditEvent}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : (
-            <EmptyState
-              title="No Events this Day"
-              sub="Add something to this date, click the day again to show all upcoming, or use the arrows to browse."
-            />
-          )}
-        </div>
-      </section>
-
       <section className="panel">
         <div className="panel-head">
-          <div>
-            <h2>{monthLabel(month, true)}</h2>
-            <p className="panel-sub">Click a day to view or add · click an event to edit</p>
-          </div>
-          <button
-            className="add-btn add-btn--top"
-            onClick={() => onAddEvent(selectedDay ?? TODAY_ISO)}
-          >
-            <Icon name="plus" size={17} /> <span className="abt-txt">New Event</span>
-          </button>
+          <h2>{monthLabel(month, true)}</h2>
         </div>
 
         <div className="cal" data-tour="tour-schedule-cal">
@@ -527,6 +463,85 @@ export function Schedule({
               );
             })}
           </div>
+        </div>
+      </section>
+
+      <section className="panel" data-tour="tour-schedule-agenda">
+        <div className="panel-head panel-head--agenda">
+          <div className="agenda-head">
+            <button
+              type="button"
+              className="agenda-nav-btn"
+              disabled={!canPrevDay}
+              onClick={() => navigateDay(-1)}
+              aria-label="Previous Day"
+            >
+              <Icon name="chevL" size={18} />
+            </button>
+            <div className="agenda-head-main">
+              <h2>{upcomingTitle}</h2>
+            </div>
+            <button
+              type="button"
+              className="agenda-nav-btn"
+              disabled={!canNextDay}
+              onClick={() => navigateDay(1)}
+              aria-label="Next Day"
+            >
+              <Icon name="chevR" size={18} />
+            </button>
+          </div>
+        </div>
+        <div className={"agenda" + (agendaEmpty ? " agenda--empty" : "")}>
+          {showFullUpcoming ? (
+            upcomingByDay.length ? (
+              upcomingByDay.map(({ iso, days }) => (
+                <div key={iso} className="agenda-group">
+                  <div className="agenda-date">
+                    <span className="agenda-dnum">{new Date(iso + "T00:00:00").getDate()}</span>
+                    <span className="agenda-dwd">{weekdayLabel(iso)}</span>
+                  </div>
+                  <div className="agenda-items">
+                    {days.map((day) => (
+                      <AgendaEventRow
+                        key={`${iso}-${day.ev.id}`}
+                        day={day}
+                        currency={currency}
+                        onEditEvent={onEditEvent}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <EmptyState
+                title="No Upcoming Events"
+                sub="Nothing scheduled this week — add an event or pick a day on the calendar."
+              />
+            )
+          ) : focusedEvents.length ? (
+            <div className="agenda-group">
+              <div className="agenda-date">
+                <span className="agenda-dnum">{new Date(viewDay + "T00:00:00").getDate()}</span>
+                <span className="agenda-dwd">{weekdayLabel(viewDay)}</span>
+              </div>
+              <div className="agenda-items">
+                {focusedEvents.map((day) => (
+                  <AgendaEventRow
+                    key={day.ev.id}
+                    day={day}
+                    currency={currency}
+                    onEditEvent={onEditEvent}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <EmptyState
+              title="No Events this Day"
+              sub="Add something to this date, click the day again to show all upcoming, or use the arrows to browse."
+            />
+          )}
         </div>
       </section>
     </div>

@@ -73,6 +73,7 @@ import type {
   LedgerEvent,
   TodoList,
   Vehicle,
+  ViewId,
 } from "@/frontend/lib/types";
 import { resolveEventDeleteAction, type DeleteScope } from "@/lib/delete-scope";
 import { DEFAULT_CATEGORIES, validateTaxonomy } from "@/schemas/category";
@@ -781,6 +782,14 @@ export function useLedger(walletAddress: string) {
   const setTourStateMutation = useMutation({
     mutationFn: (state: { tourPreference?: TourPreference; toursSeen?: string[] }) =>
       api.profile.update(state),
+    onSuccess: ({ profile }) => {
+      queryClient.setQueryData(keys.profile(wallet), profile);
+    },
+  });
+
+  /* Custom nav layout, also account-wide via the profile. */
+  const setNavPrefsMutation = useMutation({
+    mutationFn: (state: { navTabs?: ViewId[]; navOrder?: ViewId[] }) => api.profile.update(state),
     onSuccess: ({ profile }) => {
       queryClient.setQueryData(keys.profile(wallet), profile);
     },
@@ -1840,6 +1849,7 @@ export function useLedger(walletAddress: string) {
     tourPreference: profileQuery.data?.tourPreference ?? "pending",
     toursSeen: profileQuery.data?.toursSeen ?? EMPTY_TOURS_SEEN,
     setTourState: setTourStateMutation.mutateAsync,
+    setNavPrefs: setNavPrefsMutation.mutateAsync,
     setMonth: (currentMonth: string) => setMonthMutation.mutate(currentMonth),
     isMonthPending: setMonthMutation.isPending,
     setBudgets: (budgets: Budgets) => setBudgetsMutation.mutate(budgets),

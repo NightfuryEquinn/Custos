@@ -4,6 +4,7 @@ import { APP_VERSION } from "@/lib/version";
 import { TimezonePicker } from "@/frontend/components/TimezonePicker";
 import { Icon } from "@/frontend/components/ui";
 import { api } from "@/frontend/lib/api";
+import type { NavItem } from "@/frontend/lib/nav";
 import type {
   Account,
   CapitalPlan,
@@ -15,12 +16,14 @@ import type {
   LedgerEvent,
   TodoList,
   Vehicle,
+  ViewId,
 } from "@/frontend/lib/types";
 import { useEffect, useRef, useState } from "react";
 import { DataPrivacyModal } from "./components/DataPrivacyModal";
 import { ImportExportModal } from "./components/ImportExportModal";
 import { Identicon } from "./components/Identicon";
 import { CopyrightModal, TermsModal } from "./components/LegalModals";
+import { NavigationModal } from "./components/NavigationModal";
 import { PreferencesModal } from "./components/PreferencesModal";
 import { RecoveryReveal } from "./components/RecoveryReveal";
 import { SupportModal } from "./components/SupportModal";
@@ -73,6 +76,9 @@ type AccountMenuProps = {
   ) => Promise<import("./lib/restore-backup").BackupRestoreResult>;
   onTakeTour?: () => void;
   onWhatsNew?: () => void;
+  navSidebarItems: readonly NavItem[];
+  navTabItems: readonly NavItem[];
+  onSaveNavPrefs: (prefs: { navOrder: ViewId[]; navTabs: ViewId[] }) => Promise<unknown>;
 };
 
 export function AccountMenu({
@@ -95,16 +101,19 @@ export function AccountMenu({
   onRestoreBackup,
   onTakeTour,
   onWhatsNew,
+  navSidebarItems,
+  navTabItems,
+  onSaveNavPrefs,
 }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const [reveal, setReveal] = useState(false);
   const [dataOpen, setDataOpen] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
   const [csvOpen, setCsvOpen] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
   const [copyrightOpen, setCopyrightOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
-  const [supporterSince, setSupporterSince] = useState<string | undefined>(undefined);
   const [copied, setCopied] = useState(false);
   const [timezone, setTimezone] = useState(() => browserTimezone());
   const [timezoneSaved, setTimezoneSaved] = useState(false);
@@ -120,7 +129,6 @@ export function AccountMenu({
     api.users
       .me()
       .then(({ user }) => {
-        setSupporterSince(user.supporterSince);
         if (user.timezone) {
           setTimezone(user.timezone);
           setTimezoneSaved(true);
@@ -180,7 +188,6 @@ export function AccountMenu({
       >
         <Identicon address={account.address} size={28} radius={9} />
         <span className="acct-name">{account.codename}</span>
-        {supporterSince ? <span className="am-badge">Supporter</span> : null}
         <Icon name="chevD" size={15} />
       </button>
       {open ? (
@@ -188,10 +195,7 @@ export function AccountMenu({
           <div className="am-head">
             <Identicon address={account.address} size={40} />
             <div>
-              <div className="am-name">
-                {account.codename}
-                {supporterSince ? <span className="am-badge">Supporter</span> : null}
-              </div>
+              <div className="am-name">{account.codename}</div>
               <div className="am-addr num">{shortAddr(account.address)}</div>
             </div>
           </div>
@@ -242,6 +246,16 @@ export function AccountMenu({
             }}
           >
             <Icon name="bell" size={16} /> Preferences
+          </button>
+          <button
+            className="am-item"
+            type="button"
+            onClick={() => {
+              setNavOpen(true);
+              setOpen(false);
+            }}
+          >
+            <Icon name="list" size={16} /> Navigation
           </button>
           <button
             className="am-item"
@@ -379,6 +393,14 @@ export function AccountMenu({
       ) : null}
       {prefsOpen ? (
         <PreferencesModal account={account} onClose={() => setPrefsOpen(false)} />
+      ) : null}
+      {navOpen ? (
+        <NavigationModal
+          sidebarItems={navSidebarItems}
+          tabItems={navTabItems}
+          onSave={onSaveNavPrefs}
+          onClose={() => setNavOpen(false)}
+        />
       ) : null}
       {termsOpen ? <TermsModal onClose={() => setTermsOpen(false)} /> : null}
       {copyrightOpen ? <CopyrightModal onClose={() => setCopyrightOpen(false)} /> : null}

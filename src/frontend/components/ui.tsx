@@ -15,7 +15,6 @@ import {
   monthLabel,
   monthRangeBounds,
   pad,
-  weekdayLabel,
 } from "@/frontend/lib/data";
 import type { Insight } from "@/frontend/lib/insights/types";
 import {
@@ -76,6 +75,7 @@ import type {
   ViewId,
 } from "@/frontend/lib/types";
 import { displayGlyph } from "@/lib/glyphs";
+import type { NavItem } from "@/frontend/lib/nav";
 import type { DeleteScope } from "@/lib/delete-scope";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -372,41 +372,16 @@ function CatGlyph({ glyph, id }: { glyph?: string; id?: string }) {
   );
 }
 
-/** One entry per view: [id, label, icon]. Shared by Sidebar; mobile uses TAB_BAR_ITEMS + MORE_NAV_ITEMS. */
-export const NAV_ITEMS = [
-  ["overview", "Overview", "overview"],
-  ["todos", "TO-DO List", "checklist"],
-  ["schedule", "Schedule", "calendar"],
-  ["transactions", "Transactions", "list"],
-  ["budgets", "Budgets", "budget"],
-  ["recurring", "Recurring", "recurring"],
-  ["vehicles", "Vehicles", "car"],
-  ["categories", "Categories", "tags"],
-  ["piggies", "Piggies", "piggy"],
-  ["capitals", "Capitals", "capital"],
-  ["calculator", "Calculator", "calculator"],
-  ["insights", "Insights", "insights"],
-  ["transparency", "Transparency", "database"],
-] as const;
-
-/** Primary mobile tab bar entries (the rest live in the More sheet). */
-export const TAB_BAR_ITEMS = [
-  ["overview", "Overview", "overview"],
-  ["schedule", "Schedule", "calendar"],
-  ["transactions", "Transactions", "list"],
-  ["todos", "To-Do", "checklist"],
-] as const satisfies ReadonlyArray<readonly [ViewId, string, string]>;
-
-const TAB_BAR_IDS = new Set<ViewId>(TAB_BAR_ITEMS.map(([id]) => id));
-
-/** Views reachable from the mobile More sheet. */
-export const MORE_NAV_ITEMS = NAV_ITEMS.filter(([id]) => !TAB_BAR_IDS.has(id));
-
-const MORE_VIEW_IDS = new Set<ViewId>(MORE_NAV_ITEMS.map(([id]) => id));
-
 // ── Sidebar (desktop navigation) ────────────────────────────────────
-function Sidebar({ view, setView }: { view: ViewId; setView: (id: ViewId) => void }) {
-  const items = NAV_ITEMS;
+function Sidebar({
+  view,
+  setView,
+  items,
+}: {
+  view: ViewId;
+  setView: (id: ViewId) => void;
+  items: readonly NavItem[];
+}) {
   return (
     <aside className="sidebar">
       <Brand variant="sidebar" />
@@ -428,11 +403,21 @@ function Sidebar({ view, setView }: { view: ViewId; setView: (id: ViewId) => voi
 }
 
 /** Mobile tab bar (5 slots) plus a bottom sheet for the remaining views. */
-function MobileBottomNav({ view, setView }: { view: ViewId; setView: (id: ViewId) => void }) {
+function MobileBottomNav({
+  view,
+  setView,
+  tabItems,
+  moreItems,
+}: {
+  view: ViewId;
+  setView: (id: ViewId) => void;
+  tabItems: readonly NavItem[];
+  moreItems: readonly NavItem[];
+}) {
   const [moreOpen, setMoreOpen] = useState(false);
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const moreActive = MORE_VIEW_IDS.has(view);
+  const moreActive = useMemo(() => moreItems.some(([id]) => id === view), [moreItems, view]);
   const { requestClose } = useModalMotion(scrimRef, panelRef, {
     variant: "sheet",
     active: moreOpen,
@@ -496,7 +481,7 @@ function MobileBottomNav({ view, setView }: { view: ViewId; setView: (id: ViewId
               </button>
             </div>
             <div className="nav-more-grid">
-              {MORE_NAV_ITEMS.map(([id, label, icon]) => (
+              {moreItems.map(([id, label, icon]) => (
                 <button
                   key={id}
                   type="button"
@@ -518,7 +503,7 @@ function MobileBottomNav({ view, setView }: { view: ViewId; setView: (id: ViewId
   return (
     <>
       <nav className="bottom-nav" aria-label="Main navigation">
-        {TAB_BAR_ITEMS.map(([id, label, icon]) => (
+        {tabItems.map(([id, label, icon, shortLabel]) => (
           <button
             key={id}
             type="button"
@@ -532,7 +517,7 @@ function MobileBottomNav({ view, setView }: { view: ViewId; setView: (id: ViewId
             aria-current={view === id ? "page" : undefined}
           >
             <Icon name={icon} size={21} />
-            <span className="bn-label">{label}</span>
+            <span className="bn-label">{shortLabel ?? label}</span>
           </button>
         ))}
         <button
@@ -824,10 +809,6 @@ function TransactionRow({
 
   return (
     <div className="txn">
-      <div className="txn-date">
-        <div className="txn-day">{new Date(exp.date + "T00:00:00").getDate()}</div>
-        <div className="txn-wd">{weekdayLabel(exp.date)}</div>
-      </div>
       <div className="txn-glyph" style={glyphTint(cat.color)}>
         {displayGlyph(cat.glyph, cat.id)}
       </div>

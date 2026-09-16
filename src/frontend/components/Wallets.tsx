@@ -245,7 +245,7 @@ export function WalletManageModal({ wallets, onSave, onDelete, onClose }: Wallet
                   onChange={setFundingMode}
                 />
               </div>
-              <p className="dm-note dm-note--pull dm-note--gap">
+              <p className="dm-note dm-note--pull">
                 {fundingMode === "monthly"
                   ? "Set a monthly income budget. Add salary, wages, and bonuses as income transactions."
                   : "Set how much money this wallet started with. Track top-ups as income transactions."}

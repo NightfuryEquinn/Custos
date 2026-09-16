@@ -43,12 +43,10 @@ async function patchProfile(cookie: string, body: unknown) {
 }
 
 /*
- * The server does not check supporterSince before accepting an accent write
- * (see the ponytail comment in schemas/profile.ts) — a non-supporter who
- * forges this gets a different shade of brown, nothing more. These tests
- * cover the schema guard, not an entitlement check.
+ * Accent color is free for every account — no entitlement to check. These
+ * tests cover the schema guard (known accent names only), not a perk gate.
  */
-describe("profile records the Supporter accent perk", () => {
+describe("profile records the accent color pick", () => {
   let memory: MemoryDb;
 
   beforeAll(() => {

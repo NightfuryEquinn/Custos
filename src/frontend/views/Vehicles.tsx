@@ -1,13 +1,7 @@
 import { DatePicker } from "@/frontend/components/DateTimePicker";
-import {
-  ConfirmDialog,
-  EmptyState,
-  Icon,
-  InsightFeed,
-  SummaryCard,
-} from "@/frontend/components/ui";
-import { dayLabel, fmtMoney, roundMoney } from "@/frontend/lib/data";
-import { useEnter, useModalMotion, useStagger } from "@/frontend/lib/animate";
+import { ConfirmDialog, EmptyState, Icon, InsightFeed } from "@/frontend/components/ui";
+import { dayLabel, fmtMoney } from "@/frontend/lib/data";
+import { useEnter, useModalMotion } from "@/frontend/lib/animate";
 import {
   assessVehicleFuel,
   computeFuelInsights,
@@ -15,7 +9,15 @@ import {
   VEHICLE_TYPES,
 } from "@/frontend/lib/fuelInsights";
 import type { FuelFill, Vehicle, VehicleType } from "@/frontend/lib/types";
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 
 /*
@@ -30,7 +32,6 @@ import { createPortal } from "react-dom";
 type VehiclesProps = {
   vehicles: Vehicle[];
   fills: FuelFill[];
-  fillsLoading: boolean;
   currency: string;
   onSaveVehicle: (data: Omit<Vehicle, "id" | "createdAt"> & { id?: string }) => Promise<Vehicle>;
   onDeleteVehicle: (id: string) => Promise<unknown>;
@@ -39,6 +40,13 @@ type VehiclesProps = {
   onLogFill: (vehicle: Vehicle, fill: FuelFill) => void;
   /** Expense ids that still exist, so a fill whose payment was deleted can be re-logged. */
   linkedExpenseIds: Set<string>;
+};
+
+/** Imperative handle so the shell's quick-add FAB can switch the active vehicle. */
+export type VehiclesHandle = {
+  select: (id: string) => void;
+  openAddFillFor: (id: string) => void;
+  openAddFillForSelected: () => void;
 };
 
 type EditorMode =
@@ -50,18 +58,20 @@ type EditorMode =
 
 const VEHICLE_TYPE_LIST: VehicleType[] = ["car", "ev", "bike", "van"];
 
-export function Vehicles({
-  vehicles,
-  fills,
-  fillsLoading,
-  currency,
-  onSaveVehicle,
-  onDeleteVehicle,
-  onSaveFill,
-  onDeleteFill,
-  onLogFill,
-  linkedExpenseIds,
-}: VehiclesProps) {
+export const Vehicles = forwardRef<VehiclesHandle, VehiclesProps>(function Vehicles(
+  {
+    vehicles,
+    fills,
+    currency,
+    onSaveVehicle,
+    onDeleteVehicle,
+    onSaveFill,
+    onDeleteFill,
+    onLogFill,
+    linkedExpenseIds,
+  },
+  ref,
+) {
   const [vehicleList, setVehicleList] = useState(vehicles);
   const [fillList, setFillList] = useState(fills);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -136,15 +146,6 @@ export function Vehicles({
       money,
     });
   }, [assessment, selectedMeta, selectedVehicle, money]);
-
-  const totalSpend = useMemo(
-    () => roundMoney(fillList.reduce((s, f) => s + f.price, 0)),
-    [fillList],
-  );
-  const lastFill = useMemo(
-    () => [...fillList].sort((a, b) => (a.date < b.date ? 1 : -1))[0] ?? null,
-    [fillList],
-  );
 
   const persistVehicle = async (data: Omit<Vehicle, "id" | "createdAt"> & { id?: string }) => {
     setBusy(true);
@@ -256,6 +257,17 @@ export function Vehicles({
     setError("");
   };
 
+  useImperativeHandle(ref, () => ({
+    select: setSelectedId,
+    openAddFillFor: (id: string) => {
+      setSelectedId(id);
+      openAddFill(id);
+    },
+    openAddFillForSelected: () => {
+      if (selectedVehicle) openAddFill(selectedVehicle.id);
+    },
+  }));
+
   const openEditFill = (fill: FuelFill) => {
     setEditor({ type: "edit-fill", fillId: fill.id });
     setFillDate(fill.date);
@@ -315,9 +327,7 @@ export function Vehicles({
     }
   };
   const viewRef = useRef<HTMLDivElement>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
   useEnter(viewRef);
-  useStagger(gridRef, ".summary-card");
 
   if (!vehicleList.length && !editor) {
     return (
@@ -581,25 +591,6 @@ export function Vehicles({
 
   return (
     <div ref={viewRef} className="view">
-      <div ref={gridRef} className="summary-grid sg-4" data-tour="tour-vehicles-summary">
-        <SummaryCard label="Vehicles" value={String(vehicleList.length)} />
-        <SummaryCard label="Total Spend" value={money(totalSpend)} sub="across all vehicles" />
-        <SummaryCard
-          label="Cost / km"
-          value={
-            assessment.status === "ready" && assessment.metrics.costPerKm != null
-              ? money(assessment.metrics.costPerKm)
-              : "—"
-          }
-          sub={selectedVehicle ? selectedVehicle.name : ""}
-        />
-        <SummaryCard
-          label="Last Logged"
-          value={lastFill ? dayLabel(lastFill.date) : "—"}
-          sub={fillsLoading ? "loading…" : ""}
-        />
-      </div>
-
       <div className="todo-toolbar" data-tour="tour-vehicles-toolbar">
         <button className="primary-btn" type="button" onClick={openAddVehicle}>
           <Icon name="plus" size={15} /> Add Vehicle
@@ -607,6 +598,52 @@ export function Vehicles({
       </div>
 
       {error ? <p className="auth-error">{error}</p> : null}
+
+      {selectedVehicle ? (
+        <section className="panel vehicles-fuel-insights" data-tour="tour-vehicles-insights">
+          <div className="panel-head">
+            <h2>Fuel Insights</h2>
+            <p className="panel-sub">
+              {selectedMeta.mode === "power"
+                ? "Charging behaviour and cost, generated from this vehicle's history."
+                : "Fuel behaviour and cost, generated from this vehicle's history."}
+            </p>
+          </div>
+          {assessment.status === "insufficient" ? (
+            <div className="profile-locked">
+              <div className="profile-locked-mark" aria-hidden="true">
+                ◌
+              </div>
+              <div className="profile-locked-copy">
+                <p className="profile-locked-title">
+                  Insights unlock after {FUEL_MIN_FILLS} {selectedMeta.fillNoun}s
+                </p>
+                <p className="profile-locked-sub">
+                  {assessment.fillsHave} of {assessment.fillsNeeded} logged so far.
+                </p>
+              </div>
+              <div
+                className="profile-progress"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={assessment.fillsNeeded}
+                aria-valuenow={assessment.fillsHave}
+                aria-label={`${selectedMeta.label} Fuel Insights Unlock Progress`}
+              >
+                <div
+                  className="profile-progress-fill"
+                  style={{ width: `${(assessment.fillsHave / assessment.fillsNeeded) * 100}%` }}
+                />
+              </div>
+            </div>
+          ) : (
+            <InsightFeed
+              insights={insights}
+              emptyLabel="Nothing stands out for this vehicle right now."
+            />
+          )}
+        </section>
+      ) : null}
 
       <div className="capital-grid" data-tour="tour-vehicles-grid">
         {vehicleList.map((vehicle) => {
@@ -671,118 +708,62 @@ export function Vehicles({
                   </div>
                 )}
               </div>
-              <button
-                type="button"
-                className="ghost-btn full capital-add-item-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openAddFill(vehicle.id);
-                }}
-              >
-                <Icon name="plus" size={14} /> {meta.fillVerb}
-              </button>
             </div>
           );
         })}
       </div>
 
       {selectedVehicle ? (
-        <>
-          <section className="panel" data-tour="tour-vehicles-log">
-            <div className="panel-head">
-              <h2>
-                {selectedVehicle.name} —{" "}
-                {selectedMeta.fillNoun[0]!.toUpperCase() + selectedMeta.fillNoun.slice(1)} Log
-              </h2>
-            </div>
-            {selectedFills.length ? (
-              <div className="capital-item-list">
-                {selectedFills.map((fill) => (
-                  <div key={fill.id} className="capital-item-row">
-                    <span className="capital-item-name">
-                      {dayLabel(fill.date)} — {fill.quantity.toFixed(1)} {selectedMeta.unit}
-                      {fill.partial ? " (partial)" : ""}
-                      {fill.odometer != null ? ` · ${fill.odometer.toLocaleString()} km` : ""}
-                      {fill.station ? ` · ${fill.station}` : ""}
-                    </span>
+        <section className="panel" data-tour="tour-vehicles-log">
+          <div className="panel-head">
+            <h2>
+              {selectedVehicle.name} —{" "}
+              {selectedMeta.fillNoun[0]!.toUpperCase() + selectedMeta.fillNoun.slice(1)} Log
+            </h2>
+          </div>
+          {selectedFills.length ? (
+            <div className="capital-item-list">
+              {selectedFills.map((fill) => (
+                <div key={fill.id} className="capital-item-row">
+                  <span className="capital-item-name">
+                    {dayLabel(fill.date)} — {fill.quantity.toFixed(1)} {selectedMeta.unit}
+                    {fill.partial ? " (partial)" : ""}
+                    {fill.odometer != null ? ` · ${fill.odometer.toLocaleString()} km` : ""}
+                    {fill.station ? ` · ${fill.station}` : ""}
+                  </span>
+                  <button
+                    type="button"
+                    className="capital-item-cost"
+                    disabled={busy}
+                    onClick={() => openEditFill(fill)}
+                  >
+                    {money(fill.price)}
+                  </button>
+                  {!fill.expenseId || !linkedExpenseIds.has(fill.expenseId) ? (
                     <button
                       type="button"
-                      className="capital-item-cost"
-                      disabled={busy}
-                      onClick={() => openEditFill(fill)}
+                      className="ghost-btn sm"
+                      onClick={() => onLogFill(selectedVehicle, fill)}
                     >
-                      {money(fill.price)}
+                      Log
                     </button>
-                    {!fill.expenseId || !linkedExpenseIds.has(fill.expenseId) ? (
-                      <button
-                        type="button"
-                        className="ghost-btn sm"
-                        onClick={() => onLogFill(selectedVehicle, fill)}
-                      >
-                        Log
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="capital-item-remove"
-                      disabled={busy || removingFillId === fill.id}
-                      onClick={() => setConfirmDelete({ type: "fill", id: fill.id })}
-                      aria-label={removingFillId === fill.id ? "Removing…" : "Remove fill"}
-                    >
-                      <Icon name="close" size={13} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="panel-sub">No {selectedMeta.fillNoun}s logged yet.</p>
-            )}
-          </section>
-
-          <section className="panel vehicles-fuel-insights" data-tour="tour-vehicles-insights">
-            <div className="panel-head">
-              <h2>Fuel Insights</h2>
-              <p className="panel-sub">
-                {selectedMeta.mode === "power"
-                  ? "Charging behaviour and cost, generated from this vehicle's history."
-                  : "Fuel behaviour and cost, generated from this vehicle's history."}
-              </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="capital-item-remove"
+                    disabled={busy || removingFillId === fill.id}
+                    onClick={() => setConfirmDelete({ type: "fill", id: fill.id })}
+                    aria-label={removingFillId === fill.id ? "Removing…" : "Remove fill"}
+                  >
+                    <Icon name="close" size={13} />
+                  </button>
+                </div>
+              ))}
             </div>
-            {assessment.status === "insufficient" ? (
-              <div className="profile-locked">
-                <div className="profile-locked-mark" aria-hidden="true">
-                  ◌
-                </div>
-                <div className="profile-locked-copy">
-                  <p className="profile-locked-title">
-                    Insights unlock after {FUEL_MIN_FILLS} {selectedMeta.fillNoun}s
-                  </p>
-                  <p className="profile-locked-sub">
-                    {assessment.fillsHave} of {assessment.fillsNeeded} logged so far.
-                  </p>
-                </div>
-                <div
-                  className="profile-progress"
-                  role="progressbar"
-                  aria-valuemin={0}
-                  aria-valuemax={assessment.fillsNeeded}
-                  aria-valuenow={assessment.fillsHave}
-                  aria-label={`${selectedMeta.label} Fuel Insights Unlock Progress`}
-                >
-                  <div
-                    className="profile-progress-fill"
-                    style={{ width: `${(assessment.fillsHave / assessment.fillsNeeded) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ) : (
-              <InsightFeed
-                insights={insights}
-                emptyLabel="Nothing stands out for this vehicle right now."
-              />
-            )}
-          </section>
-        </>
+          ) : (
+            <p className="panel-sub">No {selectedMeta.fillNoun}s logged yet.</p>
+          )}
+        </section>
       ) : null}
 
       {renderEditor()}
@@ -812,4 +793,4 @@ export function Vehicles({
       ) : null}
     </div>
   );
-}
+});
