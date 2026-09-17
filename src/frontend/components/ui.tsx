@@ -1143,6 +1143,12 @@ function AddExpenseModal({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const busy = saving || deleting;
+  /* `saving` state alone isn't enough — two clicks landing in the same task
+     (a touch device's synthesized click racing the real one, or a fast
+     double-tap) can both read `busy === false` before React commits the
+     first `setSaving(true)`, minting two `clientObjectId()`s and queuing two
+     creates. A ref flips synchronously, so the second call always sees it. */
+  const savingRef = useRef(false);
   const selectedWallet = wallets.find((w) => w.id === walletId) ?? wallets[0];
   const cur = getCurrency(selectedWallet?.currency);
   const visibleCategories = kind === "income" ? incomeCategories : expenseCategories;
@@ -1186,7 +1192,8 @@ function AddExpenseModal({
   const overMax = maxAmount != null && amountEvaluated != null && amountEvaluated > maxAmount;
   const valid = amountEvaluated != null && amountEvaluated > 0 && date && !overMax;
   const submit = async () => {
-    if (!valid || !walletId || busy) return;
+    if (!valid || !walletId || busy || savingRef.current) return;
+    savingRef.current = true;
     const payload: ExpenseDraft = {
       id: initial?.id,
       walletId,
@@ -1206,6 +1213,7 @@ function AddExpenseModal({
     try {
       await onSave(payload);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };

@@ -78,6 +78,10 @@ export const Vehicles = forwardRef<VehiclesHandle, VehiclesProps>(function Vehic
   const [editor, setEditor] = useState<EditorMode>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  /* `busy` state can't stop two clicks landing in the same task from both
+     calling persistVehicle/persistFill before either's setBusy(true)
+     commits — a ref flips synchronously, so the second call always sees it. */
+  const persistingRef = useRef(false);
   const [removingFillId, setRemovingFillId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<
     { type: "vehicle"; id: string } | { type: "fill"; id: string } | null
@@ -148,6 +152,8 @@ export const Vehicles = forwardRef<VehiclesHandle, VehiclesProps>(function Vehic
   }, [assessment, selectedMeta, selectedVehicle, money]);
 
   const persistVehicle = async (data: Omit<Vehicle, "id" | "createdAt"> & { id?: string }) => {
+    if (persistingRef.current) return undefined;
+    persistingRef.current = true;
     setBusy(true);
     setError("");
     try {
@@ -160,11 +166,14 @@ export const Vehicles = forwardRef<VehiclesHandle, VehiclesProps>(function Vehic
       setError(err instanceof Error ? err.message : "Could not save vehicle");
       throw err;
     } finally {
+      persistingRef.current = false;
       setBusy(false);
     }
   };
 
   const persistFill = async (data: Omit<FuelFill, "id"> & { id?: string }) => {
+    if (persistingRef.current) return undefined;
+    persistingRef.current = true;
     setBusy(true);
     setError("");
     try {
@@ -177,6 +186,7 @@ export const Vehicles = forwardRef<VehiclesHandle, VehiclesProps>(function Vehic
       setError(err instanceof Error ? err.message : "Could not save fill");
       throw err;
     } finally {
+      persistingRef.current = false;
       setBusy(false);
     }
   };

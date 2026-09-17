@@ -18,12 +18,19 @@ export async function ensureIndexes(db: Db): Promise<void> {
   await Promise.all([
     db.collection(COLLECTIONS.users).createIndex({ address: 1 }, { unique: true }),
     db.collection(COLLECTIONS.ledgerProfiles).createIndex({ accountId: 1 }, { unique: true }),
-    db
-      .collection(COLLECTIONS.financialWallets)
-      .createIndex(
-        { accountId: 1, isDefault: 1 },
-        { partialFilterExpression: { isDefault: true } },
-      ),
+    /* unique: two racing check-then-act inserts (migrateLegacyData in
+       routes/wallets.ts, or a queue drain landing at the same moment as a
+       page load) both seeing zero wallets previously produced two rows both
+       flagged isDefault — this constrains it to one per account. If the
+       database already holds duplicates, this index build fails — dedupe
+       them (keep one wallet flagged isDefault per account) before deploying. */
+    db.collection(COLLECTIONS.financialWallets).createIndex(
+      { accountId: 1, isDefault: 1 },
+      {
+        unique: true,
+        partialFilterExpression: { isDefault: true },
+      },
+    ),
     db.collection(COLLECTIONS.categoryTaxonomies).createIndex({ accountId: 1 }, { unique: true }),
     db.collection(COLLECTIONS.expenses).createIndex({ accountId: 1, walletId: 1, date: -1 }),
     db.collection(COLLECTIONS.expenses).createIndex({ accountId: 1, date: -1 }),
@@ -37,22 +44,38 @@ export async function ensureIndexes(db: Db): Promise<void> {
         partialFilterExpression: { capitalPlanId: { $exists: true } },
       },
     ),
-    /* Lookup for cron materialization dedupe (legacy plaintext series). */
+    /* Dedupe for cron materialization (legacy plaintext series). unique: the
+       cron lock in recurring-expenses.ts stops two runs from overlapping in
+       this process, but this is the backstop against any other path (a
+       second deploy region, a manual trigger racing the schedule) inserting
+       the same occurrence twice. If the database already holds duplicate
+       occurrences, this index build fails — dedupe them (keep one row per
+       series+date) before deploying.
+       `enc: {$ne: 1}` matters here, not just documentation: an encrypted
+       document carries neither `sub` nor `note`, so without excluding it
+       this index would also cover encrypted docs and — since two unrelated
+       encrypted series on the same wallet+date both index as
+       `sub:null, note:null` — collide two legitimate different series into
+       one unique key. Encrypted docs are deduped by the seriesKey index below
+       instead. */
     db.collection(COLLECTIONS.expenses).createIndex(
       { accountId: 1, walletId: 1, sub: 1, note: 1, recurring: 1, date: 1 },
       {
         name: "recurring_occurrence_lookup",
+        unique: true,
         partialFilterExpression: {
           recurring: { $in: [true, "monthly", "quarterly", "yearly"] },
           walletId: { $exists: true },
+          enc: { $ne: 1 },
         },
       },
     ),
-    /* Lookup for encrypted recurring series dedupe. */
+    /* Dedupe for encrypted recurring series — see the plaintext index above. */
     db.collection(COLLECTIONS.expenses).createIndex(
       { accountId: 1, walletId: 1, seriesKey: 1, recurring: 1, date: 1 },
       {
         name: "recurring_encrypted_occurrence_lookup",
+        unique: true,
         partialFilterExpression: {
           enc: 1,
           recurring: { $in: [true, "monthly", "quarterly", "yearly"] },

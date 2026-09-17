@@ -51,6 +51,10 @@ export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(fu
     { type: "list"; id: string } | { type: "task"; listId: string; taskId: string } | null
   >(null);
   const taskSaveRef = useRef(false);
+  /* Same shape as taskSaveRef — `busy` state can't stop two clicks landing
+     in the same task from both calling persistList before either's
+     setBusy(true) commits. */
+  const persistListRef = useRef(false);
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const { requestClose } = useModalMotion(scrimRef, panelRef, {
@@ -72,6 +76,8 @@ export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(fu
   const persistList = async (
     data: Partial<TodoList> & { id?: string; name?: string; icon?: string },
   ) => {
+    if (persistListRef.current) return undefined;
+    persistListRef.current = true;
     setBusy(true);
     setError("");
     try {
@@ -87,6 +93,7 @@ export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(fu
       setError(err instanceof Error ? err.message : "Could not save list");
       throw err;
     } finally {
+      persistListRef.current = false;
       setBusy(false);
     }
   };
