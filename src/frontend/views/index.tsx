@@ -312,10 +312,12 @@ export function Overview({
             />
             <div className="donut-center">
               <div className="dc-label">
-                {activeCat ? (categoryIndex.catById[activeCat]?.name ?? "Total") : "Total"}
+                {activeCat
+                  ? (categoryIndex.catById[activeCat]?.name ?? "Total (RM)")
+                  : "Total (RM)"}
               </div>
               <div className="dc-value">
-                {fmtMoney(activeCat ? st.byCat[activeCat] || 0 : totalAll, { currency })}
+                {activeCat ? (st.byCat[activeCat]?.toFixed(2) ?? "0.00") : totalAll.toFixed(2)}
               </div>
             </div>
           </div>

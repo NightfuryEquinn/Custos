@@ -3049,7 +3049,7 @@ textarea::placeholder {
 .dc-value {
   font-family: var(--font-num);
   font-weight: 600;
-  font-size: 16px;
+  font-size: 14px;
   letter-spacing: -0.15px;
   margin-top: 2px;
   max-width: 100%;
