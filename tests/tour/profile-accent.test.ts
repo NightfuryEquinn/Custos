@@ -1,69 +1,24 @@
 import { createApiApp } from "@/api/app";
-import { SESSION_COOKIE } from "@/api/lib/auth";
-import { resetRateLimitsForTests } from "@/api/middleware/rate-limit";
-import { Wallet } from "ethers";
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { installMemoryDb, uninstallMemoryDb, type MemoryDb } from "../helpers/memory-db";
+import { describe, expect, test } from "bun:test";
+import { patchProfile as patchProfileRaw, signIn } from "../helpers/api-client";
+import { useMemoryDb } from "../helpers/memory-db";
 
 const app = createApiApp();
 
 type ProfileBody = { profile: { accent?: string } };
 
-/** Sign in a fresh wallet and return its session cookie header value. */
-async function signIn(): Promise<string> {
-  const wallet = Wallet.createRandom();
-
-  const challengeRes = await app.request("/api/auth/challenge", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ address: wallet.address }),
-  });
-  const challenge = (await challengeRes.json()) as { message: string };
-  const signature = await wallet.signMessage(challenge.message);
-
-  const verifyRes = await app.request("/api/auth/verify", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ address: wallet.address, message: challenge.message, signature }),
-  });
-  const setCookie = verifyRes.headers.get("set-cookie") || "";
-  const match = setCookie.match(new RegExp(`${SESSION_COOKIE}=([^;]+)`));
-
-  return `${SESSION_COOKIE}=${match![1]!}`;
-}
-
-async function patchProfile(cookie: string, body: unknown) {
-  const res = await app.request("/api/profile", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", cookie },
-    body: JSON.stringify(body),
-  });
-
-  return { status: res.status, json: (await res.json()) as ProfileBody };
-}
+const patchProfile = (cookie: string, body: unknown) =>
+  patchProfileRaw<ProfileBody>(app, cookie, body);
 
 /*
  * Accent color is free for every account — no entitlement to check. These
  * tests cover the schema guard (known accent names only), not a perk gate.
  */
 describe("profile records the accent color pick", () => {
-  let memory: MemoryDb;
-
-  beforeAll(() => {
-    memory = installMemoryDb();
-  });
-
-  afterAll(() => {
-    uninstallMemoryDb();
-  });
-
-  beforeEach(() => {
-    memory._reset();
-    resetRateLimitsForTests();
-  });
+  useMemoryDb();
 
   test("a fresh profile has no accent set", async () => {
-    const cookie = await signIn();
+    const cookie = await signIn(app);
 
     const res = await app.request("/api/profile", { headers: { cookie } });
     const { profile } = (await res.json()) as ProfileBody;
@@ -72,7 +27,7 @@ describe("profile records the accent color pick", () => {
   });
 
   test("PATCH accepts and persists a known accent name", async () => {
-    const cookie = await signIn();
+    const cookie = await signIn(app);
 
     const saved = await patchProfile(cookie, { accent: "moss" });
     expect(saved.status).toBe(200);
@@ -84,7 +39,7 @@ describe("profile records the accent color pick", () => {
   });
 
   test("an unknown accent name is rejected", async () => {
-    const cookie = await signIn();
+    const cookie = await signIn(app);
 
     const { status } = await patchProfile(cookie, { accent: "chartreuse" });
 

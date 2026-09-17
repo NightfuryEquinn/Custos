@@ -1,30 +1,9 @@
 import { createApiApp } from "@/api/app";
-import { SESSION_COOKIE } from "@/api/lib/auth";
-import { resetRateLimitsForTests } from "@/api/middleware/rate-limit";
-import { Wallet } from "ethers";
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { installMemoryDb, uninstallMemoryDb, type MemoryDb } from "../helpers/memory-db";
+import { beforeEach, describe, expect, test } from "bun:test";
+import { signIn } from "../helpers/api-client";
+import { useMemoryDb } from "../helpers/memory-db";
 
 const app = createApiApp();
-
-async function signIn(): Promise<string> {
-  const wallet = Wallet.createRandom();
-  const challengeRes = await app.request("/api/auth/challenge", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ address: wallet.address }),
-  });
-  const challenge = (await challengeRes.json()) as { message: string };
-  const signature = await wallet.signMessage(challenge.message);
-  const verifyRes = await app.request("/api/auth/verify", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ address: wallet.address, message: challenge.message, signature }),
-  });
-  const setCookie = verifyRes.headers.get("set-cookie") || "";
-  const match = setCookie.match(new RegExp(`${SESSION_COOKIE}=([^;]+)`));
-  return `${SESSION_COOKIE}=${match![1]!}`;
-}
 
 /**
  * A queued offline DELETE that lands twice (the client never saw the first
@@ -33,21 +12,11 @@ async function signIn(): Promise<string> {
  * "404 on a repeat DELETE means it already succeeded" contract.
  */
 describe("DELETE /expenses/:id replay", () => {
-  let memoryDb: MemoryDb;
+  useMemoryDb();
   let cookie = "";
 
-  beforeAll(() => {
-    memoryDb = installMemoryDb();
-  });
-
-  afterAll(() => {
-    uninstallMemoryDb();
-  });
-
   beforeEach(async () => {
-    resetRateLimitsForTests();
-    memoryDb._reset();
-    cookie = await signIn();
+    cookie = await signIn(app);
   });
 
   test("a second delete on an already-deleted expense returns 404, not an error", async () => {

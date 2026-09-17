@@ -39,12 +39,13 @@ function waitForElement(selector: string, timeout = 2500): Promise<Element | nul
     const observer = new MutationObserver(() => {
       const el = document.querySelector(selector);
       if (el) {
+        clearTimeout(fallback);
         observer.disconnect();
         resolve(el);
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });
-    window.setTimeout(() => {
+    const fallback = window.setTimeout(() => {
       observer.disconnect();
       resolve(document.querySelector(selector));
     }, timeout);

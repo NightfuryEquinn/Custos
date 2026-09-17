@@ -1,11 +1,10 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { createApiApp } from "@/api/app";
 import { SESSION_COOKIE, SESSION_MAX_LIFETIME_MS, hashToken } from "@/api/lib/auth";
-import { resetRateLimitsForTests } from "@/api/middleware/rate-limit";
 import { getCollections } from "@/db";
 import { Wallet, type HDNodeWallet } from "ethers";
 import { ObjectId, type Db } from "mongodb";
-import { installMemoryDb, uninstallMemoryDb, type MemoryDb } from "../helpers/memory-db";
+import { useMemoryDb } from "../helpers/memory-db";
 
 const app = createApiApp();
 
@@ -46,20 +45,7 @@ async function challengeAndVerify(wallet: HDNodeWallet, userAgent?: string) {
 }
 
 describe("auth session routes", () => {
-  let memory: MemoryDb;
-
-  beforeAll(() => {
-    memory = installMemoryDb();
-  });
-
-  afterAll(() => {
-    uninstallMemoryDb();
-  });
-
-  beforeEach(() => {
-    memory._reset();
-    resetRateLimitsForTests();
-  });
+  const getMemory = useMemoryDb();
 
   test("challenge returns a message and stores a nonce", async () => {
     const wallet = Wallet.createRandom();
@@ -73,7 +59,7 @@ describe("auth session routes", () => {
     expect(body.message).toContain("Custos wants you to sign in");
     expect(body.nonce).toBeTruthy();
 
-    const { authNonces } = getCollections(memory as unknown as Db);
+    const { authNonces } = getCollections(getMemory() as unknown as Db);
     const stored = await authNonces.findOne({ nonce: body.nonce });
     expect(stored).toBeTruthy();
     expect(stored!.usedAt).toBeUndefined();
@@ -84,7 +70,7 @@ describe("auth session routes", () => {
     const { token, body } = await challengeAndVerify(wallet);
     expect(body.account.address).toBe(wallet.address.toLowerCase());
 
-    const { sessions, users } = getCollections(memory as unknown as Db);
+    const { sessions, users } = getCollections(getMemory() as unknown as Db);
     const session = await sessions.findOne({ tokenHash: hashToken(token) });
     expect(session).toBeTruthy();
     expect(session!.tokenHash).not.toBe(token);
@@ -171,7 +157,7 @@ describe("auth session routes", () => {
     });
     expect(logout.status).toBe(200);
 
-    const { sessions } = getCollections(memory as unknown as Db);
+    const { sessions } = getCollections(getMemory() as unknown as Db);
     const session = await sessions.findOne({ tokenHash: hashToken(token) });
     expect(session!.revokedAt).toBeTruthy();
 
@@ -216,7 +202,7 @@ describe("auth session routes", () => {
   test("sliding renewal rotates the session cookie", async () => {
     const wallet = Wallet.createRandom();
     const { token } = await challengeAndVerify(wallet);
-    const { sessions } = getCollections(memory as unknown as Db);
+    const { sessions } = getCollections(getMemory() as unknown as Db);
     const session = await sessions.findOne({ tokenHash: hashToken(token) });
     expect(session).toBeTruthy();
 
@@ -270,7 +256,7 @@ describe("auth session routes", () => {
        write landed found no row for the old hash and 401ed. */
     const wallet = Wallet.createRandom();
     const { token } = await challengeAndVerify(wallet);
-    const { sessions } = getCollections(memory as unknown as Db);
+    const { sessions } = getCollections(getMemory() as unknown as Db);
     const session = await sessions.findOne({ tokenHash: hashToken(token) });
 
     await sessions.updateOne(
@@ -289,7 +275,7 @@ describe("auth session routes", () => {
   test("absolute lifetime cap revokes expired sessions", async () => {
     const wallet = Wallet.createRandom();
     const { token } = await challengeAndVerify(wallet);
-    const { sessions } = getCollections(memory as unknown as Db);
+    const { sessions } = getCollections(getMemory() as unknown as Db);
     const session = await sessions.findOne({ tokenHash: hashToken(token) });
     expect(session).toBeTruthy();
 
@@ -317,7 +303,7 @@ describe("auth session routes", () => {
   test("expired sliding TTL is rejected", async () => {
     const wallet = Wallet.createRandom();
     const { token } = await challengeAndVerify(wallet);
-    const { sessions } = getCollections(memory as unknown as Db);
+    const { sessions } = getCollections(getMemory() as unknown as Db);
     await sessions.updateOne(
       { tokenHash: hashToken(token) },
       { $set: { expiresAt: new Date(Date.now() - 1000) } },

@@ -1,5 +1,7 @@
 import { ObjectId, type Db } from "mongodb";
 import { COLLECTIONS, setDbForTests } from "@/db";
+import { resetRateLimitsForTests } from "@/api/middleware/rate-limit";
+import { afterAll, beforeAll, beforeEach } from "bun:test";
 
 type Doc = Record<string, unknown> & { _id: ObjectId };
 
@@ -409,4 +411,30 @@ export function installMemoryDb(): MemoryDb {
 
 export function uninstallMemoryDb(): void {
   setDbForTests(null);
+}
+
+/**
+ * The standard per-suite lifecycle: install a fresh MemoryDb for `beforeAll`,
+ * uninstall on `afterAll`, and reset both the db and the in-memory rate
+ * limiter before each test. Returns an accessor for the current instance —
+ * call it inside a test/hook body, not at module scope (it isn't assigned
+ * until `beforeAll` runs).
+ */
+export function useMemoryDb(): () => MemoryDb {
+  let memory: MemoryDb;
+
+  beforeAll(() => {
+    memory = installMemoryDb();
+  });
+
+  afterAll(() => {
+    uninstallMemoryDb();
+  });
+
+  beforeEach(() => {
+    memory._reset();
+    resetRateLimitsForTests();
+  });
+
+  return () => memory;
 }

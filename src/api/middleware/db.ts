@@ -16,8 +16,10 @@ export const ensureDb = createMiddleware(async (c, next) => {
       }),
     ]);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Database unavailable";
-    return c.json({ error: message }, 503);
+    /* Log the real reason (can include driver/URI detail) but never return it
+       — the client only needs to know the DB is unavailable. */
+    console.error(err);
+    return c.json({ error: "Database unavailable" }, 503);
   } finally {
     /* Otherwise a live timer (and its closure) lingers for the full 15s on
        every request, even on the normal connectDb()-wins path. */

@@ -162,12 +162,12 @@ describe("planRemainingNeed", () => {
     expect(planRemainingNeed(plan({ initialBudget: 5000 }))).toBe(0);
   });
 
-  test("falls back to the item estimates when no budget is typed", () => {
+  test("planRemainingNeed falls back to the item estimates when no budget is typed", () => {
     // estimates 10000, paid 6800
     expect(planRemainingNeed(plan())).toBe(3200);
   });
 
-  test("is 0 with neither a budget nor any items", () => {
+  test("planRemainingNeed is 0 with neither a budget nor any items", () => {
     expect(planRemainingNeed(plan({ items: [] }))).toBe(0);
   });
 });
@@ -205,7 +205,7 @@ describe("planEffectiveBudget", () => {
     expect(planEffectiveBudget(plan({ initialBudget: 0 }))).toBe(10000);
   });
 
-  test("is 0 with neither a budget nor any items", () => {
+  test("planEffectiveBudget is 0 with neither a budget nor any items", () => {
     expect(planEffectiveBudget(plan({ items: [] }))).toBe(0);
   });
 });
@@ -215,7 +215,7 @@ describe("planBudgetProgress", () => {
     expect(planBudgetProgress(plan({ initialBudget: 10000 }))).toBeCloseTo(0.68);
   });
 
-  test("falls back to the item estimates when no budget is typed", () => {
+  test("planBudgetProgress falls back to the item estimates when no budget is typed", () => {
     expect(planBudgetProgress(plan())).toBeCloseTo(0.68);
   });
 

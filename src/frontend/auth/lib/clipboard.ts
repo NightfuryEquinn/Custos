@@ -1,6 +1,11 @@
 /** How long a copied secret (recovery phrase) stays on the clipboard before we clear it. */
 const SECRET_CLIPBOARD_CLEAR_MS = 30_000;
 
+/* Teardown for the previous copySecret() call's clear-triggers, if it hasn't
+   fired yet — a second reveal-and-copy before the first one clears would
+   otherwise stack a second set of listeners and timer on top of the first. */
+let disarmPrevious: (() => void) | null = null;
+
 /** Copy non-secret text (e.g. an address) to the clipboard. */
 export function copyText(text: string): void {
   try {
@@ -44,6 +49,9 @@ export function copyText(text: string): void {
  * fallback for the case where the tab just stays open and focused.
  */
 export function copySecret(text: string): void {
+  disarmPrevious?.();
+  disarmPrevious = null;
+
   try {
     void navigator.clipboard.writeText(text).catch(() => {
       /* Rejected copy — nothing landed on the clipboard, so there's nothing
@@ -61,13 +69,16 @@ export function copySecret(text: string): void {
     navigator.clipboard.writeText("").catch(() => {
       /* Clipboard may be unavailable (unfocused tab, permission revoked) — ignore. */
     });
+    clearTimeout(timer);
     document.removeEventListener("visibilitychange", onHidden);
     window.removeEventListener("pagehide", clear);
+    if (disarmPrevious === clear) disarmPrevious = null;
   };
   const onHidden = () => {
     if (document.hidden) clear();
   };
   document.addEventListener("visibilitychange", onHidden);
   window.addEventListener("pagehide", clear);
-  setTimeout(clear, SECRET_CLIPBOARD_CLEAR_MS);
+  const timer = setTimeout(clear, SECRET_CLIPBOARD_CLEAR_MS);
+  disarmPrevious = clear;
 }

@@ -5,6 +5,10 @@ function toApiId(id: ObjectId | string): string {
   return typeof id === "string" ? id : id.toHexString();
 }
 
+/* Deny-list, not an allow-list: every other field on a document is spread
+   into the API response as-is. Adding a sensitive field to a collection
+   means adding it here (or hand-picking fields at the route, as profile.ts
+   and auth.ts's session listing do) — it is not exposed-by-default-safe. */
 const STRIP_OWNERSHIP_KEYS = new Set(["userAddress", "accountId", "address"]);
 
 /**

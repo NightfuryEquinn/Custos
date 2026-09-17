@@ -1,46 +1,9 @@
 import { createApiApp } from "@/api/app";
-import { SESSION_COOKIE } from "@/api/lib/auth";
-import { resetRateLimitsForTests } from "@/api/middleware/rate-limit";
-import { Wallet } from "ethers";
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { installMemoryDb, uninstallMemoryDb, type MemoryDb } from "../helpers/memory-db";
+import { describe, expect, test } from "bun:test";
+import { createWallet, signIn } from "../helpers/api-client";
+import { useMemoryDb } from "../helpers/memory-db";
 
 const app = createApiApp();
-
-/** Sign in a fresh wallet and return its session cookie header value. */
-async function signIn(): Promise<string> {
-  const wallet = Wallet.createRandom();
-
-  const challengeRes = await app.request("/api/auth/challenge", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ address: wallet.address }),
-  });
-  const challenge = (await challengeRes.json()) as { message: string };
-  const signature = await wallet.signMessage(challenge.message);
-
-  const verifyRes = await app.request("/api/auth/verify", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ address: wallet.address, message: challenge.message, signature }),
-  });
-  const setCookie = verifyRes.headers.get("set-cookie") || "";
-  const match = setCookie.match(new RegExp(`${SESSION_COOKIE}=([^;]+)`));
-
-  return `${SESSION_COOKIE}=${match![1]!}`;
-}
-
-async function createWallet(cookie: string): Promise<string> {
-  const res = await app.request("/api/wallets", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", cookie },
-    body: JSON.stringify({ currency: "MYR", enc: 1, payload: "wallet-ciphertext" }),
-  });
-  expect(res.status).toBe(201);
-  const { wallet } = (await res.json()) as { wallet: { id: string } };
-
-  return wallet.id;
-}
 
 async function createPlan(cookie: string): Promise<string> {
   const res = await app.request("/api/capital-plans", {
@@ -89,24 +52,11 @@ async function planIdOf(cookie: string, expenseId: string): Promise<string | und
 }
 
 describe("capital plan routes", () => {
-  let memory: MemoryDb;
-
-  beforeAll(() => {
-    memory = installMemoryDb();
-  });
-
-  afterAll(() => {
-    uninstallMemoryDb();
-  });
-
-  beforeEach(() => {
-    memory._reset();
-    resetRateLimitsForTests();
-  });
+  const getMemory = useMemoryDb();
 
   test("deleting a plan releases the savings assigned to it", async () => {
-    const cookie = await signIn();
-    const walletId = await createWallet(cookie);
+    const cookie = await signIn(app);
+    const walletId = await createWallet(app, cookie);
     const planId = await createPlan(cookie);
     const assigned = await createExpense(cookie, walletId, planId);
 
@@ -124,8 +74,8 @@ describe("capital plan routes", () => {
   });
 
   test("leaves other plans' and unassigned expenses alone", async () => {
-    const cookie = await signIn();
-    const walletId = await createWallet(cookie);
+    const cookie = await signIn(app);
+    const walletId = await createWallet(app, cookie);
     const doomed = await createPlan(cookie);
     const keeper = await createPlan(cookie);
 
@@ -141,14 +91,17 @@ describe("capital plan routes", () => {
   });
 
   test("releases a legacy hex-string capitalPlanId too", async () => {
-    const cookie = await signIn();
-    const walletId = await createWallet(cookie);
+    const cookie = await signIn(app);
+    const walletId = await createWallet(app, cookie);
     const planId = await createPlan(cookie);
     const legacy = await createExpense(cookie, walletId, planId);
 
     // Rows predating the ObjectId write path store the id as a hex string; an
     // ObjectId-only filter would skip exactly the rows this cleanup exists for.
-    const docs = memory.collection("expenses")._docs as { _id: unknown; capitalPlanId?: unknown }[];
+    const docs = getMemory().collection("expenses")._docs as {
+      _id: unknown;
+      capitalPlanId?: unknown;
+    }[];
     const doc = docs.find((d) => String(d._id) === legacy)!;
     doc.capitalPlanId = planId;
 
@@ -158,12 +111,12 @@ describe("capital plan routes", () => {
   });
 
   test("another account cannot delete the plan or release its savings", async () => {
-    const owner = await signIn();
-    const walletId = await createWallet(owner);
+    const owner = await signIn(app);
+    const walletId = await createWallet(app, owner);
     const planId = await createPlan(owner);
     const assigned = await createExpense(owner, walletId, planId);
 
-    const stranger = await signIn();
+    const stranger = await signIn(app);
     const res = await app.request(`/api/capital-plans/${planId}`, {
       method: "DELETE",
       headers: { cookie: stranger },

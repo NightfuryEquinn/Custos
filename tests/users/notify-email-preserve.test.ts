@@ -1,9 +1,8 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { createApiApp } from "@/api/app";
 import { SESSION_COOKIE } from "@/api/lib/auth";
-import { resetRateLimitsForTests } from "@/api/middleware/rate-limit";
 import { Wallet, type HDNodeWallet } from "ethers";
-import { installMemoryDb, uninstallMemoryDb, type MemoryDb } from "../helpers/memory-db";
+import { useMemoryDb } from "../helpers/memory-db";
 
 const app = createApiApp();
 
@@ -61,20 +60,7 @@ async function setNotifyEmail(cookie: string, notifyEmail: string) {
 }
 
 describe("notify email persistence", () => {
-  let memory: MemoryDb;
-
-  beforeAll(() => {
-    memory = installMemoryDb();
-  });
-
-  afterAll(() => {
-    uninstallMemoryDb();
-  });
-
-  beforeEach(() => {
-    memory._reset();
-    resetRateLimitsForTests();
-  });
+  useMemoryDb();
 
   test("POST /users updates codename without clearing a saved notify email", async () => {
     const { cookie, wallet } = await signIn();

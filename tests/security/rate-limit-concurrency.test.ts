@@ -1,7 +1,7 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { globalRateLimit, resetRateLimitsForTests } from "@/api/middleware/rate-limit";
+import { describe, expect, test } from "bun:test";
+import { globalRateLimit } from "@/api/middleware/rate-limit";
 import { Hono } from "hono";
-import { installMemoryDb, uninstallMemoryDb, type MemoryDb } from "../helpers/memory-db";
+import { useMemoryDb } from "../helpers/memory-db";
 
 /**
  * The old checkLimitMongo was a read then a conditional write: concurrent
@@ -11,23 +11,11 @@ import { installMemoryDb, uninstallMemoryDb, type MemoryDb } from "../helpers/me
  * request arrives at once.
  */
 describe("rate limit exactness under concurrency", () => {
-  let memory: MemoryDb;
   const app = new Hono();
   app.use("*", globalRateLimit);
   app.get("/", (c) => c.json({ ok: true }));
 
-  beforeAll(() => {
-    memory = installMemoryDb();
-  });
-
-  afterAll(() => {
-    uninstallMemoryDb();
-  });
-
-  beforeEach(() => {
-    memory._reset();
-    resetRateLimitsForTests();
-  });
+  useMemoryDb();
 
   test("exactly `limit` requests succeed out of a larger concurrent burst", async () => {
     const TOTAL = 200; // globalRateLimit's limit is 180

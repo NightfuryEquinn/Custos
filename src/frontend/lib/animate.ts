@@ -1,5 +1,5 @@
 import { animate, stagger, type JSAnimation } from "animejs";
-import { useCallback, useLayoutEffect, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 
 const DUR = { fast: 198, base: 308, modal: 220, sheet: 286, scrim: 165, picker: 132 } as const;
 
@@ -173,9 +173,19 @@ export function useModalMotion(
   opts?: ModalMotionOpts,
 ) {
   const enterAnims = useRef<JSAnimation[]>([]);
+  const exitAnims = useRef<JSAnimation[]>([]);
   const closingRef = useRef(false);
   const variant = opts?.variant ?? "center";
   const active = opts?.active !== false;
+
+  /* Cancel any in-flight exit animation on unmount — otherwise anime.js
+     keeps ticking against detached nodes and closingRef never resets. */
+  useEffect(() => {
+    return () => {
+      exitAnims.current.forEach(cancelAnim);
+      exitAnims.current = [];
+    };
+  }, []);
 
   useLayoutEffect(() => {
     const scrim = scrimRef.current;
@@ -239,15 +249,17 @@ export function useModalMotion(
         }
       };
 
-      animate(scrim, { opacity: 0, duration: DUR.scrim, ease: EASE.base, onComplete: finish });
-      animate(panel, {
-        opacity: enter.opacity,
-        translateY: enter.translateY,
-        scale: enter.scale,
-        duration: panelDuration(variant),
-        ease: variant === "sheet" ? EASE.modal : EASE.base,
-        onComplete: finish,
-      });
+      exitAnims.current = [
+        animate(scrim, { opacity: 0, duration: DUR.scrim, ease: EASE.base, onComplete: finish }),
+        animate(panel, {
+          opacity: enter.opacity,
+          translateY: enter.translateY,
+          scale: enter.scale,
+          duration: panelDuration(variant),
+          ease: variant === "sheet" ? EASE.modal : EASE.base,
+          onComplete: finish,
+        }),
+      ];
     },
     [opts?.disabled, panelRef, scrimRef, variant],
   );

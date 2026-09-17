@@ -120,16 +120,26 @@ export function armSyncTriggers(getAddress: () => string | null): void {
     const address = currentGetAddress?.();
     if (address) void drainOutbox(address);
   };
+  const onVisible = () => {
+    if (!document.hidden) trigger();
+  };
 
   window.addEventListener("online", trigger);
   window.addEventListener("focus", trigger);
-  document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) trigger();
-  });
+  document.addEventListener("visibilitychange", onVisible);
   heartbeat = setInterval(() => {
     if (connectivity.isOnline()) trigger();
   }, 60_000);
+
+  visibleListener = onVisible;
+  triggerListener = trigger;
 }
+
+/* Held only so resetSyncTriggersForTests can remove the exact listener
+   instances armSyncTriggers attached — production never calls reset, so a
+   real page just attaches these once and keeps them for its lifetime. */
+let triggerListener: (() => void) | null = null;
+let visibleListener: (() => void) | null = null;
 
 /** Test helper: undo armSyncTriggers' one-time guard. */
 export function resetSyncTriggersForTests(): void {
@@ -137,4 +147,13 @@ export function resetSyncTriggersForTests(): void {
   currentGetAddress = null;
   clearInterval(heartbeat);
   heartbeat = undefined;
+  if (triggerListener) {
+    window.removeEventListener("online", triggerListener);
+    window.removeEventListener("focus", triggerListener);
+    triggerListener = null;
+  }
+  if (visibleListener) {
+    document.removeEventListener("visibilitychange", visibleListener);
+    visibleListener = null;
+  }
 }

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { resetFakeIdb } from "../helpers/fake-idb";
+import { entry, TEST_ADDRESS as ADDRESS } from "../helpers/outbox";
 import { openCustosDb, reqAsPromise, STORES, txAsPromise } from "@/frontend/lib/pwa/idb";
 import {
   clearOutboxForAddress,
@@ -11,21 +12,6 @@ import {
   purgeStaleFailures,
   retryOutbox,
 } from "@/frontend/lib/sync/outbox";
-import type { NewOutboxEntry } from "@/frontend/lib/sync/types";
-
-const ADDRESS = "0xAbCdEf0000000000000000000000000000000001";
-
-function entry(overrides: Partial<NewOutboxEntry> = {}): NewOutboxEntry {
-  return {
-    address: ADDRESS,
-    entity: "expense",
-    op: "create",
-    targetId: "target-1",
-    request: { method: "POST", path: "/expenses", body: { note: "coffee" } },
-    dependsOn: [],
-    ...overrides,
-  };
-}
 
 beforeEach(() => {
   resetFakeIdb();

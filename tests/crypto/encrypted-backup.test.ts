@@ -15,13 +15,24 @@ async function testKey() {
 }
 
 describe("encrypted backup", () => {
-  test("encrypt / decrypt round-trip includes capitals and vehicles", async () => {
+  test("encrypt / decrypt round-trip includes expenses, capitals, and vehicles", async () => {
     const { key, address } = await testKey();
     const plain = buildBackupPlain({
       address,
       wallets: [],
       categories: [],
-      expenses: [],
+      expenses: [
+        {
+          id: "aaaaaaaaaaaaaaaaaaaaaaaa",
+          walletId: "bbbbbbbbbbbbbbbbbbbbbbbb",
+          kind: "expense",
+          date: "2026-07-01",
+          sub: "food",
+          amount: 12.5,
+          note: "lunch",
+          recurring: false,
+        },
+      ],
       events: [],
       todoLists: [],
       capitalPlans: [
@@ -55,38 +66,14 @@ describe("encrypted backup", () => {
         },
       ],
     });
-    const restored = await decryptBackup(key, await encryptBackup(key, plain));
-    expect(restored.capitalPlans).toEqual(plain.capitalPlans);
-    expect(restored.vehicles).toEqual(plain.vehicles);
-    expect(restored.vehicleFills).toEqual(plain.vehicleFills);
-  });
-
-  test("encrypt / decrypt round-trip", async () => {
-    const { key, address } = await testKey();
-    const plain = buildBackupPlain({
-      address,
-      wallets: [],
-      categories: [],
-      expenses: [
-        {
-          id: "aaaaaaaaaaaaaaaaaaaaaaaa",
-          walletId: "bbbbbbbbbbbbbbbbbbbbbbbb",
-          kind: "expense",
-          date: "2026-07-01",
-          sub: "food",
-          amount: 12.5,
-          note: "lunch",
-          recurring: false,
-        },
-      ],
-      events: [],
-      todoLists: [],
-    });
     const file = await encryptBackup(key, plain);
     expect(file.format).toBe("custos-backup");
     const restored = await decryptBackup(key, file);
     expect(restored.expenses).toEqual(plain.expenses);
     expect(restored.address).toBe(address);
+    expect(restored.capitalPlans).toEqual(plain.capitalPlans);
+    expect(restored.vehicles).toEqual(plain.vehicles);
+    expect(restored.vehicleFills).toEqual(plain.vehicleFills);
   });
 
   test("encrypt / decrypt round-trip includes settings", async () => {

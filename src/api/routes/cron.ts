@@ -15,7 +15,10 @@ cronRoutes.use("*", ensureDb);
 function assertCronAuth(authHeader: string | undefined): void {
   const secret = process.env.CRON_SECRET?.trim();
   if (!secret) {
-    throw new HTTPException(503, { message: "CRON_SECRET not configured" });
+    /* Config disclosure guard: an unauthenticated caller must not learn the
+       deploy is misconfigured. Same 401 as a bad token, logged separately. */
+    console.error("CRON_SECRET not configured");
+    throw new HTTPException(401, { message: "Unauthorized" });
   }
   const expected = `Bearer ${secret}`;
   const a = Buffer.from(authHeader ?? "");

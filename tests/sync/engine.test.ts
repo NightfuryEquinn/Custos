@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { resetFakeIdb } from "../helpers/fake-idb";
+import { fakeLocalStorage } from "../helpers/fake-storage";
+import { entry, TEST_ADDRESS as ADDRESS } from "../helpers/outbox";
 import { connectivity } from "@/frontend/lib/net/connectivity";
 import { enqueueOutbox, listOutbox } from "@/frontend/lib/sync/outbox";
 import { identityStorage } from "@/frontend/auth/lib/identity-storage";
-import type { NewOutboxEntry } from "@/frontend/lib/sync/types";
 
 /* bun's test runtime has no browser localStorage — stub a minimal one, same
    convention as tests/auth/session-trust.test.ts and biometric.test.ts.
@@ -11,32 +12,6 @@ import type { NewOutboxEntry } from "@/frontend/lib/sync/types";
    `identityStorage.session()` (the cross-account-bleed backstop), so every
    test below needs that set to ADDRESS unless it's specifically testing
    the mismatch case. */
-function fakeLocalStorage() {
-  const map = new Map<string, string>();
-  return {
-    getItem: (k: string) => (map.has(k) ? map.get(k)! : null),
-    setItem: (k: string, v: string) => {
-      map.set(k, v);
-    },
-    removeItem: (k: string) => {
-      map.delete(k);
-    },
-  };
-}
-
-const ADDRESS = "0xAbCdEf0000000000000000000000000000000001";
-
-function entry(overrides: Partial<NewOutboxEntry> = {}): NewOutboxEntry {
-  return {
-    address: ADDRESS,
-    entity: "expense",
-    op: "create",
-    targetId: "target-1",
-    request: { method: "POST", path: "/expenses", body: { note: "coffee" } },
-    dependsOn: [],
-    ...overrides,
-  };
-}
 
 /** Install a fake apiFetch/ApiError pair and return control over the mock's outcomes. */
 function mockApi() {

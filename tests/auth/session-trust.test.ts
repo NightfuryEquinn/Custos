@@ -1,20 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { isSessionTrustFresh, markSessionVerified } from "@/frontend/auth/lib/session-trust";
-
-/* bun's test runtime has no browser localStorage — stub a minimal one, same
-   convention as tests/crypto/biometric.test.ts and device-vault.test.ts. */
-function fakeLocalStorage() {
-  const map = new Map<string, string>();
-  return {
-    getItem: (k: string) => (map.has(k) ? map.get(k)! : null),
-    setItem: (k: string, v: string) => {
-      map.set(k, v);
-    },
-    removeItem: (k: string) => {
-      map.delete(k);
-    },
-  };
-}
+import { fakeLocalStorage } from "../helpers/fake-storage";
 
 let store: ReturnType<typeof fakeLocalStorage>;
 

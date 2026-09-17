@@ -6,11 +6,7 @@ describe("shouldAutoShowWhatsNew", () => {
     expect(shouldAutoShowWhatsNew({ seen: true })).toBe("skip-seen");
   });
 
-  test("shows for a brand-new account after welcome and tour finish", () => {
-    expect(shouldAutoShowWhatsNew({ seen: false })).toBe("show");
-  });
-
-  test("shows for a returning account on an unseen device", () => {
+  test("shows for a brand-new account after welcome and tour finish, or a returning account on an unseen device", () => {
     expect(shouldAutoShowWhatsNew({ seen: false })).toBe("show");
   });
 });

@@ -6,25 +6,13 @@ import {
   enrollBiometric,
   unlockWithBiometric,
 } from "@/frontend/auth/lib/biometric";
+import { fakeLocalStorage } from "../helpers/fake-storage";
 
 /*
  * bun's test runtime has no browser globals — stub just enough of
  * localStorage + WebAuthn (navigator.credentials, PublicKeyCredential) for
  * biometric.ts to run against.
  */
-
-function fakeLocalStorage() {
-  const map = new Map<string, string>();
-  return {
-    getItem: (k: string) => (map.has(k) ? map.get(k)! : null),
-    setItem: (k: string, v: string) => {
-      map.set(k, v);
-    },
-    removeItem: (k: string) => {
-      map.delete(k);
-    },
-  };
-}
 
 function fixedBuffer(byte: number): ArrayBuffer {
   return new Uint8Array(32).fill(byte).buffer;

@@ -1,9 +1,8 @@
 import { createApiApp } from "@/api/app";
 import { SESSION_COOKIE } from "@/api/lib/auth";
-import { resetRateLimitsForTests } from "@/api/middleware/rate-limit";
 import { Wallet, type HDNodeWallet } from "ethers";
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { installMemoryDb, uninstallMemoryDb, type MemoryDb } from "../helpers/memory-db";
+import { describe, expect, test } from "bun:test";
+import { useMemoryDb } from "../helpers/memory-db";
 
 const app = createApiApp();
 
@@ -38,20 +37,7 @@ async function listSessions(cookie: string) {
 }
 
 describe("repeated sign-in on the same device does not duplicate Active Sessions", () => {
-  let memory: MemoryDb;
-
-  beforeAll(() => {
-    memory = installMemoryDb();
-  });
-
-  afterAll(() => {
-    uninstallMemoryDb();
-  });
-
-  beforeEach(() => {
-    memory._reset();
-    resetRateLimitsForTests();
-  });
+  useMemoryDb();
 
   test("signing in twice with the same User-Agent replaces the prior session, not adds to it", async () => {
     const wallet = Wallet.createRandom();
