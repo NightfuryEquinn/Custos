@@ -21,9 +21,9 @@ export async function ensureIndexes(db: Db): Promise<void> {
     /* unique: two racing check-then-act inserts (migrateLegacyData in
        routes/wallets.ts, or a queue drain landing at the same moment as a
        page load) both seeing zero wallets previously produced two rows both
-       flagged isDefault — this constrains it to one per account. Run
-       `bun scripts/dedupe-duplicates.ts` before deploying this if the
-       database may already hold duplicates; the index build fails otherwise. */
+       flagged isDefault — this constrains it to one per account. If the
+       database already holds duplicates, this index build fails — dedupe
+       them (keep one wallet flagged isDefault per account) before deploying. */
     db.collection(COLLECTIONS.financialWallets).createIndex(
       { accountId: 1, isDefault: 1 },
       {
@@ -48,9 +48,9 @@ export async function ensureIndexes(db: Db): Promise<void> {
        cron lock in recurring-expenses.ts stops two runs from overlapping in
        this process, but this is the backstop against any other path (a
        second deploy region, a manual trigger racing the schedule) inserting
-       the same occurrence twice. Run `bun scripts/dedupe-duplicates.ts`
-       before deploying this if the database may already hold duplicate
-       occurrences; the index build fails otherwise.
+       the same occurrence twice. If the database already holds duplicate
+       occurrences, this index build fails — dedupe them (keep one row per
+       series+date) before deploying.
        `enc: {$ne: 1}` matters here, not just documentation: an encrypted
        document carries neither `sub` nor `note`, so without excluding it
        this index would also cover encrypted docs and — since two unrelated
