@@ -43,16 +43,31 @@ async function migrateLegacyData(accountId: string) {
   if (existing.length > 0) return existing;
 
   const now = new Date();
-  const result = await financialWallets.insertOne({
-    _id: randomObjectId(),
-    ...walletSeed(accountId),
-    createdAt: now,
-    updatedAt: now,
-  });
+  let insertedId: ObjectId;
+  try {
+    const result = await financialWallets.insertOne({
+      _id: randomObjectId(),
+      ...walletSeed(accountId),
+      createdAt: now,
+      updatedAt: now,
+    });
+    insertedId = result.insertedId;
+  } catch (err) {
+    /* Check-then-act race: two requests for the same never-migrated account
+       (e.g. a page load and a queue drain firing at once on reconnect) can
+       both see zero wallets and both reach this insertOne. The
+       `{accountId, isDefault:true}` partial unique index (src/db/indexes.ts)
+       lets exactly one land; the loser re-reads instead of creating a
+       second default wallet. */
+    if ((err as { code?: number }).code !== 11000) throw err;
+    const winner = await financialWallets.find({ accountId }).toArray();
+    if (winner.length > 0) return winner;
+    throw err;
+  }
 
   await expenses.updateMany(
     { accountId, walletId: { $exists: false } },
-    { $set: { walletId: result.insertedId } },
+    { $set: { walletId: insertedId } },
   );
 
   await financialWallets.updateMany(
@@ -62,7 +77,7 @@ async function migrateLegacyData(accountId: string) {
 
   await expenses.updateMany({ accountId, kind: { $exists: false } }, { $set: { kind: "expense" } });
 
-  const created = await financialWallets.findOne({ _id: result.insertedId });
+  const created = await financialWallets.findOne({ _id: insertedId });
   return created ? [created] : [];
 }
 

@@ -75,6 +75,11 @@ export const Capitals = forwardRef<CapitalsHandle, CapitalsProps>(function Capit
   const [initialBudget, setInitialBudget] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  /* `busy` state can't stop two clicks landing in the same task (a
+     touch-synthesized click racing the real one) from both calling
+     persistPlan before either's setBusy(true) commits — a ref flips
+     synchronously, so the second call always sees it. */
+  const persistingRef = useRef(false);
   const [itemDraftFor, setItemDraftFor] = useState<string | null>(null);
   const [itemName, setItemName] = useState("");
   const [itemCost, setItemCost] = useState("");
@@ -101,6 +106,8 @@ export const Capitals = forwardRef<CapitalsHandle, CapitalsProps>(function Capit
   useEnter(viewRef);
 
   const persistPlan = async (data: Partial<CapitalPlan> & { id?: string }) => {
+    if (persistingRef.current) return undefined;
+    persistingRef.current = true;
     setBusy(true);
     setError("");
     try {
@@ -113,6 +120,7 @@ export const Capitals = forwardRef<CapitalsHandle, CapitalsProps>(function Capit
       setError(err instanceof Error ? err.message : "Could not save plan");
       throw err;
     } finally {
+      persistingRef.current = false;
       setBusy(false);
     }
   };

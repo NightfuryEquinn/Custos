@@ -607,6 +607,9 @@ export function EventModal({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const busy = saving || deleting;
+  /* See AddExpenseModal's savingRef in ui.tsx — `saving` state alone can't
+     stop two clicks landing in the same task from both queuing a create. */
+  const savingRef = useRef(false);
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
@@ -698,7 +701,8 @@ export function EventModal({
   const valid =
     title.trim() && date && (allDay || time) && customOk && holdValid && spanValid && endTimeValid;
   const submit = async () => {
-    if (!valid || saving) return;
+    if (!valid || saving || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const holdFields =
@@ -733,6 +737,7 @@ export function EventModal({
         ...holdFields,
       });
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };

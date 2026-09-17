@@ -882,6 +882,11 @@ export function useLedger(walletAddress: string) {
         cryptoKey,
       );
       const { wallet: created } = await api.wallets.create({
+        /* Client-minted, like every other create — apiFetch aborts at
+           REQUEST_TIMEOUT_MS (20s), so a create that succeeds server-side
+           after the client gives up must be safe to retry. Server dedupes
+           on this id via insertOwned (see routes/wallets.ts). */
+        id: clientObjectId(),
         currency: data.currency!,
         fundingMode: data.fundingMode,
         ...encrypted,

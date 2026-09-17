@@ -57,6 +57,10 @@ export function WalletManageModal({ wallets, onSave, onDelete, onClose }: Wallet
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  /* `busy` state can't stop two clicks landing in the same task from both
+     calling submit before either's setBusy(true) commits — a ref flips
+     synchronously, so the second call always sees it. */
+  const submittingRef = useRef(false);
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
@@ -101,6 +105,8 @@ export function WalletManageModal({ wallets, onSave, onDelete, onClose }: Wallet
       setError("Name is required");
       return;
     }
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setBusy(true);
     setError("");
     try {
@@ -117,6 +123,7 @@ export function WalletManageModal({ wallets, onSave, onDelete, onClose }: Wallet
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save wallet");
     } finally {
+      submittingRef.current = false;
       setBusy(false);
     }
   };

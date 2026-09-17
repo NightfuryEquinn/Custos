@@ -72,16 +72,29 @@ async function fetchProfile(accountId: string) {
 
   const now = new Date();
   const seed = defaultProfile(accountId);
-  const result = await ledgerProfiles.insertOne({
-    _id: new ObjectId(),
-    ...seed,
-    createdAt: now,
-    updatedAt: now,
-  });
+  try {
+    const result = await ledgerProfiles.insertOne({
+      _id: new ObjectId(),
+      ...seed,
+      createdAt: now,
+      updatedAt: now,
+    });
 
-  const created = await ledgerProfiles.findOne({ _id: result.insertedId });
-  if (!created) throw new Error("Failed to create ledger profile");
-  return created;
+    const created = await ledgerProfiles.findOne({ _id: result.insertedId });
+    if (!created) throw new Error("Failed to create ledger profile");
+    return created;
+  } catch (err) {
+    /* Check-then-act race: two concurrent first loads for the same
+       never-seeded account (e.g. two tabs, or a page load racing a queue
+       drain on reconnect) can both see no profile and both reach this
+       insertOne. `ledgerProfiles {accountId}` is a unique index, so exactly
+       one wins — the loser previously threw a 500 here instead of just
+       reading what the winner created. */
+    if ((err as { code?: number }).code !== 11000) throw err;
+    const existing = await ledgerProfiles.findOne({ accountId });
+    if (existing) return existing;
+    throw err;
+  }
 }
 
 /** Drop the cached profile for an account after a write. */

@@ -103,6 +103,10 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
   const [deadline, setDeadline] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  /* `busy` state can't stop two clicks landing in the same task from both
+     calling persist before either's setBusy(true) commits — a ref flips
+     synchronously, so the second call always sees it. */
+  const persistingRef = useRef(false);
   const [confirmDelete, setConfirmDelete] = useState<
     { type: "cat"; id: string } | { type: "sub"; catId: string; subId: string } | null
   >(null);
@@ -173,6 +177,8 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
 
   /** Persist taxonomy changes through the parent save handler. */
   const persist = async (next: Category[]) => {
+    if (persistingRef.current) return;
+    persistingRef.current = true;
     setBusy(true);
     setError("");
     try {
@@ -182,6 +188,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save categories");
     } finally {
+      persistingRef.current = false;
       setBusy(false);
     }
   };

@@ -3,7 +3,7 @@ import { COLLECTIONS, setDbForTests } from "@/db";
 import { resetRateLimitsForTests } from "@/api/middleware/rate-limit";
 import { afterAll, beforeAll, beforeEach } from "bun:test";
 
-type Doc = Record<string, unknown> & { _id: ObjectId };
+type Doc = Record<string, unknown> & { _id: ObjectId | string };
 
 function matches(doc: Doc, filter: Record<string, unknown>): boolean {
   for (const [key, value] of Object.entries(filter)) {
@@ -236,11 +236,17 @@ function createCollection() {
       return { insertedIds, insertedCount: insertedIds.length, acknowledged: true };
     },
     async insertOne(doc: Record<string, unknown>) {
-      const _id = (doc._id as ObjectId) ?? new ObjectId();
-      if (docs.some((d) => d._id instanceof ObjectId && d._id.equals(_id))) {
+      const _id = (doc._id as Doc["_id"]) ?? new ObjectId();
+      /* _id uniqueness applies whatever type it is — some collections (rate
+         limit buckets, cron locks) key by a plain string, not an ObjectId. */
+      const dupExists = docs.some((d) =>
+        d._id instanceof ObjectId && _id instanceof ObjectId ? d._id.equals(_id) : d._id === _id,
+      );
+      if (dupExists) {
         /* Mirrors Mongo's real duplicate-key error shape closely enough for
            insert-idempotent.ts's `err.code === 11000` check. */
-        const err = new Error(`E11000 duplicate key error: _id ${_id.toHexString()}`);
+        const idStr = _id instanceof ObjectId ? _id.toHexString() : String(_id);
+        const err = new Error(`E11000 duplicate key error: _id ${idStr}`);
         (err as Error & { code: number }).code = 11000;
         throw err;
       }
