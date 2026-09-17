@@ -2,6 +2,25 @@ import type { Db } from "mongodb";
 import { COLLECTIONS } from "./collections";
 
 /**
+ * Drop an index by name if it exists under a now-stale definition.
+ * `createIndex` refuses to redefine an existing same-named index in place
+ * (different options, e.g. adding `unique`, is an error, not a silent
+ * upgrade) — "index not found" (code 27) just means there was nothing to
+ * drop, which is the common case once a redefinition has rolled out once.
+ */
+async function dropStaleIndex(db: Db, collection: string, name: string): Promise<void> {
+  try {
+    await db.collection(collection).dropIndex(name);
+  } catch (err) {
+    /* 26 = NamespaceNotFound (collection doesn't exist yet, e.g. a fresh
+       database), 27 = IndexNotFound (already dropped, or never existed
+       under this name) — both mean "nothing to drop", not a real failure. */
+    const code = (err as { code?: number }).code;
+    if (code !== 26 && code !== 27) throw err;
+  }
+}
+
+/**
  * Ensure Mongo indexes for the current schema (accountId ownership).
  *
  * Run at build time (`bun run db:indexes`, wired into the Vercel build
@@ -15,6 +34,19 @@ import { COLLECTIONS } from "./collections";
  * migration ever needs repeating, add the drops back temporarily.
  */
 export async function ensureIndexes(db: Db): Promise<void> {
+  /* One-time redefinitions: these three existed under the same name with
+     different options (no `unique`, and — for the plaintext recurring
+     lookup — no `enc` exclusion in the partial filter) before this change.
+     createIndex() below would otherwise fail with "An existing index has
+     the same name as the requested index." Safe to remove once this has
+     rolled out to every environment, same as the historical address-keyed
+     drops mentioned above. */
+  await Promise.all([
+    dropStaleIndex(db, COLLECTIONS.financialWallets, "accountId_1_isDefault_1"),
+    dropStaleIndex(db, COLLECTIONS.expenses, "recurring_occurrence_lookup"),
+    dropStaleIndex(db, COLLECTIONS.expenses, "recurring_encrypted_occurrence_lookup"),
+  ]);
+
   await Promise.all([
     db.collection(COLLECTIONS.users).createIndex({ address: 1 }, { unique: true }),
     db.collection(COLLECTIONS.ledgerProfiles).createIndex({ accountId: 1 }, { unique: true }),
