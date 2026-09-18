@@ -23,7 +23,7 @@ type PiggiesProps = {
 /**
  * One-glance tracker for every savings category ("piggy") and its subs ("piglets").
  *
- * The headline and per-plan reads of Saving Insights live on the Insights view;
+ * The headline and per-plan reads of Piggy Insights live on the Insights view;
  * what is computed here is the totals row and each card's on-track status, so no
  * Capitals plans are passed — `perPlan` is not rendered on this view.
  */

@@ -1,16 +1,20 @@
 import {
   applyAccent,
+  applySurface,
   applyTheme,
   getStoredAccent,
+  getStoredSurface,
   getStoredTheme,
   getSystemDark,
   resolveAccent,
   setStoredAccent,
+  setStoredSurface,
   setStoredTheme,
   type AccentName,
+  type SurfaceName,
   type ThemePreference,
 } from "@/frontend/lib/theme";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 
 type ThemeContextValue = {
   preference: ThemePreference;
@@ -24,6 +28,9 @@ type ThemeContextValue = {
   accent: string;
   accentContrast: string;
   setAccentName: (name: AccentName) => void;
+  /** Base surface (neutral ground) pick — name only, the tokens live in CSS. */
+  surfaceName: SurfaceName;
+  setSurfaceName: (name: SurfaceName) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -32,6 +39,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [preference, setPreferenceState] = useState<ThemePreference>(() => getStoredTheme());
   const [systemDark, setSystemDark] = useState(() => getSystemDark());
   const [accentName, setAccentNameState] = useState<AccentName>(() => getStoredAccent());
+  const [surfaceName, setSurfaceNameState] = useState<SurfaceName>(() => getStoredSurface());
   const dark = preference === "system" ? systemDark : preference === "dark";
   const { hex: accent, contrast: accentContrast } = resolveAccent(accentName, dark);
 
@@ -45,18 +53,32 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [accentName]);
 
   useEffect(() => {
+    applySurface(surfaceName);
+  }, [surfaceName]);
+
+  useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = (event: MediaQueryListEvent) => setSystemDark(event.matches);
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  const setPreference = (next: ThemePreference) => setPreferenceState(next);
-  const toggle = () => setPreferenceState(dark ? "light" : "dark");
-  const setAccentName = (name: AccentName) => {
+  /* useCallback here isn't optional: LedgerApp mirrors the server profile's
+     accent into this via an effect keyed on setAccentName's identity
+     (see LedgerApp.tsx). An unmemoized setAccentName gets a new identity on
+     every ThemeProvider render — including the one a pick itself causes —
+     which re-fires that effect and overwrites the fresh pick with the
+     still-stale react-query profile cache. */
+  const setPreference = useCallback((next: ThemePreference) => setPreferenceState(next), []);
+  const toggle = useCallback(() => setPreferenceState(dark ? "light" : "dark"), [dark]);
+  const setAccentName = useCallback((name: AccentName) => {
     setAccentNameState(name);
     setStoredAccent(name);
-  };
+  }, []);
+  const setSurfaceName = useCallback((name: SurfaceName) => {
+    setSurfaceNameState(name);
+    setStoredSurface(name);
+  }, []);
 
   return (
     <ThemeContext.Provider
@@ -69,6 +91,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         accent,
         accentContrast,
         setAccentName,
+        surfaceName,
+        setSurfaceName,
       }}
     >
       {children}

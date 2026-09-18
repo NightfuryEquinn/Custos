@@ -110,18 +110,18 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
       "right",
     ),
     step(
-      "overview-trend",
-      "Spending & Earning Trend",
-      "Track cumulative spending and earning against your total budget as the month progresses, plus what you've saved and have remaining. Hover any day to see what you spent and earned, broken down by category.",
-      '[data-tour="tour-overview-trend"]',
-      "top",
-    ),
-    step(
       "overview-donut",
       "By Category",
       "Tap or hover slices to see how spending breaks down across categories.",
       '[data-tour="tour-overview-donut"]',
       "left",
+    ),
+    step(
+      "overview-trend",
+      "Spending & Earning Trend",
+      "Track cumulative spending and earning against your total budget as the month progresses, plus what you've saved and have remaining. Hover any day to see what you spent and earned, broken down by category.",
+      '[data-tour="tour-overview-trend"]',
+      "top",
     ),
     step(
       "overview-recent",

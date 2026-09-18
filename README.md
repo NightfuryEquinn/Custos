@@ -2,7 +2,7 @@
 
 **[Website](https://nightfuryequinn.github.io/Custos/)** · **[Open the app](https://custos-kappa.vercel.app)**
 
-Private expense ledger, schedule, and to-do app. Track spending across multiple wallets and currencies, plan events with email and push reminders, and sign in with a Web3 wallet — no email or password required.
+Private expense ledger, schedule, and to-do app. Track spending across wallets and currencies, plan events with email/push reminders, and sign in with a Web3 wallet — no email or password required.
 
 Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 
@@ -12,72 +12,69 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 
 ### Ledger
 
-- **Overview, transactions, budgets, insights, recurring** — monthly expense tracking with charts, category breakdowns, and budget progress (including **Reserved** amounts held by schedule envelope holds); from 1280px up, Transactions and Budget by Category use two-column card grids for denser reading
-- **Piggies** — one-glance tracker for every savings category ("piggy") and its subcategories ("piglets"): lifetime balance derived from deposits minus withdrawals (excluding savings assigned to a Capitals plan), an optional target and deadline with a progress ring, and a **Saving Insights** engine (savings rate, streak, best month, pace-vs-deadline projections) surfaced on the Insights view. Saving Insights spans **Piggies and Capitals together**: assigned deposits count toward the wallet-wide rate, net, streak, and best month (split out as piggies vs capitals) and every plan gets a pace line — set aside, left to save, monthly pace, and funded / on pace / behind / overpaid — while per-piggy pace stays capital-free. The Piggies view keeps the totals row and each card's on-track status. Linked from Overview, Budgets, and Categories; exports to its own CSV
-- **Capitals** — planner for big future expenses (marriage, trips, car/house loans, or a custom plan): start from a template or blank, set a **total budget** (or let it fall back to the sum of your item estimates), check off line items as paid, and assign savings deposits to the plan to build up its pot. **Saved** is everything you have put in, **Unspent** is what is left of it once paid items have drawn it down, and **still to save** is the unpaid budget less that remaining pot — divided by the months until your target, that is the **monthly save** hint (or **Overpaid** when paid exceeds budget). Summaries roll the same figures up across plans, **Log** records a real payment straight into a prefilled expense that links back to the item, and deleting a plan returns its assigned deposits to their savings envelopes rather than stranding them. Capitals and Vehicles cards stay one column until 1280px, then open to two columns
-- **Subcategory breakdowns** — Overview's By Category card and Transactions both expand a category into its subcategories (Transactions uses a responsive card grid when a category filter is active)
-- **Calculator** — client-side budgeting helper with a side-by-side Income / Tax Collection setup on wider screens, a live allocation progress bar, and responsive category cards: deduct custom tax lines from income, allocate net across categories by amount (partial allocation is fine — apply once the total is at or under net), then apply to wallet budgets with confirmation; includes Malaysia-oriented presets (EPF / SOCSO / EIS / PCB ballpark / SST) that never leave the browser
-- **Multiple wallets** — create wallets in 29 currencies; monthly-income or starting-balance funding modes
-- **Custom categories** — editable expense, savings, and income category/subcategory taxonomy with glyphs and colors; unused categories and subcategories (built-in or custom) can be deleted, in-use ones are archived so history keeps its type, and archived items can be transferred onto another category; at 1280px and wider, Your Taxonomy and Budget by Category use two-column card grids
-- **Recurring transactions** — monthly, quarterly, or yearly; auto-posted on due dates via cron-job.org; delete scopes for one occurrence, this-and-future, or the whole series; destructive deletes ask for confirmation first
-- **Insights** — FX conversion, category trends and top subcategories up front, month-over-month charts (daily/monthly/quarterly/yearly) with per-category hover breakdowns, a spending-habit style profile (unlocks after five active transaction days), an income section with income trends/top sources and an income profile, and Saving Insights (Piggies + Capitals pace)
-- **Vehicles** — track fuel or charging costs per vehicle (car, EV, bike, or van): log fill-ups or charges with price, quantity, odometer, and station, with an optional partial-fill flag and **Log** to link one to a real ledger transaction. An EV automatically switches every label to kWh, charge, and kWh/100km instead of litres and fill-ups. A **Fuel Insights** engine (same ranked-card model as Transaction Insights) surfaces consumption trend, price timing, running-cost projection, and cadence once a vehicle has logged enough history
+- **Overview, transactions, budgets, insights, recurring** — monthly tracking with charts, category breakdowns, and budget progress (including **Reserved** amounts from schedule envelope holds); By Category leads the Overview page. Two-column card grids from 1280px up.
+- **Piggies** — savings tracker per category ("piggy") and subcategory ("piglet"): lifetime balance (deposits minus withdrawals, excluding Capitals-assigned savings), an optional target/deadline with a progress ring, and a **Piggy Insights** engine (rate, streak, best month, pace-vs-deadline) on the Insights view — spanning Piggies and Capitals together, with a pace line per Capitals plan. Linked from Overview, Budgets, and Categories; exports to CSV.
+- **Capitals** — planner for big expenses (marriage, trips, loans, or custom): a total budget, paid line items, assigned savings deposits, and a monthly-save hint from what's left to save divided by months to target. **Log** records a real payment against an item; deleting a plan returns its deposits to savings.
+- **Subcategory breakdowns** — Overview's By Category and Transactions both drill into subcategories.
+- **Calculator** — client-side budgeting: deduct custom tax lines from income, allocate the rest across categories (partial is fine), then apply to wallet budgets. Includes Malaysia-oriented presets (EPF/SOCSO/EIS/PCB/SST); nothing leaves the browser.
+- **Multiple wallets** — 29 currencies; monthly-income or starting-balance funding.
+- **Custom categories** — editable taxonomy with glyphs and colors; unused entries delete, in-use ones archive (so history keeps its type) and can transfer to another category.
+- **Recurring transactions** — monthly/quarterly/yearly, auto-posted via cron-job.org; scoped delete (one occurrence, this-and-future, or the whole series) with confirmation.
+- **Insights** — FX conversion, category trends and top subcategories, month-over-month charts with per-category breakdowns, a spending-habit profile (unlocks after 5 active days) with an Expense Profile header, an income profile, and Piggy Insights.
+- **Vehicles** — fuel/charge logs per vehicle (car/EV/bike/van) with price, quantity, odometer, and station; EVs switch labels to kWh automatically. **Log** links a fill-up to a real transaction, and a Fuel Insights engine surfaces consumption trend, price timing, cost projection, and cadence once there's enough history.
 
 ### Schedule & tasks
 
-- **Schedule** — calendar and agenda for bills, appointments, and reminders with recurrence (daily/weekly/biweekly/monthly/yearly); events can span multiple days via `endDate`, and Upcoming shows only the next occurrence of a recurring series; from 1280px up, Upcoming / Agenda day groups lay out as a two-column card grid
-- **Budget holds** — optional encrypted envelope holds on any schedule event (amount + category); active holds reserve budget until you log payment or release the occurrence; amounts never leave the E2EE payload
-- **Log payment** — from a bill/renewal event, open a prefilled expense and link `eventId` ↔ `expenseId` (plaintext metadata only); also releases that occurrence's budget hold when present
-- **Email reminders** — optional Resend emails with per-event lead times and user timezone; delivery goes to your **account notify email** (set under Data & privacy). Every notifying event also always gets a reminder right at its own start (the clock time, or 9:00 AM on the day for all-day events) on top of the chosen lead, deduped when the lead already is "at the time of the event"; confirmation when you enable notify; the reminder includes the event name, budget hold and comments, so turning notify on stores a readable copy (`notifyDetails`) that renders both the email and the push notification — switching it off deletes that copy and events without reminders stay fully encrypted
-- **Push notifications** — opt-in Web Push per device under **Account → Preferences**, delivered on the same 15-minute poll as the reminder emails and carrying the same event name, time, hold and comments; each browser subscribes separately, and turning it off on one device leaves the others and your emails untouched
-- **TO-DO lists** — multiple named lists with inline task management
+- **Schedule** — calendar/agenda for bills and reminders with recurrence (daily to yearly) and multi-day events (`endDate`); Upcoming shows only the next occurrence of a series.
+- **Budget holds** — optional encrypted envelope holds on any event (amount + category); reserve budget until you log payment or release the occurrence.
+- **Log payment** — open a prefilled expense from an event and link `eventId` ↔ `expenseId`, releasing that occurrence's hold.
+- **Email reminders** — optional Resend emails with per-event lead time and your timezone, plus a reminder at the event's own start; delivered to your account notify email.
+- **Push notifications** — opt-in Web Push per device under **Account → Preferences**, on the same 15-minute poll as email.
+- **TO-DO lists** — multiple named lists with inline task management.
 
 ### Identity & privacy
 
-- **Web3 identity** — create or restore an in-browser wallet (12- or 24-word recovery phrase); sign in with a cryptographic challenge (SIWE-style). Prefer a **ledger-only** key so the auth address is not correlated with on-chain activity
-- **Device passphrase vault** — recovery phrase quiz on create; in-app keys wrapped with a local passphrase (PBKDF2 + AES-GCM) instead of plaintext `localStorage`
-- **Face ID / Touch ID unlock** — optional per-device biometric unlock via WebAuthn PRF; the passphrase is encrypted with a key derived from the biometric assertion and never stored in the clear. Offered once after your first passphrase unlock, or toggle anytime under **Account → Preferences**. When it is on, the unlock screen prompts automatically on open and a returning device skips the welcome screen straight to that identity — the button and passphrase field stay as fallbacks, browsers that require a tap fail silently, and an explicit sign out turns the auto-prompt off until you sign in again
-- **Dark mode** — system-aware theme toggle, persisted locally; dark palette targets **WCAG 2.1 AA** contrast (≥ 4.5:1 normal text, ≥ 3.0:1 large text / UI chrome) with brighter secondary ink (`--ink-faint`), clearer card borders, high-contrast filled controls (`--accent-contrast`), and vivid status / progress fills
-- **Typography** — Young Serif (display), Schibsted Grotesk (UI), and Azeret Mono (amounts), self-hosted SIL OFL faces in `src/frontend/styles/fonts.css` and shared with the marketing site; summary amounts stay 20–24px and reflow on narrow screens so long figures do not overflow
-- **Sessions & privacy** — HttpOnly session cookies with sliding token rotation, revoke devices, clear local data, and third-party data-sharing consent under **Account → Data & privacy**
-- **Encrypted backup** — download/restore an encrypted pack (wallets, categories, transactions, schedule, todos, Capitals plans, Vehicles, and your account/profile settings — notify email, timezone, accent, nav layout) encrypted with your ledger key (client-only; not stored on the server) via **Account → Exports & imports**
-- **CSV export & import** — transactions (with categories), schedule events, and to-do lists (plaintext spreadsheet portability)
-- **Encrypted ledger** — amounts, wallet names, categories, notes, schedule titles, budget holds, and to-dos encrypted client-side; unlock with your wallet key each session
-- **Offline unlock & reads** — installable app shell + IndexedDB ciphertext cache; opens and unlocks with no connection at all on a returning device, showing the last-synced ledger. A locally-restored session without any server confirmation is trusted for 30 days (matching the session/cache TTLs) before it's dropped
-- **Offline write queue** — creating or editing expenses, schedule events (including a scoped this/future/all delete), to-do lists, Capitals plans, vehicles, fuel fills, wallet budgets, and categories all work offline and sync automatically once back online; every write is queued already-encrypted (the ledger key never touches disk) and replays safely if the connection drops mid-send. Still requires a connection: editing an already-recurring expense, a scoped (this/future/all) _expense_ delete, wallet create/rename/set-default/delete, deleting a Capitals plan, category transfer, backup restore, and rekey (which refuses to run at all while anything is still queued)
-- **Budget alerts** — email when a category nears or exceeds its monthly budget (E2EE-safe: client evaluates and sends names/amounts; server only delivers)
-- **Transparency** — in-app map of hosting roles, what the server can infer, MongoDB collections, E2EE vs plaintext fields, and data relationships (Mermaid diagrams rendered top-to-bottom for readability)
-- **Guided tour** — Shepherd.js walkthrough for each main view. On first sign-in a welcome modal asks whether to take the guided tour or explore alone; the answer is stored on the ledger profile (`tourPreference`), so it follows the user across devices rather than living in this browser's `localStorage`. Dismissing a tour counts as having seen it. Replay any view's tour from the **?** beside the page title, or **Account → Take a Tour**
-- **Mobile navigation** — at ≤860px the sidebar becomes a tab bar (customizable, four views by default) with a bottom sheet for the remaining views; the tab bar stays fixed while content scrolls
-- **What's New** — release notes open once per device per app version (see [Versioning](#versioning)), and stay reachable from **Account → What's New**
+- **Web3 identity** — create or restore an in-browser wallet (12/24-word phrase); sign in with a SIWE-style challenge. A **ledger-only** key keeps the auth address uncorrelated with on-chain activity.
+- **Device passphrase vault** — recovery-phrase quiz on create; keys wrapped locally with PBKDF2 + AES-GCM instead of plaintext `localStorage`.
+- **Face ID / Touch ID unlock** — optional WebAuthn PRF biometric unlock per device; auto-prompts on open once enrolled, with the passphrase/button as fallback. An explicit sign-out turns auto-prompt off until next sign-in.
+- **Theming** — system-aware dark mode meeting **WCAG 2.1 AA** contrast; 8 accent colors and 4 base surface palettes, both applied instantly and synced across devices via your profile.
+- **Sessions & privacy** — HttpOnly cookies with sliding rotation, per-device revoke, local-data clear, and data-sharing consent under **Account → Data & privacy**.
+- **Encrypted backup** — one pack covering ledger data and account/profile settings (notify email, timezone, theme, nav layout), encrypted with your ledger key, download/restore via **Account → Exports & imports**.
+- **CSV export & import** — transactions, schedule events, and to-do lists.
+- **Encrypted ledger** — amounts, names, categories, notes, titles, holds, and to-dos encrypted client-side; unlocked with your wallet key each session.
+- **Offline unlock, reads & writes** — installable app shell + IndexedDB cache opens and unlocks with no connection; most edits queue already-encrypted and sync once back online. A locally-restored session with no server confirmation is trusted for 30 days.
+- **Budget alerts** — email when a category nears/exceeds its monthly budget; the client evaluates and sends names/amounts, the server only delivers.
+- **Transparency** — in-app map of hosting roles, what the server can infer, collections, and E2EE vs plaintext fields.
+- **Guided tour** — Shepherd.js walkthrough per view; a first-sign-in modal offers guided or explore-alone, stored on your profile so it follows you across devices. Replay from the **?** beside any page title or **Account → Take a Tour**.
+- **Mobile navigation** — at ≤860px the sidebar becomes a customizable tab bar (four views, More sheet for the rest) and the app opens on your first configured tab; desktop still opens on Overview.
+- **What's New** — release notes open once per device per app version (see [Versioning](#versioning)); reachable anytime from **Account → What's New**.
 
 ### Security
 
-- **End-to-end encryption** — ledger content (transactions, wallet names/budgets, category trees, event titles/comments/budget holds, and to-do lists) is AES-256-GCM encrypted in the browser before reaching MongoDB; the server only stores ciphertext (plus plaintext schedule/email metadata needed for accurate reminder cron — day-level dates are intentional, and events with reminders on also keep a readable copy of the name/hold/comments that both the email and the push notification render)
-- A recurring expense's `seriesKey` is an HMAC-SHA256 under a key derived from your wallet signature (never sent to, or derivable by, the server) — not a plain hash of the wallet/subcategory/recurrence fields, which a server already holding two of those three could otherwise use to dictionary-attack the note
-- Budget-alert emails only ever leave the browser when alerts are turned on and a notify email is set — the client checks its own cached copy of that preference before sending, rather than relying only on the server to discard an unwanted payload after receipt
-- The sign-in challenge signed by your wallet is validated against the exact SIWE message shape before signing — this stops a compromised or malicious server from substituting the ledger-key derivation message as a "login" prompt and recovering the signature that derives your encryption key
-- Ownership uses opaque `accountId` (`users._id`); the SIWE address stays on `users` for login only
-- New document ids are random ObjectIds (no embedded creation timestamp)
-- Signature verification, Mongo-backed rate limiting (in-memory fallback), security headers (HTML CSP allow-lists the one inline boot script by content hash instead of `'unsafe-inline'`), in-memory profile cache with a periodic sweep so it cannot grow unbounded
-- Automated tests for crypto unlock/codec, device vault (including PBKDF2 iteration migration), encrypted backup (including account/profile settings), biometric auto-unlock selection, sign-in challenge validation, reminder email privacy, calculator, spending habits, income profile, session auth, budget-alert evaluation, envelope holds, multi-day and recurring schedule math, push dedupe, compound list pagination, cron scan cursors, security-header parity, the inline-script CSP hash, the ranked-insight model, fuel insights, vehicle routes, and the release-notes gate (`bun test`)
+- **End-to-end encryption** — transactions, wallet names/budgets, category trees, event titles/comments/holds, and to-do lists are AES-256-GCM encrypted client-side; the server stores ciphertext plus the plaintext schedule/email metadata reminders need.
+- A recurring expense's `seriesKey` is HMAC-SHA256 under a key derived from your wallet signature — not a plain hash the server could dictionary-attack from fields it already has.
+- Budget-alert emails only leave the browser when alerts are on and a notify email is set, checked client-side before sending.
+- The sign-in challenge is validated against the exact SIWE message shape, blocking a malicious server from substituting the key-derivation message as a login prompt.
+- Ownership uses opaque `accountId`; the SIWE address stays on `users` for login only. New document ids are random ObjectIds.
+- Signature verification, Mongo-backed rate limiting (in-memory fallback), security headers (CSP allow-lists the inline boot script by hash), and a swept in-memory profile cache.
+- Automated tests cover crypto/vault, encrypted backup, biometric selection, sign-in validation, reminder privacy, calculator, habit/income models, session auth, budget alerts, envelope holds, schedule math, push dedupe, pagination, cron cursors, header parity, insights, fuel insights, vehicle routes, and the release-notes gate (`bun test`).
 
 ## Tech stack
 
-| Layer    | Stack                                                                                                                                                       |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Runtime  | [Bun](https://bun.sh)                                                                                                                                       |
-| API      | [Hono](https://hono.dev) + Zod validation                                                                                                                   |
-| Database | [MongoDB](https://www.mongodb.com)                                                                                                                          |
-| Frontend | React 19, TanStack Query, ethers v6                                                                                                                         |
-| Styling  | Custom theme CSS (`ledger.css`) with WCAG AA dark-mode contrast tokens; Young Serif / Schibsted Grotesk / Azeret Mono self-hosted via `fonts.css` (SIL OFL) |
-| Loading  | [ldrs](https://uiball.com/ldrs) trefoil spinner                                                                                                             |
-| Motion   | [anime.js](https://animejs.com) v4                                                                                                                          |
-| Tours    | [Shepherd.js](https://shepherdjs.dev)                                                                                                                       |
-| Diagrams | [Mermaid](https://mermaid.js.org) (Transparency view)                                                                                                       |
-| Deploy   | [Vercel](https://vercel.com) **hosting + Analytics / Speed Insights only** (no Vercel Cron); scheduled jobs via [cron-job.org](https://cron-job.org)        |
-| PWA      | `public/manifest.webmanifest` + `public/sw.js` (copied into `dist/` on build)                                                                               |
-| Tooling  | TypeScript (`tsc --noEmit`) + [knip](https://knip.dev) (dead code detection)                                                                                |
+| Layer    | Stack                                                                                                               |
+| -------- | ------------------------------------------------------------------------------------------------------------------- |
+| Runtime  | [Bun](https://bun.sh)                                                                                               |
+| API      | [Hono](https://hono.dev) + Zod validation                                                                           |
+| Database | [MongoDB](https://www.mongodb.com)                                                                                  |
+| Frontend | React 19, TanStack Query, ethers v6                                                                                 |
+| Styling  | Custom theme CSS (`ledger.css`, WCAG AA); Young Serif / Schibsted Grotesk / Azeret Mono self-hosted                 |
+| Loading  | [ldrs](https://uiball.com/ldrs) trefoil spinner                                                                     |
+| Motion   | [anime.js](https://animejs.com) v4                                                                                  |
+| Tours    | [Shepherd.js](https://shepherdjs.dev)                                                                               |
+| Diagrams | [Mermaid](https://mermaid.js.org) (Transparency view)                                                               |
+| Deploy   | [Vercel](https://vercel.com) hosting + Analytics/Speed Insights only; cron via [cron-job.org](https://cron-job.org) |
+| PWA      | `public/manifest.webmanifest` + `public/sw.js` (copied into `dist/` on build)                                       |
+| Tooling  | TypeScript (`tsc --noEmit`) + [knip](https://knip.dev) (dead code detection)                                        |
 
 ## Project structure
 
@@ -99,8 +96,8 @@ src/
 ├── db/                   # MongoDB client, collections, indexes, URI resolver
 ├── schemas/              # Zod schemas (shared API validation)
 ├── lib/                  # glyphs, recurring, schedule, timezone, budget-alerts, security-headers,
-│                         # delete-scope, account-retention, version, accents, auth-message,
-│                         # legal, support-links (shared)
+│                         # delete-scope, account-retention, version, accents, surfaces,
+│                         # auth-message, legal, support-links (shared)
 └── frontend/
     ├── app/              # Root, LedgerApp
     ├── auth/             # wallet sign-in, device vault, backups, account menu, session UI
@@ -122,7 +119,7 @@ src/
     │   ├── fx.ts             # currency conversion for Insights
     │   ├── calculator.ts     # tax deduction + category allocation math
     │   ├── stats.ts          # shared transaction classification helpers
-    │   ├── theme.ts          # light/dark preference + accent color resolution
+    │   ├── theme.ts          # light/dark preference + accent/surface color resolution
     │   ├── piggies.ts        # savings balance model (deposits − withdrawals, targets)
     │   ├── savingsInsights.ts # streaks, pace, projections for Piggies + Insights
     │   ├── fuelInsights.ts    # per-vehicle fuel/power metrics, vocabulary, ranked insights
@@ -190,46 +187,46 @@ Schemas are defined in `src/schemas/` and wired in `src/db/collections.ts`. Inde
 
 ### Collections
 
-| MongoDB collection    | Code key             | Purpose                                                                                                                                                        |
-| --------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `users`               | `users`              | Account profile (codename, notify email, timezone, reminder/alert prefs)                                                                                       |
-| `ledger_profiles`     | `ledgerProfiles`     | Per-user UI state (`currentMonth`, plus `tourPreference` / `toursSeen` for guided-tour onboarding); its `createdAt` is exposed to the client as account age    |
-| `financial_wallets`   | `financialWallets`   | Wallets (currency, funding mode; E2EE financials)                                                                                                              |
-| `category_taxonomies` | `categoryTaxonomies` | One document per user — E2EE category tree                                                                                                                     |
-| `expenses`            | `expenses`           | Transactions (E2EE amount/sub/note; plaintext metadata)                                                                                                        |
-| `events`              | `events`             | Schedule events (E2EE title/comments/holds; plaintext schedule + email for reminders, plus `notifyDetails` while notify is on)                                 |
-| `todo_lists`          | `todoLists`          | Named to-do lists (E2EE name/icon/tasks)                                                                                                                       |
-| `capital_plans`       | `capitalPlans`       | Future-expense planners (E2EE name/template/budget/items)                                                                                                      |
-| `vehicles`            | `vehicles`           | Tracked vehicles — car/EV/bike/van (E2EE name/model/plate/odometer/tank)                                                                                       |
-| `vehicle_fills`       | `vehicleFills`       | Fuel fills or charges per vehicle (E2EE price/quantity/odometer/station)                                                                                       |
-| `consent`             | `consent`            | Data-sharing opt-in flag                                                                                                                                       |
-| `auth_nonces`         | `authNonces`         | Sign-in challenge nonces (TTL on `expiresAt`)                                                                                                                  |
-| `sessions`            | `sessions`           | HttpOnly session tokens (hashed; TTL on `expiresAt`)                                                                                                           |
-| `reminder_logs`       | `reminderLogs`       | Dedupes sent schedule reminders, per occurrence and per `channels` (email / push; absent on pre-push rows, which were email-only); TTL on `sentAt` (~400 days) |
-| `budget_alert_logs`   | `budgetAlertLogs`    | Dedupes budget-near-limit email/push delivery; TTL on `sentAt` (~400 days)                                                                                     |
-| `push_subscriptions`  | `pushSubscriptions`  | Web Push endpoints, one row per browser (unique on `endpoint`) — the row _is_ the opt-in                                                                       |
-| `rate_limits`         | `rateLimits`         | Shared API rate-limit buckets (`_id` = prefix + client key; TTL on `resetAt`; multi-instance)                                                                  |
+| MongoDB collection    | Code key             | Purpose                                                                                                                                 |
+| --------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`               | `users`              | Account profile (codename, notify email, timezone, reminder/alert prefs)                                                                |
+| `ledger_profiles`     | `ledgerProfiles`     | Per-user UI state (`currentMonth`, `tourPreference`/`toursSeen`, theme/nav layout); `createdAt` is exposed to the client as account age |
+| `financial_wallets`   | `financialWallets`   | Wallets (currency, funding mode; E2EE financials)                                                                                       |
+| `category_taxonomies` | `categoryTaxonomies` | One document per user — E2EE category tree                                                                                              |
+| `expenses`            | `expenses`           | Transactions (E2EE amount/sub/note; plaintext metadata)                                                                                 |
+| `events`              | `events`             | Schedule events (E2EE title/comments/holds; plaintext schedule + email for reminders, plus `notifyDetails` while notify is on)          |
+| `todo_lists`          | `todoLists`          | Named to-do lists (E2EE name/icon/tasks)                                                                                                |
+| `capital_plans`       | `capitalPlans`       | Future-expense planners (E2EE name/template/budget/items)                                                                               |
+| `vehicles`            | `vehicles`           | Tracked vehicles — car/EV/bike/van (E2EE name/model/plate/odometer/tank)                                                                |
+| `vehicle_fills`       | `vehicleFills`       | Fuel fills or charges per vehicle (E2EE price/quantity/odometer/station)                                                                |
+| `consent`             | `consent`            | Data-sharing opt-in flag                                                                                                                |
+| `auth_nonces`         | `authNonces`         | Sign-in challenge nonces (TTL on `expiresAt`)                                                                                           |
+| `sessions`            | `sessions`           | HttpOnly session tokens (hashed; TTL on `expiresAt`)                                                                                    |
+| `reminder_logs`       | `reminderLogs`       | Dedupes sent schedule reminders per occurrence/channel; TTL on `sentAt` (~400 days)                                                     |
+| `budget_alert_logs`   | `budgetAlertLogs`    | Dedupes budget-near-limit delivery; TTL on `sentAt` (~400 days)                                                                         |
+| `push_subscriptions`  | `pushSubscriptions`  | Web Push endpoints, one row per browser (unique on `endpoint`) — the row _is_ the opt-in                                                |
+| `rate_limits`         | `rateLimits`         | Shared API rate-limit buckets (`_id` = prefix + client key; TTL on `resetAt`; multi-instance)                                           |
 
 ### Encryption vs plaintext
 
-| Collection            | Encrypted (client-side)                                                                                       | Plaintext (needed for queries / cron)                                                                                                                                                                                                                                                  |
-| --------------------- | ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `expenses`            | `payload` (amount, subcategory, note) via `enc`                                                               | `accountId`, `date`, `kind`, `recurring`, `walletId`, `seriesKey` (HMAC-SHA256 under a key derived from the wallet signature, not reproducible from `walletId`/`sub`/`recurring` alone the way a plain hash of them would be), `skipped`, optional `eventId`, optional `capitalPlanId` |
-| `financial_wallets`   | `payload` (name, income, starting balance, budgets) via `enc`                                                 | `accountId`, `currency`, `fundingMode`, `isDefault`                                                                                                                                                                                                                                    |
-| `category_taxonomies` | `payload` (full `categories[]` tree, incl. optional piggy `target`/`deadline` per category and sub) via `enc` | `accountId`                                                                                                                                                                                                                                                                            |
-| `events`              | `payload` (title, comments, customLabel/Glyph, budget hold fields) via `enc`                                  | `accountId`, `catId`, schedule fields (`exceptDates`, `until`, …), `notify`, `lead`, optional `expenseId`, and `notifyDetails` (title, hold, comments) only while `notify` is on — legacy per-event `email` may remain on old rows but delivery uses `users.notifyEmail`               |
-| `todo_lists`          | `payload` (name, icon, tasks) via `enc`                                                                       | `accountId`                                                                                                                                                                                                                                                                            |
-| `capital_plans`       | `payload` (name, templateId, glyph, targetDate, initialBudget, items) via `enc`                               | `accountId`                                                                                                                                                                                                                                                                            |
-| `vehicles`            | `payload` (name, model, plate, glyph, odometerStart, tankCapacity, notes) via `enc`                           | `accountId`, `type`                                                                                                                                                                                                                                                                    |
-| `vehicle_fills`       | `payload` (price, quantity, odometer, station) via `enc`                                                      | `accountId`, `vehicleId`, `date`, `partial`, optional `expenseId`                                                                                                                                                                                                                      |
-| `users`               | —                                                                                                             | `address` (SIWE login), notify prefs                                                                                                                                                                                                                                                   |
-| `push_subscriptions`  | —                                                                                                             | `accountId`, `endpoint`, and the browser's `p256dh` / `auth` keys — required verbatim to encrypt each push payload                                                                                                                                                                     |
-| `sessions`            | —                                                                                                             | `accountId`, hashed token (rotated on sliding renewal), `userAgent`, `ip` — used for the Active Sessions device list and rate limiting                                                                                                                                                 |
-| `rate_limits`         | —                                                                                                             | `_id` (limit key), `count`, `resetAt`                                                                                                                                                                                                                                                  |
+| Collection            | Encrypted (client-side)                                                                  | Plaintext (needed for queries / cron)                                                                                                                                                    |
+| --------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `expenses`            | `payload` (amount, subcategory, note) via `enc`                                          | `accountId`, `date`, `kind`, `recurring`, `walletId`, `seriesKey` (HMAC under a wallet-derived key, not a plain hash of the other fields), `skipped`, optional `eventId`/`capitalPlanId` |
+| `financial_wallets`   | `payload` (name, income, starting balance, budgets) via `enc`                            | `accountId`, `currency`, `fundingMode`, `isDefault`                                                                                                                                      |
+| `category_taxonomies` | `payload` (full `categories[]` tree, incl. optional piggy `target`/`deadline`) via `enc` | `accountId`                                                                                                                                                                              |
+| `events`              | `payload` (title, comments, customLabel/Glyph, budget hold fields) via `enc`             | `accountId`, `catId`, schedule fields, `notify`, `lead`, optional `expenseId`, and `notifyDetails` (title, hold, comments) only while `notify` is on                                     |
+| `todo_lists`          | `payload` (name, icon, tasks) via `enc`                                                  | `accountId`                                                                                                                                                                              |
+| `capital_plans`       | `payload` (name, templateId, glyph, targetDate, initialBudget, items) via `enc`          | `accountId`                                                                                                                                                                              |
+| `vehicles`            | `payload` (name, model, plate, glyph, odometerStart, tankCapacity, notes) via `enc`      | `accountId`, `type`                                                                                                                                                                      |
+| `vehicle_fills`       | `payload` (price, quantity, odometer, station) via `enc`                                 | `accountId`, `vehicleId`, `date`, `partial`, optional `expenseId`                                                                                                                        |
+| `users`               | —                                                                                        | `address` (SIWE login), notify prefs                                                                                                                                                     |
+| `push_subscriptions`  | —                                                                                        | `accountId`, `endpoint`, `p256dh`/`auth` keys — required verbatim to encrypt each push payload                                                                                           |
+| `sessions`            | —                                                                                        | `accountId`, hashed token (rotated on renewal), `userAgent`, `ip` — used for the Active Sessions list and rate limiting                                                                  |
+| `rate_limits`         | —                                                                                        | `_id` (limit key), `count`, `resetAt`                                                                                                                                                    |
 
 Owned collections use opaque `accountId` (`users._id` hex).
 
-Inactive accounts (no login / session activity for over 90 days) can be purged with their data:
+Inactive accounts (no login/session activity for over 90 days) can be purged with their data:
 
 ```bash
 bun scripts/prune-stale-users.ts --dry-run
@@ -242,16 +239,16 @@ The in-app **Transparency** view documents hosting roles, what the server can in
 
 ```bash
 bun dev
-bun test        # crypto, reminders, calculator, spending habits, income profile, session auth,
-                # budget alerts, envelope holds, schedule recurrence/multi-day, push dedupe,
-                # ranked insights, fuel insights, vehicle routes, release-notes gate
+bun test           # crypto, reminders, calculator, spending habits, income profile, session auth,
+                    # budget alerts, envelope holds, schedule recurrence/multi-day, push dedupe,
+                    # ranked insights, fuel insights, vehicle routes, release-notes gate
 bun run typecheck  # tsc --noEmit
 bun run knip       # unused files/exports/deps
 ```
 
 Open [http://localhost:3000](http://localhost:3000). The SPA and API share the same origin (`/api/*`).
 
-When `CRON_SECRET` is set in development, the server also polls every 15 minutes for due reminders and recurring expense rows. Email delivery needs `RESEND_API_KEY` and Web Push delivery needs the `VAPID_*` keys — each channel is independent, and recurring expense materialization runs regardless.
+When `CRON_SECRET` is set in development, the server also polls every 15 minutes for due reminders and recurring expense rows. Email needs `RESEND_API_KEY`, push needs the `VAPID_*` keys — each channel is independent, and recurring materialization runs regardless.
 
 ### Liveness check
 
@@ -261,15 +258,13 @@ curl http://localhost:3000/
 
 ### Versioning
 
-The user-facing version lives in [`src/lib/version.ts`](src/lib/version.ts) as `APP_VERSION`, mirrored by `"version"` in `package.json`. It is shown under **Sign Out** in the account menu.
+The user-facing version lives in [`src/lib/version.ts`](src/lib/version.ts) as `APP_VERSION`, mirrored by `"version"` in `package.json`. It shows under **Sign Out** in the account menu.
 
-Release notes are a newest-first list in [`src/frontend/lib/whats-new/release-notes.ts`](src/frontend/lib/whats-new/release-notes.ts). Prepend a new entry and bump `APP_VERSION` to re-announce: the modal opens on the next load of every device that has not seen that version, because seen-state is stored per version in `localStorage` under `ledger:whatsnew:v1`. The modal scrolls the full changelog; **Got It** stays fixed at the bottom.
+Release notes are a newest-first list in [`src/frontend/lib/whats-new/release-notes.ts`](src/frontend/lib/whats-new/release-notes.ts). Prepend an entry and bump `APP_VERSION` to re-announce: seen-state is stored per version in `localStorage`, so any device that hasn't seen the new version gets the modal on next load.
 
-A version bump also needs three strings in [`website/index.html`](website/index.html) updated to match (`"softwareVersion"` in the JSON-LD, the `<span class="ver">` hero badge, and the `Custos v… —` footer line) — `tests/whats-new/release-notes.test.ts` enforces all three stay in sync with `APP_VERSION`. The service worker's cache-bust string in `public/sw.js` is derived automatically by `build.ts` at build time — never hand-edit it.
+A version bump also needs three strings in [`website/index.html`](website/index.html) (`"softwareVersion"` in the JSON-LD, the `<span class="ver">` badge, and the footer line) — `tests/whats-new/release-notes.test.ts` enforces all stay in sync with `APP_VERSION`. `public/sw.js`'s cache-bust string is derived automatically by `build.ts` at build time.
 
-The only quiet case is a device that already saw the current version. New accounts get the notes too — after the welcome modal and any guided tour finish, so the three never overlap: welcome modal → tour (if chosen) → What's New.
-
-To preview it during development, delete `ledger:whatsnew:v1` in DevTools → Application → Local Storage and reload, or open **Account → What's New**.
+New accounts get the notes too, after the welcome modal and any guided tour finish (welcome → tour → What's New), so they never overlap. To preview during development, delete `ledger:whatsnew:v1` in DevTools → Application → Local Storage and reload, or open **Account → What's New**.
 
 ## Authentication
 
@@ -280,49 +275,49 @@ Sign-in is wallet-based and verified on the server:
 3. `POST /api/auth/verify` — server verifies the signature and sets an **HttpOnly** `ledger_session` cookie
 4. Authenticated requests use `credentials: include` (no spoofable address header)
 
-Manage sessions under **Account → Data & privacy** (revoke devices, sign out everywhere, clear cookies and local storage). Restore access on a new device with your **12- or 24-word recovery phrase**, then set a **device passphrase** so the key is encrypted on that browser. Signing in again from a browser that lost its session cookie (private mode, a partial "clear site data") replaces that browser's prior session instead of adding a duplicate to Active Sessions — matched by User-Agent, so a genuinely different device is still tracked separately.
+Manage sessions under **Account → Data & privacy** (revoke devices, sign out everywhere, clear cookies and local storage). Restore access on a new device with your **12- or 24-word recovery phrase**, then set a **device passphrase** so the key is encrypted on that browser. Re-signing in on a browser that lost its session cookie replaces that browser's prior session rather than duplicating it in Active Sessions (matched by User-Agent).
 
-If Face ID / Touch ID is enrolled for the identity you last used on this device, a lapsed server session skips the welcome screen and reopens that identity's unlock screen with the biometric prompt already firing — no tap required. This is gated entirely on `ledger:session` in local storage, which sign-out clears, so a deliberate sign-out always returns you to the welcome screen next time.
+If Face ID / Touch ID is enrolled for the identity last used on a device, a lapsed session skips straight to that identity's unlock screen with the biometric prompt already firing. This is gated on `ledger:session` in local storage, which sign-out clears.
 
 ### Encryption
 
-Ledger data (transaction amounts, categories, notes, schedule titles, budget holds, to-do lists, and per-wallet budgets/income) is encrypted in your browser with **AES-256-GCM**. The encryption key is derived from a wallet signature over a fixed message — it never leaves your device and is held in memory for the session only.
+Ledger data (amounts, categories, notes, titles, holds, to-dos, wallet budgets/income) is encrypted in your browser with **AES-256-GCM**. The key is derived from a wallet signature over a fixed message — it never leaves your device and lives in memory for the session only.
 
-In-app wallet secrets (mnemonic / private key) are wrapped with a **device passphrase** (PBKDF2 + AES-GCM) in `localStorage` — not stored as plaintext. Injected browser wallets never store a private key locally.
+In-app wallet secrets (mnemonic/private key) are wrapped with a **device passphrase** (PBKDF2 + AES-GCM) in `localStorage`, not stored plaintext. Injected browser wallets never store a key locally.
 
-On each visit you may be prompted to **unlock** your ledger (device passphrase and/or a wallet signature). MongoDB stores ciphertext plus plaintext metadata needed for queries and cron — see [Encryption vs plaintext](#encryption-vs-plaintext). Prefer the honest framing **encrypted cloud sync**, not “data stays on your device.”
+You may be prompted to **unlock** on each visit (device passphrase and/or wallet signature). MongoDB stores ciphertext plus the plaintext metadata queries/cron need — see [Encryption vs plaintext](#encryption-vs-plaintext). Prefer the honest framing **encrypted cloud sync**, not "data stays on your device."
 
 ## API overview
 
-| Route                             | Description                                                                                                                                                                                                        |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `POST /api/auth/challenge`        | Start sign-in                                                                                                                                                                                                      |
-| `POST /api/auth/verify`           | Complete sign-in                                                                                                                                                                                                   |
-| `GET /api/auth/me`                | Current session                                                                                                                                                                                                    |
-| `GET /api/auth/sessions`          | List active sessions                                                                                                                                                                                               |
-| `DELETE /api/auth/sessions/:id`   | Revoke a session                                                                                                                                                                                                   |
-| `DELETE /api/auth/sessions`       | Revoke all other sessions                                                                                                                                                                                          |
-| `POST /api/auth/logout`           | End current session                                                                                                                                                                                                |
-| `POST /api/auth/clear`            | Revoke all sessions and clear cookie                                                                                                                                                                               |
-| `GET/PATCH /api/users/me`         | Codename, notify email, timezone, reminder/alert prefs                                                                                                                                                             |
-| `POST /api/users`                 | Create or upsert user profile on first sign-in                                                                                                                                                                     |
-| `GET/PATCH /api/profile`          | Per-user UI state — `currentMonth`, `tourPreference`, `toursSeen`; returns `id`, those fields, and `createdAt` (account age, used to gate release notes)                                                           |
-| `CRUD /api/wallets`               | Financial wallets (metadata + E2EE `enc`/`payload` via PATCH)                                                                                                                                                      |
-| `PUT /api/wallets/:id/budgets`    | Update encrypted wallet financials (`enc`/`payload`)                                                                                                                                                               |
-| `GET/PUT /api/categories`         | Category taxonomy                                                                                                                                                                                                  |
-| `CRUD /api/expenses`              | Transactions (scoped by wallet; cursor list via `limit`/`before`; optional series delete scopes)                                                                                                                   |
-| `CRUD /api/events`                | Schedule events (comments + budget holds live in the E2EE payload; cursor list via `limit`/`before`)                                                                                                               |
-| `CRUD /api/todo-lists`            | TO-DO lists and tasks                                                                                                                                                                                              |
-| `CRUD /api/capital-plans`         | Capitals planners and their line items                                                                                                                                                                             |
-| `CRUD /api/vehicles`              | Tracked vehicles (car/EV/bike/van)                                                                                                                                                                                 |
-| `CRUD /api/vehicles/fills`        | Fuel fills or charges (cursor list via `limit`/`before`, filterable by `vehicleId`)                                                                                                                                |
-| `GET/PATCH /api/consent`          | Data-sharing consent                                                                                                                                                                                               |
-| `POST /api/budget-alerts`         | Deliver client-evaluated budget alerts (email; deduped)                                                                                                                                                            |
-| `GET /api/fx/latest/:base`        | Cached FX rates (requires `EXCHANGE_RATE_API_KEY`)                                                                                                                                                                 |
-| `GET /api/push/public-key`        | VAPID application server key for browser subscription                                                                                                                                                              |
-| `POST/DELETE /api/push/subscribe` | Register or remove this device's Web Push endpoint                                                                                                                                                                 |
-| `GET /api/cron/reminders`         | Auth: `Authorization: Bearer $CRON_SECRET`. Sends due reminders (email + Web Push) and materializes recurring expense rows                                                                                         |
-| `POST /api/cron/notify-release`   | Auth: `Authorization: Bearer $CRON_SECRET`. Body `{ "version": "3.0.0" }`. Broadcasts a Web Push "app updated" notification to every subscribed device — called by CI after a successful deploy, not on a schedule |
+| Route                             | Description                                                                                                                                          |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/auth/challenge`        | Start sign-in                                                                                                                                        |
+| `POST /api/auth/verify`           | Complete sign-in                                                                                                                                     |
+| `GET /api/auth/me`                | Current session                                                                                                                                      |
+| `GET /api/auth/sessions`          | List active sessions                                                                                                                                 |
+| `DELETE /api/auth/sessions/:id`   | Revoke a session                                                                                                                                     |
+| `DELETE /api/auth/sessions`       | Revoke all other sessions                                                                                                                            |
+| `POST /api/auth/logout`           | End current session                                                                                                                                  |
+| `POST /api/auth/clear`            | Revoke all sessions and clear cookie                                                                                                                 |
+| `GET/PATCH /api/users/me`         | Codename, notify email, timezone, reminder/alert prefs                                                                                               |
+| `POST /api/users`                 | Create or upsert user profile on first sign-in                                                                                                       |
+| `GET/PATCH /api/profile`          | Per-user UI state — month, tour progress, theme (accent/surface), nav layout; returns `id`/`createdAt` too                                           |
+| `CRUD /api/wallets`               | Financial wallets (metadata + E2EE `enc`/`payload` via PATCH)                                                                                        |
+| `PUT /api/wallets/:id/budgets`    | Update encrypted wallet financials (`enc`/`payload`)                                                                                                 |
+| `GET/PUT /api/categories`         | Category taxonomy                                                                                                                                    |
+| `CRUD /api/expenses`              | Transactions (scoped by wallet; cursor list via `limit`/`before`; optional series delete scopes)                                                     |
+| `CRUD /api/events`                | Schedule events (comments + budget holds live in the E2EE payload; cursor list via `limit`/`before`)                                                 |
+| `CRUD /api/todo-lists`            | TO-DO lists and tasks                                                                                                                                |
+| `CRUD /api/capital-plans`         | Capitals planners and their line items                                                                                                               |
+| `CRUD /api/vehicles`              | Tracked vehicles (car/EV/bike/van)                                                                                                                   |
+| `CRUD /api/vehicles/fills`        | Fuel fills or charges (cursor list via `limit`/`before`, filterable by `vehicleId`)                                                                  |
+| `GET/PATCH /api/consent`          | Data-sharing consent                                                                                                                                 |
+| `POST /api/budget-alerts`         | Deliver client-evaluated budget alerts (email; deduped)                                                                                              |
+| `GET /api/fx/latest/:base`        | Cached FX rates (requires `EXCHANGE_RATE_API_KEY`)                                                                                                   |
+| `GET /api/push/public-key`        | VAPID application server key for browser subscription                                                                                                |
+| `POST/DELETE /api/push/subscribe` | Register or remove this device's Web Push endpoint                                                                                                   |
+| `GET /api/cron/reminders`         | Auth: `Authorization: Bearer $CRON_SECRET`. Sends due reminders (email + push) and materializes recurring expenses                                   |
+| `POST /api/cron/notify-release`   | Auth: `Authorization: Bearer $CRON_SECRET`. Body `{ "version": "3.0.0" }`. Broadcasts an "app updated" push — called by CI after a successful deploy |
 
 All mutating routes require a valid session cookie. Auth endpoints have stricter rate limits.
 
@@ -378,9 +373,9 @@ Optional: run `bunx vercel dev` locally to test Vercel routing before deploying.
 
 ### Scheduled tasks (cron-job.org)
 
-Vercel is used for **hosting and Analytics / Speed Insights only** — it does not schedule jobs. Reminders and recurring expenses are triggered solely by [cron-job.org](https://cron-job.org) calling the hosted API.
+Vercel is used for **hosting and Analytics/Speed Insights only** — it does not schedule jobs. Reminders and recurring expenses are triggered solely by [cron-job.org](https://cron-job.org) calling the hosted API.
 
-The reminder handler does not use a fixed daily schedule. It polls the database on each run and delivers email when the current time falls in each event's window: **remind-at − 15 min ≤ now ≤ remind-at + 15 min** (so a reminder can fire slightly early). Set the external job to run **every 15 minutes**. Each poll is **batched** (document limits + ~22s time budget) so it stays under the ~30s cron-job.org / Vercel function timeout.
+The reminder handler polls on each run and delivers when the current time falls in an event's window: **remind-at − 15 min ≤ now ≤ remind-at + 15 min**. Set the external job to run **every 15 minutes**. Each poll is batched (document limits + ~22s budget) to stay under the ~30s cron-job.org/Vercel timeout.
 
 1. Create a free account at [cron-job.org](https://console.cron-job.org/signup).
 2. **Create cronjob** with:
@@ -402,11 +397,11 @@ Expect `{ "ok": true, "reminders": { ... }, "recurring": { ... } }`.
 
 ### Release-update push (CI, not cron-job.org)
 
-`.github/workflows/notify-release.yml` listens for GitHub's `deployment_status` event — which Vercel's GitHub integration posts automatically on every deploy — and on a successful **Production** deploy calls `POST /api/cron/notify-release` with the version from `package.json`, broadcasting a Web Push "app updated" notification to every subscribed device (needs the `VAPID_*` keys; silently no-ops if unset).
+`.github/workflows/notify-release.yml` listens for GitHub's `deployment_status` event (posted automatically by Vercel's GitHub integration) and, on a successful **Production** deploy, calls `POST /api/cron/notify-release` with the version from `package.json`, broadcasting an "app updated" push to every subscribed device (needs the `VAPID_*` keys; no-ops silently if unset).
 
-Add the same `CRON_SECRET` used for reminders as a **GitHub Actions repository secret** (`Settings → Secrets and variables → Actions`) so the workflow can authenticate, and add `environment: Production` to the job (already set) so it can read a `CRON_SECRET` scoped to the `Production` GitHub environment instead.
+Add the same `CRON_SECRET` as a **GitHub Actions repository secret** and set `environment: Production` on the job (already set) so it can read a `CRON_SECRET` scoped to that environment.
 
-`github.event.deployment_status.target_url` is Vercel's unique per-deployment URL, not the production alias — if the project has Vercel Authentication (Deployment Protection) enabled, that URL 401s before the request reaches this app. Generate a token under Vercel Project Settings → Deployment Protection → **Protection Bypass for Automation**, and add it as the `VERCEL_AUTOMATION_BYPASS_SECRET` GitHub secret so the workflow's `x-vercel-protection-bypass` header can get past the wall.
+`github.event.deployment_status.target_url` is Vercel's per-deployment URL, not the production alias — if Vercel Authentication (Deployment Protection) is enabled it 401s before reaching the app. Generate a **Protection Bypass for Automation** token under Vercel Project Settings and add it as `VERCEL_AUTOMATION_BYPASS_SECRET` so the workflow's `x-vercel-protection-bypass` header can get past it.
 
 Manual test:
 
@@ -420,18 +415,18 @@ curl -sS -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/j
 
 1. **Liveness check** — `GET https://<your-app>.vercel.app/` should return `200` and serve the app shell.
 2. **Sign-in** — open the app, create or restore a wallet, complete the sign-in challenge, and confirm you land in the main UI.
-3. **CRUD** — add an expense and a schedule event; refresh the page and confirm data persists.
-4. **Wallets** — create a second wallet, switch between them, and confirm transactions stay scoped.
-5. **Sessions** — open **Account → Data & privacy**, confirm your device appears in the session list, and test revoke / sign out.
-6. **Exports** — open **Account → Exports & imports** to download an encrypted backup and/or CSV, then re-import.
-7. **Transparency** — open the Transparency view and confirm hosting, inference, and collection maps render.
-8. **Log payment** — create a bill event, use **Log payment**, and confirm the expense links back to the event.
-9. **Budget hold** — enable a hold on a schedule event, confirm Budgets shows **Held**, then log payment and confirm the hold releases for that occurrence.
-10. **Push notifications** — open **Account → Preferences**, enable push, and confirm the device registers (needs the `VAPID_*` keys; on iOS add the app to the Home Screen first).
-11. **What's New** — confirm the release notes open on a device that has not seen this version, and that **Account → What's New** reopens them afterwards.
-12. **First-run tour prompt** — sign in with a fresh wallet and confirm the welcome modal appears once. Choose **I'll explore** and confirm no tour auto-opens on any view and the prompt does not return after a reload; with another fresh wallet choose **Show me around**, close the shell tour with the X, and confirm it stays closed on reload.
-13. **Face ID auto-unlock** — on a device with Face ID enrolled, clear the server session cookie (leave local storage intact) and reload: the app should jump straight to that identity's unlock screen with the OS prompt already open, no tap needed. Then sign out explicitly and reload, and confirm you land back on the welcome screen with no auto-prompt.
-14. **Session dedup** — sign in, clear just that browser's `ledger_session` cookie (leave the wallet identity in local storage), sign in again on the same browser, and confirm **Account → Data & privacy → Active Sessions** still shows one entry, not two.
+3. **CRUD** — add an expense and a schedule event; refresh and confirm data persists.
+4. **Wallets** — create a second wallet, switch between them, confirm transactions stay scoped.
+5. **Sessions** — open **Account → Data & privacy**, confirm your device is listed, and test revoke/sign out.
+6. **Exports** — download an encrypted backup and/or CSV from **Account → Exports & imports**, then re-import.
+7. **Transparency** — confirm hosting, inference, and collection maps render.
+8. **Log payment** — create a bill event, use **Log payment**, confirm the expense links back to it.
+9. **Budget hold** — enable a hold, confirm Budgets shows **Held**, log payment, confirm release.
+10. **Push notifications** — enable under **Account → Preferences**, confirm the device registers (needs `VAPID_*`; on iOS, add to Home Screen first).
+11. **What's New** — confirm notes open on a device that hasn't seen this version, and reopen via **Account → What's New**.
+12. **First-run tour prompt** — sign in with a fresh wallet, confirm the welcome modal shows once; test both **I'll explore** and **Show me around** paths, and that the choice persists across reload.
+13. **Face ID auto-unlock** — with Face ID enrolled, clear the session cookie (keep local storage) and reload: it should jump to unlock with the OS prompt open. Sign out explicitly and confirm the welcome screen returns with no auto-prompt.
+14. **Session dedup** — sign in, clear that browser's `ledger_session` cookie, sign in again, and confirm **Active Sessions** still shows one entry.
 
 ### Serverless notes
 
@@ -440,7 +435,7 @@ curl -sS -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/j
 
 ## Support Custos
 
-The official hosted app is free with full features, and always will be — nothing below gates the ledger, encryption, exports, or backups. Accent colors are free for every account. **Account → Support Custos** links to:
+The official hosted app is free with full features, and always will be — nothing below gates the ledger, encryption, exports, or backups. Theming (accent + base colors) is free for every account. **Account → Support Custos** links to:
 
 - **Tips** — Ko-fi or GitHub Sponsors, one-off or recurring.
 - Disclosed, non-personalized affiliate offers and B2B services on the [website](https://nightfuryequinn.github.io/Custos/offers.html) — never inside the app, never near ledger content.

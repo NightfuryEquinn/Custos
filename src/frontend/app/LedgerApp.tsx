@@ -25,7 +25,7 @@ import { api, ApiError } from "@/frontend/lib/api";
 import { useLedger } from "@/frontend/lib/hooks/useLedger";
 import { useTheme } from "@/frontend/lib/hooks/useTheme";
 import { useLedgerTour, type TourKind } from "@/frontend/lib/tour";
-import type { AccentName } from "@/frontend/lib/theme";
+import type { AccentName, SurfaceName } from "@/frontend/lib/theme";
 import { useWhatsNew } from "@/frontend/lib/whats-new";
 import type {
   Account,
@@ -207,11 +207,16 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
      mirror it into the ThemeProvider (which also writes the localStorage
      cache the pre-paint bootstrap script reads) whenever it loads or changes
      on another device. */
-  const { setAccentName } = useTheme();
+  const { setAccentName, setSurfaceName } = useTheme();
   const profileAccent = ledgerProfile?.accent as AccentName | undefined;
   useEffect(() => {
     if (profileAccent) setAccentName(profileAccent);
   }, [profileAccent, setAccentName]);
+
+  const profileSurface = ledgerProfile?.surface as SurfaceName | undefined;
+  useEffect(() => {
+    if (profileSurface) setSurfaceName(profileSurface);
+  }, [profileSurface, setSurfaceName]);
 
   /* Custom nav layout, also account-wide. Undefined fields (never customized)
      fall back to the built-in defaults inside resolveNav. */
@@ -219,6 +224,18 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
     () => resolveNav(ledgerProfile?.navOrder, ledgerProfile?.navTabs),
     [ledgerProfile?.navOrder, ledgerProfile?.navTabs],
   );
+
+  /* On mobile, land on the user's first tab-bar pick instead of always
+     Overview — once, per mount, once nav prefs have actually loaded. */
+  const landedRef = useRef(false);
+  useEffect(() => {
+    if (landedRef.current || ledgerIsLoading || ledgerError) return;
+    landedRef.current = true;
+    const first = tabItems[0]?.[0];
+    if (first && first !== "overview" && window.matchMedia("(max-width: 860px)").matches) {
+      setView(first);
+    }
+  }, [ledgerIsLoading, ledgerError, tabItems]);
 
   /* A 401/403 mid-session (expired cookie, revoked session) used to render
      the same "API is down" screen with no way out but a manual reload —

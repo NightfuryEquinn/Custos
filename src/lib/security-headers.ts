@@ -26,7 +26,7 @@ export const API_CONTENT_SECURITY_POLICY =
  * here rather than silently CSP-blocked (and the site losing its pre-paint
  * theme) in production.
  */
-export const HTML_BOOT_SCRIPT_HASH = "'sha256-XuORDldw5zHd4yMsD80WDK/IkSe4CanWO13PK1IIuhg='";
+export const HTML_BOOT_SCRIPT_HASH = "'sha256-Jd8Iw0BVNYVWoZ5cMGyPH3lV2nuFpP5BsYmSNeexDmQ='";
 
 /** CSP for the HTML app shell (inline theme bootstrap script). */
 export const HTML_CONTENT_SECURITY_POLICY = `default-src 'self'; script-src 'self' ${HTML_BOOT_SCRIPT_HASH}; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'`;

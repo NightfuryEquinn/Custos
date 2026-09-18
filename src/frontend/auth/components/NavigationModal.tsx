@@ -96,7 +96,8 @@ export function NavigationModal({ sidebarItems, tabItems, onSave, onClose }: Nav
           <div className="dm-sec">
             <span className="fld-label">Mobile tab bar</span>
             <p className="dm-lead">
-              Pick four, in the order they should appear. Everything else lives under More.
+              Pick four, in the order they should appear. Everything else lives under More. On
+              mobile, the app opens on the first one.
             </p>
             <div className="nav-tab-preview">
               {tabs.map((id) => (

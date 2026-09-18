@@ -51,7 +51,7 @@ type DraftWallet = {
 type AuthIdn = IdentityRecord & { mnemonic?: string; privateKey?: string };
 
 type AuthScreenProps = {
-  onAuth: (account: Account) => void;
+  onAuth: (account: Account, termsVersion: string | undefined) => void;
 };
 
 type AuthMode =
@@ -89,7 +89,7 @@ function AuthShell({
 /** Persist vaulted (or injected) identity, unlock E2EE, and enter the app. */
 async function finishAuth(
   idn: AuthIdn,
-  onAuth: (account: Account) => void,
+  onAuth: (account: Account, termsVersion: string | undefined) => void,
   sharingOptIn?: boolean,
 ) {
   const { message } = await api.auth.challenge(idn.address);
@@ -135,7 +135,14 @@ async function finishAuth(
     ...idn,
     privateKey: idn.privateKey ?? sessionSecrets.get(idn.address)?.privateKey,
   });
-  onAuth({ address: idn.address, codename, injected: !!idn.injected });
+  /* Fetch the terms answer here so Root doesn't need its own post-login
+     GET /profile — that extra round trip was what split the loading screen
+     into two separate full-screen loaders in a row. */
+  const termsVersion = await api.profile
+    .get()
+    .then(({ profile }) => profile.termsVersion)
+    .catch(() => undefined);
+  onAuth({ address: idn.address, codename, injected: !!idn.injected }, termsVersion);
 }
 
 export function AuthScreen({ onAuth }: AuthScreenProps) {

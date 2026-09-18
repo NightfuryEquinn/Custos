@@ -27,6 +27,8 @@
         // one frame at the default accent instead of a full flash on load.
         var accent = localStorage.getItem("ledger:accent");
         if (accent) document.documentElement.setAttribute("data-accent", accent);
+        var surface = localStorage.getItem("ledger:surface");
+        if (surface) document.documentElement.setAttribute("data-surface", surface);
       })();
     </script>
     <link rel="icon" href="/src/frontend/assets/logo.png" type="image/png" />

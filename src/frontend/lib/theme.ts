@@ -14,12 +14,15 @@
    ──────────────────────────────────────────────────────────────────── */
 
 import { ACCENTS, DEFAULT_ACCENT_NAME, type AccentName } from "@/lib/accents";
+import { DEFAULT_SURFACE_NAME, SURFACES, type SurfaceName } from "@/lib/surfaces";
 export { ACCENTS, ACCENT_NAMES, type AccentName } from "@/lib/accents";
+export { SURFACES, SURFACE_NAMES, type SurfaceName } from "@/lib/surfaces";
 
 export type ThemePreference = "light" | "dark" | "system";
 
 const THEME_KEY = "ledger:theme";
 const ACCENT_KEY = "ledger:accent";
+const SURFACE_KEY = "ledger:surface";
 
 export function getSystemDark(): boolean {
   if (typeof window === "undefined") return false;
@@ -77,6 +80,29 @@ export function setStoredAccent(name: AccentName): void {
 /** Set `data-accent` on `<html>` so the matching ledger.css block applies. */
 export function applyAccent(name: AccentName): void {
   document.documentElement.setAttribute("data-accent", name);
+}
+
+export function getStoredSurface(): SurfaceName {
+  try {
+    const value = localStorage.getItem(SURFACE_KEY);
+    if (value && value in SURFACES) return value as SurfaceName;
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_SURFACE_NAME;
+}
+
+export function setStoredSurface(name: SurfaceName): void {
+  try {
+    localStorage.setItem(SURFACE_KEY, name);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Set `data-surface` on `<html>` so the matching ledger.css block applies. */
+export function applySurface(name: SurfaceName): void {
+  document.documentElement.setAttribute("data-surface", name);
 }
 
 /** Resolve the hex + contrast pair for an accent name in the given theme. */

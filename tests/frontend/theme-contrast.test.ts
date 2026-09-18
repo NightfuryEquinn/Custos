@@ -82,6 +82,62 @@ describe.each([
   });
 });
 
+/**
+ * Base surface variants override bg/surface/surface-2/ink*, but not
+ * accent/danger/ok/saved — those keep the theme's base values, and just need
+ * to still clear their bars against each surface's ground.
+ */
+const SURFACE_NAMES = ["slate", "sage", "ink"];
+
+describe.each(
+  SURFACE_NAMES.flatMap((surfaceName) => [
+    [
+      `${surfaceName}-light`,
+      {
+        ...light,
+        ...parseTokenBlock(`:root\\[data-theme="light"\\]\\[data-surface="${surfaceName}"\\]`),
+      },
+    ],
+    [
+      `${surfaceName}-dark`,
+      {
+        ...dark,
+        ...parseTokenBlock(`:root\\[data-theme="dark"\\]\\[data-surface="${surfaceName}"\\]`),
+      },
+    ],
+  ]) as [string, Record<string, string>][],
+)("surface %s contrast (WCAG 2.1 AA)", (_name, tokens) => {
+  const surfaces = ["bg", "surface", "surface-2"];
+
+  for (const ink of ["ink", "ink-soft"]) {
+    for (const surface of surfaces) {
+      test(`--${ink} on --${surface} >= 4.5:1`, () => {
+        expect(contrast(tokens[ink]!, tokens[surface]!)).toBeGreaterThanOrEqual(4.5);
+      });
+    }
+  }
+
+  for (const surface of surfaces) {
+    test(`--ink-faint on --${surface} >= 2.8:1`, () => {
+      expect(contrast(tokens["ink-faint"]!, tokens[surface]!)).toBeGreaterThanOrEqual(2.8);
+    });
+  }
+
+  test("--accent on --surface >= 4.5:1", () => {
+    expect(contrast(tokens.accent!, tokens.surface!)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  for (const semantic of ["danger", "ok"]) {
+    test(`--${semantic} on --surface >= 4.5:1`, () => {
+      expect(contrast(tokens[semantic]!, tokens.surface!)).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+
+  test("--saved on --surface >= 3.0:1", () => {
+    expect(contrast(tokens.saved!, tokens.surface!)).toBeGreaterThanOrEqual(3.0);
+  });
+});
+
 /** Pull `--accent`/`--accent-contrast` out of a `[data-accent="x"]` block. */
 function parseAccentBlock(selector: string): { accent: string; contrast: string } {
   const block = css.match(new RegExp(`${selector}\\s*\\{([^}]*)\\}`));
@@ -92,7 +148,7 @@ function parseAccentBlock(selector: string): { accent: string; contrast: string 
   return { accent, contrast };
 }
 
-const ACCENT_NAMES = ["moss", "azure", "berry"];
+const ACCENT_NAMES = ["moss", "azure", "berry", "plum", "teal", "amber", "steel"];
 
 describe.each(ACCENT_NAMES)("Accent '%s' (WCAG 2.1 AA)", (name) => {
   test("light: --accent on --surface >= 3.0:1, --accent-contrast on --accent >= 4.5:1", () => {

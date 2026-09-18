@@ -29,6 +29,8 @@ type ApiProfile = {
   termsVersion?: string;
   /* Accent color pick; undefined = default "clay". */
   accent?: string;
+  /* Base surface pick; undefined = default "bone". */
+  surface?: string;
   /* Custom nav layout; undefined = never customized, use the built-in defaults. */
   navTabs?: ViewId[];
   navOrder?: ViewId[];
@@ -256,6 +258,7 @@ export const api = {
           | "toursSeen"
           | "termsVersion"
           | "accent"
+          | "surface"
           | "navTabs"
           | "navOrder"
         >

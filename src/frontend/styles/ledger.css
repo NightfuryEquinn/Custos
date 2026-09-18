@@ -147,6 +147,123 @@
   --accent: #d99bb8;
   --accent-contrast: #1a1714;
 }
+:root[data-accent="plum"] {
+  --accent: #6b4c9a;
+  --accent-contrast: #ffffff;
+}
+:root[data-theme="dark"][data-accent="plum"] {
+  --accent: #b9a0e0;
+  --accent-contrast: #1a1714;
+}
+:root[data-accent="teal"] {
+  --accent: #2f7570;
+  --accent-contrast: #ffffff;
+}
+:root[data-theme="dark"][data-accent="teal"] {
+  --accent: #7fc9c1;
+  --accent-contrast: #1a1714;
+}
+:root[data-accent="amber"] {
+  --accent: #8a6216;
+  --accent-contrast: #ffffff;
+}
+:root[data-theme="dark"][data-accent="amber"] {
+  --accent: #d8ab5c;
+  --accent-contrast: #1a1714;
+}
+:root[data-accent="steel"] {
+  --accent: #4f6070;
+  --accent-contrast: #ffffff;
+}
+:root[data-theme="dark"][data-accent="steel"] {
+  --accent: #a3b5c4;
+  --accent-contrast: #1a1714;
+}
+
+/*
+ * Base surface pick — swaps the neutral ground, keyed off [data-surface] on
+ * <html>. "bone" (today's default) has no block here, same as "clay" above.
+ * Each variant needs both a light and dark twin — [data-theme][data-surface]
+ * beats a bare [data-theme] block on specificity regardless of source order,
+ * so these aren't order-sensitive the way the accent blocks are.
+ * Kept in sync with the SURFACES map in @/lib/surfaces.ts; contrast checked
+ * in theme-contrast.test.ts.
+ * ponytail: --shadow/--scrim aren't overridden per surface — they're
+ * translucent black and read fine over any of these grounds; add per-surface
+ * values if a specific surface ever needs a tinted shadow.
+ */
+:root[data-theme="light"][data-surface="slate"] {
+  --bg: #eef1f4;
+  --surface: #f8fafb;
+  --surface-2: #e9edf0;
+  --surface-3: #dbe1e6;
+  --ink: #1a1e22;
+  --ink-soft: #565f68;
+  --ink-faint: #838d97;
+  --hair: #dfe4e8;
+  --border: #d3dade;
+  --border-strong: #b8c1c7;
+}
+:root[data-theme="dark"][data-surface="slate"] {
+  --bg: #14171a;
+  --surface: #1b1f23;
+  --surface-2: #23282d;
+  --surface-3: #2d333a;
+  --ink: #e2e7ea;
+  --ink-soft: #b9c2c9;
+  --ink-faint: #8f9aa2;
+  --hair: #262c31;
+  --border: #383f46;
+  --border-strong: #57626b;
+}
+:root[data-theme="light"][data-surface="sage"] {
+  --bg: #eef2ec;
+  --surface: #f8faf7;
+  --surface-2: #e6ebe2;
+  --surface-3: #dbe2d5;
+  --ink: #1a1e19;
+  --ink-soft: #565f54;
+  --ink-faint: #838d7d;
+  --hair: #dfe6d9;
+  --border: #d3ddc9;
+  --border-strong: #b8c4a8;
+}
+:root[data-theme="dark"][data-surface="sage"] {
+  --bg: #161a14;
+  --surface: #1d221b;
+  --surface-2: #262c22;
+  --surface-3: #30392b;
+  --ink: #e5e9dc;
+  --ink-soft: #bdc4ae;
+  --ink-faint: #939c82;
+  --hair: #2a3122;
+  --border: #3d4632;
+  --border-strong: #5c684a;
+}
+:root[data-theme="light"][data-surface="ink"] {
+  --bg: #f0f0f0;
+  --surface: #fafafa;
+  --surface-2: #ebebeb;
+  --surface-3: #dcdcdc;
+  --ink: #1a1a1a;
+  --ink-soft: #595959;
+  --ink-faint: #868686;
+  --hair: #e4e4e4;
+  --border: #d6d6d6;
+  --border-strong: #b8b8b8;
+}
+:root[data-theme="dark"][data-surface="ink"] {
+  --bg: #171717;
+  --surface: #1f1f1f;
+  --surface-2: #282828;
+  --surface-3: #333333;
+  --ink: #e8e8e8;
+  --ink-soft: #bfbfbf;
+  --ink-faint: #949494;
+  --hair: #2c2c2c;
+  --border: #404040;
+  --border-strong: #606060;
+}
 
 /* ── 2. Base & reset ──────────────────────────────────────────────── */
 * {
@@ -262,22 +379,15 @@ h3 {
 
 .brand--sidebar .brand-logo {
   max-width: 196px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
 }
 
 .brand--auth .brand-logo {
   max-width: min(280px, 100%);
   border-radius: 12px;
-  box-shadow: none;
 }
 
 :root[data-theme="dark"] .brand-logo {
   border-radius: var(--r-md);
-  box-shadow: 0 0 0 1px var(--border);
-}
-
-:root[data-theme="dark"] .brand--sidebar .brand-logo {
-  box-shadow: 0 0 16px rgba(255, 255, 255, 0.5);
 }
 
 .theme-toggle {
@@ -2214,10 +2324,6 @@ textarea::placeholder {
   flex: none;
 }
 
-.profile-head-solo {
-  justify-content: flex-end;
-}
-
 .profile-locked {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -3722,6 +3828,8 @@ textarea::placeholder {
   display: flex;
   flex-direction: column;
   gap: var(--vgap);
+  border-top: 1px solid var(--hair);
+  padding-top: var(--sp-6);
 }
 
 .insights-section-head h2 {
@@ -5015,7 +5123,7 @@ textarea::placeholder {
   border-color: color-mix(in srgb, var(--danger) 24%, var(--border));
 }
 
-/* Per-plan pace rows inside Saving Insights (Piggies and Insights views). */
+/* Per-plan pace rows inside Piggy Insights (Piggies and Insights views). */
 .capital-pace-list {
   display: flex;
   flex-direction: column;

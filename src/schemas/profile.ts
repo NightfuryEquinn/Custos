@@ -2,9 +2,11 @@ import { z } from "zod";
 import { accountIdSchema, monthKeySchema } from "./common";
 import { TERMS_VERSION } from "@/lib/legal";
 import { ACCENT_NAMES } from "@/lib/accents";
+import { SURFACE_NAMES } from "@/lib/surfaces";
 import { TAB_SLOTS, VIEW_IDS } from "@/lib/views";
 
 const accentSchema = z.enum(ACCENT_NAMES as [string, ...string[]]);
+const surfaceSchema = z.enum(SURFACE_NAMES as [string, ...string[]]);
 
 const viewIdSchema = z.enum(VIEW_IDS);
 const uniqueIds = (ids: string[]) => new Set(ids).size === ids.length;
@@ -48,6 +50,8 @@ const ledgerProfileSchema = z.object({
   termsVersion: z.string().max(32).optional(),
   /* Accent color pick — free for every account, no gate to check. */
   accent: accentSchema.optional(),
+  /* Base surface (neutral ground) pick; undefined reads as the default "bone". */
+  surface: surfaceSchema.optional(),
   /* Custom nav layout. Undefined means "never customized" — the client falls
      back to the built-in defaults, so there's nothing to seed here. */
   navTabs: navTabsSchema.optional(),
@@ -65,6 +69,7 @@ export const updateProfileSchema = z
        version it was never shown. */
     termsVersion: z.literal(TERMS_VERSION).optional(),
     accent: accentSchema.optional(),
+    surface: surfaceSchema.optional(),
     navTabs: navTabsSchema.optional(),
     navOrder: navOrderSchema.optional(),
   })

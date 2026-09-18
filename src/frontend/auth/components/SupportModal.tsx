@@ -2,8 +2,9 @@ import { Icon } from "@/frontend/components/ui";
 import { api } from "@/frontend/lib/api";
 import { useModalMotion } from "@/frontend/lib/animate";
 import { useTheme } from "@/frontend/lib/hooks/useTheme";
-import type { AccentName } from "@/frontend/lib/theme";
+import type { AccentName, SurfaceName } from "@/frontend/lib/theme";
 import { ACCENTS, ACCENT_NAMES } from "@/lib/accents";
+import { SURFACES, SURFACE_NAMES } from "@/lib/surfaces";
 import { SUPPORT_LINKS } from "@/lib/support-links";
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -21,7 +22,8 @@ const TIP_LINKS = SUPPORT_LINKS.filter((l) => l.kind === "tip");
  */
 export function SupportModal({ onClose }: SupportModalProps) {
   const [accentBusy, setAccentBusy] = useState(false);
-  const { accentName, setAccentName, dark } = useTheme();
+  const [surfaceBusy, setSurfaceBusy] = useState(false);
+  const { accentName, setAccentName, surfaceName, setSurfaceName, dark } = useTheme();
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
@@ -39,6 +41,20 @@ export function SupportModal({ onClose }: SupportModalProps) {
       setAccentName(previous);
     } finally {
       setAccentBusy(false);
+    }
+  };
+
+  const pickSurface = async (name: SurfaceName) => {
+    if (surfaceBusy || name === surfaceName) return;
+    const previous = surfaceName;
+    setSurfaceName(name);
+    setSurfaceBusy(true);
+    try {
+      await api.profile.update({ surface: name });
+    } catch {
+      setSurfaceName(previous);
+    } finally {
+      setSurfaceBusy(false);
     }
   };
 
@@ -103,6 +119,27 @@ export function SupportModal({ onClose }: SupportModalProps) {
                   aria-pressed={name === accentName}
                   aria-label={name}
                   onClick={() => void pickAccent(name)}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="dm-div" />
+
+          <div className="dm-sec">
+            <span className="fld-label">Base color</span>
+            <p className="dm-lead">Pick the neutral ground the rest of the app sits on.</p>
+            <div className="accent-swatches" role="radiogroup" aria-label="Base color">
+              {SURFACE_NAMES.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  className={`accent-swatch${name === surfaceName ? " is-selected" : ""}`}
+                  style={{ background: SURFACES[name][dark ? "swatchDark" : "swatchLight"] }}
+                  disabled={surfaceBusy}
+                  aria-pressed={name === surfaceName}
+                  aria-label={name}
+                  onClick={() => void pickSurface(name)}
                 />
               ))}
             </div>

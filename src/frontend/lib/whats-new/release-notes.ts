@@ -37,6 +37,33 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "6.1.0",
+    date: "September 2026",
+    lead: "A smoother sign-in, more colors, and a tidier Overview and Insights.",
+    highlights: [
+      {
+        icon: "sparkle",
+        title: "One loading screen, not two",
+        body: "Signing in no longer flashes through two separate loading screens with different messages — just one, straight through to your ledger.",
+      },
+      {
+        icon: "list",
+        title: "Mobile opens on your first tab",
+        body: "On phones, Custos now lands on whichever view you put first under Account → Navigation, instead of always Overview. Desktop still opens on Overview. Also dropped the glow behind the sidebar logo in dark mode.",
+      },
+      {
+        icon: "sparkle",
+        title: "More colors, and they stick",
+        body: "Picking an accent color could occasionally snap back to the old one — fixed. Four new accents (Plum, Teal, Amber, Steel) plus a new Base Color picker for the app's background, both under Account → Support Custos.",
+      },
+      {
+        icon: "insights",
+        title: "By Category leads Overview; Piggy Insights",
+        body: "By Category now opens the Overview page. Insights adds an Expense Profile header and a divider before Spending Habit, Income, and Savings — and Saving Insights is renamed Piggy Insights.",
+      },
+    ],
+  },
+  {
     version: "6.0.0",
     date: "September 2026",
     lead: "A decluttering pass across Insights and Transparency, encrypted backups that now cover your account settings too, a simpler Support Custos (accent colors are free for everyone now), and a quicker way to log a fill-up.",

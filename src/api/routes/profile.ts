@@ -28,6 +28,7 @@ function serializeProfile(doc: {
   toursSeen?: string[];
   termsVersion?: string;
   accent?: string;
+  surface?: string;
   navTabs?: string[];
   navOrder?: string[];
   createdAt: Date;
@@ -45,6 +46,8 @@ function serializeProfile(doc: {
     termsVersion: serialized.termsVersion,
     /* Undefined reads as the default "clay" accent on the client. */
     accent: serialized.accent,
+    /* Undefined reads as the default "bone" surface on the client. */
+    surface: serialized.surface,
     /* Undefined means "never customized" — the client falls back to the
        built-in nav defaults. */
     navTabs: serialized.navTabs,

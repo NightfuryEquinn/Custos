@@ -151,7 +151,7 @@ export function Root() {
           <TermsGate onAccepted={setTermsVersion} onSignOut={signOut} signingOut={signingOut} />
         ) : cryptoReady || ledgerKeyStore.isUnlocked(account.address) ? (
           <LedgerApp
-            key={account.address}
+            key={account.address.toLowerCase()}
             account={account}
             onSignOut={signOut}
             signingOut={signingOut}
@@ -168,10 +168,15 @@ export function Root() {
         <>
           <ThemeToggle className="auth-theme-toggle" />
           <AuthScreen
-            onAuth={(acc) => {
+            onAuth={(acc, termsVersion) => {
               setAccount(acc);
               setCryptoReady(true);
-              checkTerms();
+              /* finishAuth already fetched the terms answer — no need for
+                 checkTerms()'s own GET /profile, which was what put a
+                 second full-screen loader between login and the ledger. */
+              setTermsVersion(termsVersion);
+              setTermsKnown(true);
+              setTermsChecked(true);
             }}
           />
         </>

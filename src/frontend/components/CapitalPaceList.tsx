@@ -51,7 +51,7 @@ function paceMetrics(plan: CapitalPace, money: (n: number) => string): PaceMetri
 }
 
 /**
- * The Capitals half of Saving Insights: one card per plan with what is set
+ * The Capitals half of Piggy Insights: one card per plan with what is set
  * aside, how much of that is still unspent, what is left, the pace it is being
  * saved at, and where that leaves it against the target date. Shared by the
  * Piggies and Insights views, which format money differently (Insights can

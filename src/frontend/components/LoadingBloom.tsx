@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { trefoil } from "ldrs";
 import { useTheme } from "@/frontend/lib/hooks/useTheme";
 
@@ -30,8 +29,13 @@ function randomMessage() {
   return RANDOM_MESSAGES[Math.floor(Math.random() * RANDOM_MESSAGES.length)];
 }
 
+/* Picked once per page load, not per mount — a login flow can render this
+   component from two different spots in a row (boot gate, then ledger
+   fetch), and swapping the copy between them reads as the load restarting. */
+const SESSION_MESSAGE = randomMessage();
+
 export function LoadingBloom({ label, size = "md" }: { label?: string; size?: "sm" | "md" }) {
-  const [fallback] = useState(randomMessage);
+  const fallback = SESSION_MESSAGE;
   const { accent } = useTheme();
   return (
     <div className={`loading-bloom loading-bloom--${size}`}>

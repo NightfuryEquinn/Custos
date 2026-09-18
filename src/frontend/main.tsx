@@ -2,8 +2,10 @@ import { Root } from "@/frontend/app/Root";
 import logoUrl from "@/frontend/assets/logo.png";
 import {
   applyAccent,
+  applySurface,
   applyTheme,
   getStoredAccent,
+  getStoredSurface,
   getStoredTheme,
   resolveDark,
 } from "@/frontend/lib/theme";
@@ -20,6 +22,7 @@ import { createRoot } from "react-dom/client";
 
 applyTheme(resolveDark(getStoredTheme()));
 applyAccent(getStoredAccent());
+applySurface(getStoredSurface());
 registerServiceWorker();
 
 /** Attach the web app manifest without involving the HTML bundler. */

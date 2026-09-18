@@ -103,7 +103,7 @@ import { createPortal } from "react-dom";
  *   Recurring    — fixed monthly commitments
  */
 
-/** Trailing window Saving Insights reads on the Insights view. */
+/** Trailing window Piggy Insights reads on the Insights view. */
 const SAVINGS_WINDOW_MONTHS = 12;
 
 /** Every list (main category) that still has at least one incomplete task. */
@@ -250,53 +250,6 @@ export function Overview({
 
   return (
     <div ref={viewRef} className="view">
-      <section className="panel trend-panel" data-tour="tour-overview-trend">
-        <div className="trend-stats">
-          <div className="trend-total">
-            <span className="trend-key">
-              <i className="trend-dot" style={{ background: accent }} /> Spending
-            </span>
-            <span className="trend-now">{fmtMoney(trendSpent, { currency })}</span>
-          </div>
-          <div className="trend-total">
-            <span className="trend-key">
-              <i className="trend-dot trend-dot--earn" /> Earning
-            </span>
-            <span className="trend-now trend-now--earn">{fmtMoney(st.earned, { currency })}</span>
-          </div>
-          <div className="trend-total">
-            <span className="trend-key">
-              <i className="trend-dot trend-dot--saved" /> Saved
-            </span>
-            <span className="trend-now trend-now--saved">{fmtMoney(st.saved, { currency })}</span>
-          </div>
-          <div className="trend-total">
-            <span className="trend-key">
-              <i
-                className={
-                  "trend-dot" + (st.remaining < 0 ? " trend-dot--danger" : " trend-dot--ok")
-                }
-              />
-              Remaining
-            </span>
-            <span
-              className={"trend-now" + (st.remaining < 0 ? " trend-now--danger" : " trend-now--ok")}
-            >
-              {fmtMoney(st.remaining, { currency })}
-            </span>
-          </div>
-        </div>
-        <AreaTrend
-          points={cum.length ? cum : [{ x: "1", v: 0 }]}
-          compare={earnCum.length ? earnCum : [{ x: "1", v: 0 }]}
-          accent={accent}
-          height={210}
-          budgetLine={st.totalBudget}
-          details={trendDetails.length ? trendDetails : null}
-          format={(n) => fmtMoney(n, { currency })}
-        />
-      </section>
-
       <section className="panel donut-panel" data-tour="tour-overview-donut">
         <div className="panel-head">
           <h2>By Category</h2>
@@ -382,6 +335,53 @@ export function Overview({
             <EmptyState title="No Spending Yet" sub="Categories fill in as you log transactions." />
           )}
         </div>
+      </section>
+
+      <section className="panel trend-panel" data-tour="tour-overview-trend">
+        <div className="trend-stats">
+          <div className="trend-total">
+            <span className="trend-key">
+              <i className="trend-dot" style={{ background: accent }} /> Spending
+            </span>
+            <span className="trend-now">{fmtMoney(trendSpent, { currency })}</span>
+          </div>
+          <div className="trend-total">
+            <span className="trend-key">
+              <i className="trend-dot trend-dot--earn" /> Earning
+            </span>
+            <span className="trend-now trend-now--earn">{fmtMoney(st.earned, { currency })}</span>
+          </div>
+          <div className="trend-total">
+            <span className="trend-key">
+              <i className="trend-dot trend-dot--saved" /> Saved
+            </span>
+            <span className="trend-now trend-now--saved">{fmtMoney(st.saved, { currency })}</span>
+          </div>
+          <div className="trend-total">
+            <span className="trend-key">
+              <i
+                className={
+                  "trend-dot" + (st.remaining < 0 ? " trend-dot--danger" : " trend-dot--ok")
+                }
+              />
+              Remaining
+            </span>
+            <span
+              className={"trend-now" + (st.remaining < 0 ? " trend-now--danger" : " trend-now--ok")}
+            >
+              {fmtMoney(st.remaining, { currency })}
+            </span>
+          </div>
+        </div>
+        <AreaTrend
+          points={cum.length ? cum : [{ x: "1", v: 0 }]}
+          compare={earnCum.length ? earnCum : [{ x: "1", v: 0 }]}
+          accent={accent}
+          height={210}
+          budgetLine={st.totalBudget}
+          details={trendDetails.length ? trendDetails : null}
+          format={(n) => fmtMoney(n, { currency })}
+        />
       </section>
 
       <section className="panel" data-tour="tour-overview-recent">
@@ -1403,7 +1403,11 @@ export function Insights({
           <h2>Spending Habit</h2>
         </div>
         <section className="panel">
-          <div className="panel-head profile-head profile-head-solo">
+          <div className="panel-head profile-head">
+            <div>
+              <h2>Expense Profile</h2>
+              <p className="panel-sub">Based on expense in {habit.periodLabel}</p>
+            </div>
             <Segmented
               options={[
                 { v: "month", label: "Per Month" },
@@ -1779,40 +1783,45 @@ export function Insights({
         </div>
       </div>
 
-      <section className="panel insights-savings" data-tour="tour-insights-savings">
-        <div className="panel-head">
-          <div>
-            <h2>Saving Insights</h2>
+      <div className="insights-section" data-tour="tour-insights-savings">
+        <div className="insights-section-head">
+          <h2>Savings</h2>
+        </div>
+        <section className="panel insights-savings">
+          <div className="panel-head">
+            <div>
+              <h2>Piggy Insights</h2>
+            </div>
           </div>
-        </div>
-        <div className="summary-grid sg-2">
-          <SummaryCard
-            label="To Capitals"
-            tone="ok"
-            value={money(savingsInsights.capitalNetFlow)}
-            sub={`${money(savingsInsights.piggyNetFlow)} to piggies`}
-          />
-          <SummaryCard
-            label="Streak"
-            value={String(savingsInsights.currentStreak)}
-            sub={savingsInsights.currentStreak === 1 ? "month saving" : "months saving"}
-          />
-        </div>
-        {savingsInsights.headlines.length ? (
-          <ul className="piggy-headlines piggy-headlines--spaced">
-            {savingsInsights.headlines.map((h) => (
-              <li key={h.id} className={`piggy-headline piggy-headline--${h.tone}`}>
-                {h.text}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="panel-sub piggy-headlines-empty">
-            Keep saving to unlock streaks, pace, and projections here.
-          </p>
-        )}
-        <CapitalPaceList plans={savingsInsights.perPlan} money={money} />
-      </section>
+          <div className="summary-grid sg-2">
+            <SummaryCard
+              label="To Capitals"
+              tone="ok"
+              value={money(savingsInsights.capitalNetFlow)}
+              sub={`${money(savingsInsights.piggyNetFlow)} to piggies`}
+            />
+            <SummaryCard
+              label="Streak"
+              value={String(savingsInsights.currentStreak)}
+              sub={savingsInsights.currentStreak === 1 ? "month saving" : "months saving"}
+            />
+          </div>
+          {savingsInsights.headlines.length ? (
+            <ul className="piggy-headlines piggy-headlines--spaced">
+              {savingsInsights.headlines.map((h) => (
+                <li key={h.id} className={`piggy-headline piggy-headline--${h.tone}`}>
+                  {h.text}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="panel-sub piggy-headlines-empty">
+              Keep saving to unlock streaks, pace, and projections here.
+            </p>
+          )}
+          <CapitalPaceList plans={savingsInsights.perPlan} money={money} />
+        </section>
+      </div>
     </div>
   );
 }
