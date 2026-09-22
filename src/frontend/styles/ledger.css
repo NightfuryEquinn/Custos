@@ -3116,6 +3116,15 @@ textarea::placeholder {
   flex-wrap: wrap;
 }
 
+.donut-wrap > .empty {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
 .donut-stage {
   position: relative;
   width: 188px;
@@ -8018,6 +8027,11 @@ textarea::placeholder {
     flex: none;
     width: 100%;
     min-width: 0;
+  }
+
+  .donut-wrap > .empty {
+    flex: none;
+    width: 100%;
   }
 
   /* Panel subheaders */
