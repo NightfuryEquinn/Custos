@@ -13,6 +13,7 @@ import {
   glyphTint,
 } from "@/frontend/components/ui";
 import {
+  isIncomeCategory,
   isSavingsCategory,
   isSpendingCategory,
   spendingCategoriesFor,
@@ -187,25 +188,38 @@ export function Overview({
   );
   const [hoverCat, setHoverCat] = useState<string | null>(null);
   const [expandedCat, setExpandedCat] = useState<Record<string, boolean>>({});
+  const [catKind, setCatKind] = useState<"expense" | "income">("expense");
   const isMobile = useIsMobile();
   const donutSize = isMobile ? 168 : 188;
   const donutThickness = isMobile ? 24 : 26;
   const pendingTodos = useMemo(() => pendingTodoLists(todoLists), [todoLists]);
   const todayEvents = useMemo(() => todaysEvents(events, loadedAt), [events, loadedAt]);
 
+  const catByCat = catKind === "income" ? st.incomeByCat : st.byCat;
+  const catBySub = catKind === "income" ? st.incomeBySub : st.bySub;
+  const catSourceCategories = useMemo(
+    () =>
+      catKind === "income"
+        ? [
+            ...categoryIndex.incomeCategories,
+            ...categoryIndex.archivedCategories.filter((c) => isIncomeCategory(c)),
+          ]
+        : spendingCategoriesFor(categoryIndex, (id) => (st.byCat[id] || 0) > 0),
+    [categoryIndex, catKind, st.byCat],
+  );
   const donutData = useMemo(
     () =>
-      spendingCategoriesFor(categoryIndex, (id) => (st.byCat[id] || 0) > 0)
+      catSourceCategories
         .map((c) => ({
           id: c.id,
           label: c.name,
-          value: st.byCat[c.id] || 0,
+          value: catByCat[c.id] || 0,
           color: c.color,
           glyph: displayGlyph(c.glyph, c.id),
         }))
         .filter((d) => d.value > 0)
         .sort((a, b) => b.value - a.value),
-    [categoryIndex, st.byCat],
+    [catSourceCategories, catByCat],
   );
   const totalAll = useMemo(() => donutData.reduce((s, d) => s + d.value, 0), [donutData]);
 
@@ -251,8 +265,16 @@ export function Overview({
   return (
     <div ref={viewRef} className="view">
       <section className="panel donut-panel" data-tour="tour-overview-donut">
-        <div className="panel-head">
+        <div className="panel-head panel-head--row">
           <h2>By Category</h2>
+          <Segmented
+            options={[
+              { v: "expense", label: "Expense" },
+              { v: "income", label: "Income" },
+            ]}
+            value={catKind}
+            onChange={setCatKind}
+          />
         </div>
         <div className="donut-wrap">
           <div className="donut-stage">
@@ -270,7 +292,7 @@ export function Overview({
                   : "Total (RM)"}
               </div>
               <div className="dc-value">
-                {activeCat ? (st.byCat[activeCat]?.toFixed(2) ?? "0.00") : totalAll.toFixed(2)}
+                {activeCat ? (catByCat[activeCat]?.toFixed(2) ?? "0.00") : totalAll.toFixed(2)}
               </div>
             </div>
           </div>
@@ -280,7 +302,7 @@ export function Overview({
                 const open = expandedCat[d.id] ?? false;
                 const subs = categoryIndex.catById[d.id]?.subs ?? [];
                 const subRows = subs
-                  .map((s) => ({ ...s, value: st.bySub[s.id] || 0 }))
+                  .map((s) => ({ ...s, value: catBySub[s.id] || 0 }))
                   .filter((s) => s.value > 0)
                   .sort((a, b) => b.value - a.value);
 
@@ -332,7 +354,10 @@ export function Overview({
               })}
             </ul>
           ) : (
-            <EmptyState title="No Spending Yet" sub="Categories fill in as you log transactions." />
+            <EmptyState
+              title={catKind === "income" ? "No Income Yet" : "No Spending Yet"}
+              sub="Categories fill in as you log transactions."
+            />
           )}
         </div>
       </section>

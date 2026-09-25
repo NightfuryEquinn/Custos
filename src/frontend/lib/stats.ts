@@ -457,6 +457,8 @@ export function monthStats(
   let withdrawn = 0;
   const byCat: Record<string, number> = {};
   const bySub: Record<string, number> = {};
+  const incomeByCat: Record<string, number> = {};
+  const incomeBySub: Record<string, number> = {};
 
   for (const e of expenses) {
     if (!inMonth(e.date, key)) continue;
@@ -466,6 +468,9 @@ export function monthStats(
 
     if (cls === "income") {
       earned += e.amount;
+      const incomeCat = catOf(e.sub, index);
+      if (incomeCat) incomeByCat[incomeCat] = (incomeByCat[incomeCat] || 0) + e.amount;
+      if (e.sub) incomeBySub[e.sub] = (incomeBySub[e.sub] || 0) + e.amount;
       continue;
     }
 
@@ -529,6 +534,8 @@ export function monthStats(
     withdrawn,
     byCat,
     bySub,
+    incomeByCat,
+    incomeBySub,
     byCatHeld,
     totalHeld,
     totalBudget,

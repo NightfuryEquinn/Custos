@@ -3,6 +3,7 @@
  * Hand-rolled (no eval/Function) to avoid the RCE class of bug affecting
  * npm expression-eval packages (e.g. CVE-2025-12735).
  */
+import { roundMoney } from "@/frontend/lib/data";
 /** True when the string is just a plain (possibly partial) decimal number, not an expression. */
 export function isPlainNumber(input: string): boolean {
   return /^\d*\.?\d*$/.test(input.trim());
@@ -16,7 +17,7 @@ export function evaluateExpression(input: string): number | null {
   const value = parser.parseExpression();
   if (value === null || !parser.atEnd()) return null;
   if (!Number.isFinite(value)) return null;
-  return value;
+  return roundMoney(value);
 }
 
 type Token = { type: "num"; value: number } | { type: "op"; value: string };

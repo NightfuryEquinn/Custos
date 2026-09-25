@@ -18,6 +18,11 @@ describe("evaluateExpression", () => {
     expect(evaluateExpression("10/4")).toBe(2.5);
   });
 
+  test("rounds to 2 decimal places", () => {
+    expect(evaluateExpression("10/3")).toBe(3.33);
+    expect(evaluateExpression("2/3")).toBe(0.67);
+  });
+
   test("handles whitespace between tokens", () => {
     expect(evaluateExpression("1 + 2")).toBe(3);
   });

@@ -37,6 +37,23 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "6.1.1",
+    date: "September 2026",
+    lead: "Arithmetic amounts round cleanly, and Overview's By Category now covers Income too.",
+    highlights: [
+      {
+        icon: "calculator",
+        title: "Arithmetic rounds to cents",
+        body: "Typing an expression like 10/3 into an amount field used to fill in every decimal place. It now rounds to 2 decimal places, same as any other money value.",
+      },
+      {
+        icon: "insights",
+        title: "By Category, now with Income",
+        body: "Overview's By Category donut has an Expense / Income toggle, so you can see your income broken down by category right from the home screen.",
+      },
+    ],
+  },
+  {
     version: "6.1.0",
     date: "September 2026",
     lead: "A smoother sign-in, more colors, and a tidier Overview and Insights.",
