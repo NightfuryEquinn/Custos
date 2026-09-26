@@ -74,7 +74,7 @@ export function NavigationModal({ sidebarItems, tabItems, onSave, onClose }: Nav
     >
       <div
         ref={panelRef}
-        className="modal sm"
+        className="modal sm modal--medium"
         role="dialog"
         aria-modal="true"
         aria-labelledby="nav-modal-title"

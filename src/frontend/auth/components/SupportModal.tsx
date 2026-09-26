@@ -81,13 +81,11 @@ export function SupportModal({ onClose }: SupportModalProps) {
 
         <div className="modal-body modal-scroll">
           <p className="dm-lead">
-            Custos is free on the official host with full features, and always will be. Tips below
-            are optional and keep the lights on — they never gate anything in the ledger itself.
+            Every feature is free. Tips are optional and never unlock or gate ledger features.
           </p>
 
           <div className="dm-sec">
             <span className="fld-label">Send a tip</span>
-            <p className="dm-lead">A one-off or recurring tip, whatever feels right.</p>
             <div className="wn-list">
               {TIP_LINKS.map((link) => (
                 <a
@@ -107,7 +105,6 @@ export function SupportModal({ onClose }: SupportModalProps) {
 
           <div className="dm-sec">
             <span className="fld-label">Accent color</span>
-            <p className="dm-lead">Pick the accent color used across the app.</p>
             <div className="accent-swatches" role="radiogroup" aria-label="Accent color">
               {ACCENT_NAMES.map((name) => (
                 <button
@@ -128,7 +125,6 @@ export function SupportModal({ onClose }: SupportModalProps) {
 
           <div className="dm-sec">
             <span className="fld-label">Base color</span>
-            <p className="dm-lead">Pick the neutral ground the rest of the app sits on.</p>
             <div className="accent-swatches" role="radiogroup" aria-label="Base color">
               {SURFACE_NAMES.map((name) => (
                 <button

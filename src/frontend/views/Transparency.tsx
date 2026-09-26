@@ -538,8 +538,8 @@ export function Transparency() {
               <code>GET /api/cron/reminders</code> about every fifteen minutes for email reminders,
               push notifications, and recurring expense rows. Optional email uses Resend; push
               delivery uses FCM, Apple Push, or Mozilla&apos;s service depending on the browser. UI
-              typefaces (Young Serif, Schibsted Grotesk, Azeret Mono from <code>fonts.css</code>)
-              ship with the app as self-hosted SIL OFL files — no third-party font CDN.
+              typefaces (Schibsted Grotesk, Azeret Mono from <code>fonts.css</code>) ship with the
+              app as self-hosted SIL OFL files — no third-party font CDN.
             </p>
             <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
               On desktop you navigate from the sidebar; on phone and tablet portrait a tab bar —

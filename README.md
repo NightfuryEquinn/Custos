@@ -67,7 +67,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 | API      | [Hono](https://hono.dev) + Zod validation                                                                           |
 | Database | [MongoDB](https://www.mongodb.com)                                                                                  |
 | Frontend | React 19, TanStack Query, ethers v6                                                                                 |
-| Styling  | Custom theme CSS (`ledger.css`, WCAG AA); Young Serif / Schibsted Grotesk / Azeret Mono self-hosted                 |
+| Styling  | Custom theme CSS (`ledger.css`, WCAG AA); Schibsted Grotesk / Azeret Mono self-hosted                               |
 | Loading  | [ldrs](https://uiball.com/ldrs) trefoil spinner                                                                     |
 | Motion   | [anime.js](https://animejs.com) v4                                                                                  |
 | Tours    | [Shepherd.js](https://shepherdjs.dev)                                                                               |
@@ -132,7 +132,8 @@ src/
     │                     # Budgets, Recurring, Insights)
     └── main.tsx
 public/                   # PWA manifest + service worker (copied into dist/ on build)
-scripts/                  # MongoDB maintenance (account wipe, stale-user prune, index sync)
+scripts/                  # MongoDB maintenance (account wipe, stale-user prune, index sync),
+                          # marketing icon export (export-marketing-icons.ts)
 tests/                    # auth, crypto, calculator, spending, income, schedule, budget/holds,
                           # pagination, cron scans, push routes, security headers, whats-new,
                           # insights, piggies, capitals, vehicles, sync, net, stats, seo, tour,

@@ -19,7 +19,7 @@ import {
   Sidebar,
 } from "@/frontend/components/ui";
 import { CURRENT_MONTH_KEY, MONTHS, TODAY_ISO } from "@/frontend/lib/data";
-import { resolveNav } from "@/frontend/lib/nav";
+import { NAV_ITEM_BY_ID, resolveNav } from "@/frontend/lib/nav";
 import { releaseHoldForOccurrence, restoreHoldForOccurrence } from "@/frontend/lib/envelope-holds";
 import { api, ApiError } from "@/frontend/lib/api";
 import { useLedger } from "@/frontend/lib/hooks/useLedger";
@@ -126,6 +126,9 @@ function PageTitle({ view }: { view: ViewId }) {
 
   return (
     <h1 ref={titleRef} className="page-title">
+      <span className="page-title-icon" aria-hidden="true">
+        <Icon name={NAV_ITEM_BY_ID.get(view)?.[2] ?? "overview"} size={23} />
+      </span>
       {VIEW_TITLES[view]}
     </h1>
   );

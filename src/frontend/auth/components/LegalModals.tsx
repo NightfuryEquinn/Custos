@@ -25,7 +25,7 @@ export function TermsModal({ onClose }: LegalModalProps) {
     >
       <div
         ref={panelRef}
-        className="modal sm"
+        className="modal sm modal--wide"
         role="dialog"
         aria-modal="true"
         aria-labelledby="tnc-title"

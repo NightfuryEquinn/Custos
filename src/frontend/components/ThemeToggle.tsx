@@ -14,9 +14,11 @@ export function ThemeToggle({ className = "" }: ThemeToggleProps) {
       className={"icon-btn theme-toggle" + (className ? ` ${className}` : "")}
       onClick={toggle}
       aria-label={dark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-      title={dark ? "Light Mode" : "Dark Mode"}
     >
       <Icon name={dark ? "sun" : "moon"} size={18} />
+      <span className="theme-toggle-label" aria-hidden="true">
+        {dark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+      </span>
     </button>
   );
 }

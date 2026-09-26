@@ -27,7 +27,7 @@ import { createPortal } from "react-dom";
  * result to wallet budgets via a confirmation modal.
  * Layout: Income + Tax Collection share a setup grid on wider screens;
  * Allocate by Category uses a live progress bar and responsive cards.
- * Typography: Young Serif / Schibsted Grotesk / Azeret Mono via fonts.css.
+ * Typography: Schibsted Grotesk / Azeret Mono via fonts.css.
  */
 
 type TaxLine = {

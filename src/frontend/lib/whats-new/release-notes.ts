@@ -37,6 +37,28 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "6.1.2",
+    date: "September 2026",
+    lead: "A calmer, cleaner look across the app.",
+    highlights: [
+      {
+        icon: "sparkle",
+        title: "A cleaner look",
+        body: "Headings now use Schibsted Grotesk instead of a display serif, cards sit flatter with tighter corners, and every page title carries its view's icon.",
+      },
+      {
+        icon: "info",
+        title: "Labels on hover",
+        body: "Icon-only buttons show their name on hover or keyboard focus. Buttons, inputs, and menu rows are now at least 40px tall (44px on phones).",
+      },
+      {
+        icon: "list",
+        title: "Roomier settings",
+        body: "Data & Privacy, Import & Export, Terms, and Navigation open wider; Preferences and Support Custos are shorter. The quick-add button and sign-in buttons now follow your accent color.",
+      },
+    ],
+  },
+  {
     version: "6.1.1",
     date: "September 2026",
     lead: "Arithmetic amounts round cleanly, and Overview's By Category now covers Income too.",

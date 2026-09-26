@@ -157,19 +157,15 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
         <div className="modal-body modal-scroll">
           <div className="dm-sec">
             <span className="fld-label">Push notifications</span>
-            <p className="dm-lead">
-              Get event reminders on this device at the same time the reminder email goes out — even
-              when Custos is closed. Reminders are checked every 15 minutes.
-            </p>
+            <p className="dm-lead">Event reminders on this device, even when Custos is closed.</p>
             <div className="consent-card">
               <div className="consent-top">
                 <div>
                   <div className="consent-title">Notify Me On This Device</div>
                   <p className="consent-desc">
-                    The notification shows the event name, time and any budget hold or comments you
-                    saved with it — the same details as the email. Each device is enabled
-                    separately, and turning this off here does not affect your other devices or your
-                    reminder emails.
+                    Notifications show the event name, time, budget hold, and comments. Each device
+                    is enabled separately; turning this off does not change other devices or email
+                    reminders. Reminders are checked every 15 minutes.
                   </p>
                 </div>
                 <label className="switch">
@@ -203,9 +199,7 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
               <div className="dm-sec">
                 <span className="fld-label">Face ID</span>
                 <p className="dm-lead">
-                  Unlock Custos on this device with Face ID or Touch ID instead of typing your
-                  device passphrase. Once enabled, the unlock screen prompts on its own when you
-                  open the app — no button press needed.
+                  Unlock with Face ID or Touch ID. The prompt appears when you open Custos.
                 </p>
                 <div className="consent-card">
                   <div className="consent-top">
@@ -213,9 +207,8 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
                       <div className="consent-title">Unlock With Face ID</div>
                       <p className="consent-desc">
                         Your passphrase is encrypted with a key tied to your biometric check and
-                        never leaves this device. Turning this off removes it from Custos — the
-                        saved Face ID/Touch ID entry itself stays in your device's settings until
-                        removed there.
+                        stays on this device. Turning this off removes it from Custos; remove the
+                        saved entry from your device settings separately.
                       </p>
                     </div>
                     <label className="switch">

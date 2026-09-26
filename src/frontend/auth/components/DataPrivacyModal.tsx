@@ -212,7 +212,7 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
         if (e.target === e.currentTarget && !clearBusy) requestClose(onClose);
       }}
     >
-      <div ref={panelRef} className="modal sm" role="dialog" aria-modal="true">
+      <div ref={panelRef} className="modal sm modal--wide" role="dialog" aria-modal="true">
         <div className="modal-head">
           <h3>Data &amp; Privacy</h3>
           <button
