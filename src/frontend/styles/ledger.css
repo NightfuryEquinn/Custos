@@ -41,8 +41,8 @@
   --r-xs: 6px;
   --r-sm: 8px;
   --r-md: 10px;
-  --r-lg: 10px;
-  --r-xl: 12px;
+  --r-lg: 12px;
+  --r-xl: 14px;
   --r-2xl: 16px;
   --r-full: 999px;
   --radius: var(--r-xl); /* default card radius */
@@ -55,13 +55,13 @@
   --sp-5: 20px;
   --sp-6: 24px;
   --sp-7: 32px;
-  --pad: var(--sp-6); /* view / topbar padding   */
-  --card-pad: var(--sp-5); /* card & panel padding    */
+  --pad: var(--sp-7); /* view / topbar padding   */
+  --card-pad: var(--sp-6); /* card & panel padding    */
   --gap: var(--sp-5); /* grid gap                */
-  --vgap: var(--sp-6); /* vertical stack gap      */
+  --vgap: var(--sp-7); /* vertical stack gap      */
 
   /* Motion */
-  --ease: ease-in-out;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --dur-fast: 0.18s;
   --dur: 0.28s;
   --dur-slow: 0.36s;
@@ -353,7 +353,8 @@ h3 {
   background: var(--bg);
   display: flex;
   flex-direction: column;
-  padding: var(--sp-6) 18px;
+  padding: var(--sp-7) 18px;
+  border-right: 1px solid var(--hair);
   gap: var(--sp-2);
 }
 
@@ -392,33 +393,11 @@ h3 {
 
 .theme-toggle {
   flex: none;
-  position: relative;
 }
 
-.theme-toggle-label {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 100;
-  padding: 5px 8px;
-  border-radius: var(--r-xs);
-  background: var(--ink);
-  color: var(--bg);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.2;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
-}
-
-.theme-toggle:is(:hover, :focus-visible) .theme-toggle-label {
-  opacity: 1;
-  visibility: visible;
-}
-
-.auth-theme-toggle {
+/* Specificity must beat .icon-btn[aria-label]'s `position: relative` below,
+   or the toggle drops out of its fixed corner on the auth screen. */
+.icon-btn.auth-theme-toggle[aria-label] {
   position: fixed;
   top: max(16px, env(safe-area-inset-top));
   right: max(16px, env(safe-area-inset-right));
@@ -441,7 +420,7 @@ h3 {
   padding: 11px 13px;
   border-radius: var(--r-lg);
   color: var(--ink-soft);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   text-align: left;
   transition:
@@ -464,9 +443,10 @@ h3 {
 }
 
 .nav-item.active {
-  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
   color: var(--ink);
   font-weight: 600;
+  box-shadow: inset 2px 0 var(--accent);
 }
 
 .nav-item.active svg {
@@ -529,9 +509,9 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: var(--sp-5) var(--pad);
-  background: color-mix(in srgb, var(--bg) 86%, transparent);
-  backdrop-filter: blur(8px);
+  padding: var(--sp-6) var(--pad);
+  background: var(--bg);
+  border-bottom: 1px solid var(--hair);
   position: sticky;
   top: 0;
   z-index: 5;
@@ -545,6 +525,8 @@ h3 {
   align-items: center;
   gap: var(--sp-3);
   width: 100%;
+  max-width: calc(1280px - var(--pad) * 2);
+  margin-inline: auto;
 }
 
 .tb-row--main {
@@ -664,7 +646,7 @@ h3 {
   align-items: center;
   gap: 12px;
   font-family: var(--font-display);
-  font-size: 27px;
+  font-size: 28px;
   font-weight: 600;
   letter-spacing: -0.035em;
 }
@@ -677,7 +659,7 @@ h3 {
   border-radius: var(--r-md);
   flex: none;
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  background: transparent;
 }
 
 .page-title-row {
@@ -712,6 +694,7 @@ h3 {
 
 .scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -816,7 +799,10 @@ h3 {
   font-size: 14.5px;
   color: var(--ink-soft);
   border: 1px solid var(--border);
-  transition: all 0.13s;
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
   white-space: nowrap;
   /* Shrink inside a tight flex row instead of pushing it wide — a nowrap flex
      item defaults to min-width:auto and refuses to give ground — and keep an
@@ -958,7 +944,7 @@ h3 {
 .text-in {
   width: 100%;
   border: 1px solid var(--border);
-  background: var(--surface-2);
+  background: var(--surface);
   border-radius: var(--r-lg);
   padding: 11px 13px;
   font-size: 14.5px;
@@ -1263,6 +1249,7 @@ textarea::placeholder {
 
 .wallet-menu {
   min-width: 220px;
+  max-width: min(320px, calc(100vw - 24px));
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-xl);
@@ -1280,6 +1267,7 @@ textarea::placeholder {
   justify-content: space-between;
   gap: 10px;
   width: 100%;
+  min-width: 0;
   padding: 10px;
   border-radius: var(--r-md);
   font-size: 14px;
@@ -1312,10 +1300,15 @@ textarea::placeholder {
 }
 
 .wmi-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 500;
 }
 
 .wmi-cur {
+  flex: none;
   font-size: 12px;
   color: var(--ink-faint);
   font-weight: 400;
@@ -2198,7 +2191,7 @@ textarea::placeholder {
   display: flex;
   flex-direction: column;
   gap: var(--vgap);
-  max-width: 1180px;
+  max-width: 1280px;
   margin: 0 auto;
   width: 100%;
 }
@@ -2234,21 +2227,20 @@ textarea::placeholder {
 
 .summary-card {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--hair);
   border-radius: var(--radius);
   padding: var(--card-pad);
-  box-shadow: var(--shadow);
+  box-shadow: none;
   flex: 1 1 200px;
   min-width: 0;
   container-type: inline-size;
 }
 
 .sc-label {
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--ink-soft);
   font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  letter-spacing: 0;
 }
 
 .sc-value {
@@ -2256,7 +2248,7 @@ textarea::placeholder {
   font-weight: 600;
   font-size: clamp(20px, 5.5cqi, 24px);
   letter-spacing: -0.7px;
-  margin-top: 10px;
+  margin-top: 12px;
   font-feature-settings: "tnum";
   line-height: 1.05;
   min-width: 0;
@@ -2265,7 +2257,7 @@ textarea::placeholder {
 
 .sc-sub {
   font-size: 13px;
-  color: var(--ink-faint);
+  color: var(--ink-soft);
   margin-top: 7px;
 }
 
@@ -2275,7 +2267,7 @@ textarea::placeholder {
   flex-direction: column;
   gap: 4px;
   font-size: 13px;
-  color: var(--ink-faint);
+  color: var(--ink-soft);
 }
 
 .tone-spent .sc-value {
@@ -2296,7 +2288,7 @@ textarea::placeholder {
 
 .panel {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--hair);
   border-radius: var(--radius);
   padding: var(--card-pad);
   box-shadow: none;
@@ -2312,10 +2304,10 @@ textarea::placeholder {
 
 .panel-head h2 {
   font-family: var(--font-display);
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.025em;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .insights-chart-head {
@@ -3580,7 +3572,7 @@ textarea::placeholder {
   display: flex;
   align-items: center;
   gap: 13px;
-  padding: 11px 4px;
+  padding: 14px 4px;
   border-bottom: 1px solid var(--hair);
   transition:
     border-color var(--dur-fast) var(--ease),
@@ -3718,10 +3710,12 @@ textarea::placeholder {
 .be-name {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 9px;
+  min-width: 0;
   font-weight: 600;
   font-size: 15px;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .be-piggy-link {
@@ -4443,6 +4437,10 @@ textarea::placeholder {
   background: var(--surface);
 }
 
+.todo-panel-title > div {
+  min-width: 0;
+}
+
 .todo-panel-title {
   display: flex;
   align-items: center;
@@ -4546,6 +4544,7 @@ textarea::placeholder {
 .todo-check {
   width: 24px;
   height: 24px;
+  padding: 0;
   border-radius: var(--r-xs);
   border: 1.5px solid var(--border-strong);
   background: var(--surface);
@@ -4553,8 +4552,7 @@ textarea::placeholder {
   place-items: center;
   color: var(--accent);
   flex: none;
-  /* Stay beside the task's first line instead of drifting down when it wraps. */
-  align-self: flex-start;
+  align-self: center;
 }
 
 .todo-check.checked {
@@ -4564,6 +4562,8 @@ textarea::placeholder {
 
 .todo-task-title {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 14.5px;
   font-weight: 500;
 }
@@ -6823,8 +6823,8 @@ textarea::placeholder {
   padding: 48px 24px;
   padding-top: max(48px, env(safe-area-inset-top));
   padding-bottom: max(48px, env(safe-area-inset-bottom));
-  background: #f7f6f3;
-  color: #111111;
+  background: var(--bg);
+  color: var(--ink);
 }
 
 :root[data-theme="dark"] .auth-wrap {
@@ -6840,23 +6840,12 @@ textarea::placeholder {
   background:
     radial-gradient(ellipse 70% 50% at 20% 15%, rgba(0, 0, 0, 0.035), transparent 60%),
     radial-gradient(ellipse 55% 45% at 85% 80%, rgba(0, 0, 0, 0.025), transparent 55%);
-  animation: auth-ambient-drift 28s ease-in-out infinite alternate;
 }
 
 :root[data-theme="dark"] .auth-ambient {
   background:
     radial-gradient(ellipse 70% 50% at 20% 15%, rgba(255, 255, 255, 0.03), transparent 60%),
     radial-gradient(ellipse 55% 45% at 85% 80%, rgba(255, 255, 255, 0.02), transparent 55%);
-}
-
-@keyframes auth-ambient-drift {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-
-  to {
-    transform: translate3d(1.5%, -1%, 0);
-  }
 }
 
 .auth-card {
@@ -6972,8 +6961,9 @@ textarea::placeholder {
   justify-content: center;
 }
 
-/* Two lg buttons side by side clip their own labels on a 320px phone. */
-@media (max-width: 360px) {
+/* Two lg buttons side by side clip their own labels once the padded,
+   bordered .auth-card leaves less than ~175px per button. */
+@media (max-width: 480px) {
   .auth-actions {
     flex-direction: column;
   }
@@ -7851,14 +7841,19 @@ textarea::placeholder {
 .icon-btn[aria-label],
 .txn-actions button[aria-label],
 .picker-nav-btn[aria-label],
-.tour-help-btn[aria-label] {
+.tour-help-btn[aria-label],
+.shepherd-cancel-icon[aria-label] {
   position: relative;
   flex: none;
 }
 @media (hover: hover) and (pointer: fine) {
-  :is(.icon-btn, .txn-actions button, .picker-nav-btn, .tour-help-btn)[aria-label]:not(
-      .theme-toggle
-    ):is(:hover, :focus-visible)::after {
+  :is(
+      .icon-btn,
+      .txn-actions button,
+      .picker-nav-btn,
+      .tour-help-btn,
+      .shepherd-cancel-icon
+    )[aria-label]:is(:hover, :focus-visible)::after {
     content: attr(aria-label);
     position: absolute;
     left: 50%;
@@ -7874,6 +7869,20 @@ textarea::placeholder {
     line-height: 1.2;
     white-space: nowrap;
     pointer-events: none;
+  }
+
+  /* Buttons that sit at a clipping edge — the viewport top, or a modal's own
+     overflow:hidden — drop the label below and right-aligned instead, same
+     as the dark-mode toggle, so it's never cut off. */
+  :is(.theme-toggle, .tour-help-btn, .modal .icon-btn, .shepherd-cancel-icon)[aria-label]:is(
+      :hover,
+      :focus-visible
+    )::after {
+    top: calc(100% + 8px);
+    right: 0;
+    bottom: auto;
+    left: auto;
+    transform: none;
   }
 }
 
@@ -7910,8 +7919,8 @@ select.text-in {
 
 .wallet-menu,
 .picker-menu,
-.month-menu,
-.am-menu {
+.month-pick-menu,
+.acct-menu {
   box-shadow: 0 16px 36px -22px rgba(22, 18, 14, 0.28);
   border-radius: var(--r-xl);
 }
@@ -7945,10 +7954,17 @@ select.text-in {
 }
 
 .auth-card {
-  background: transparent;
+  background: var(--surface);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-2xl);
+  padding: clamp(24px, 4vw, 40px);
+  max-width: 32rem;
+}
+.auth-card--tight {
+  max-width: 28rem;
 }
 .auth-ambient {
-  opacity: 0.18;
+  display: none;
 }
 .auth-wrap .ghost-btn {
   color: var(--ink);
@@ -8634,7 +8650,14 @@ select.text-in {
     gap: 8px;
   }
   .page-title {
+    gap: 8px;
+    min-width: 0;
+    overflow-wrap: anywhere;
     font-size: 20px;
+  }
+  .page-title-icon {
+    width: 28px;
+    height: 28px;
   }
   .tb-actions {
     gap: 6px;
@@ -8695,7 +8718,7 @@ select.text-in {
     font-size: 13px;
   }
   .auth-card {
-    padding-top: 8px;
+    padding: 24px 20px;
   }
 
   .auth-h1 {
@@ -9059,7 +9082,8 @@ select.text-in {
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
   }
 
   .modal-scrim,

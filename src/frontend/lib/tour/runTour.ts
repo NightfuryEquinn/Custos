@@ -17,6 +17,10 @@ let activeTour: Tour | null = null;
 /* Set while tearing a tour down ourselves (replacing it, or unmounting the
    app), so a programmatic cancel is not recorded as the user answering. */
 let silentTeardown = false;
+/* Bumped on every start/cancel so a createTour() call still mid-flight on
+   its `import("shepherd.js")` can tell it was superseded and bail instead of
+   starting an orphaned tour nothing can reach. */
+let tourGen = 0;
 
 /** Cancel the active tour without reporting it as a user dismissal. */
 function teardownActiveTour() {
@@ -88,10 +92,13 @@ function bindButtons(tour: Tour, steps: ReturnType<typeof getViewTourSteps>) {
   });
 }
 
-async function createTour(kind: TourKind, { onDone }: RunTourOptions): Promise<Tour> {
+async function createTour(kind: TourKind, { onDone }: RunTourOptions): Promise<Tour | null> {
+  const gen = ++tourGen;
   teardownActiveTour();
 
   const { default: Shepherd } = await import("shepherd.js");
+  // Superseded (another tour started) or cancelled while the chunk loaded.
+  if (gen !== tourGen) return null;
 
   const steps = kind === "shell" ? SHELL_TOUR_STEPS : getViewTourSteps(kind);
   const tour = new Shepherd.Tour({
@@ -129,13 +136,14 @@ async function createTour(kind: TourKind, { onDone }: RunTourOptions): Promise<T
 /** Start the tour for one view (or the app shell), replacing any active tour. */
 export async function runTour(kind: TourKind, options: RunTourOptions = {}) {
   const tour = await createTour(kind, options);
-  tour.start();
+  tour?.start();
 
   return tour;
 }
 
 /** Dismiss whatever tour is on screen, without recording an answer. */
 export function cancelActiveTour() {
+  tourGen++;
   teardownActiveTour();
 }
 

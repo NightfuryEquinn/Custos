@@ -1,10 +1,10 @@
 import { animate, stagger, type JSAnimation } from "animejs";
 import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 
-const DUR = { fast: 198, base: 308, modal: 220, sheet: 286, scrim: 165, picker: 132 } as const;
+const DUR = { fast: 160, base: 240, modal: 220, sheet: 260, scrim: 165, picker: 132 } as const;
 
 const EASE = {
-  base: "inOut",
+  base: "out(3)",
   modal: "out(3)",
 } as const;
 
@@ -130,7 +130,7 @@ export function useStagger(
 
     const y = opts?.y ?? 6;
     const duration = opts?.duration ?? DUR.base;
-    const staggerMs = opts?.staggerMs ?? 44;
+    const staggerMs = opts?.staggerMs ?? 30;
 
     if (prefersReducedMotion()) {
       children.forEach((child) => setVisible(child));
@@ -178,14 +178,20 @@ export function useModalMotion(
   const variant = opts?.variant ?? "center";
   const active = opts?.active !== false;
 
-  /* Cancel any in-flight exit animation on unmount — otherwise anime.js
-     keeps ticking against detached nodes and closingRef never resets. */
+  /* Cancel any in-flight exit animation on unmount, and also whenever
+     `active` flips — a picker/sheet's owner stays mounted across opens, and
+     Escape or a view change can set `active` false directly (skipping
+     requestClose) while its exit animation from a prior close is still
+     running. Left alone, anime.js keeps ticking against the now-detached
+     nodes, closingRef never resets, and the stale onDone later re-closes a
+     menu the user has since reopened. */
   useEffect(() => {
     return () => {
       exitAnims.current.forEach(cancelAnim);
       exitAnims.current = [];
+      closingRef.current = false;
     };
-  }, []);
+  }, [active]);
 
   useLayoutEffect(() => {
     const scrim = scrimRef.current;

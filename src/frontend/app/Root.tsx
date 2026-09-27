@@ -15,6 +15,7 @@ import { clearOutboxForAddress } from "@/frontend/lib/sync/outbox";
 import { ThemeProvider } from "@/frontend/lib/hooks/useTheme";
 import { TERMS_VERSION } from "@/lib/legal";
 import type { Account } from "@/frontend/lib/types";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 /**
@@ -22,6 +23,7 @@ import { useEffect, useState } from "react";
  * the authenticated LedgerApp or the AuthScreen.
  */
 export function Root() {
+  const queryClient = useQueryClient();
   const [account, setAccount] = useState<Account | null>(null);
   const [booting, setBooting] = useState(true);
   const [cryptoReady, setCryptoReady] = useState(false);
@@ -129,6 +131,9 @@ export function Root() {
       setTermsVersion(undefined);
       setTermsChecked(false);
       setTermsKnown(false);
+      // Decrypted expenses/events/plans otherwise sit in the query cache
+      // (keyed by address) for up to the default 5-minute gcTime.
+      queryClient.clear();
     } finally {
       setSigningOut(false);
     }

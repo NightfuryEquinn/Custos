@@ -16,9 +16,6 @@ export function ThemeToggle({ className = "" }: ThemeToggleProps) {
       aria-label={dark ? "Switch to Light Mode" : "Switch to Dark Mode"}
     >
       <Icon name={dark ? "sun" : "moon"} size={18} />
-      <span className="theme-toggle-label" aria-hidden="true">
-        {dark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-      </span>
     </button>
   );
 }
