@@ -4763,7 +4763,13 @@ textarea::placeholder {
 .calculator-tax-list {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
+  gap: var(--sp-4);
+}
+
+/* A hairline between tax lines so each one reads as its own entry. */
+.calculator-tax-row + .calculator-tax-row {
+  border-top: 1px solid var(--border);
+  padding-top: var(--sp-4);
 }
 
 .calculator-alloc-list {
@@ -5586,13 +5592,12 @@ textarea::placeholder {
   color: var(--ink-faint);
 }
 
+/* Figures wrap rather than truncate: a clipped amount reads as a wrong amount. */
 .cap-stat-value {
   font-family: var(--font-mono);
   font-size: 14px;
   font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .cap-progress {
@@ -5661,9 +5666,7 @@ textarea::placeholder {
   font-size: 22px;
   font-weight: 700;
   line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .cap-band-cell:first-child .cap-band-value {
@@ -5679,14 +5682,14 @@ textarea::placeholder {
   color: var(--ink-soft);
 }
 
-@media (max-width: 480px) {
+/* Phones and small tablets: Total · Saved over Paid · Unspent, and Save/mo over
+   Remaining, so every figure has a full row's width. */
+@media (max-width: 640px) {
   .cap-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    row-gap: var(--sp-3);
+    row-gap: var(--sp-4);
   }
-}
 
-@media (max-width: 400px) {
   .cap-band {
     grid-template-columns: minmax(0, 1fr);
   }
