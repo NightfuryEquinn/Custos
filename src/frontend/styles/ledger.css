@@ -1427,6 +1427,30 @@ textarea::placeholder {
   font-size: 14.5px;
 }
 
+.am-name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+/* Supporter chip: fixed gold-to-violet gradient with dark ink, so contrast
+   holds in both themes regardless of the accent. */
+.am-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: var(--r-full);
+  background: linear-gradient(120deg, #f7d774 0%, #e9a94a 45%, #c58bf2 100%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 45%);
+  color: #2a1b05;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
 .accent-swatches {
   display: flex;
   gap: 10px;
@@ -2410,13 +2434,6 @@ textarea::placeholder {
   padding: 2px 0;
 }
 
-.profile-top {
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.15fr);
-  gap: 18px 28px;
-  align-items: start;
-}
-
 .profile-identity {
   min-width: 0;
   padding-left: 14px;
@@ -2617,37 +2634,6 @@ textarea::placeholder {
   letter-spacing: -0.15px;
   line-height: 1.2;
   color: var(--ink);
-}
-
-.profile-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-width: 0;
-}
-
-.profile-block p {
-  margin: 0;
-  font-size: 13.5px;
-  line-height: 1.6;
-  color: var(--ink-soft);
-}
-
-.profile-block .profile-kicker {
-  margin: 0 0 4px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-}
-
-.profile-block.is-nudge {
-  padding: var(--sp-3) var(--sp-4);
-  background: color-mix(in srgb, var(--profile-accent, var(--accent)) 8%, var(--surface-2));
-  border-radius: var(--r-sm);
-  border: 1px solid color-mix(in srgb, var(--profile-accent, var(--accent)) 18%, var(--border));
-  border-left: 3px solid var(--profile-accent, var(--accent));
 }
 
 .profile-signals {
@@ -4021,7 +4007,8 @@ textarea::placeholder {
     opacity var(--dur) var(--ease),
     max-height var(--dur-slow) var(--ease),
     margin var(--dur) var(--ease),
-    border-color var(--dur) var(--ease);
+    border-color var(--dur) var(--ease),
+    display var(--dur-slow) allow-discrete;
 }
 
 .cat-block:last-child {
@@ -4236,12 +4223,16 @@ textarea::placeholder {
   pointer-events: none;
 }
 
+/* display:none drops the block out of the 2-column grid flow, so the first
+   visible card always lands in column 1. allow-discrete lets the fade-out play
+   before it is removed; browsers without it just hide it instantly. */
 .cat-block.is-filtered-out {
   opacity: 0;
   max-height: 0;
   margin-bottom: 0;
   border-width: 0;
   pointer-events: none;
+  display: none;
 }
 
 .cat-sub-list {
@@ -4882,14 +4873,19 @@ textarea::placeholder {
 
 .calculator-tax-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 110px auto;
+  grid-template-columns: minmax(0, 1fr) minmax(110px, 140px) auto auto;
   gap: var(--sp-3);
   align-items: end;
 }
 
 .calculator-tax-title,
-.calculator-tax-pct {
+.calculator-tax-value,
+.calculator-tax-mode {
   min-width: 0;
+}
+
+.calculator-tax-mode .seg {
+  height: 44px;
 }
 
 .calculator-tax-remove {
@@ -4901,7 +4897,7 @@ textarea::placeholder {
   cursor: not-allowed;
 }
 
-.calculator-pct-field {
+.calculator-field {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -4912,11 +4908,11 @@ textarea::placeholder {
   background: var(--surface);
 }
 
-.calculator-pct-field:focus-within {
+.calculator-field:focus-within {
   border-color: var(--accent);
 }
 
-.calculator-pct-field input {
+.calculator-field input {
   flex: 1;
   min-width: 0;
   border: 0;
@@ -4927,13 +4923,13 @@ textarea::placeholder {
   outline: none;
 }
 
-.calculator-pct-field input::-webkit-outer-spin-button,
-.calculator-pct-field input::-webkit-inner-spin-button {
+.calculator-field input::-webkit-outer-spin-button,
+.calculator-field input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
-.calculator-pct-suffix {
+.calculator-field-suffix {
   font-size: 13px;
   font-weight: 600;
   color: var(--ink-faint);
@@ -5009,7 +5005,7 @@ textarea::placeholder {
   width: 100%;
 }
 
-.calculator-alloc-controls .calculator-pct-field {
+.calculator-alloc-controls .calculator-field {
   width: 110px;
   flex: none;
 }
@@ -5084,15 +5080,19 @@ textarea::placeholder {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
       "title remove"
-      "pct pct";
+      "value mode";
   }
 
   .calculator-tax-title {
     grid-area: title;
   }
 
-  .calculator-tax-pct {
-    grid-area: pct;
+  .calculator-tax-value {
+    grid-area: value;
+  }
+
+  .calculator-tax-mode {
+    grid-area: mode;
   }
 
   .calculator-tax-remove {
@@ -5101,7 +5101,7 @@ textarea::placeholder {
     margin-bottom: 0;
   }
 
-  .calculator-alloc-controls .calculator-pct-field {
+  .calculator-alloc-controls .calculator-field {
     width: 96px;
   }
 
@@ -5546,38 +5546,10 @@ textarea::placeholder {
   color: var(--danger);
 }
 
-.capital-card-body {
-  display: flex;
-  align-items: stretch;
-  gap: var(--sp-4);
-}
-
-.capital-ring {
-  position: relative;
-  flex: none;
-  display: grid;
-  place-items: center;
-}
-
-.capital-ring-label {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: 16px;
-  font-weight: 700;
-  font-family: var(--font-mono);
-}
-
 .capital-card-stats {
   display: flex;
   flex-direction: column;
   gap: 2px;
-}
-
-.capital-card-body .capital-card-stats {
-  flex: 1;
-  justify-content: space-between;
 }
 
 .capital-total {
@@ -5591,31 +5563,133 @@ textarea::placeholder {
   color: var(--ink-faint);
 }
 
-.cap-row {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--sp-2);
-  font-size: 13px;
-  font-weight: 500;
+/* Capitals card: stat strip → stacked progress bar → Save/mo + Remaining band */
+.cap-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-3);
 }
 
-.cap-row-label {
+.cap-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cap-stat-label,
+.cap-band-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   color: var(--ink-faint);
 }
 
-.cap-row-value {
+.cap-stat-value {
   font-family: var(--font-mono);
-  font-weight: 400;
-}
-
-.cap-row--overpaid {
-  color: var(--danger);
+  font-size: 14px;
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.cap-divider {
-  border-top: 1px solid var(--border);
-  margin: 4px 0;
+.cap-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.cap-bar {
+  display: flex;
+  height: 8px;
+  border-radius: var(--r-full);
+  background: var(--hair);
+  overflow: hidden;
+}
+
+.cap-bar-seg {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  transition: width var(--dur-slow) var(--ease);
+}
+
+.cap-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-3);
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+
+.cap-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cap-legend-item i {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-full);
+  flex: none;
+}
+
+.cap-band {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 1px;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: color-mix(in srgb, var(--accent) 22%, var(--border));
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+}
+
+.cap-band-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--sp-3) var(--sp-4);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.cap-band-value {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cap-band-cell:first-child .cap-band-value {
+  color: var(--accent);
+}
+
+.cap-band.is-over .cap-band-cell:first-child .cap-band-value {
+  color: var(--danger);
+}
+
+.cap-band-sub {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 480px) {
+  .cap-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: var(--sp-3);
+  }
+}
+
+@media (max-width: 400px) {
+  .cap-band {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .capital-item-list {
@@ -6460,6 +6534,11 @@ textarea::placeholder {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: var(--sp-5) var(--sp-6);
+}
+
+/* Support Custos opens with its lead paragraph flush under the header. */
+.modal.sm .modal-body.support-body {
+  padding-top: 0;
 }
 
 .modal.sm .modal-body > * {
@@ -8306,10 +8385,6 @@ select.text-in {
   }
   .profile-head .seg {
     align-self: stretch;
-  }
-  .profile-top {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
   }
   .profile-signals {
     grid-template-columns: repeat(2, minmax(0, 1fr));

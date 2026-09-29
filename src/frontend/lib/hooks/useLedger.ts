@@ -47,7 +47,11 @@ import {
   vehicleOverlay,
   walletBudgetsOverlay,
 } from "@/frontend/lib/sync/overlay";
-import { usePendingOverlay, usePendingSingletonOverlay } from "@/frontend/lib/sync/useOutbox";
+import {
+  usePendingOverlay,
+  usePendingSingletonOverlay,
+  useSyncStatus,
+} from "@/frontend/lib/sync/useOutbox";
 import { releaseOrphanedPlanRefs } from "@/frontend/lib/capitals";
 import { mergeCategoryBudget } from "@/frontend/lib/category-retire";
 import {
@@ -79,7 +83,7 @@ import { resolveEventDeleteAction, type DeleteScope } from "@/lib/delete-scope";
 import { DEFAULT_CATEGORIES, validateTaxonomy } from "@/schemas/category";
 import type { TourPreference } from "@/schemas/profile";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const ACTIVE_WALLET_KEY = "ledger:active-wallet";
 
@@ -378,6 +382,22 @@ export function useLedger(walletAddress: string) {
     },
     [wallet],
   );
+
+  /* A save's onSuccess invalidates the caches as soon as the write is *queued*,
+     so that refetch can be served before the queued POST lands. Once the drain
+     confirms it the pending overlay drops the row, and the stale base has no
+     copy — the deposit vanishes from Piggies/Capitals until the next refetch.
+     Refetch again whenever an outbox entry leaves the queue. */
+  const outboxTotal = useSyncStatus(wallet).total;
+  const prevOutboxTotal = useRef<number | null>(null);
+  useEffect(() => {
+    const prev = prevOutboxTotal.current;
+    prevOutboxTotal.current = outboxTotal;
+    if (prev === null || outboxTotal >= prev) return;
+    void queryClient.invalidateQueries({ queryKey: keys.allExpenses(wallet) });
+    void queryClient.invalidateQueries({ queryKey: keys.expenses(wallet) });
+    void queryClient.invalidateQueries({ queryKey: keys.capitalPlans(wallet) });
+  }, [outboxTotal, queryClient, wallet]);
 
   const capitalPlansQuery = useQuery({
     queryKey: keys.capitalPlans(wallet),

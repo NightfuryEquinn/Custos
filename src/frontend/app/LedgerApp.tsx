@@ -206,7 +206,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
     void drainOutbox(account.address);
   }, [account.address]);
 
-  /* Server profile is the cross-device source of truth for the accent perk;
+  /* Server profile is the cross-device source of truth for the accent choice;
      mirror it into the ThemeProvider (which also writes the localStorage
      cache the pre-paint bootstrap script reads) whenever it loads or changes
      on another device. */

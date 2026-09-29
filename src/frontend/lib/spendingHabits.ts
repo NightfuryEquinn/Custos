@@ -1,28 +1,18 @@
-import {
-  CURRENT_MONTH_KEY,
-  TODAY_ISO,
-  dayLabel,
-  isoFromDate,
-  monthsWindow,
-  weekdayLabel,
-} from "./data";
+import { CURRENT_MONTH_KEY, TODAY_ISO, dayLabel, isoFromDate, monthsWindow } from "./data";
 import type { CategoryIndex } from "./categories";
 import {
-  DEFAULT_FORMATTERS,
   clamp01,
   confidenceLevel,
   cv,
   mean,
-  pct,
   percentileOf,
   sorted,
   stats1D,
   topBin,
   type Confidence,
   type ConfidenceLevel,
-  type Formatters,
 } from "./stat-helpers";
-import { catMetaOf, isOutgoing, isRecurring, isSavings } from "./stats";
+import { isOutgoing, isSavings } from "./stats";
 import type { Expense } from "./types";
 
 export type HabitPeriod = "month" | "year" | "rolling90";
@@ -38,8 +28,6 @@ type HabitStyleMeta = {
   /** Four-letter tag under each habit-trail bar (e.g. DRIP, PEAK). */
   tag: string;
   temperament: string;
-  pattern: string;
-  behavior: string;
 };
 
 export const HABIT_STYLES: Record<HabitStyleId, HabitStyleMeta> = {
@@ -49,10 +37,6 @@ export const HABIT_STYLES: Record<HabitStyleId, HabitStyleMeta> = {
     trait: "Clockwork",
     tag: "CLCK",
     temperament: "Reserved / Predictable",
-    pattern:
-      "Fixed amounts occurring at identical intervals — the same charge on the same cadence.",
-    behavior:
-      "Highly disciplined, automated, or budget-locked. Usually fixed bills, subscriptions, or tightly controlled recurring allowances.",
   },
   burst: {
     id: "burst",
@@ -60,10 +44,6 @@ export const HABIT_STYLES: Record<HabitStyleId, HabitStyleMeta> = {
     trait: "Burst",
     tag: "BRST",
     temperament: "Impulsive / Reactive",
-    pattern:
-      "Long quiet stretches interrupted by a cluster of high-frequency, varying-amount transactions over 24–48 hours.",
-    behavior:
-      "Spontaneous shopping sprees or retail therapy. The data shows a sudden dam-breaking effect after restriction.",
   },
   dripper: {
     id: "dripper",
@@ -71,10 +51,6 @@ export const HABIT_STYLES: Record<HabitStyleId, HabitStyleMeta> = {
     trait: "Drip",
     tag: "DRIP",
     temperament: "Habitual / Mindless",
-    pattern:
-      "Low amounts at high frequency — small charges appearing almost daily throughout the period.",
-    behavior:
-      "Routine-driven micro-spending: coffees, convenience runs, or daily commutes that quietly bleed a budget.",
   },
   peakValley: {
     id: "peakValley",
@@ -82,10 +58,6 @@ export const HABIT_STYLES: Record<HabitStyleId, HabitStyleMeta> = {
     trait: "Peak-and-Valley",
     tag: "PEAK",
     temperament: "Cyclical / Thoughtful",
-    pattern:
-      "Large spikes right after a recurring calendar day (payday), then a steady taper toward the next cycle.",
-    behavior:
-      "Front-loading. Major purchases happen when liquidity is highest, then spending tightens later in the cycle.",
   },
   accumulator: {
     id: "accumulator",
@@ -93,10 +65,6 @@ export const HABIT_STYLES: Record<HabitStyleId, HabitStyleMeta> = {
     trait: "Batch",
     tag: "BTCH",
     temperament: "Strategic / Deliberate",
-    pattern:
-      "Transactions pile onto a single day of the week or month, in large consolidated amounts rather than many small ones.",
-    behavior:
-      "Batched shopping. Wait, plan, then execute once — fewer trips, fewer impulse triggers.",
   },
   nomad: {
     id: "nomad",
@@ -104,82 +72,20 @@ export const HABIT_STYLES: Record<HabitStyleId, HabitStyleMeta> = {
     trait: "Erratic",
     tag: "ERRA",
     temperament: "Chaotic / Unstructured",
-    pattern: "Irregular intervals and unpredictable amounts with no clear link to calendar cycles.",
-    behavior:
-      "Spending follows whims or chaotic scheduling more than a structured budget or routine.",
   },
 };
 
 /** Minimum distinct calendar days with outgoing spend before a style is revealed. */
 export const HABIT_MIN_ACTIVE_DAYS = 5;
 
-type HabitCatStat = {
-  id: string;
-  name: string;
-  color: string;
-  glyph: string;
-  amount: number;
-  txCount: number;
-  /** Share of this period's total spend, 0..1. */
-  share: number;
-};
-
+/** The signals the Insights view and the confidence score read; scoring keeps its own locals. */
 type HabitMetrics = {
   txCount: number;
   activeDays: number;
-  spanDays: number;
-  total: number;
-
-  // amounts
-  meanAmt: number;
-  medianAmt: number;
-  p90: number;
-  minAmt: number;
-  maxAmt: number;
-  amountCv: number;
-  modeAmount: number;
-  modeCount: number;
-  modeShare: number;
-
-  // rhythm
-  medianGap: number;
-  meanGap: number;
-  gapCv: number;
-  longestQuiet: number;
-  quietShare: number;
-
-  // calendar concentration
-  topDow: number;
+  /** Share of transactions on the busiest weekday, 0..1. */
   topDowShare: number;
-  topDowCount: number;
+  /** First date that fell on that weekday, for a readable weekday name. */
   topDowSampleDate: string;
-  topDom: number;
-  topDomShare: number;
-  topDomAmount: number;
-
-  // clustering
-  clusterCount: number;
-  denseClusterCount: number;
-  biggestCluster: {
-    size: number;
-    amount: number;
-    spanDays: number;
-    startDate: string;
-    share: number;
-  } | null;
-
-  // schedule
-  recurringCount: number;
-  recurringAmount: number;
-  recurringShare: number;
-
-  // attribution (empty when computed with { attribution: false })
-  categories: HabitCatStat[];
-  driverByAmount: HabitCatStat | null;
-  driverByCount: HabitCatStat | null;
-  driverInPeak: HabitCatStat | null;
-  driverInCluster: HabitCatStat | null;
-  driverRecurring: HabitCatStat | null;
 };
 
 /** Confidence shape is shared with the income engine — see `stat-helpers`. */
@@ -196,13 +102,10 @@ type HabitAssessment =
   | {
       status: "ready";
       style: HabitStyleMeta;
-      scores: Record<HabitStyleId, number>;
       metrics: HabitMetrics;
       confidence: HabitConfidence;
       blend: { secondary: HabitStyleMeta | null; weight: number; label: string };
       periodLabel: string;
-      txCount: number;
-      activeDays: number;
     };
 
 type TxPoint = {
@@ -211,10 +114,6 @@ type TxPoint = {
   dayOfWeek: number;
   dayOfMonth: number;
   time: number;
-  sub: string;
-  recurring: boolean;
-  /** Index into the cluster array built for this point set; set after clustering. */
-  cluster: number;
 };
 
 /** Parse YYYY-MM-DD into local calendar parts used by habit scoring. */
@@ -230,13 +129,11 @@ function parseDateParts(iso: string) {
 
 /**
  * Group transactions into clusters where consecutive points are within
- * `windowMs` of each other (default 48 hours). Also stamps `point.cluster`
- * with the index of the cluster it belongs to.
+ * `windowMs` of each other (default 48 hours).
  */
 function buildClusters(points: TxPoint[], windowMs = 48 * 60 * 60 * 1000) {
   if (!points.length) return [] as TxPoint[][];
   const clusters: TxPoint[][] = [[points[0]!]];
-  points[0]!.cluster = 0;
   for (let i = 1; i < points.length; i++) {
     const prev = points[i - 1]!;
     const cur = points[i]!;
@@ -245,7 +142,6 @@ function buildClusters(points: TxPoint[], windowMs = 48 * 60 * 60 * 1000) {
     } else {
       clusters.push([cur]);
     }
-    cur.cluster = clusters.length - 1;
   }
   return clusters;
 }
@@ -333,131 +229,33 @@ function buildPoints(expenses: Expense[]): TxPoint[] {
       dayOfWeek: parts.dayOfWeek,
       dayOfMonth: parts.dayOfMonth,
       time: parts.time,
-      sub: e.sub,
-      recurring: isRecurring(e),
-      cluster: -1,
     };
   });
   points.sort((a, b) => a.time - b.time || a.date.localeCompare(b.date));
   return points;
 }
 
-/** Category-attribution helper: fold one point's amount into its category bucket. */
-function addCatBucket(
-  buckets: Map<string, { amount: number; txCount: number }>,
-  p: TxPoint,
-  index?: CategoryIndex,
-  metaCache?: Map<string, ReturnType<typeof catMetaOf>>,
-) {
-  let meta = metaCache?.get(p.sub);
-  if (!meta) {
-    meta = catMetaOf(p.sub, index);
-    metaCache?.set(p.sub, meta);
-  }
-  const prev = buckets.get(meta.id);
-  if (prev) {
-    prev.amount += p.amount;
-    prev.txCount += 1;
-  } else {
-    buckets.set(meta.id, { amount: p.amount, txCount: 1 });
-  }
-}
-
-/** Turn a {amount, txCount} bucket map into sorted HabitCatStat[]. */
-function sealCatStats(
-  buckets: Map<string, { amount: number; txCount: number }>,
-  total: number,
-  index?: CategoryIndex,
-): HabitCatStat[] {
-  const out: HabitCatStat[] = [];
-  for (const [id, v] of buckets) {
-    const meta = index?.catById[id];
-    out.push({
-      id,
-      name: meta?.name ?? id,
-      color: meta?.color ?? "#8b93a1",
-      glyph: meta?.glyph ?? "",
-      amount: v.amount,
-      txCount: v.txCount,
-      share: total ? v.amount / total : 0,
-    });
-  }
-  out.sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name));
-  return out;
-}
-
-/** Top bucket, resolved to a HabitCatStat, or null when the bucket map is empty. */
-function topCatStat(
-  buckets: Map<string, { amount: number; txCount: number }>,
-  by: "amount" | "txCount",
-  total: number,
-  index?: CategoryIndex,
-): HabitCatStat | null {
-  let bestId: string | null = null;
-  let bestVal = -1;
-  for (const [id, v] of buckets) {
-    const val = v[by];
-    if (val > bestVal) {
-      bestVal = val;
-      bestId = id;
-    }
-  }
-  if (bestId === null) return null;
-  const v = buckets.get(bestId)!;
-  const meta = index?.catById[bestId];
-  return {
-    id: bestId,
-    name: meta?.name ?? bestId,
-    color: meta?.color ?? "#8b93a1",
-    glyph: meta?.glyph ?? "",
-    amount: v.amount,
-    txCount: v.txCount,
-    share: total ? v.amount / total : 0,
-  };
-}
-
-const EMPTY_METRICS_ATTRIBUTION = {
-  categories: [] as HabitCatStat[],
-  driverByAmount: null,
-  driverByCount: null,
-  driverInPeak: null,
-  driverInCluster: null,
-  driverRecurring: null,
-};
-
 /**
- * Compute the full signal set behind a habit verdict, plus the six archetype
- * scores derived from it. `opts.attribution` (default true) controls whether
- * per-category driver attribution runs — the 6-month trajectory only needs
- * `scores`, so it skips this pass entirely.
+ * Compute the signals behind a habit verdict, plus the six archetype scores
+ * derived from them.
  */
-export function computeHabitMetrics(
-  expenses: Expense[],
-  index?: CategoryIndex,
-  opts?: { attribution?: boolean },
-): { metrics: HabitMetrics; scores: Record<HabitStyleId, number> } {
-  const attribution = opts?.attribution !== false;
+export function computeHabitMetrics(expenses: Expense[]): {
+  metrics: HabitMetrics;
+  scores: Record<HabitStyleId, number>;
+} {
   const points = buildPoints(expenses);
   const txCount = points.length;
 
-  // Pass 1: amounts, calendar histograms, unique dates, recurring, categories.
+  // One pass: amounts, calendar histograms, unique dates.
   const amounts: number[] = new Array(txCount);
   let sum = 0;
   let sumSq = 0;
-  let minAmt = Infinity;
-  let maxAmt = -Infinity;
   const dowCount = new Map<number, number>();
   const domCount = new Map<number, number>();
-  const domAmount = new Map<number, number>();
   const dowFirstDate = new Map<number, string>();
   const amountBuckets = new Map<number, number>();
   const uniqueDates: string[] = [];
   const uniqueTimes: number[] = [];
-  let recurringCount = 0;
-  let recurringAmount = 0;
-  const catBuckets = new Map<string, { amount: number; txCount: number }>();
-  const metaCache = new Map<string, ReturnType<typeof catMetaOf>>();
-  let total = 0;
 
   let lastDate = "";
   for (let i = 0; i < txCount; i++) {
@@ -465,14 +263,10 @@ export function computeHabitMetrics(
     amounts[i] = p.amount;
     sum += p.amount;
     sumSq += p.amount * p.amount;
-    if (p.amount < minAmt) minAmt = p.amount;
-    if (p.amount > maxAmt) maxAmt = p.amount;
-    total += p.amount;
 
     dowCount.set(p.dayOfWeek, (dowCount.get(p.dayOfWeek) || 0) + 1);
     if (!dowFirstDate.has(p.dayOfWeek)) dowFirstDate.set(p.dayOfWeek, p.date);
     domCount.set(p.dayOfMonth, (domCount.get(p.dayOfMonth) || 0) + 1);
-    domAmount.set(p.dayOfMonth, (domAmount.get(p.dayOfMonth) || 0) + p.amount);
 
     const roundedAmt = Math.round(p.amount * 100) / 100;
     amountBuckets.set(roundedAmt, (amountBuckets.get(roundedAmt) || 0) + 1);
@@ -482,13 +276,6 @@ export function computeHabitMetrics(
       uniqueTimes.push(p.time);
       lastDate = p.date;
     }
-
-    if (p.recurring) {
-      recurringCount += 1;
-      recurringAmount += p.amount;
-    }
-
-    addCatBucket(catBuckets, p, index, metaCache);
   }
 
   const activeDays = uniqueDates.length;
@@ -502,45 +289,15 @@ export function computeHabitMetrics(
   const p90 = percentileOf(sortedAmounts, 0.9);
 
   const gaps = gapsFromOrderedDates(uniqueDates, uniqueTimes);
-  const sortedGaps = sorted(gaps);
-  const medianGap = percentileOf(sortedGaps, 0.5);
   const { mean: meanGap, cv: gapCv } = stats1D(gaps);
-  const longestQuiet = gaps.length ? Math.max(...gaps) : 0;
   const quietGaps = gaps.filter((g) => g >= 5).length;
   const quietShare = gaps.length ? quietGaps / gaps.length : 0;
 
   const mode = topBin(amountBuckets, txCount);
   const dowShareBin = topBin(dowCount, txCount);
   const domShareBin = topBin(domCount, txCount);
-  const topDow = dowShareBin.value;
-  const topDom = domShareBin.value;
-  const topDomAmount = domAmount.get(topDom) || 0;
 
-  const clusters = buildClusters(points);
-  const denseClusters = clusters.filter((c) => c.length >= 4);
-  let biggestCluster: HabitMetrics["biggestCluster"] = null;
-  let biggestClusterIdx = -1;
-  {
-    let bestSize = 0;
-    for (let ci = 0; ci < clusters.length; ci++) {
-      const c = clusters[ci]!;
-      if (c.length > bestSize) {
-        bestSize = c.length;
-        biggestClusterIdx = ci;
-      }
-    }
-    if (biggestClusterIdx >= 0) {
-      const c = clusters[biggestClusterIdx]!;
-      const amt = c.reduce((s, p) => s + p.amount, 0);
-      biggestCluster = {
-        size: c.length,
-        amount: amt,
-        spanDays: Math.max(1, Math.round((c[c.length - 1]!.time - c[0]!.time) / 86_400_000) + 1),
-        startDate: c[0]!.date,
-        share: total ? amt / total : 0,
-      };
-    }
-  }
+  const denseClusters = buildClusters(points).filter((c) => c.length >= 4);
 
   const dayFocus = Math.max(dowShareBin.share, domShareBin.share);
   const bursty =
@@ -604,82 +361,11 @@ export function computeHabitMetrics(
     nomad,
   };
 
-  // ── attribution (pass 2, opt-out) ──
-  let attributionFields: Pick<
-    HabitMetrics,
-    | "categories"
-    | "driverByAmount"
-    | "driverByCount"
-    | "driverInPeak"
-    | "driverInCluster"
-    | "driverRecurring"
-  >;
-
-  if (attribution) {
-    const peakBuckets = new Map<string, { amount: number; txCount: number }>();
-    const clusterBuckets = new Map<string, { amount: number; txCount: number }>();
-    const recurringBuckets = new Map<string, { amount: number; txCount: number }>();
-
-    for (const p of points) {
-      if (p.dayOfWeek === topDow || p.dayOfMonth === topDom)
-        addCatBucket(peakBuckets, p, index, metaCache);
-      if (p.cluster === biggestClusterIdx) addCatBucket(clusterBuckets, p, index, metaCache);
-      if (p.recurring) addCatBucket(recurringBuckets, p, index, metaCache);
-    }
-
-    attributionFields = {
-      categories: sealCatStats(catBuckets, total, index),
-      driverByAmount: topCatStat(catBuckets, "amount", total, index),
-      driverByCount: topCatStat(catBuckets, "txCount", total, index),
-      driverInPeak: topCatStat(peakBuckets, "amount", total, index),
-      driverInCluster: topCatStat(clusterBuckets, "amount", total, index),
-      driverRecurring: topCatStat(recurringBuckets, "amount", total, index),
-    };
-  } else {
-    attributionFields = EMPTY_METRICS_ATTRIBUTION;
-  }
-
   const metrics: HabitMetrics = {
     txCount,
     activeDays,
-    spanDays: uniqueTimes.length
-      ? Math.round((uniqueTimes[uniqueTimes.length - 1]! - uniqueTimes[0]!) / 86_400_000) + 1
-      : 0,
-    total,
-
-    meanAmt,
-    medianAmt,
-    p90,
-    minAmt: txCount ? minAmt : 0,
-    maxAmt: txCount ? maxAmt : 0,
-    amountCv,
-    modeAmount: mode.value,
-    modeCount: mode.count,
-    modeShare: mode.share,
-
-    medianGap,
-    meanGap,
-    gapCv,
-    longestQuiet,
-    quietShare,
-
-    topDow,
     topDowShare: dowShareBin.share,
-    topDowCount: dowShareBin.count,
-    topDowSampleDate: dowFirstDate.get(topDow) ?? "",
-    topDom,
-    topDomShare: domShareBin.share,
-    topDomAmount,
-
-    clusterCount: clusters.length,
-    denseClusterCount: denseClusters.length,
-    biggestCluster,
-
-    recurringCount,
-    recurringAmount,
-    recurringShare: total ? recurringAmount / total : 0,
-
-    ...attributionFields,
+    topDowSampleDate: dowFirstDate.get(dowShareBin.value) ?? "",
   };
 
   return { metrics, scores };
@@ -687,7 +373,7 @@ export function computeHabitMetrics(
 
 /** Score each habit style from a period's transaction list. */
 export function scoreHabitStyles(expenses: Expense[]): Record<HabitStyleId, number> {
-  return computeHabitMetrics(expenses, undefined, { attribution: false }).scores;
+  return computeHabitMetrics(expenses).scores;
 }
 
 /** Style ids ranked by score, highest first, ties broken alphabetically by id. */
@@ -769,172 +455,6 @@ export function habitBlend(ranked: [HabitStyleId, number][]): {
   };
 }
 
-type HabitFormatters = Formatters;
-
-type HabitNarrative = { pattern: string; behavior: string };
-
-/** Personalized "Data Pattern" / "Behavior" copy, built from the period's real numbers. */
-export function buildHabitNarrative(
-  id: HabitStyleId,
-  m: HabitMetrics,
-  fmt: HabitFormatters = DEFAULT_FORMATTERS,
-): HabitNarrative {
-  const fallback = HABIT_STYLES[id];
-  const money = fmt.money;
-  const patternParts: string[] = [];
-  const behaviorParts: string[] = [];
-
-  switch (id) {
-    case "clockwork": {
-      if (m.modeCount >= 2) {
-        patternParts.push(
-          `${m.modeCount} of ${m.txCount} charges landed at ${money(m.modeAmount)}, roughly every ${m.medianGap} days.`,
-        );
-      }
-      if (m.recurringShare > 0) {
-        patternParts.push(`${pct(m.recurringShare)} of spend is on a marked recurring schedule.`);
-      }
-      if (m.driverRecurring) {
-        behaviorParts.push(
-          `${m.driverRecurring.name} carries most of the recurring load, at ${money(m.recurringAmount)} total.`,
-        );
-      }
-      break;
-    }
-    case "burst": {
-      if (m.biggestCluster) {
-        patternParts.push(
-          `${m.biggestCluster.size} transactions landed within ${m.biggestCluster.spanDays} day${m.biggestCluster.spanDays === 1 ? "" : "s"} starting ${dayLabel(m.biggestCluster.startDate)}, totaling ${money(m.biggestCluster.amount)} (${pct(m.biggestCluster.share)} of spend).`,
-        );
-      }
-      if (m.longestQuiet > 0) {
-        patternParts.push(`The longest quiet stretch was ${m.longestQuiet} days.`);
-      }
-      if (m.driverInCluster) {
-        behaviorParts.push(`${m.driverInCluster.name} drove that spree.`);
-      }
-      if (m.amountCv > 0) {
-        behaviorParts.push(
-          `Amounts swing widely inside a burst (${m.amountCv.toFixed(2)}x variability).`,
-        );
-      }
-      break;
-    }
-    case "dripper": {
-      if (m.activeDays > 0) {
-        patternParts.push(
-          `${m.txCount} charges across ${m.activeDays} active days, median ${money(m.medianAmt)} each.`,
-        );
-      }
-      if (m.p90 > 0) {
-        patternParts.push(`Nine in ten charges stay under ${money(m.p90)}.`);
-      }
-      if (m.driverByCount) {
-        behaviorParts.push(
-          `${m.driverByCount.name} shows up most often — ${m.driverByCount.txCount} times this period.`,
-        );
-      }
-      break;
-    }
-    case "peakValley": {
-      if (m.topDomAmount > 0) {
-        patternParts.push(
-          `Spend peaks around day ${m.topDom} of the month, with ${money(m.topDomAmount)} landing that day alone.`,
-        );
-      }
-      if (m.total > 0 && m.topDomAmount > 0) {
-        patternParts.push(
-          `That's ${pct(m.topDomAmount / m.total)} of the period's total in one day.`,
-        );
-      }
-      if (m.driverInPeak) {
-        behaviorParts.push(`${m.driverInPeak.name} leads the front-loaded spend.`);
-      }
-      break;
-    }
-    case "accumulator": {
-      if (m.topDowShare > 0) {
-        patternParts.push(
-          `${pct(m.topDowShare)} of transactions (${m.topDowCount}) land on ${weekdayLabel(m.topDowSampleDate)}s.`,
-        );
-      }
-      if (m.p90 > 0) {
-        patternParts.push(`Trips run large — up to ${money(m.p90)} per visit.`);
-      }
-      if (m.driverInPeak) {
-        behaviorParts.push(`${m.driverInPeak.name} is the main batch category.`);
-      }
-      break;
-    }
-    case "nomad": {
-      if (m.txCount > 0) {
-        patternParts.push(
-          `Charges range from ${money(m.minAmt)} to ${money(m.maxAmt)}, with no fixed rhythm.`,
-        );
-      }
-      if (m.amountCv > 0 || m.gapCv > 0) {
-        patternParts.push(
-          `Amount and timing both vary widely (${m.amountCv.toFixed(2)}x / ${m.gapCv.toFixed(2)}x).`,
-        );
-      }
-      if (m.driverByAmount) {
-        behaviorParts.push(
-          `${m.driverByAmount.name} is the biggest single slice, at ${pct(m.driverByAmount.share)} of spend.`,
-        );
-      }
-      break;
-    }
-  }
-
-  return {
-    pattern: patternParts.filter(Boolean).join(" ") || fallback.pattern,
-    behavior: behaviorParts.filter(Boolean).join(" ") || fallback.behavior,
-  };
-}
-
-/** A concrete, numbers-based suggestion tied to the winning style. */
-export function buildHabitNudge(
-  id: HabitStyleId,
-  m: HabitMetrics,
-  fmt: HabitFormatters = DEFAULT_FORMATTERS,
-): string {
-  const money = fmt.money;
-
-  switch (id) {
-    case "clockwork":
-      if (m.driverRecurring) {
-        return `Review ${m.driverRecurring.name} for anything you no longer use — it's ${money(m.recurringAmount)} on autopilot this period.`;
-      }
-      return "Your spend is steady and predictable — a good base for a tighter monthly budget.";
-    case "burst":
-      if (m.biggestCluster) {
-        return `Add a 24-hour pause before spending in ${m.driverInCluster?.name ?? "your top category"} — the last spree cost ${money(m.biggestCluster.amount)} in ${m.biggestCluster.spanDays} day${m.biggestCluster.spanDays === 1 ? "" : "s"}.`;
-      }
-      return "Spending clusters into short bursts — a short cooling-off window before big purchases could help.";
-    case "dripper":
-      if (m.driverByCount && m.driverByCount.txCount > 0) {
-        const weekly = (m.driverByCount.amount / Math.max(1, m.driverByCount.txCount)) * 2;
-        return `Trimming ${m.driverByCount.name} by two visits a week saves about ${money(weekly)} a week.`;
-      }
-      return "Small daily charges add up quietly — a weekly cap on incidentals could help.";
-    case "peakValley":
-      if (m.topDomAmount > 0) {
-        return `Spreading the day-${m.topDom} spend of ${money(m.topDomAmount)} across the month would smooth your cash flow.`;
-      }
-      return "Spend clusters right after payday — consider scheduling a few purchases later in the cycle.";
-    case "accumulator":
-      if (m.topDowShare > 0) {
-        return `Your ${weekdayLabel(m.topDowSampleDate)} trips average ${money(m.p90)} at the high end — a per-trip cap could keep batches in check.`;
-      }
-      return "Batching purchases into one trip is efficient — set a per-trip ceiling to keep it that way.";
-    case "nomad":
-      if (m.driverByAmount) {
-        return `${m.driverByAmount.name} is your least predictable category (${pct(m.driverByAmount.share)} of spend) — a fixed weekly amount for it could add structure.`;
-      }
-      return "Spending has no clear rhythm yet — a simple weekly check-in could surface a pattern.";
-  }
-}
-
 /** Collect outgoing non-savings transactions for the selected habit period. */
 export function habitPeriodExpenses(
   expenses: Expense[],
@@ -1012,7 +532,7 @@ export function assessSpendingHabit(
     };
   }
 
-  const { metrics, scores } = computeHabitMetrics(list, index);
+  const { metrics, scores } = computeHabitMetrics(list);
   const ranked = rankStyles(scores);
   const id = pickFromRanked(ranked);
   const confidence = habitConfidence(ranked, metrics);
@@ -1021,34 +541,26 @@ export function assessSpendingHabit(
   return {
     status: "ready",
     style: HABIT_STYLES[id],
-    scores,
     metrics,
     confidence,
     blend,
     periodLabel,
-    txCount: list.length,
-    activeDays,
   };
 }
 
 type HabitTrajectoryPoint = {
   monthKey: string;
-  label: string;
   status: "insufficient" | "ready";
   styleId: HabitStyleId | null;
-  trait: string;
+  /** Four-letter chart tag, empty while the month is insufficient. */
   tag: string;
-  topScore: number;
-  activeDays: number;
-  txCount: number;
   spend: number;
 };
 
 /**
  * Trailing `size` months of habit verdicts, anchored on `monthKey`. Always a
  * monthly window regardless of the panel's selected period, and always the
- * trailing 6 months — a single pass over `expenses`, with per-month scoring
- * run in lean (no-attribution) mode since the trajectory needs no drivers.
+ * trailing 6 months — a single pass over `expenses`.
  */
 export function habitTrajectory(
   expenses: Expense[],
@@ -1073,36 +585,14 @@ export function habitTrajectory(
     const spend = list.reduce((s, e) => s + e.amount, 0);
 
     if (activeDays < HABIT_MIN_ACTIVE_DAYS) {
-      return {
-        monthKey: mo.key,
-        label: mo.key.slice(5),
-        status: "insufficient",
-        styleId: null,
-        trait: "",
-        tag: "",
-        topScore: 0,
-        activeDays,
-        txCount: list.length,
-        spend,
-      };
+      return { monthKey: mo.key, status: "insufficient", styleId: null, tag: "", spend };
     }
 
-    const { scores } = computeHabitMetrics(list, index, { attribution: false });
+    const { scores } = computeHabitMetrics(list);
     const ranked = rankStyles(scores);
     const styleId = pickFromRanked(ranked);
 
-    return {
-      monthKey: mo.key,
-      label: mo.key.slice(5),
-      status: "ready",
-      styleId,
-      trait: HABIT_STYLES[styleId].trait,
-      tag: HABIT_STYLES[styleId].tag,
-      topScore: ranked[0]![1],
-      activeDays,
-      txCount: list.length,
-      spend,
-    };
+    return { monthKey: mo.key, status: "ready", styleId, tag: HABIT_STYLES[styleId].tag, spend };
   });
 }
 

@@ -3,8 +3,6 @@ import {
   HABIT_MIN_ACTIVE_DAYS,
   HABIT_STYLES,
   assessSpendingHabit,
-  buildHabitNarrative,
-  buildHabitNudge,
   computeHabitMetrics,
   describeHabitShift,
   habitBlend,
@@ -31,13 +29,8 @@ function tx(date: string, amount: number, id = date + amount): Expense {
   };
 }
 
-/** Recurring variant of {@link tx}. */
-function txr(date: string, amount: number, id = "r" + date + amount): Expense {
-  return { ...tx(date, amount, id), recurring: "monthly" };
-}
-
 /** All six archetype fixtures from the `scoreHabitStyles` describe block below, reused for
- * regression and lean-mode-equivalence checks. */
+ * regression checks. */
 const ARCHETYPE_FIXTURES: Record<HabitStyleId, Expense[]> = {
   clockwork: [
     tx("2026-07-01", 49.99),
@@ -154,7 +147,7 @@ describe("assessSpendingHabit", () => {
     expect(year.status).toBe("ready");
     if (month.status === "ready" && year.status === "ready") {
       expect(month.style.id).toBe("dripper");
-      expect(year.txCount).toBeGreaterThan(month.txCount);
+      expect(year.metrics.txCount).toBeGreaterThan(month.metrics.txCount);
     }
   });
 });
@@ -243,46 +236,22 @@ describe("scoreHabitStyles", () => {
 });
 
 describe("computeHabitMetrics", () => {
-  test("surfaces the signals behind a clockwork verdict", () => {
+  test("counts transactions and distinct active days", () => {
     const { metrics } = computeHabitMetrics(ARCHETYPE_FIXTURES.clockwork);
-    expect(metrics.medianAmt).toBeCloseTo(49.99, 2);
-    expect(metrics.p90).toBeCloseTo(49.99, 2);
-    expect(metrics.modeAmount).toBeCloseTo(49.99, 2);
-    expect(metrics.modeCount).toBe(5);
-    expect(metrics.medianGap).toBe(7);
-    expect(metrics.longestQuiet).toBe(7);
-    // `food-groceries` is a placeholder sub id with no entry in the default taxonomy;
-    // unrecognized subs correctly collapse into a single "Uncategorized" bucket.
-    expect(metrics.categories[0]?.id).toBe("uncategorized");
+    expect(metrics.txCount).toBe(ARCHETYPE_FIXTURES.clockwork.length);
+    expect(metrics.activeDays).toBe(new Set(ARCHETYPE_FIXTURES.clockwork.map((e) => e.date)).size);
   });
 
-  test("surfaces a biggest cluster and quiet gap for the burst fixture", () => {
-    const { metrics } = computeHabitMetrics(ARCHETYPE_FIXTURES.burst);
-    expect(metrics.biggestCluster).not.toBeNull();
-    expect(metrics.biggestCluster!.size).toBeGreaterThanOrEqual(4);
-    expect(metrics.biggestCluster!.spanDays).toBeGreaterThanOrEqual(1);
-    expect(metrics.longestQuiet).toBeGreaterThan(0);
+  test("an empty list yields empty signals", () => {
+    const { metrics } = computeHabitMetrics([]);
+    expect(metrics).toEqual({ txCount: 0, activeDays: 0, topDowShare: 0, topDowSampleDate: "" });
   });
 
-  test("tallies recurring share for a fully recurring fixture", () => {
-    const expenses = [
-      txr("2026-07-01", 20),
-      txr("2026-07-08", 20),
-      txr("2026-07-15", 20),
-      txr("2026-07-22", 20),
-      txr("2026-07-29", 20),
-    ];
-    const { metrics } = computeHabitMetrics(expenses);
-    expect(metrics.recurringCount).toBe(5);
-    expect(metrics.recurringShare).toBeCloseTo(1, 5);
-    expect(metrics.driverRecurring?.id).toBe("uncategorized");
-  });
-
-  test("topDow / topDom concentration matches a single-weekday fixture", () => {
+  test("topDow concentration matches a single-weekday fixture", () => {
     // All Saturdays in July 2026.
     const { metrics } = computeHabitMetrics(ARCHETYPE_FIXTURES.accumulator);
     expect(metrics.topDowShare).toBeGreaterThan(0.5);
-    expect(metrics.topDowCount).toBeGreaterThanOrEqual(4);
+    expect(new Date(metrics.topDowSampleDate + "T00:00:00").getDay()).toBe(6);
   });
 });
 
@@ -302,14 +271,6 @@ describe("scoreHabitStyles backward compatibility", () => {
       expect(direct).toEqual(scores);
       expect(Object.keys(direct).sort()).toEqual(Object.keys(HABIT_STYLES).sort());
     });
-
-    test(`${id} fixture: lean mode (attribution:false) scores match full mode`, () => {
-      const full = computeHabitMetrics(fixture, undefined, { attribution: true });
-      const lean = computeHabitMetrics(fixture, undefined, { attribution: false });
-      expect(lean.scores).toEqual(full.scores);
-      expect(lean.metrics.categories).toEqual([]);
-      expect(lean.metrics.driverByAmount).toBeNull();
-    });
   }
 
   test("unsorted input yields identical scores and signals to the sorted original", () => {
@@ -324,8 +285,7 @@ describe("scoreHabitStyles backward compatibility", () => {
     const a = computeHabitMetrics(sortedFixture);
     const b = computeHabitMetrics(shuffled);
     expect(b.scores).toEqual(a.scores);
-    expect(b.metrics.medianGap).toBe(a.metrics.medianGap);
-    expect(b.metrics.biggestCluster).toEqual(a.metrics.biggestCluster);
+    expect(b.metrics).toEqual(a.metrics);
   });
 });
 
@@ -488,89 +448,9 @@ describe("habitTrajectory", () => {
 
   test("describeHabitShift reports insufficient history for under two ready months", () => {
     const shift = describeHabitShift([
-      {
-        monthKey: "2026-06",
-        label: "06",
-        status: "ready",
-        styleId: "clockwork",
-        trait: "Clockwork",
-        tag: "CLCK",
-        topScore: 0.5,
-        activeDays: 5,
-        txCount: 5,
-        spend: 100,
-      },
-      {
-        monthKey: "2026-05",
-        label: "05",
-        status: "insufficient",
-        styleId: null,
-        trait: "",
-        tag: "",
-        topScore: 0,
-        activeDays: 2,
-        txCount: 2,
-        spend: 20,
-      },
+      { monthKey: "2026-06", status: "ready", styleId: "clockwork", tag: "CLCK", spend: 100 },
+      { monthKey: "2026-05", status: "insufficient", styleId: null, tag: "", spend: 20 },
     ]);
     expect(shift).toBe("Not enough history to compare yet.");
-  });
-});
-
-describe("narrative and nudge generation", () => {
-  const richMetrics = computeHabitMetrics(ARCHETYPE_FIXTURES.burst).metrics;
-  const bareMetrics = computeHabitMetrics([
-    tx("2026-07-01", 11.13),
-    tx("2026-07-03", 22.47),
-    tx("2026-07-06", 7.91),
-    tx("2026-07-10", 33.02),
-    tx("2026-07-14", 15.6),
-  ]).metrics;
-
-  for (const id of Object.keys(HABIT_STYLES) as HabitStyleId[]) {
-    test(`${id}: narrative and nudge are non-empty and deterministic`, () => {
-      const n1 = buildHabitNarrative(id, richMetrics);
-      const n2 = buildHabitNarrative(id, richMetrics);
-      expect(n1.pattern.length).toBeGreaterThan(0);
-      expect(n1.behavior.length).toBeGreaterThan(0);
-      expect(n1).toEqual(n2);
-
-      const nudge1 = buildHabitNudge(id, richMetrics);
-      const nudge2 = buildHabitNudge(id, richMetrics);
-      expect(nudge1.length).toBeGreaterThan(0);
-      expect(nudge1).toEqual(nudge2);
-    });
-
-    test(`${id}: honors an injected money formatter (FX seam)`, () => {
-      const fmt = { money: (n: number) => `≈${Math.round(n)}` };
-      const narrative = buildHabitNarrative(id, richMetrics, fmt);
-      const nudge = buildHabitNudge(id, richMetrics, fmt);
-      // Not every style's copy quotes a currency figure, so only assert the
-      // marker appears when the fallback static prose (which never does) was not used.
-      const usesMoney =
-        narrative.pattern.includes("≈") || narrative.behavior.includes("≈") || nudge.includes("≈");
-      const isFallback =
-        narrative.pattern === HABIT_STYLES[id].pattern &&
-        narrative.behavior === HABIT_STYLES[id].behavior;
-      expect(usesMoney || isFallback).toBe(true);
-    });
-
-    test(`${id}: degrades gracefully on a bare, under-signalled fixture`, () => {
-      const narrative = buildHabitNarrative(id, bareMetrics);
-      const nudge = buildHabitNudge(id, bareMetrics);
-      const combined = narrative.pattern + narrative.behavior + nudge;
-      expect(/NaN|undefined|Infinity|null/.test(combined)).toBe(false);
-      expect(narrative.pattern.length).toBeGreaterThan(0);
-      expect(narrative.behavior.length).toBeGreaterThan(0);
-      expect(nudge.length).toBeGreaterThan(0);
-    });
-  }
-
-  test("dripper nudge scales savings by visit count, not active days", () => {
-    const metrics = computeHabitMetrics(ARCHETYPE_FIXTURES.dripper).metrics;
-    expect(metrics.driverByCount?.txCount).toBeGreaterThan(0);
-    const nudge = buildHabitNudge("dripper", metrics, { money: (n) => `$${n.toFixed(0)}` });
-    expect(nudge).toMatch(/\$\d+/);
-    expect(nudge).not.toContain("NaN");
   });
 });

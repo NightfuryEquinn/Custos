@@ -1,4 +1,3 @@
-import { Donut } from "@/frontend/charts";
 import { DatePicker } from "@/frontend/components/DateTimePicker";
 import { ConfirmDialog, EmptyState, Icon } from "@/frontend/components/ui";
 import {
@@ -6,7 +5,7 @@ import {
   planBudgetProgress,
   planIsOverbudget,
   planMoney,
-  planMonthlySave,
+  planMonthlyPlan,
   planSavedTotal,
 } from "@/frontend/lib/capitals";
 import { CAPITAL_TEMPLATES, type CapitalTemplate } from "@/frontend/lib/capitalTemplates";
@@ -29,8 +28,9 @@ import { createPortal } from "react-dom";
  * Standalone checklists for big life expenses (marriage, trips, loans, or
  * fully custom plans). Each plan carries a total budget (or falls back to the
  * sum of its item estimates) and an optional target date; monthly save is what
- * is still to set aside — the unpaid budget less the plan's remaining pot —
- * divided by the months left. Savings deposits can optionally be assigned to a
+ * was still to set aside at the start of the month — the unpaid budget less the
+ * plan's pot — divided by the months left, with a "left this month" sub-line
+ * that shrinks as deposits land. Savings deposits can optionally be assigned to a
  * plan (otherwise Piggies), and paying an item draws that pot down.
  * Overbudget plans show Overpaid. Line items can optionally be "logged" into
  * the real ledger when paid.
@@ -434,21 +434,57 @@ export const Capitals = forwardRef<CapitalsHandle, CapitalsProps>(function Capit
           const m = planMoney(plan, savingsTxns, categoryIndex);
           const progress = planBudgetProgress(plan);
           const overbudget = planIsOverbudget(plan);
-          const monthlySave = planMonthlySave(plan, new Date(), savingsTxns, categoryIndex);
-          /* Three arcs so the grey one is what is genuinely left to fund, not
+          const monthly = planMonthlyPlan(plan, new Date(), savingsTxns, categoryIndex);
+          /* Three segments so the grey one is what is genuinely left to fund, not
              budget − paid: money already in the pot covers part of that. */
-          const donutData =
+          const segments =
             m.budget > 0
               ? [
                   {
                     id: "paid",
+                    label: "Paid",
                     value: Math.min(m.paid, m.budget),
                     color: overbudget ? "var(--danger)" : "var(--saved)",
                   },
-                  { id: "unspent", value: Math.min(m.unspent, m.outstanding), color: "var(--ok)" },
-                  { id: "remain", value: m.remainingNeed, color: "var(--hair)" },
+                  {
+                    id: "unspent",
+                    label: "Unspent",
+                    value: Math.min(m.unspent, m.outstanding),
+                    color: "var(--ok)",
+                  },
+                  {
+                    id: "remain",
+                    label: "Remaining",
+                    value: m.remainingNeed,
+                    color: "var(--hair)",
+                  },
                 ]
-              : [{ id: "empty", value: 1, color: "var(--hair)" }];
+              : [];
+          const segTotal = segments.reduce((s, x) => s + x.value, 0);
+          const tag = [
+            plan.targetDate ? `Due ${dueDateLabel(plan.targetDate)}` : null,
+            progress !== null ? `${Math.round(progress * 100)}% paid` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          const saveValue = overbudget
+            ? "Overpaid"
+            : monthly && m.remainingNeed > 0
+              ? money(monthly.perMonth)
+              : "—";
+          const saveSub = overbudget
+            ? `${money(m.paid - m.budget)} over budget`
+            : monthly
+              ? m.remainingNeed === 0
+                ? "Fully funded"
+                : monthly.leftThisMonth > 0
+                  ? `${money(monthly.leftThisMonth)} left this month`
+                  : "Covered this month"
+              : m.budget <= 0
+                ? "Add a budget"
+                : plan.targetDate
+                  ? "Target date passed"
+                  : "Set a target date";
 
           return (
             <div key={plan.id} className="capital-card">
@@ -456,9 +492,7 @@ export const Capitals = forwardRef<CapitalsHandle, CapitalsProps>(function Capit
                 <span className="capital-card-glyph">{plan.glyph}</span>
                 <div className="capital-card-title">
                   <h3>{plan.name}</h3>
-                  {plan.targetDate ? (
-                    <span className="capital-tag">Due {dueDateLabel(plan.targetDate)}</span>
-                  ) : null}
+                  {tag ? <span className="capital-tag">{tag}</span> : null}
                 </div>
                 <div className="capital-card-actions">
                   <button type="button" onClick={() => openEditPlan(plan)} aria-label="Edit Plan">
@@ -477,55 +511,62 @@ export const Capitals = forwardRef<CapitalsHandle, CapitalsProps>(function Capit
                 </div>
               </div>
 
-              <div className="capital-card-body">
-                <div className="capital-ring">
-                  <Donut
-                    data={donutData}
-                    size={120}
-                    thickness={20}
-                    onHover={() => {}}
-                    activeId={null}
-                  />
-                  <div className="capital-ring-label">
-                    {progress !== null ? `${Math.round(progress * 100)}%` : "—"}
+              <div className="cap-stats">
+                {[
+                  { label: "Total", value: m.budget },
+                  { label: "Saved", value: m.saved },
+                  { label: "Paid", value: m.paid },
+                  { label: "Unspent", value: m.unspent },
+                ].map((s) => (
+                  <div key={s.label} className="cap-stat">
+                    <span className="cap-stat-label">{s.label}</span>
+                    <span className="cap-stat-value">{money(s.value)}</span>
                   </div>
+                ))}
+              </div>
+
+              <div className="cap-progress">
+                <div
+                  className="cap-bar"
+                  role="img"
+                  aria-label={segments.map((x) => `${x.label} ${money(x.value)}`).join(", ")}
+                >
+                  {segTotal > 0
+                    ? segments.map((x) =>
+                        x.value > 0 ? (
+                          <span
+                            key={x.id}
+                            className="cap-bar-seg"
+                            style={{ width: `${(x.value / segTotal) * 100}%`, background: x.color }}
+                          />
+                        ) : null,
+                      )
+                    : null}
                 </div>
-                <div className="capital-card-stats">
-                  <div className="cap-row">
-                    <span className="cap-row-label">Total</span>
-                    <span className="cap-row-value">{money(m.budget)}</span>
+                {segTotal > 0 ? (
+                  <div className="cap-legend" aria-hidden="true">
+                    {segments.map((x) => (
+                      <span key={x.id} className="cap-legend-item">
+                        <i style={{ background: x.color }} />
+                        {x.label}
+                      </span>
+                    ))}
                   </div>
-                  <div className="cap-row">
-                    <span className="cap-row-label">Paid</span>
-                    <span className="cap-row-value">{money(m.paid)}</span>
-                  </div>
-                  {m.saved > 0 ? (
-                    <>
-                      <div className="cap-row">
-                        <span className="cap-row-label">Saved</span>
-                        <span className="cap-row-value">{money(m.saved)}</span>
-                      </div>
-                      <div className="cap-row">
-                        <span className="cap-row-label">Unspent</span>
-                        <span className="cap-row-value">{money(m.unspent)}</span>
-                      </div>
-                    </>
-                  ) : null}
-                  <div className="cap-divider" />
-                  {overbudget ? (
-                    <div className="cap-row cap-row--overpaid">Overpaid</div>
-                  ) : monthlySave !== null ? (
-                    <div className="cap-row">
-                      <span className="cap-row-label">Save/mo</span>
-                      <span className="cap-row-value">{money(monthlySave)}</span>
-                    </div>
-                  ) : null}
-                  {m.budget > 0 && m.remainingNeed > 0 ? (
-                    <div className="cap-row">
-                      <span className="cap-row-label">Still to Save</span>
-                      <span className="cap-row-value">{money(m.remainingNeed)}</span>
-                    </div>
-                  ) : null}
+                ) : null}
+              </div>
+
+              <div className={"cap-band" + (overbudget ? " is-over" : "")}>
+                <div className="cap-band-cell">
+                  <span className="cap-band-label">Save/mo</span>
+                  <span className="cap-band-value">{saveValue}</span>
+                  <span className="cap-band-sub">{saveSub}</span>
+                </div>
+                <div className="cap-band-cell">
+                  <span className="cap-band-label">Remaining</span>
+                  <span className="cap-band-value">{money(m.remainingNeed)}</span>
+                  <span className="cap-band-sub">
+                    {m.budget > 0 ? `of ${money(m.budget)}` : "No budget yet"}
+                  </span>
                 </div>
               </div>
 

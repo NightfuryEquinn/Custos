@@ -44,13 +44,11 @@ import {
   INCOME_MIN_EVENTS,
   INCOME_MIN_MONTHS,
   assessIncomeProfile,
-  buildIncomeNarrative,
   declaresMonthlyIncome,
   type IncomeWindow,
 } from "@/frontend/lib/incomeProfile";
 import {
   assessSpendingHabit,
-  buildHabitNarrative,
   describeHabitShift,
   habitTrajectory,
   type HabitPeriod,
@@ -1319,28 +1317,14 @@ export function Insights({
     () => Math.max(...habitTrail.map((p) => p.spend), 1),
     [habitTrail],
   );
-  const habitStory = useMemo(() => {
-    if (habit.status !== "ready") return null;
-    return {
-      narrative: buildHabitNarrative(habit.style.id, habit.metrics, { money }),
-      shift: describeHabitShift(habitTrail),
-    };
-    // `money` is a fresh closure every render — depend on its real inputs instead, so an
-    // unrelated re-render doesn't rebuild the narrative/shift strings.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [habit, habitTrail, currency, displayCurrency, fxRates]);
+  const habitShift = useMemo(
+    () => (habit.status === "ready" ? describeHabitShift(habitTrail) : null),
+    [habit.status, habitTrail],
+  );
   const incomeProfile = useMemo(
     () => assessIncomeProfile(expenses, month, incomeWindow, categoryIndex),
     [expenses, month, incomeWindow, categoryIndex],
   );
-  const incomeStory = useMemo(() => {
-    if (incomeProfile.status !== "ready") return null;
-    return {
-      narrative: buildIncomeNarrative(incomeProfile.style.id, incomeProfile.metrics, { money }),
-    };
-    // Same reasoning as habitStory: `money` is a fresh closure every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [incomeProfile, currency, displayCurrency, fxRates]);
   const showDeclaredIncomeNote = declaresMonthlyIncome(wallet);
 
   const viewRef = useRef<HTMLDivElement>(null);
@@ -1474,36 +1458,22 @@ export function Insights({
             </div>
           ) : (
             <div className={"profile-result profile-tinted style-" + habit.style.id}>
-              <div className="profile-top">
-                <div className="profile-identity">
-                  <div className="profile-crown">
-                    <p className="profile-temperament">{habit.style.temperament}</p>
-                    <span className={"profile-confidence conf-" + habit.confidence.level}>
-                      {habit.confidence.level} confidence
-                    </span>
-                  </div>
-                  <h3 className="profile-title">
-                    {habit.style.title}
-                    {habit.blend.secondary && (
-                      <span className="profile-blend">
-                        {" "}
-                        with a {habit.blend.secondary.trait} streak
-                      </span>
-                    )}
-                  </h3>
+              <div className="profile-identity">
+                <div className="profile-crown">
+                  <p className="profile-temperament">{habit.style.temperament}</p>
+                  <span className={"profile-confidence conf-" + habit.confidence.level}>
+                    {habit.confidence.level} confidence
+                  </span>
                 </div>
-                {habitStory && (
-                  <div className="profile-copy">
-                    <div className="profile-block">
-                      <p className="profile-kicker">Data Pattern</p>
-                      <p>{habitStory.narrative.pattern}</p>
-                    </div>
-                    <div className="profile-block">
-                      <p className="profile-kicker">Behavior</p>
-                      <p>{habitStory.narrative.behavior}</p>
-                    </div>
-                  </div>
-                )}
+                <h3 className="profile-title">
+                  {habit.style.title}
+                  {habit.blend.secondary && (
+                    <span className="profile-blend">
+                      {" "}
+                      with a {habit.blend.secondary.trait} streak
+                    </span>
+                  )}
+                </h3>
               </div>
 
               <div className="profile-signals">
@@ -1521,7 +1491,7 @@ export function Insights({
               </div>
 
               <div className="profile-trajectory">
-                <p className="ptrl-note">{habitStory?.shift}</p>
+                <p className="ptrl-note">{habitShift}</p>
                 <div className="ptrl-grid">
                   {habitTrail.map((pt) => {
                     const isReady = pt.status === "ready";
@@ -1738,36 +1708,22 @@ export function Insights({
             </div>
           ) : (
             <div className={"profile-result profile-tinted style-" + incomeProfile.style.id}>
-              <div className="profile-top">
-                <div className="profile-identity">
-                  <div className="profile-crown">
-                    <p className="profile-temperament">{incomeProfile.style.temperament}</p>
-                    <span className={"profile-confidence conf-" + incomeProfile.confidence.level}>
-                      {incomeProfile.confidence.level} confidence
-                    </span>
-                  </div>
-                  <h3 className="profile-title">
-                    {incomeProfile.style.title}
-                    {incomeProfile.blend.secondary && (
-                      <span className="profile-blend">
-                        {" "}
-                        with a {incomeProfile.blend.secondary.trait} streak
-                      </span>
-                    )}
-                  </h3>
+              <div className="profile-identity">
+                <div className="profile-crown">
+                  <p className="profile-temperament">{incomeProfile.style.temperament}</p>
+                  <span className={"profile-confidence conf-" + incomeProfile.confidence.level}>
+                    {incomeProfile.confidence.level} confidence
+                  </span>
                 </div>
-                {incomeStory && (
-                  <div className="profile-copy">
-                    <div className="profile-block">
-                      <p className="profile-kicker">Data Pattern</p>
-                      <p>{incomeStory.narrative.pattern}</p>
-                    </div>
-                    <div className="profile-block">
-                      <p className="profile-kicker">Behavior</p>
-                      <p>{incomeStory.narrative.behavior}</p>
-                    </div>
-                  </div>
-                )}
+                <h3 className="profile-title">
+                  {incomeProfile.style.title}
+                  {incomeProfile.blend.secondary && (
+                    <span className="profile-blend">
+                      {" "}
+                      with a {incomeProfile.blend.secondary.trait} streak
+                    </span>
+                  )}
+                </h3>
               </div>
             </div>
           )}

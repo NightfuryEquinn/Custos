@@ -26,6 +26,10 @@ import type { CapitalItem, CapitalPlan, CapitalTemplateId, Expense } from "@/fro
  * The draw-down is implicit: paying an item is NOT recorded as an assigned
  * withdrawal, and must not be, or the pot would be drawn down twice — once by
  * the withdrawal and once by the payment. See `logCapitalItem` in LedgerApp.
+ *
+ * Save/mo is `need at the start of this month ÷ months left` (see
+ * `planMonthlyPlan`), so depositing mid-month lowers what is left to deposit
+ * this month rather than shrinking the monthly rate.
  */
 
 /** Sum of every item's estimated cost. */
@@ -200,7 +204,7 @@ export function planRemainingNeed(
 }
 
 /**
- * Paid ÷ budget for the donut label.
+ * Paid ÷ budget for the card's "% paid" tag.
  * Null when there is no budget yet.
  */
 export function planBudgetProgress(plan: CapitalPlan): number | null {
@@ -245,16 +249,22 @@ export function planIsUpcoming(plan: CapitalPlan, today: Date = new Date()): boo
 }
 
 /**
- * Monthly amount still to set aside: `planRemainingNeed` ÷ months until target.
- * Null when there is no budget to save toward, when the plan is overbudget, or
- * when months cannot be computed (no/past target).
+ * What to set aside each month, and how much of this month's share is still
+ * to deposit. Null when there is no budget to save toward, when the plan is
+ * overbudget, or when months cannot be computed (no/past target).
+ *
+ * `perMonth` is measured against the need at the START of this month: what is
+ * left to save now, plus what this month's deposits already took off it. That
+ * keeps it steady all month — a deposit lowers `leftThisMonth`, not the rate.
+ * Only deposits still in the pot are added back (`unspent`); money already
+ * spent on an item reduced `outstanding` and must not be counted again.
  */
-export function planMonthlySave(
+export function planMonthlyPlan(
   plan: CapitalPlan,
   today: Date = new Date(),
   txns: Expense[] = [],
   index?: CategoryIndex,
-): number | null {
+): { perMonth: number; leftThisMonth: number } | null {
   if (planEffectiveBudget(plan) <= 0) return null;
   if (planIsOverbudget(plan)) return null;
 
@@ -262,7 +272,31 @@ export function planMonthlySave(
 
   if (months === null) return null;
 
-  return planRemainingNeed(plan, txns, index) / months;
+  const { remainingNeed, unspent } = planMoney(plan, txns, index);
+  const thisMonth = monthKey(today);
+  let net = 0;
+
+  for (const e of txns) {
+    if (e.capitalPlanId !== plan.id || e.date.slice(0, 7) !== thisMonth) continue;
+    const cls = classifyTx(e, index);
+    if (cls === "savings") net += e.amount;
+    else if (cls === "withdrawal") net -= e.amount;
+  }
+
+  const contributed = Math.min(Math.max(0, net), unspent);
+  const perMonth = (remainingNeed + contributed) / months;
+
+  return { perMonth, leftThisMonth: Math.max(0, perMonth - contributed) };
+}
+
+/** Monthly amount to set aside — see `planMonthlyPlan`. */
+export function planMonthlySave(
+  plan: CapitalPlan,
+  today: Date = new Date(),
+  txns: Expense[] = [],
+  index?: CategoryIndex,
+): number | null {
+  return planMonthlyPlan(plan, today, txns, index)?.perMonth ?? null;
 }
 
 /** Sum of monthly save across plans (overbudget plans contribute 0). */

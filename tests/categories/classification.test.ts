@@ -2,11 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { resolveImportSub } from "@/frontend/auth/lib/category-import";
 import { buildExpenseCsv } from "@/frontend/auth/lib/export";
 import { buildCategoryIndex, isIncomeCategory } from "@/frontend/lib/categories";
-import {
-  assessSpendingHabit,
-  computeHabitMetrics,
-  habitPeriodExpenses,
-} from "@/frontend/lib/spendingHabits";
+import { assessSpendingHabit, habitPeriodExpenses } from "@/frontend/lib/spendingHabits";
 import { classifyTx, isSavings, isSpend } from "@/frontend/lib/stats";
 import type { Category, Expense } from "@/frontend/lib/types";
 import { validateTaxonomy } from "@/schemas/category";
@@ -208,7 +204,7 @@ describe("habit engine honors custom categories", () => {
     expect(list.map((e) => e.sub)).not.toContain("sub_consulting");
   });
 
-  test("the custom savings category does not inflate the assessed total", () => {
+  test("the custom savings category does not inflate the assessed transactions", () => {
     const withSavings = assessSpendingHabit(
       [...spending, ...savings, ...income],
       "month",
@@ -220,8 +216,8 @@ describe("habit engine honors custom categories", () => {
     expect(withSavings.status).toBe("ready");
     expect(withoutSavings.status).toBe("ready");
     if (withSavings.status === "ready" && withoutSavings.status === "ready") {
-      expect(withSavings.metrics.total).toBe(withoutSavings.metrics.total);
-      expect(withSavings.metrics.total).toBe(100);
+      expect(withSavings.metrics.txCount).toBe(withoutSavings.metrics.txCount);
+      expect(withSavings.metrics.txCount).toBe(spending.length);
     }
   });
 
@@ -232,15 +228,6 @@ describe("habit engine honors custom categories", () => {
     const list = habitPeriodExpenses([...spending, ...savings], "month", "2026-07", archived);
 
     expect(list).toHaveLength(spending.length);
-  });
-
-  test("a custom expense category is attributed by name", () => {
-    const { metrics } = computeHabitMetrics(spending, INDEX);
-    const hobbies = metrics.categories.find((c) => c.id === "cat_hobbies");
-
-    expect(hobbies).toBeDefined();
-    expect(hobbies?.name).toBe("Hobbies");
-    expect(hobbies?.amount).toBe(75);
   });
 });
 

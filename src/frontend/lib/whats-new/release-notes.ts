@@ -37,6 +37,43 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "6.2.2",
+    date: "September 2026",
+    lead: "Capitals get a clearer card and a steadier monthly figure, and Calculator taxes can be a flat amount.",
+    highlights: [
+      {
+        icon: "capital",
+        title: "Capitals, redesigned",
+        body: "Each plan now reads Total, Saved, Paid, and Unspent at a glance, with a progress bar and a Save/mo and Remaining panel underneath. It fits phone screens too.",
+      },
+      {
+        icon: "capital",
+        title: "Save/mo holds steady",
+        body: "Save/mo used to shrink the moment you deposited mid-month. It now stays put all month and shows how much of this month's share is still left to deposit. Insights' Needed figure now uses the same number.",
+      },
+      {
+        icon: "piggy",
+        title: "Balances update straight away",
+        body: "A savings deposit added to a piggy or a Capitals plan now shows up right after it syncs, instead of sometimes disappearing until you refreshed. Piggies without a goal no longer show an empty ring.",
+      },
+      {
+        icon: "calculator",
+        title: "Flat-amount tax lines",
+        body: "Each Calculator tax line can be a percentage of gross or a fixed amount, and the total shows both.",
+      },
+      {
+        icon: "tags",
+        title: "Categories filter, tidied",
+        body: "Filtering Categories by type now always starts from the left column instead of leaving a gap.",
+      },
+      {
+        icon: "sparkle",
+        title: "Supporter chip, and a leaner profile",
+        body: "Supporters get a gradient chip with their start month beside their name. The Expense and Income profiles drop the Data Pattern and Behavior text so the result reads faster.",
+      },
+    ],
+  },
+  {
     version: "6.1.2",
     date: "September 2026",
     lead: "A calmer, cleaner look across the app.",
@@ -186,7 +223,7 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
   {
     version: "5.0.0",
     date: "September 2026",
-    lead: "Face ID and Touch ID now prompt on their own when you open Custos, the old 'we may share your data' claim is retired for good, and optional tips or a monthly Supporter subscription are the only way this ever gets funded.",
+    lead: "Face ID and Touch ID now prompt on their own when you open Custos, the old 'we may share your data' claim is retired for good, and optional tips or a monthly Supporter subscription are the only way this ever gets funded. (The subscription was retired in 6.0.0.)",
     highlights: [
       {
         icon: "shield",
@@ -206,7 +243,7 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
       {
         icon: "piggy",
         title: "Optional ways to support",
-        body: "Account → Support Custos links to tips (Ko-fi, GitHub Sponsors) and a monthly Supporter subscription — a badge next to your name and a choice of accent colors. Free features never change either way.",
+        body: "Account → Support Custos links to tips (Ko-fi, GitHub Sponsors) and a monthly Supporter subscription — a badge next to your name and a choice of accent colors. Free features never change either way. (The subscription was retired in 6.0.0; since 6.2.2 supporters are marked by hand with a chip beside their name.)",
       },
       {
         icon: "list",
@@ -632,14 +669,14 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
         title: "Total budget per plan",
         body:
           "Set the total budget for a Capitals plan. Paid line items count against it. The donut shows paid as a " +
-          "percent of that budget — and flips to Overpaid when you spend past it.",
+          "percent of that budget — and flips to Overpaid when you spend past it. (The donut became a progress bar in 6.2.2.)",
       },
       {
         icon: "piggy",
         title: "Monthly save + totals",
         body:
           "With a target date, each card shows how much to save per month: (budget − paid) ÷ months left. " +
-          "A new Monthly Saving summary card totals that amount across every plan. (Monthly-save math was refined in 4.1.2.)",
+          "A new Monthly Saving summary card totals that amount across every plan. (Monthly-save math was refined in 4.1.2 and again in 6.2.2.)",
       },
     ],
   },

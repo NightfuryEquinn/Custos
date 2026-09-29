@@ -1,18 +1,7 @@
 import type { CategoryIndex } from "./categories";
 import { monthLabel, monthsWindow, roundMoney } from "./data";
-import {
-  DEFAULT_FORMATTERS,
-  clamp01,
-  confidenceLevel,
-  pct,
-  percentileOf,
-  sorted,
-  stats1D,
-  topBin,
-  type Confidence,
-  type Formatters,
-} from "./stat-helpers";
-import { catMetaOf, classifyTx, isRecurring } from "./stats";
+import { clamp01, confidenceLevel, stats1D, topBin, type Confidence } from "./stat-helpers";
+import { classifyTx } from "./stats";
 import type { Expense } from "./types";
 
 /*
@@ -39,8 +28,6 @@ type IncomeStyleMeta = {
   title: string;
   trait: string;
   temperament: string;
-  pattern: string;
-  behavior: string;
 };
 
 export const INCOME_STYLES: Record<IncomeStyleId, IncomeStyleMeta> = {
@@ -49,52 +36,36 @@ export const INCOME_STYLES: Record<IncomeStyleId, IncomeStyleMeta> = {
     title: "The Salaried Anchor",
     trait: "Anchored",
     temperament: "Predictable / Anchored",
-    pattern: "One dominant source paying a steady amount on a tight schedule, month after month.",
-    behavior: "Income you can budget against to the day. The risk is concentration, not timing.",
   },
   variable: {
     id: "variable",
     title: "The Variable Earner",
     trait: "Variable",
     temperament: "Steady cadence / Shifting size",
-    pattern: "Payments arrive on a regular rhythm, but the amounts swing from one to the next.",
-    behavior: "Commission, hourly or tips. Timing is dependable; the size of each cheque is not.",
   },
   projectBased: {
     id: "projectBased",
     title: "The Project Earner",
     trait: "Project",
     temperament: "Lumpy / Deal-driven",
-    pattern: "Irregular gaps and irregular amounts, with stretches where nothing lands at all.",
-    behavior:
-      "Freelance or contract work. Income follows delivery and invoicing, not the calendar.",
   },
   portfolio: {
     id: "portfolio",
     title: "The Portfolio Earner",
     trait: "Portfolio",
     temperament: "Diversified / Layered",
-    pattern:
-      "Several meaningful sources contributing in parallel, with no single one carrying the month.",
-    behavior: "Losing any one stream is survivable. The trade-off is more moving parts to track.",
   },
   windfall: {
     id: "windfall",
     title: "The Windfall Earner",
     trait: "Windfall",
     temperament: "Spike-driven / Uneven",
-    pattern: "A single outsized payment dominates the window, dwarfing everything around it.",
-    behavior:
-      "A bonus, settlement or one-off sale. The headline total says more about that one event than about a repeatable pattern.",
   },
   emerging: {
     id: "emerging",
     title: "The Emerging Stream",
     trait: "Emerging",
     temperament: "Early / Forming",
-    pattern:
-      "Income is present but still sparse — too few payments across too few months to show a settled shape.",
-    behavior: "A new job, a side project finding its feet, or a ledger that is still filling up.",
   },
 };
 
@@ -103,71 +74,26 @@ export const INCOME_MIN_EVENTS = 3;
 /** Distinct months with income needed before a profile is offered. */
 export const INCOME_MIN_MONTHS = 2;
 
-type IncomeSourceStat = {
-  /** Subcategory id — the meaningful grain for income. */
-  id: string;
-  name: string;
-  color: string;
-  glyph: string;
-  parentName: string;
-  amount: number;
-  txCount: number;
-  share: number;
-  monthsPresent: number;
-};
-
-type IncomeMonthPoint = {
-  monthKey: string;
-  label: string;
-  earned: number;
-  spent: number;
-  net: number;
-  /** Income covered spend this month. */
-  covered: boolean;
-};
-
+/** The signals the Insights view, the archetype scoring and the confidence score read. */
 type IncomeMetrics = {
   txCount: number;
-  total: number;
   monthsInWindow: number;
   monthsWithIncome: number;
   monthsZero: number;
 
-  meanAmt: number;
-  medianAmt: number;
-  minAmt: number;
-  maxAmt: number;
   amountCv: number;
-  largestPayment: { amount: number; date: string; sourceId: string; share: number } | null;
+  /** Share of the window's income carried by its single largest payment. */
+  largestShare: number;
 
-  medianGap: number;
   gapCv: number;
-  longestGap: number;
-  topDom: number;
   topDomShare: number;
 
-  recurringCount: number;
-  recurringAmount: number;
-  recurringShare: number;
-
-  sources: IncomeSourceStat[];
   sourceCount: number;
   topSourceShare: number;
   /** Herfindahl concentration: 1 = a single source, ~0 = evenly split. */
   hhi: number;
 
-  monthly: IncomeMonthPoint[];
   monthlyMean: number;
-  monthlyMedian: number;
-  monthlyMin: number;
-  monthlyCv: number;
-  /** Second half of the window vs the first, as a signed fraction. */
-  growthPct: number;
-
-  meanMonthlySpend: number;
-  monthsCovered: number;
-  meanSavingsRate: number;
-  floorCoversSpend: boolean;
 };
 
 type IncomeConfidence = Confidence;
@@ -184,7 +110,6 @@ type IncomeAssessment =
   | {
       status: "ready";
       style: IncomeStyleMeta;
-      scores: Record<IncomeStyleId, number>;
       metrics: IncomeMetrics;
       confidence: IncomeConfidence;
       blend: { secondary: IncomeStyleMeta | null; weight: number; label: string };
@@ -223,44 +148,21 @@ function daysBetween(a: string, b: string) {
 type IncomePoint = {
   date: string;
   amount: number;
-  sub: string;
-  recurring: boolean;
 };
 
 const EMPTY_METRICS: IncomeMetrics = {
   txCount: 0,
-  total: 0,
   monthsInWindow: 0,
   monthsWithIncome: 0,
   monthsZero: 0,
-  meanAmt: 0,
-  medianAmt: 0,
-  minAmt: 0,
-  maxAmt: 0,
   amountCv: 0,
-  largestPayment: null,
-  medianGap: 0,
+  largestShare: 0,
   gapCv: 0,
-  longestGap: 0,
-  topDom: 0,
   topDomShare: 0,
-  recurringCount: 0,
-  recurringAmount: 0,
-  recurringShare: 0,
-  sources: [],
   sourceCount: 0,
   topSourceShare: 0,
   hhi: 0,
-  monthly: [],
   monthlyMean: 0,
-  monthlyMedian: 0,
-  monthlyMin: 0,
-  monthlyCv: 0,
-  growthPct: 0,
-  meanMonthlySpend: 0,
-  monthsCovered: 0,
-  meanSavingsRate: 0,
-  floorCoversSpend: false,
 };
 
 const EMPTY_SCORES: Record<IncomeStyleId, number> = {
@@ -273,12 +175,11 @@ const EMPTY_SCORES: Record<IncomeStyleId, number> = {
 };
 
 /**
- * Every income statistic for a window, plus the raw archetype scores.
+ * The income signals for a window, plus the raw archetype scores.
  *
  * One pass over `expenses`: income rows feed the payment, cadence and source
- * accumulators while spend rows feed only the per-month totals used for
- * coverage. Savings are ignored entirely — moving money into an envelope is
- * neither income nor a cost of living.
+ * accumulators. Spend is ignored, and so are savings — moving money into an
+ * envelope is neither income nor a cost of living.
  */
 export function computeIncomeMetrics(
   expenses: Expense[],
@@ -289,34 +190,19 @@ export function computeIncomeMetrics(
   const months = monthsWindow(monthKey, windowSize(window));
   const monthIdx = new Map(months.map((m, i) => [m.key, i]));
   const earnedByMonth = new Array<number>(months.length).fill(0);
-  const spentByMonth = new Array<number>(months.length).fill(0);
 
   const points: IncomePoint[] = [];
-  const sourceAgg = new Map<string, { amount: number; txCount: number; months: Set<number> }>();
+  const sourceAmounts = new Map<string, number>();
 
   for (const e of expenses) {
     const slot = monthIdx.get(e.date.slice(0, 7));
     if (slot === undefined) continue;
 
-    const cls = classifyTx(e, index);
-    if (cls === "savings" || cls === "withdrawal") continue;
-
-    if (cls === "spend") {
-      spentByMonth[slot] = (spentByMonth[slot] ?? 0) + e.amount;
-      continue;
-    }
+    if (classifyTx(e, index) !== "income") continue;
 
     earnedByMonth[slot] = (earnedByMonth[slot] ?? 0) + e.amount;
-    points.push({ date: e.date, amount: e.amount, sub: e.sub, recurring: isRecurring(e) });
-
-    const agg = sourceAgg.get(e.sub);
-    if (agg) {
-      agg.amount += e.amount;
-      agg.txCount += 1;
-      agg.months.add(slot);
-    } else {
-      sourceAgg.set(e.sub, { amount: e.amount, txCount: 1, months: new Set([slot]) });
-    }
+    points.push({ date: e.date, amount: e.amount });
+    sourceAmounts.set(e.sub, (sourceAmounts.get(e.sub) ?? 0) + e.amount);
   }
 
   if (!points.length) {
@@ -331,15 +217,12 @@ export function computeIncomeMetrics(
   const amounts = points.map((p) => p.amount);
   const total = amounts.reduce((s, v) => s + v, 0);
   const amountStats = stats1D(amounts);
-  const sortedAmounts = sorted(amounts);
 
   // Cadence: gaps between distinct payment days, walked in order so no Set or
   // second sort is needed.
   const gaps: number[] = [];
   let prevDate = "";
   const domHist = new Map<number, number>();
-  let recurringCount = 0;
-  let recurringAmount = 0;
 
   for (const p of points) {
     if (prevDate && p.date !== prevDate) gaps.push(daysBetween(prevDate, p.date));
@@ -347,118 +230,41 @@ export function computeIncomeMetrics(
 
     const dom = domOf(p.date);
     domHist.set(dom, (domHist.get(dom) ?? 0) + 1);
-
-    if (p.recurring) {
-      recurringCount += 1;
-      recurringAmount += p.amount;
-    }
   }
 
   const gapStats = stats1D(gaps);
-  const sortedGaps = sorted(gaps);
   const topDomBin = topBin(domHist, points.length);
+  const largest = amounts.reduce((max, v) => (v > max ? v : max), 0);
 
-  let largest = points[0]!;
-  for (const p of points) if (p.amount > largest.amount) largest = p;
-
-  const sources: IncomeSourceStat[] = [...sourceAgg.entries()]
-    .map(([sub, agg]) => {
-      const meta = catMetaOf(sub, index);
-      const subMeta = index?.subById[sub];
-
-      return {
-        id: sub,
-        name: subMeta?.name ?? meta.name,
-        color: meta.color,
-        glyph: meta.glyph,
-        parentName: meta.name,
-        amount: roundMoney(agg.amount),
-        txCount: agg.txCount,
-        share: total ? agg.amount / total : 0,
-        monthsPresent: agg.months.size,
-      };
-    })
-    .sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name));
-
-  const hhi = sources.reduce((s, src) => s + src.share ** 2, 0);
+  // Sources are keyed by subcategory, the meaningful grain for income.
+  const shares = [...sourceAmounts.values()]
+    .map((amount) => (total ? amount / total : 0))
+    .sort((a, b) => b - a);
+  const hhi = shares.reduce((s, share) => s + share ** 2, 0);
   // Only sources carrying real weight count toward diversification, so a
   // rounding-error trickle cannot pass for a second income stream.
-  const sourceCount = sources.filter((s) => s.share >= 0.05).length;
+  const sourceCount = shares.filter((share) => share >= 0.05).length;
 
-  const monthly: IncomeMonthPoint[] = months.map((m, i) => {
-    const earned = roundMoney(earnedByMonth[i] ?? 0);
-    const spent = roundMoney(spentByMonth[i] ?? 0);
-
-    return {
-      monthKey: m.key,
-      label: monthLabel(m.key, false).split(" ")[0] ?? m.key,
-      earned,
-      spent,
-      net: roundMoney(earned - spent),
-      covered: earned >= spent,
-    };
-  });
-
-  const monthlyEarned = monthly.map((m) => m.earned);
-  const monthlyStats = stats1D(monthlyEarned);
+  const monthlyEarned = earnedByMonth.map((v) => roundMoney(v));
   const monthsWithIncome = monthlyEarned.filter((v) => v > 0).length;
-  const totalSpend = monthly.reduce((s, m) => s + m.spent, 0);
-
-  // Halves rather than a regression slope: over six points a slope is noise
-  // dressed as precision, and this is the comparison a reader can verify.
-  const half = Math.floor(monthly.length / 2);
-  const firstHalf = monthlyEarned.slice(0, half).reduce((s, v) => s + v, 0);
-  const secondHalf = monthlyEarned.slice(monthly.length - half).reduce((s, v) => s + v, 0);
-  const growthPct = firstHalf > 0 ? (secondHalf - firstHalf) / firstHalf : secondHalf > 0 ? 1 : 0;
-
-  const meanMonthlySpend = monthly.length ? totalSpend / monthly.length : 0;
-  const monthlyMin = monthlyEarned.length ? Math.min(...monthlyEarned) : 0;
 
   const metrics: IncomeMetrics = {
     txCount: points.length,
-    total: roundMoney(total),
     monthsInWindow: months.length,
     monthsWithIncome,
     monthsZero: months.length - monthsWithIncome,
 
-    meanAmt: roundMoney(amountStats.mean),
-    medianAmt: roundMoney(percentileOf(sortedAmounts, 0.5)),
-    minAmt: roundMoney(sortedAmounts[0] ?? 0),
-    maxAmt: roundMoney(sortedAmounts[sortedAmounts.length - 1] ?? 0),
     amountCv: amountStats.cv,
-    largestPayment: {
-      amount: roundMoney(largest.amount),
-      date: largest.date,
-      sourceId: largest.sub,
-      share: total ? largest.amount / total : 0,
-    },
+    largestShare: total ? largest / total : 0,
 
-    medianGap: Math.round(percentileOf(sortedGaps, 0.5)),
     gapCv: gapStats.cv,
-    longestGap: sortedGaps.length ? (sortedGaps[sortedGaps.length - 1] ?? 0) : 0,
-    topDom: topDomBin.value,
     topDomShare: topDomBin.share,
 
-    recurringCount,
-    recurringAmount: roundMoney(recurringAmount),
-    recurringShare: total ? recurringAmount / total : 0,
-
-    sources,
     sourceCount,
-    topSourceShare: sources[0]?.share ?? 0,
+    topSourceShare: shares[0] ?? 0,
     hhi,
 
-    monthly,
-    monthlyMean: roundMoney(monthlyStats.mean),
-    monthlyMedian: roundMoney(percentileOf(sorted(monthlyEarned), 0.5)),
-    monthlyMin: roundMoney(monthlyMin),
-    monthlyCv: monthlyStats.cv,
-    growthPct,
-
-    meanMonthlySpend: roundMoney(meanMonthlySpend),
-    monthsCovered: monthly.filter((m) => m.covered).length,
-    meanSavingsRate: total ? (total - totalSpend) / total : 0,
-    floorCoversSpend: monthlyMin >= meanMonthlySpend && meanMonthlySpend > 0,
+    monthlyMean: roundMoney(stats1D(monthlyEarned).mean),
   };
 
   return { metrics, scores: scoreIncomeStyles(metrics) };
@@ -470,7 +276,7 @@ function scoreIncomeStyles(m: IncomeMetrics): Record<IncomeStyleId, number> {
 
   const monthPresence = m.monthsInWindow ? m.monthsWithIncome / m.monthsInWindow : 0;
   const zeroShare = m.monthsInWindow ? m.monthsZero / m.monthsInWindow : 0;
-  const largestShare = m.largestPayment?.share ?? 0;
+  const largestShare = m.largestShare;
 
   // A salaried cheque is steady to within a few percent, so the steadiness term
   // is scored against a tight band: a 50% swing earns nothing from it, which is
@@ -591,227 +397,6 @@ export function incomeBlend(ranked: [IncomeStyleId, number][]): {
   return { secondary, weight, label: `${primaryTitle}, with a ${secondary.trait} streak` };
 }
 
-type IncomeNarrative = { pattern: string; behavior: string };
-
-/** Join the sentences that had the signal to be written. */
-function join(parts: (string | false | null | undefined)[], fallback: string) {
-  const text = parts.filter(Boolean).join(" ").trim();
-
-  return text || fallback;
-}
-
-/** `n` with a plural suffix — keeps sentence builders readable. */
-function plural(n: number, one: string, many = `${one}s`) {
-  return `${n} ${n === 1 ? one : many}`;
-}
-
-/**
- * Personalized "Data Pattern" / "Behavior" copy built from the window's real
- * numbers. Every sentence is guarded by the signal it needs, and each block
- * falls back to the archetype's static prose, so a thin window renders real
- * sentences rather than fragments.
- */
-export function buildIncomeNarrative(
-  id: IncomeStyleId,
-  m: IncomeMetrics,
-  fmt: Formatters = DEFAULT_FORMATTERS,
-): IncomeNarrative {
-  const meta = INCOME_STYLES[id];
-  const money = fmt.money;
-  const top = m.sources[0];
-
-  if (id === "salaried") {
-    return {
-      pattern: join(
-        [
-          top && `${top.name} pays ${money(top.amount)} across ${plural(top.txCount, "payment")}.`,
-          m.topDomShare >= 0.4 &&
-            m.topDom > 0 &&
-            `Most of it lands around day ${m.topDom} of the month.`,
-          m.medianGap > 0 && `Typical gap between payments is ${plural(m.medianGap, "day")}.`,
-        ],
-        meta.pattern,
-      ),
-      behavior: join(
-        [
-          m.topSourceShare >= 0.6 &&
-            `${pct(m.topSourceShare)} of your income comes from one source.`,
-          m.recurringShare >= 0.5 && `${pct(m.recurringShare)} of it is already marked recurring.`,
-          m.monthlyMin > 0 && `Your lowest month still brought in ${money(m.monthlyMin)}.`,
-        ],
-        meta.behavior,
-      ),
-    };
-  }
-
-  if (id === "variable") {
-    return {
-      pattern: join(
-        [
-          `Payments land roughly every ${plural(m.medianGap || 30, "day")}, but range from ${money(m.minAmt)} to ${money(m.maxAmt)}.`,
-          m.monthsWithIncome > 0 &&
-            `Income arrived in ${m.monthsWithIncome} of ${m.monthsInWindow} months.`,
-        ],
-        meta.pattern,
-      ),
-      behavior: join(
-        [
-          top && `${top.name} drives it, at ${pct(top.share)} of the total.`,
-          m.monthlyMin > 0 &&
-            `Plan against your floor of ${money(m.monthlyMin)} rather than the ${money(m.monthlyMean)} average.`,
-        ],
-        meta.behavior,
-      ),
-    };
-  }
-
-  if (id === "projectBased") {
-    return {
-      pattern: join(
-        [
-          m.longestGap > 0 && `Your longest quiet stretch ran ${plural(m.longestGap, "day")}.`,
-          m.monthsZero > 0 &&
-            `${m.monthsZero} of ${m.monthsInWindow} months brought in nothing at all.`,
-          `Payments ranged from ${money(m.minAmt)} to ${money(m.maxAmt)}.`,
-        ],
-        meta.pattern,
-      ),
-      behavior: join(
-        [
-          top && `${top.name} accounts for ${pct(top.share)} of what came in.`,
-          m.monthlyMean > 0 && `Averaged over the window that is ${money(m.monthlyMean)} a month.`,
-        ],
-        meta.behavior,
-      ),
-    };
-  }
-
-  if (id === "portfolio") {
-    const named = m.sources
-      .slice(0, 3)
-      .map((s) => s.name)
-      .join(", ");
-
-    return {
-      pattern: join(
-        [
-          m.sourceCount > 1 &&
-            `${plural(m.sourceCount, "source")} contributed meaningfully${named ? `: ${named}.` : "."}`,
-          top && `The largest is ${top.name} at ${pct(top.share)}.`,
-        ],
-        meta.pattern,
-      ),
-      behavior: join(
-        [
-          m.topSourceShare < 0.5 &&
-            `No single stream carries the window — losing the biggest would cost ${pct(m.topSourceShare)}.`,
-          m.monthsWithIncome === m.monthsInWindow &&
-            `Something arrived in all ${m.monthsInWindow} months.`,
-        ],
-        meta.behavior,
-      ),
-    };
-  }
-
-  if (id === "windfall") {
-    const big = m.largestPayment;
-
-    return {
-      pattern: join(
-        [
-          big &&
-            `A single ${money(big.amount)} payment accounts for ${pct(big.share)} of the window's income.`,
-          m.medianAmt > 0 && `Your typical payment is ${money(m.medianAmt)}.`,
-        ],
-        meta.pattern,
-      ),
-      behavior: join(
-        [
-          `Strip that one payment out and the picture changes completely.`,
-          m.monthlyMedian > 0 && `A more representative month is ${money(m.monthlyMedian)}.`,
-        ],
-        meta.behavior,
-      ),
-    };
-  }
-
-  return {
-    pattern: join(
-      [
-        `${plural(m.txCount, "payment")} across ${m.monthsWithIncome} of ${m.monthsInWindow} months.`,
-        m.medianAmt > 0 && `Typical payment is ${money(m.medianAmt)}.`,
-      ],
-      meta.pattern,
-    ),
-    behavior: join(
-      [top && `So far ${top.name} is the main source.`, `A few more months will sharpen this.`],
-      meta.behavior,
-    ),
-  };
-}
-
-/** One concrete, number-backed suggestion for the archetype. */
-export function buildIncomeNudge(
-  id: IncomeStyleId,
-  m: IncomeMetrics,
-  fmt: Formatters = DEFAULT_FORMATTERS,
-): string {
-  const money = fmt.money;
-  const top = m.sources[0];
-
-  if (id === "salaried") {
-    if (m.meanMonthlySpend > 0 && m.monthlyMin > 0) {
-      return m.floorCoversSpend
-        ? `Your floor of ${money(m.monthlyMin)} covers your ${money(m.meanMonthlySpend)} average spend — the gap is worth automating into savings.`
-        : `Your floor of ${money(m.monthlyMin)} sits under your ${money(m.meanMonthlySpend)} average spend. Trimming to the floor closes the gap.`;
-    }
-
-    return `One source covers ${pct(m.topSourceShare)} of your income — a second stream is the main way to reduce that exposure.`;
-  }
-
-  if (id === "variable") {
-    return m.monthlyMin > 0
-      ? `Budget on your ${money(m.monthlyMin)} floor and treat anything above it as surplus — that is up to ${money(Math.max(0, m.monthlyMean - m.monthlyMin))} a month to direct.`
-      : `Budget on your lowest month rather than the average, and treat the difference as surplus.`;
-  }
-
-  if (id === "projectBased") {
-    return m.monthsZero > 0
-      ? `${m.monthsZero} of ${m.monthsInWindow} months had no income — a buffer of ${money(m.monthlyMean)} covers one dry month.`
-      : `Gaps run up to ${plural(m.longestGap, "day")} — holding ${money(m.monthlyMean)} back covers the next one.`;
-  }
-
-  if (id === "portfolio") {
-    return top
-      ? `${top.name} is ${pct(top.share)} of your income; the rest together cover ${money(m.total - top.amount)}. Worth checking that split still matches the effort each takes.`
-      : `Your sources are evenly spread — worth checking that split still matches the effort each takes.`;
-  }
-
-  if (id === "windfall") {
-    const big = m.largestPayment;
-
-    return big
-      ? `Excluding that ${money(big.amount)} payment, your typical month is ${money(m.monthlyMedian)} — plan from that number, not the total.`
-      : `Plan from your median month rather than the window total.`;
-  }
-
-  const toSettle = Math.max(1, INCOME_MIN_MONTHS + 4 - m.monthsWithIncome);
-
-  return `${plural(toSettle, "more month")} of logged income will firm this up — right now it rests on ${plural(m.txCount, "payment")}.`;
-}
-
-/** Plain-language direction of travel across the window. */
-export function describeIncomeTrend(m: IncomeMetrics): string {
-  if (m.monthsWithIncome < 2) return "Not enough months to compare yet.";
-
-  const change = Math.round(Math.abs(m.growthPct) * 100);
-  if (change < 5) return "Steady — within 5% across the window.";
-
-  return m.growthPct > 0
-    ? `Up ${change}% vs the first half of the window. Scroll horizontal.`
-    : `Down ${change}% vs the first half of the window. Scroll horizontal.`;
-}
-
 /** Distinct months carrying income, from a pre-filtered list. */
 function monthsWithIncomeIn(
   expenses: Expense[],
@@ -868,7 +453,6 @@ export function assessIncomeProfile(
   return {
     status: "ready",
     style: INCOME_STYLES[id],
-    scores,
     metrics,
     confidence: incomeConfidence(ranked, metrics),
     blend: incomeBlend(ranked),

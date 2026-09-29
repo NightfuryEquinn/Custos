@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
   budgetsFromAmounts,
-  computeNet,
+  computeTax,
   isValidAllocationAmounts,
+  isValidTaxLines,
   isValidTaxTotal,
   MY_TAX_PRESETS,
   sumPercents,
@@ -13,14 +14,55 @@ describe("calculator", () => {
     expect(sumPercents([10, NaN, 5, Infinity])).toBe(15);
   });
 
-  test("computeNet deducts combined tax from gross", () => {
-    expect(computeNet(1000, [10, 5])).toBe(850);
-    expect(computeNet(1000, [])).toBe(1000);
-    expect(computeNet(-50, [10])).toBe(0);
+  const pct = (value: number) => ({ mode: "pct" as const, value });
+  const fixed = (value: number) => ({ mode: "fixed" as const, value });
+
+  test("computeTax deducts percentage lines from gross", () => {
+    expect(computeTax(1000, [pct(10), pct(5)])).toMatchObject({ taxAmount: 150, net: 850 });
+    expect(computeTax(1000, [])).toMatchObject({ taxAmount: 0, net: 1000 });
+    expect(computeTax(-50, [pct(10)])).toMatchObject({ taxAmount: 0, net: 0 });
   });
 
-  test("computeNet clamps tax sum above 100% to zero net", () => {
-    expect(computeNet(1000, [60, 50])).toBe(0);
+  test("computeTax subtracts fixed lines as-is", () => {
+    expect(computeTax(1000, [fixed(50), fixed(25)])).toMatchObject({
+      fixedSum: 75,
+      taxAmount: 75,
+      net: 925,
+    });
+  });
+
+  test("computeTax mixes percentage and fixed lines, both off gross", () => {
+    expect(computeTax(1000, [pct(11), fixed(50)])).toEqual({
+      pctSum: 11,
+      fixedSum: 50,
+      taxAmount: 160,
+      net: 840,
+    });
+  });
+
+  test("computeTax ignores negative and non-finite values", () => {
+    expect(computeTax(1000, [fixed(-20), fixed(NaN), pct(NaN)])).toMatchObject({
+      taxAmount: 0,
+      net: 1000,
+    });
+  });
+
+  test("computeTax caps tax at gross so net never goes below zero", () => {
+    expect(computeTax(1000, [pct(60), pct(50)])).toMatchObject({ taxAmount: 1000, net: 0 });
+    expect(computeTax(100, [fixed(150)])).toMatchObject({ taxAmount: 100, net: 0 });
+  });
+
+  test("isValidTaxLines rejects percentages over 100% and tax over gross", () => {
+    expect(isValidTaxLines(1000, [pct(60), pct(40)])).toBe(true);
+    expect(isValidTaxLines(1000, [pct(60), pct(50)])).toBe(false);
+    expect(isValidTaxLines(1000, [pct(50), fixed(500)])).toBe(true);
+    expect(isValidTaxLines(1000, [pct(50), fixed(500.02)])).toBe(false);
+    expect(isValidTaxLines(100, [fixed(150)])).toBe(false);
+  });
+
+  test("isValidTaxLines does not flag a fixed line before any gross is entered", () => {
+    expect(isValidTaxLines(0, [fixed(50)])).toBe(true);
+    expect(isValidTaxLines(0, [pct(150)])).toBe(false);
   });
 
   test("isValidTaxTotal rejects over 100%", () => {

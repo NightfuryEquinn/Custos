@@ -270,7 +270,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "calculator-tax",
       "Tax Lines",
-      "Add titled percentage deductions — they stay on this screen only.",
+      "Add titled deductions — a percentage of gross or a fixed amount each. They stay on this screen only.",
       '[data-tour="tour-calculator-tax"]',
     ),
     step(
@@ -340,7 +340,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     lastStep(
       "piggies-grid",
       "Piggy Cards",
-      "Each card is a savings category — its progress ring, subcategories, and Add / Withdraw actions. Unassigned savings land here; assign deposits to a Capital from Add Transaction.",
+      "Each card is a savings category — its progress ring (when it has a goal), subcategories, and Add / Withdraw actions. Unassigned savings land here; assign deposits to a Capital from Add Transaction.",
       '[data-tour="tour-piggies-grid"]',
     ),
   ],
@@ -356,7 +356,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     lastStep(
       "capitals-grid",
       "Plan Cards",
-      "Each card shows paid vs budget on the ring, what is set aside and still unspent, what is still to save, a monthly save hint (or Overpaid), line items, and Log to record a real payment in the ledger. Deleting a plan returns its assigned savings to their envelopes.",
+      "Each card shows Total, Saved, Paid and Unspent with a progress bar, then Save/mo (and what is left to deposit this month) beside what is Remaining — or Overpaid — plus line items, and Log to record a real payment in the ledger. Deleting a plan returns its assigned savings to their envelopes.",
       '[data-tour="tour-capitals-grid"]',
     ),
   ],

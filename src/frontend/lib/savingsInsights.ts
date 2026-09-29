@@ -1,4 +1,4 @@
-import { planIsOverbudget, planMoney } from "./capitals";
+import { planIsOverbudget, planMonthlyPlan, planMoney } from "./capitals";
 import { CURRENT_MONTH_KEY, monthLabel, monthsWindow, roundMoney } from "./data";
 import { mean } from "./stat-helpers";
 import type { CategoryIndex } from "./categories";
@@ -36,7 +36,7 @@ export type CapitalPace = {
   remainingNeed: number;
   /** Trailing monthly rate of assigned deposits, folding in recurring pledges. */
   monthlyPace: number;
-  /** Monthly amount needed to cover the remaining need by the target, or null. */
+  /** The Capitals Save/mo: need at the start of the viewed month ÷ months left to the target. */
   requiredMonthly: number | null;
   /** ISO month (YYYY-MM) the remaining need is projected to be covered, or null. */
   projectedCompletion: string | null;
@@ -264,12 +264,15 @@ function paceForPlan(
     }
   }
 
+  /* The same figure as Save/mo on the Capitals card: need at the start of the
+     viewed month over the months left, counting that month. */
   let requiredMonthly: number | null = null;
   if (budget > 0 && targetMonth) {
     if (remainingNeed === 0) requiredMonthly = 0;
     else {
-      const monthsLeft = monthsBetween(monthKey, targetMonth);
-      requiredMonthly = monthsLeft > 0 ? roundMoney(remainingNeed / monthsLeft) : null;
+      const [y, m] = monthKey.split("-").map(Number);
+      const monthly = planMonthlyPlan(plan, new Date(y!, m! - 1, 1), txns, index);
+      requiredMonthly = monthly ? roundMoney(monthly.perMonth) : null;
     }
   }
 

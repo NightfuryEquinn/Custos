@@ -1,12 +1,12 @@
 import { useEnter, useModalMotion, useStagger } from "@/frontend/lib/animate";
-import { CatGlyph, EmptyState, Icon, SummaryCard } from "@/frontend/components/ui";
+import { CatGlyph, EmptyState, Icon, Segmented, SummaryCard } from "@/frontend/components/ui";
 import {
   budgetsFromAmounts,
-  computeNet,
+  computeTax,
   isValidAllocationAmounts,
+  isValidTaxLines,
   isValidTaxTotal,
   MY_TAX_PRESETS,
-  sumPercents,
   type TaxPreset,
 } from "@/frontend/lib/calculator";
 import { fmtMoney, getCurrency } from "@/frontend/lib/data";
@@ -22,7 +22,8 @@ import { createPortal } from "react-dom";
 /*
  * Calculator — budgeting helper
  * ─────────────────────────────
- * Client-side only: deduct custom tax lines from income, allocate the
+ * Client-side only: deduct custom tax lines (a percentage of gross or a fixed
+ * amount each) from income, allocate the
  * net across expense categories by amount, then optionally apply the
  * result to wallet budgets via a confirmation modal.
  * Layout: Income + Tax Collection share a setup grid on wider screens;
@@ -33,7 +34,9 @@ import { createPortal } from "react-dom";
 type TaxLine = {
   id: string;
   title: string;
-  pct: string;
+  /** `pct` reads `value` as a percentage of gross; `fixed` as a flat amount. */
+  mode: "pct" | "fixed";
+  value: string;
   /** When set, this row was added by a tax preset toggle. */
   presetId?: string;
 };
@@ -61,7 +64,12 @@ function newTaxId(): string {
 
 /** Build an empty tax line with a default title. */
 function emptyTaxLine(index: number): TaxLine {
-  return { id: newTaxId(), title: index === 0 ? "Tax" : `Tax ${index + 1}`, pct: "" };
+  return {
+    id: newTaxId(),
+    title: index === 0 ? "Tax" : `Tax ${index + 1}`,
+    mode: "pct",
+    value: "",
+  };
 }
 
 export function Calculator({
@@ -102,11 +110,11 @@ export function Calculator({
   }, [expenseCategories]);
 
   const gross = parseNonNeg(grossDraft);
-  const taxPercents = taxLines.map((t) => parseNonNeg(t.pct));
-  const taxSum = sumPercents(taxPercents);
-  const taxOk = isValidTaxTotal(taxPercents);
-  const net = taxOk ? computeNet(gross, taxPercents) : 0;
-  const taxAmount = taxOk ? Math.max(0, gross - net) : 0;
+  const taxInputs = taxLines.map((t) => ({ mode: t.mode, value: parseNonNeg(t.value) }));
+  const taxOk = isValidTaxLines(gross, taxInputs);
+  const taxed = computeTax(gross, taxInputs);
+  const net = taxOk ? taxed.net : 0;
+  const taxAmount = taxOk ? taxed.taxAmount : 0;
 
   const amountRows = useMemo(
     () =>
@@ -185,14 +193,15 @@ export function Calculator({
 
     setTaxLines((rows) => {
       const withoutPlaceholder =
-        rows.length === 1 && !rows[0]?.presetId && !rows[0]?.title.trim() && !rows[0]?.pct.trim()
+        rows.length === 1 && !rows[0]?.presetId && !rows[0]?.title.trim() && !rows[0]?.value.trim()
           ? []
           : rows;
 
       const added = preset.lines.map((line) => ({
         id: newTaxId(),
         title: line.title,
-        pct: String(line.pct),
+        mode: "pct" as const,
+        value: String(line.pct),
         presetId: preset.id,
       }));
 
@@ -296,25 +305,41 @@ export function Calculator({
                     }}
                   />
                 </div>
-                <div className="calculator-tax-pct">
-                  <label className="fld-label">Percent</label>
-                  <div className="calculator-pct-field">
+                <div className="calculator-tax-value">
+                  <label className="fld-label">{line.mode === "pct" ? "Percent" : "Amount"}</label>
+                  <div className="calculator-field">
                     <input
                       type="number"
                       min="0"
                       step="0.01"
                       inputMode="decimal"
                       placeholder="0"
-                      value={line.pct}
+                      value={line.value}
                       onChange={(e) => {
                         markDirty();
-                        patchTax(line.id, { pct: stripNegativeInput(e.target.value) });
+                        patchTax(line.id, { value: stripNegativeInput(e.target.value) });
                       }}
                       onKeyDown={preventNegativeKeys}
                       onWheel={preventWheelChange}
                     />
-                    <span className="calculator-pct-suffix">%</span>
+                    <span className="calculator-field-suffix">
+                      {line.mode === "pct" ? "%" : cur.symbol}
+                    </span>
                   </div>
+                </div>
+                <div className="calculator-tax-mode">
+                  <label className="fld-label">Type</label>
+                  <Segmented
+                    options={[
+                      { v: "pct", label: "%" },
+                      { v: "fixed", label: cur.symbol },
+                    ]}
+                    value={line.mode}
+                    onChange={(mode) => {
+                      markDirty();
+                      patchTax(line.id, { mode });
+                    }}
+                  />
                 </div>
                 <button
                   type="button"
@@ -333,7 +358,9 @@ export function Calculator({
           </div>
           {!taxOk ? (
             <p className="calculator-warn" role="status">
-              Tax percentages cannot exceed 100%.
+              {!isValidTaxTotal([taxed.pctSum])
+                ? "Tax percentages cannot exceed 100%."
+                : "Tax cannot exceed the gross amount."}
             </p>
           ) : null}
           <div className="calculator-row-actions">
@@ -347,7 +374,16 @@ export function Calculator({
             >
               Add Tax Line
             </button>
-            <span className="calculator-meta">Total tax {formatPct(taxSum)}</span>
+            <span className="calculator-meta">
+              Total tax{" "}
+              {[
+                taxed.pctSum > 0 ? formatPct(taxed.pctSum) : null,
+                taxed.fixedSum > 0 ? fmtMoney(taxed.fixedSum, { currency }) : null,
+              ]
+                .filter(Boolean)
+                .join(" + ") || formatPct(0)}
+              {taxOk && taxAmount > 0 ? ` = ${fmtMoney(taxAmount, { currency })}` : ""}
+            </span>
           </div>
         </section>
       </div>
@@ -406,7 +442,7 @@ export function Calculator({
                     </div>
                     <div className="calculator-alloc-controls">
                       <div className="calculator-alloc-amt num">{formatPct(derivedPct)}</div>
-                      <div className="calculator-pct-field calculator-amt-field">
+                      <div className="calculator-field calculator-amt-field">
                         <input
                           type="number"
                           min="0"
@@ -425,7 +461,7 @@ export function Calculator({
                           onWheel={preventWheelChange}
                           aria-label={`${c.name} amount`}
                         />
-                        <span className="calculator-pct-suffix">{cur.symbol}</span>
+                        <span className="calculator-field-suffix">{cur.symbol}</span>
                       </div>
                     </div>
                   </div>

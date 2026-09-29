@@ -5,6 +5,7 @@ import {
   planEffectiveBudget,
   planIsOverbudget,
   planMoney,
+  planMonthlyPlan,
   planMonthlySave,
   planMonthsUntilTarget,
   planIsUpcoming,
@@ -334,6 +335,76 @@ describe("planMonthlySave", () => {
   test("returns null for a plan with neither a budget nor items", () => {
     // Previously 0, which rendered a pointless "Save 0.00/mo" on the card.
     expect(planMonthlySave(plan({ targetDate: "2026-11-01", items: [] }), today)).toBeNull();
+  });
+});
+
+describe("planMonthlyPlan", () => {
+  const today = new Date(2026, 7, 21); // Aug 21, 2026
+  // Budget 3000 over Aug → Nov (3 months), nothing paid: 1000/mo.
+  const unpaid = (): CapitalPlan =>
+    plan({
+      id: "p1",
+      targetDate: "2026-11-01",
+      initialBudget: 3000,
+      items: [{ id: "i1", name: "Venue", estimatedCost: 3000, paid: false }],
+    });
+
+  test("with no deposits, perMonth is need ÷ months and all of it is left", () => {
+    expect(planMonthlyPlan(unpaid(), today, [], INDEX)).toEqual({
+      perMonth: 1000,
+      leftThisMonth: 1000,
+    });
+  });
+
+  test("a deposit this month leaves perMonth steady and lowers what is left", () => {
+    const txns = [savingsTx("2026-08-10", 400, "p1")];
+
+    expect(planMonthlyPlan(unpaid(), today, txns, INDEX)).toEqual({
+      perMonth: 1000,
+      leftThisMonth: 600,
+    });
+  });
+
+  test("a deposit last month lowers perMonth", () => {
+    const txns = [savingsTx("2026-07-10", 900, "p1")];
+
+    // 2100 left over 3 months
+    expect(planMonthlyPlan(unpaid(), today, txns, INDEX)).toEqual({
+      perMonth: 700,
+      leftThisMonth: 700,
+    });
+  });
+
+  test("this month's deposit that was then spent on an item is not added back", () => {
+    const p = plan({
+      id: "p1",
+      targetDate: "2026-11-01",
+      initialBudget: 3000,
+      items: [{ id: "i1", name: "Venue", estimatedCost: 1000, paid: true, actualCost: 1000 }],
+    });
+    const txns = [savingsTx("2026-08-10", 1000, "p1")];
+
+    // pot is empty (unspent 0); outstanding 2000 over 3 months
+    const result = planMonthlyPlan(p, today, txns, INDEX)!;
+    expect(result.perMonth).toBeCloseTo(2000 / 3);
+    expect(result.leftThisMonth).toBeCloseTo(2000 / 3);
+  });
+
+  test("a withdrawal this month never pushes leftThisMonth above perMonth", () => {
+    const txns = [savingsTx("2026-07-10", 900, "p1"), savingsTx("2026-08-05", 300, "p1", "income")];
+
+    // saved 600 → need 2400 → 800/mo; the withdrawal is not "contributed"
+    expect(planMonthlyPlan(unpaid(), today, txns, INDEX)).toEqual({
+      perMonth: 800,
+      leftThisMonth: 800,
+    });
+  });
+
+  test("is null under the same conditions as planMonthlySave", () => {
+    expect(planMonthlyPlan(plan({ initialBudget: 10000 }), today)).toBeNull(); // no target
+    expect(
+      planMonthlyPlan(plan({ targetDate: "2026-11-01", initialBudget: 5000 }), today),
+    ).toBeNull(); // overbudget
   });
 });
 

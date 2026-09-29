@@ -44,6 +44,16 @@ function browserTimezone(): string {
   }
 }
 
+/**
+ * "09/26" from an ISO timestamp — the month and year a supporter chip reads
+ * "Since". UTC, so the same grant reads the same in every timezone.
+ */
+function supporterChipDate(iso: string): string {
+  const d = new Date(iso);
+
+  return `${String(d.getUTCMonth() + 1).padStart(2, "0")}/${String(d.getUTCFullYear()).slice(-2)}`;
+}
+
 type AccountMenuProps = {
   account: Account;
   onSignOut: () => void;
@@ -114,6 +124,7 @@ export function AccountMenu({
   const [termsOpen, setTermsOpen] = useState(false);
   const [copyrightOpen, setCopyrightOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
+  const [supporterSince, setSupporterSince] = useState<string | undefined>(undefined);
   const [copied, setCopied] = useState(false);
   const [timezone, setTimezone] = useState(() => browserTimezone());
   const [timezoneSaved, setTimezoneSaved] = useState(false);
@@ -129,6 +140,7 @@ export function AccountMenu({
     api.users
       .me()
       .then(({ user }) => {
+        setSupporterSince(user.supporterSince);
         if (user.timezone) {
           setTimezone(user.timezone);
           setTimezoneSaved(true);
@@ -195,7 +207,12 @@ export function AccountMenu({
           <div className="am-head">
             <Identicon address={account.address} size={40} />
             <div>
-              <div className="am-name">{account.codename}</div>
+              <div className="am-name-row">
+                <div className="am-name">{account.codename}</div>
+                {supporterSince ? (
+                  <span className="am-chip">Since {supporterChipDate(supporterSince)}</span>
+                ) : null}
+              </div>
               <div className="am-addr num">{shortAddr(account.address)}</div>
             </div>
           </div>

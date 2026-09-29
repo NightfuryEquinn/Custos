@@ -75,18 +75,22 @@ export function Piggies({
       <div className="piggy-grid" data-tour="tour-piggies-grid">
         {piggies.map((piggy) => {
           const pace = paceById.get(piggy.catId);
-          const progressPct =
-            piggy.progress !== null ? Math.min(1, Math.max(0, piggy.progress)) : null;
-          const donutData = piggy.target
-            ? [
-                { id: "filled", value: Math.max(piggy.balance, 0), color: piggy.color },
-                {
-                  id: "remain",
-                  value: Math.max(piggy.target - piggy.balance, 0),
-                  color: "var(--hair)",
-                },
-              ]
-            : [{ id: "filled", value: 1, color: piggy.color }];
+          /* `progress` is null unless there is a positive goal, so a piggy without
+             one has no ring to draw. */
+          const ring =
+            piggy.target !== undefined && piggy.progress !== null
+              ? {
+                  pct: Math.round(Math.min(1, Math.max(0, piggy.progress)) * 100),
+                  data: [
+                    { id: "filled", value: Math.max(piggy.balance, 0), color: piggy.color },
+                    {
+                      id: "remain",
+                      value: Math.max(piggy.target - piggy.balance, 0),
+                      color: "var(--hair)",
+                    },
+                  ],
+                }
+              : null;
           const spark = [
             ...monthlyNetForCat(savingsTxns, piggy.catId, categoryIndex, sparkMonths).values(),
           ];
@@ -105,18 +109,18 @@ export function Piggies({
               </div>
 
               <div className="piggy-card-body">
-                <div className="piggy-ring">
-                  <Donut
-                    data={donutData}
-                    size={92}
-                    thickness={12}
-                    onHover={() => {}}
-                    activeId={null}
-                  />
-                  <div className="piggy-ring-label">
-                    {progressPct !== null ? `${Math.round(progressPct * 100)}%` : "—"}
+                {ring ? (
+                  <div className="piggy-ring">
+                    <Donut
+                      data={ring.data}
+                      size={92}
+                      thickness={12}
+                      onHover={() => {}}
+                      activeId={null}
+                    />
+                    <div className="piggy-ring-label">{ring.pct}%</div>
                   </div>
-                </div>
+                ) : null}
                 <div className="piggy-card-stats">
                   <div className="piggy-balance">{money(piggy.balance)}</div>
                   <div className="piggy-target">

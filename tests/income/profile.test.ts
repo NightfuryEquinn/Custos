@@ -3,16 +3,11 @@ import { buildCategoryIndex } from "@/frontend/lib/categories";
 import {
   INCOME_MIN_EVENTS,
   INCOME_MIN_MONTHS,
-  INCOME_STYLES,
   assessIncomeProfile,
-  buildIncomeNarrative,
-  buildIncomeNudge,
   computeIncomeMetrics,
-  describeIncomeTrend,
   incomeBlend,
   pickIncomeStyle,
   rankIncomeStyles,
-  type IncomeStyleId,
 } from "@/frontend/lib/incomeProfile";
 import type { Category, Expense } from "@/frontend/lib/types";
 
@@ -63,10 +58,6 @@ function inc(
   id = `${date}-${sub}-${amount}`,
 ): Expense {
   return { id, walletId: "w1", kind: "income", date, sub, amount, note: "", recurring: false };
-}
-
-function incR(date: string, amount: number, sub = "salary"): Expense {
-  return { ...inc(date, amount, sub), recurring: "monthly" };
 }
 
 function spend(date: string, amount: number, id = `s-${date}-${amount}`): Expense {
@@ -172,7 +163,7 @@ describe("withdrawals", () => {
     expect(assessIncomeProfile(rows, ANCHOR, "6mo", INDEX).status).toBe("insufficient");
   });
 
-  test("a withdrawal is excluded from total, sources, and the earned/spent split", () => {
+  test("a withdrawal is excluded from the payments, sources and monthly income", () => {
     const salary = monthlySalary(() => 4200);
     const withWithdrawal = computeIncomeMetrics(
       [...salary, withdraw("2026-07-10", 900)],
@@ -182,23 +173,10 @@ describe("withdrawals", () => {
     ).metrics;
     const without = computeIncomeMetrics(salary, ANCHOR, "6mo", INDEX).metrics;
 
-    expect(withWithdrawal.total).toBe(without.total);
     expect(withWithdrawal.txCount).toBe(without.txCount);
-    expect(withWithdrawal.sources.map((s) => s.id)).not.toContain("sav_general");
-    expect(withWithdrawal.meanMonthlySpend).toBe(without.meanMonthlySpend);
-  });
-
-  test("meanSavingsRate is unaffected by a withdrawal (not double-counted as income or spend)", () => {
-    const salary = monthlySalary(() => 4200);
-    const withWithdrawal = computeIncomeMetrics(
-      [...salary, withdraw("2026-07-10", 900)],
-      ANCHOR,
-      "6mo",
-      INDEX,
-    ).metrics;
-    const without = computeIncomeMetrics(salary, ANCHOR, "6mo", INDEX).metrics;
-
-    expect(withWithdrawal.meanSavingsRate).toBeCloseTo(without.meanSavingsRate, 6);
+    expect(withWithdrawal.monthlyMean).toBe(without.monthlyMean);
+    expect(withWithdrawal.sourceCount).toBe(without.sourceCount);
+    expect(withWithdrawal.topSourceShare).toBe(without.topSourceShare);
   });
 });
 
@@ -285,12 +263,9 @@ describe("source grain", () => {
     ];
     const { metrics } = computeIncomeMetrics(rows, ANCHOR, "6mo", INDEX);
 
-    expect(metrics.sources.map((s) => s.id).sort()).toEqual(["bonus", "salary"]);
-    expect(metrics.sources[0]!.name).toBe("Salary");
-    expect(metrics.sources[0]!.parentName).toBe("Income");
-    expect(metrics.sources[0]!.amount).toBe(12000);
-    expect(metrics.sources[0]!.txCount).toBe(3);
-    expect(metrics.sources[0]!.monthsPresent).toBe(3);
+    // Two subcategories under one Income parent: keyed by parent this would be 1.
+    expect(metrics.sourceCount).toBe(2);
+    expect(metrics.topSourceShare).toBeCloseTo(12000 / 13200, 6);
   });
 
   test("concentration and top share follow the sources", () => {
@@ -307,66 +282,6 @@ describe("source grain", () => {
   });
 });
 
-describe("recurring income", () => {
-  test("recurring share reflects rows marked recurring", () => {
-    const rows = [incR("2026-05-25", 4000), incR("2026-06-25", 4000), incR("2026-07-25", 4000)];
-    const { metrics } = computeIncomeMetrics(rows, ANCHOR, "6mo", INDEX);
-
-    expect(metrics.recurringCount).toBe(3);
-    expect(metrics.recurringShare).toBe(1);
-    expect(metrics.recurringAmount).toBe(12000);
-  });
-
-  test("one-off income does not count as recurring", () => {
-    const { metrics } = computeIncomeMetrics(
-      [inc("2026-05-25", 4000), inc("2026-06-25", 4000), inc("2026-07-25", 4000)],
-      ANCHOR,
-      "6mo",
-      INDEX,
-    );
-
-    expect(metrics.recurringCount).toBe(0);
-    expect(metrics.recurringShare).toBe(0);
-  });
-});
-
-describe("coverage and floor", () => {
-  const rows = [
-    ...monthlySalary((i) => (i === 2 ? 1000 : 4000)),
-    spend("2026-07-03", 2000, "x1"),
-    spend("2026-06-03", 2000, "x2"),
-    spend("2026-05-03", 2000, "x3"),
-    spend("2026-04-03", 2000, "x4"),
-    spend("2026-03-03", 2000, "x5"),
-    spend("2026-02-03", 2000, "x6"),
-  ];
-
-  test("counts months where income covered spend", () => {
-    const { metrics } = computeIncomeMetrics(rows, ANCHOR, "6mo", INDEX);
-
-    /* Five months at 4000 clear 2000 of spend; the 1000 month does not. */
-    expect(metrics.monthsCovered).toBe(5);
-    expect(metrics.monthlyMin).toBe(1000);
-  });
-
-  test("savings never counts as spend for coverage", () => {
-    const withSavings = [...rows, { ...spend("2026-07-04", 900, "sv"), sub: "sav_general" }];
-    const base = computeIncomeMetrics(rows, ANCHOR, "6mo", INDEX).metrics;
-    const withSav = computeIncomeMetrics(withSavings, ANCHOR, "6mo", INDEX).metrics;
-
-    expect(withSav.meanMonthlySpend).toBe(base.meanMonthlySpend);
-    expect(withSav.monthsCovered).toBe(base.monthsCovered);
-  });
-
-  test("savings rate reflects earned minus spent", () => {
-    const { metrics } = computeIncomeMetrics(rows, ANCHOR, "6mo", INDEX);
-    const expected =
-      (metrics.total - metrics.meanMonthlySpend * metrics.monthsInWindow) / metrics.total;
-
-    expect(metrics.meanSavingsRate).toBeCloseTo(expected, 6);
-  });
-});
-
 describe("window", () => {
   test("6mo and 12mo cover different spans of the same ledger", () => {
     const rows = monthlySalary(() => 3000, 12);
@@ -376,43 +291,16 @@ describe("window", () => {
     expect(six.monthsInWindow).toBe(6);
     expect(twelve.monthsInWindow).toBe(12);
     expect(twelve.txCount).toBeGreaterThan(six.txCount);
-    expect(twelve.total).toBeGreaterThan(six.total);
+    expect(twelve.monthsWithIncome).toBeGreaterThan(six.monthsWithIncome);
   });
 
   test("transactions outside the window are excluded", () => {
     const rows = [...monthlySalary(() => 3000), inc("2024-01-25", 99999, "bonus", "ancient")];
     const { metrics } = computeIncomeMetrics(rows, ANCHOR, "6mo", INDEX);
 
-    expect(metrics.maxAmt).toBe(3000);
-    expect(metrics.sources.map((s) => s.id)).not.toContain("bonus");
-  });
-});
-
-describe("trend", () => {
-  test("reports growth against the first half", () => {
-    const rising = monthlySalary((i) => (i < 3 ? 6000 : 3000));
-    const { metrics } = computeIncomeMetrics(rising, ANCHOR, "6mo", INDEX);
-
-    expect(metrics.growthPct).toBeCloseTo(1, 6);
-    expect(describeIncomeTrend(metrics)).toContain("Up 100%");
-  });
-
-  test("reports a decline", () => {
-    const falling = monthlySalary((i) => (i < 3 ? 2000 : 4000));
-    const { metrics } = computeIncomeMetrics(falling, ANCHOR, "6mo", INDEX);
-
-    expect(describeIncomeTrend(metrics)).toContain("Down 50%");
-  });
-
-  test("flat income reads as steady", () => {
-    const { metrics } = computeIncomeMetrics(
-      monthlySalary(() => 4000),
-      ANCHOR,
-      "6mo",
-      INDEX,
-    );
-
-    expect(describeIncomeTrend(metrics)).toContain("Steady");
+    expect(metrics.txCount).toBe(6);
+    expect(metrics.monthlyMean).toBe(3000);
+    expect(metrics.sourceCount).toBe(1);
   });
 });
 
@@ -471,74 +359,5 @@ describe("confidence and blend", () => {
     expect(blend.secondary?.id).toBe("variable");
     expect(blend.label).toBe("The Salaried Anchor, with a Variable streak");
     expect(blend.weight).toBeCloseTo(0.6 / 1.3, 6);
-  });
-});
-
-describe("narrative", () => {
-  const ids = Object.keys(INCOME_STYLES) as IncomeStyleId[];
-  const rich = computeIncomeMetrics(
-    [
-      ...monthlySalary(() => 4200),
-      inc("2026-06-11", 900, "bonus", "b1"),
-      spend("2026-07-02", 1500, "sp"),
-    ],
-    ANCHOR,
-    "6mo",
-    INDEX,
-  ).metrics;
-  /* Bare minimum: no recurring, no repeated amount, a single source. */
-  const thin = computeIncomeMetrics(
-    [
-      inc("2026-06-03", 210, "wages", "n1"),
-      inc("2026-07-08", 175, "wages", "n2"),
-      inc("2026-07-27", 260, "wages", "n3"),
-    ],
-    ANCHOR,
-    "6mo",
-    INDEX,
-  ).metrics;
-
-  test("every archetype produces non-empty copy", () => {
-    for (const id of ids) {
-      for (const m of [rich, thin]) {
-        const narrative = buildIncomeNarrative(id, m);
-        expect(narrative.pattern.length).toBeGreaterThan(0);
-        expect(narrative.behavior.length).toBeGreaterThan(0);
-        expect(buildIncomeNudge(id, m).length).toBeGreaterThan(0);
-      }
-    }
-  });
-
-  test("copy is deterministic", () => {
-    for (const id of ids) {
-      expect(buildIncomeNarrative(id, rich)).toEqual(buildIncomeNarrative(id, rich));
-      expect(buildIncomeNudge(id, rich)).toBe(buildIncomeNudge(id, rich));
-    }
-  });
-
-  test("amounts route through the injected money formatter", () => {
-    const fmt = { money: (n: number) => `≈${Math.round(n)}` };
-    const text = ids
-      .map((id) => {
-        const n = buildIncomeNarrative(id, rich, fmt);
-        return n.pattern + n.behavior + buildIncomeNudge(id, rich, fmt);
-      })
-      .join(" ");
-
-    expect(text).toContain("≈");
-  });
-
-  test("never leaks NaN, undefined or Infinity on a thin window", () => {
-    for (const id of ids) {
-      const n = buildIncomeNarrative(id, thin);
-      const text = `${n.pattern} ${n.behavior} ${buildIncomeNudge(id, thin)}`;
-      expect(text).not.toMatch(/NaN|undefined|Infinity|null/);
-    }
-  });
-
-  test("narrative names the user's real source", () => {
-    const n = buildIncomeNarrative("salaried", rich);
-
-    expect(`${n.pattern} ${n.behavior}`).toContain("Salary");
   });
 });

@@ -14,6 +14,10 @@ const userSchema = z.object({
   budgetAlertsEnabled: z.boolean().optional(),
   /* Last authenticated activity (login or session renew); used for stale-account purge. */
   lastSeenAt: z.coerce.date().optional(),
+  /* Set only by scripts/grant-supporter.ts — never client-writable (not in
+     updateUserSchema). Purely a thank-you chip beside the codename; it gates
+     nothing. */
+  supporterSince: z.coerce.date().optional(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });

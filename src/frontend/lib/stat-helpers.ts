@@ -91,11 +91,6 @@ export function topBin(
   return { value: bestKey, count: bestCount, share: total ? bestCount / total : 0 };
 }
 
-/** Whole-percent label for a 0..1 share. */
-export function pct(share: number) {
-  return `${Math.round(share * 100)}%`;
-}
-
 /** How much a verdict can be trusted, given sample size and lead over the runner-up. */
 export type ConfidenceLevel = "low" | "medium" | "high";
 

@@ -1,5 +1,6 @@
 /**
- * Budget calculator helpers — tax deduction and category allocation.
+ * Budget calculator helpers — tax deduction (percentage and fixed-amount
+ * lines) and category allocation.
  * Client-side only; no persistence. Allocation is by explicit amount per
  * category, up to (but not required to reach) net after tax.
  */
@@ -71,19 +72,48 @@ export function isValidTaxTotal(taxPercents: number[]): boolean {
   return sumPercents(taxPercents) <= 100 + PCT_TOLERANCE;
 }
 
+export type TaxLineInput = {
+  /** `pct` is a share of gross; `fixed` is a flat amount in the wallet currency. */
+  mode: "pct" | "fixed";
+  value: number;
+};
+
 /**
- * Net income after a single combined tax deduction:
- * `gross * (1 - Σtax%/100)`. Returns 0 when gross is negative.
+ * Tax and net for a set of deduction lines. Percentages apply to gross and
+ * fixed amounts are subtracted as-is; non-finite or negative values count as 0
+ * and the total is capped at gross, so net never goes below 0. Returns zeros
+ * when gross is negative or not finite.
  */
-export function computeNet(gross: number, taxPercents: number[]): number {
-  if (!Number.isFinite(gross) || gross < 0) {
-    return 0;
-  }
+export function computeTax(
+  gross: number,
+  lines: TaxLineInput[],
+): { pctSum: number; fixedSum: number; taxAmount: number; net: number } {
+  const pctSum = sumPercents(lines.filter((l) => l.mode === "pct").map((l) => l.value));
+  const fixedSum = lines
+    .filter((l) => l.mode === "fixed")
+    .reduce((sum, l) => sum + (Number.isFinite(l.value) && l.value > 0 ? l.value : 0), 0);
 
-  const taxSum = sumPercents(taxPercents);
-  const clamped = Math.min(Math.max(taxSum, 0), 100);
+  if (!Number.isFinite(gross) || gross < 0) return { pctSum, fixedSum, taxAmount: 0, net: 0 };
 
-  return gross * (1 - clamped / 100);
+  const pctTax = gross * (Math.min(Math.max(pctSum, 0), 100) / 100);
+  const taxAmount = Math.min(gross, pctTax + fixedSum);
+
+  return { pctSum, fixedSum, taxAmount, net: gross - taxAmount };
+}
+
+/**
+ * Whether the lines can be deducted from `gross`: percentages total at most
+ * 100% and the combined tax does not exceed gross (1-cent tolerance). With no
+ * gross entered yet only the percentage total is checked, so typing a fixed
+ * amount first does not raise a warning.
+ */
+export function isValidTaxLines(gross: number, lines: TaxLineInput[]): boolean {
+  const { pctSum, fixedSum } = computeTax(gross, lines);
+
+  if (!isValidTaxTotal([pctSum])) return false;
+  if (!(gross > 0)) return true;
+
+  return (gross * pctSum) / 100 + fixedSum <= gross + CENT_TOLERANCE / 100;
 }
 
 /**

@@ -79,7 +79,7 @@ export function SupportModal({ onClose }: SupportModalProps) {
           </button>
         </div>
 
-        <div className="modal-body modal-scroll">
+        <div className="modal-body modal-scroll support-body">
           <p className="dm-lead">
             Every feature is free. Tips are optional and never unlock or gate ledger features.
           </p>

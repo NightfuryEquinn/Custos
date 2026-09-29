@@ -13,10 +13,10 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 ### Ledger
 
 - **Overview, transactions, budgets, insights, recurring** — monthly tracking with charts, category breakdowns, and budget progress (including **Reserved** amounts from schedule envelope holds); By Category leads the Overview page. Two-column card grids from 1280px up.
-- **Piggies** — savings tracker per category ("piggy") and subcategory ("piglet"): lifetime balance (deposits minus withdrawals, excluding Capitals-assigned savings), an optional target/deadline with a progress ring, and a **Piggy Insights** engine (rate, streak, best month, pace-vs-deadline) on the Insights view — spanning Piggies and Capitals together, with a pace line per Capitals plan. Linked from Overview, Budgets, and Categories; exports to CSV.
-- **Capitals** — planner for big expenses (marriage, trips, loans, or custom): a total budget, paid line items, assigned savings deposits, and a monthly-save hint from what's left to save divided by months to target. **Log** records a real payment against an item; deleting a plan returns its deposits to savings.
+- **Piggies** — savings tracker per category ("piggy") and subcategory ("piglet"): lifetime balance (deposits minus withdrawals, excluding Capitals-assigned savings), an optional target/deadline with a progress ring (piggies with no goal show no ring), and a **Piggy Insights** engine (rate, streak, best month, pace-vs-deadline) on the Insights view — spanning Piggies and Capitals together, with a pace line per Capitals plan. Linked from Overview, Budgets, and Categories; exports to CSV.
+- **Capitals** — planner for big expenses (marriage, trips, loans, or custom): a total budget, paid line items, and assigned savings deposits, shown as Total / Saved / Paid / Unspent with a progress bar. **Save/mo** is the need at the start of the month (unpaid budget less what's still in the pot) divided by months to target, so it holds steady when you deposit mid-month, with a "left this month" line beside **Remaining**. **Log** records a real payment against an item; deleting a plan returns its deposits to savings.
 - **Subcategory breakdowns** — Overview's By Category and Transactions both drill into subcategories.
-- **Calculator** — client-side budgeting: deduct custom tax lines from income, allocate the rest across categories (partial is fine), then apply to wallet budgets. Includes Malaysia-oriented presets (EPF/SOCSO/EIS/PCB/SST); nothing leaves the browser.
+- **Calculator** — client-side budgeting: deduct custom tax lines from income (each a percentage of gross or a fixed amount), allocate the rest across categories (partial is fine), then apply to wallet budgets. Includes Malaysia-oriented presets (EPF/SOCSO/EIS/PCB/SST); nothing leaves the browser.
 - **Multiple wallets** — 29 currencies; monthly-income or starting-balance funding.
 - **Custom categories** — editable taxonomy with glyphs and colors; unused entries delete, in-use ones archive (so history keeps its type) and can transfer to another category.
 - **Recurring transactions** — monthly/quarterly/yearly, auto-posted via cron-job.org; scoped delete (one occurrence, this-and-future, or the whole series) with confirmation.
@@ -132,7 +132,8 @@ src/
     │                     # Budgets, Recurring, Insights)
     └── main.tsx
 public/                   # PWA manifest + service worker (copied into dist/ on build)
-scripts/                  # MongoDB maintenance (account wipe, stale-user prune, index sync),
+scripts/                  # MongoDB maintenance (account wipe, stale-user prune, index sync,
+                          # supporter grant),
                           # marketing icon export (export-marketing-icons.ts)
 tests/                    # auth, crypto, calculator, spending, income, schedule, budget/holds,
                           # pagination, cron scans, push routes, security headers, whats-new,
@@ -175,6 +176,7 @@ On Windows, Bun may fail to resolve `mongodb+srv` DNS; the app auto-converts to 
 ```bash
 bun run db:indexes       # sync indexes — run once against a fresh database
 bun run db:prune-stale   # scripts/prune-stale-users.ts — see below for flags
+bun run db:grant-supporter 0x… [--revoke]  # set/clear the account's Supporter chip
 bun run db:wipe-account -- --account-id <hex> --dry-run  # wipe one account's data
 ```
 
@@ -190,7 +192,7 @@ Schemas are defined in `src/schemas/` and wired in `src/db/collections.ts`. Inde
 
 | MongoDB collection    | Code key             | Purpose                                                                                                                                 |
 | --------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `users`               | `users`              | Account profile (codename, notify email, timezone, reminder/alert prefs)                                                                |
+| `users`               | `users`              | Account profile (codename, notify email, timezone, reminder/alert prefs, supporter date)                                                |
 | `ledger_profiles`     | `ledgerProfiles`     | Per-user UI state (`currentMonth`, `tourPreference`/`toursSeen`, theme/nav layout); `createdAt` is exposed to the client as account age |
 | `financial_wallets`   | `financialWallets`   | Wallets (currency, funding mode; E2EE financials)                                                                                       |
 | `category_taxonomies` | `categoryTaxonomies` | One document per user — E2EE category tree                                                                                              |
@@ -220,7 +222,7 @@ Schemas are defined in `src/schemas/` and wired in `src/db/collections.ts`. Inde
 | `capital_plans`       | `payload` (name, templateId, glyph, targetDate, initialBudget, items) via `enc`          | `accountId`                                                                                                                                                                              |
 | `vehicles`            | `payload` (name, model, plate, glyph, odometerStart, tankCapacity, notes) via `enc`      | `accountId`, `type`                                                                                                                                                                      |
 | `vehicle_fills`       | `payload` (price, quantity, odometer, station) via `enc`                                 | `accountId`, `vehicleId`, `date`, `partial`, optional `expenseId`                                                                                                                        |
-| `users`               | —                                                                                        | `address` (SIWE login), notify prefs                                                                                                                                                     |
+| `users`               | —                                                                                        | `address` (SIWE login), notify prefs, `supporterSince`                                                                                                                                   |
 | `push_subscriptions`  | —                                                                                        | `accountId`, `endpoint`, `p256dh`/`auth` keys — required verbatim to encrypt each push payload                                                                                           |
 | `sessions`            | —                                                                                        | `accountId`, hashed token (rotated on renewal), `userAgent`, `ip` — used for the Active Sessions list and rate limiting                                                                  |
 | `rate_limits`         | —                                                                                        | `_id` (limit key), `count`, `resetAt`                                                                                                                                                    |
@@ -263,7 +265,7 @@ The user-facing version lives in [`src/lib/version.ts`](src/lib/version.ts) as `
 
 Release notes are a newest-first list in [`src/frontend/lib/whats-new/release-notes.ts`](src/frontend/lib/whats-new/release-notes.ts). Prepend an entry and bump `APP_VERSION` to re-announce: seen-state is stored per version in `localStorage`, so any device that hasn't seen the new version gets the modal on next load.
 
-A version bump also needs three strings in [`website/index.html`](website/index.html) (`"softwareVersion"` in the JSON-LD, the `<span class="ver">` badge, and the footer line) — `tests/whats-new/release-notes.test.ts` enforces all stay in sync with `APP_VERSION`. `public/sw.js`'s cache-bust string is derived automatically by `build.ts` at build time.
+A version bump also needs three strings in [`website/index.html`](website/index.html) (`"softwareVersion"` in the JSON-LD, the `<span class="ver">` badge, and the footer line) — `tests/whats-new/release-notes.test.ts` enforces all stay in sync with `APP_VERSION`. Set `<lastmod>` to the release date in [`public/sitemap.xml`](public/sitemap.xml) and, for `website/index.html`, in [`website/sitemap.xml`](website/sitemap.xml) (leave the other pages' dates alone unless they changed). `public/sw.js`'s cache-bust string is derived automatically by `build.ts` at build time.
 
 New accounts get the notes too, after the welcome modal and any guided tour finish (welcome → tour → What's New), so they never overlap. To preview during development, delete `ledger:whatsnew:v1` in DevTools → Application → Local Storage and reload, or open **Account → What's New**.
 
@@ -438,7 +440,7 @@ curl -sS -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/j
 
 The official hosted app is free with full features, and always will be — nothing below gates the ledger, encryption, exports, or backups. Theming (accent + base colors) is free for every account. **Account → Support Custos** links to:
 
-- **Tips** — Ko-fi or GitHub Sponsors, one-off or recurring.
+- **Tips** — Ko-fi or GitHub Sponsors, one-off or recurring. Supporters can be marked with `bun run db:grant-supporter`, which shows a gradient "Since MM/YY" chip beside their name in the account menu — cosmetic only, it unlocks nothing.
 - Disclosed, non-personalized affiliate offers and B2B services on the [website](https://nightfuryequinn.github.io/Custos/offers.html) — never inside the app, never near ledger content.
 
 ## License

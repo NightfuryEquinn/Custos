@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { planMonthlySave } from "@/frontend/lib/capitals";
 import { buildCategoryIndex } from "@/frontend/lib/categories";
+import { roundMoney } from "@/frontend/lib/data";
 import { buildPiggies } from "@/frontend/lib/piggies";
 import { computeSavingsInsights } from "@/frontend/lib/savingsInsights";
 import type { CapitalPlan, Category, Expense } from "@/frontend/lib/types";
@@ -333,8 +335,42 @@ describe("computeSavingsInsights capital pace", () => {
 
     expect(pace.onTrack).toBe(false);
     expect(pace.remainingNeed).toBe(5800);
-    expect(pace.requiredMonthly).toBe(2900); // 5800 over the two months to 2026-09
+    // Need at the start of July: 5800 to go + the 100 July deposit, over the two months to 2026-09.
+    expect(pace.requiredMonthly).toBe(2950);
     expect(insights.headlines.some((h) => h.id === `capital-behind-${plan.id}`)).toBe(true);
+  });
+
+  test("requiredMonthly is the Capitals Save/mo for the viewed month", () => {
+    const plan = plan_({ initialBudget: 6000, targetDate: "2026-09-01" });
+    const txns = [
+      { ...tx("2026-06-01", 100, "sub_rainy_day"), capitalPlanId: plan.id },
+      { ...tx("2026-07-01", 100, "sub_rainy_day"), capitalPlanId: plan.id },
+    ];
+    const pace = withPlans(txns, [plan], 2).perPlan[0]!;
+
+    expect(pace.requiredMonthly).toBe(
+      roundMoney(planMonthlySave(plan, new Date(2026, 6, 1), txns, INDEX)!),
+    );
+  });
+
+  test("a deposit in the viewed month does not lower requiredMonthly", () => {
+    const plan = plan_({ initialBudget: 3000, targetDate: "2026-09-01" });
+    const before = withPlans([], [plan], 2).perPlan[0]!;
+    const after = withPlans(
+      [{ ...tx("2026-07-10", 500, "sub_rainy_day"), capitalPlanId: plan.id }],
+      [plan],
+      2,
+    ).perPlan[0]!;
+
+    expect(before.requiredMonthly).toBe(1500);
+    expect(after.requiredMonthly).toBe(1500);
+  });
+
+  test("requiredMonthly covers the target month itself instead of going null", () => {
+    const plan = plan_({ initialBudget: 3000, targetDate: "2026-07-20" });
+    const pace = withPlans([], [plan], 2).perPlan[0]!;
+
+    expect(pace.requiredMonthly).toBe(3000);
   });
 
   test("savings on top of a paid item fund the rest of the budget", () => {
