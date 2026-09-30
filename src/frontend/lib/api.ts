@@ -65,6 +65,12 @@ type ApiConsent = {
   updatedAt: string;
 };
 
+export type ReadOptions = { fresh?: boolean };
+
+function readOptions(options?: ReadOptions): RequestInit {
+  return options?.fresh ? { cache: "no-store" } : {};
+}
+
 type RequestOptions = Omit<RequestInit, "body"> & { body?: unknown };
 
 /** Paths safe to serve from the IndexedDB ciphertext read cache when offline. */
@@ -157,7 +163,12 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
        those mean the data changed, so a stale read beats blanking the whole
        app. A 401/403/404 means the request itself is wrong and must not be
        papered over with cache. */
-    if (address && isCacheableGet(path, method) && isOfflineFailure(err)) {
+    if (
+      opts.cache !== "no-store" &&
+      address &&
+      isCacheableGet(path, method) &&
+      isOfflineFailure(err)
+    ) {
       const cached = await getCipherCache<T>(address, path);
       if (cached != null) return cached;
     }
@@ -271,8 +282,11 @@ export const api = {
   },
 
   wallets: {
-    list() {
-      return request<{ wallets: WalletWire[] }>("/wallets");
+    list(options?: ReadOptions) {
+      return request<{ wallets: WalletWire[] }>(
+        options?.fresh ? "/wallets?readOnly=true" : "/wallets",
+        readOptions(options),
+      );
     },
     create(
       body:
@@ -301,8 +315,8 @@ export const api = {
   },
 
   categories: {
-    list() {
-      return request<CategoriesWire>("/categories");
+    list(options?: ReadOptions) {
+      return request<CategoriesWire>("/categories", readOptions(options));
     },
     update(body: { enc: 1; payload: string }) {
       return request<{ enc: 1; payload: string }>("/categories", {
@@ -313,17 +327,20 @@ export const api = {
   },
 
   expenses: {
-    list(query?: {
-      month?: string;
-      from?: string;
-      to?: string;
-      limit?: number;
-      before?: string;
-      beforeId?: string;
-      recurring?: boolean;
-      walletId?: string;
-      kind?: "expense" | "income";
-    }) {
+    list(
+      query?: {
+        month?: string;
+        from?: string;
+        to?: string;
+        limit?: number;
+        before?: string;
+        beforeId?: string;
+        recurring?: boolean;
+        walletId?: string;
+        kind?: "expense" | "income";
+      },
+      options?: ReadOptions,
+    ) {
       const params = new URLSearchParams();
       if (query?.month) params.set("month", query.month);
       if (query?.from) params.set("from", query.from);
@@ -340,7 +357,7 @@ export const api = {
         hasMore?: boolean;
         nextBefore?: string | null;
         nextBeforeId?: string | null;
-      }>(`/expenses${qs ? `?${qs}` : ""}`);
+      }>(`/expenses${qs ? `?${qs}` : ""}`, readOptions(options));
     },
     create(body: Record<string, unknown>) {
       return request<{ expense: ExpenseWire }>("/expenses", { method: "POST", body });
@@ -365,14 +382,17 @@ export const api = {
   },
 
   events: {
-    list(query?: {
-      month?: string;
-      from?: string;
-      to?: string;
-      limit?: number;
-      before?: string;
-      beforeId?: string;
-    }) {
+    list(
+      query?: {
+        month?: string;
+        from?: string;
+        to?: string;
+        limit?: number;
+        before?: string;
+        beforeId?: string;
+      },
+      options?: ReadOptions,
+    ) {
       const params = new URLSearchParams();
       if (query?.month) params.set("month", query.month);
       if (query?.from) params.set("from", query.from);
@@ -386,7 +406,7 @@ export const api = {
         hasMore?: boolean;
         nextBefore?: string | null;
         nextBeforeId?: string | null;
-      }>(`/events${qs ? `?${qs}` : ""}`);
+      }>(`/events${qs ? `?${qs}` : ""}`, readOptions(options));
     },
     create(body: Record<string, unknown>) {
       return request<{ event: EventWire }>("/events", { method: "POST", body });
@@ -407,8 +427,8 @@ export const api = {
   },
 
   todoLists: {
-    list() {
-      return request<{ todoLists: TodoListWire[] }>("/todo-lists");
+    list(options?: ReadOptions) {
+      return request<{ todoLists: TodoListWire[] }>("/todo-lists", readOptions(options));
     },
     create(body: { enc: 1; payload: string }) {
       return request<{ todoList: TodoListWire }>("/todo-lists", { method: "POST", body });
@@ -422,8 +442,8 @@ export const api = {
   },
 
   capitalPlans: {
-    list() {
-      return request<{ capitalPlans: CapitalPlanWire[] }>("/capital-plans");
+    list(options?: ReadOptions) {
+      return request<{ capitalPlans: CapitalPlanWire[] }>("/capital-plans", readOptions(options));
     },
     create(body: { enc: 1; payload: string }) {
       return request<{ capitalPlan: CapitalPlanWire }>("/capital-plans", { method: "POST", body });
@@ -440,8 +460,8 @@ export const api = {
   },
 
   vehicles: {
-    list() {
-      return request<{ vehicles: VehicleWire[] }>("/vehicles");
+    list(options?: ReadOptions) {
+      return request<{ vehicles: VehicleWire[] }>("/vehicles", readOptions(options));
     },
     create(body: { type: string; enc: 1; payload: string }) {
       return request<{ vehicle: VehicleWire }>("/vehicles", { method: "POST", body });
@@ -455,6 +475,7 @@ export const api = {
     fills: {
       list(
         params: { vehicleId?: string; limit?: number; before?: string; beforeId?: string } = {},
+        options?: ReadOptions,
       ) {
         const qs = new URLSearchParams();
         if (params.vehicleId) qs.set("vehicleId", params.vehicleId);
@@ -467,7 +488,7 @@ export const api = {
           hasMore: boolean;
           nextBefore: string | null;
           nextBeforeId: string | null;
-        }>(`/vehicles/fills${suffix}`);
+        }>(`/vehicles/fills${suffix}`, readOptions(options));
       },
       create(body: {
         vehicleId: string;
@@ -502,13 +523,13 @@ export const api = {
   },
 
   fx: {
-    latest(base: string) {
+    latest(base: string, options?: ReadOptions) {
       return request<{
         base: string;
         rates: Record<string, number>;
         fetchedAt: number;
         cached: boolean;
-      }>(`/fx/latest/${encodeURIComponent(base)}`);
+      }>(`/fx/latest/${encodeURIComponent(base)}`, readOptions(options));
     },
   },
 

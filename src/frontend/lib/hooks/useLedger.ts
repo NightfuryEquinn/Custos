@@ -1,4 +1,4 @@
-import { api } from "@/frontend/lib/api";
+import { api, ApiError } from "@/frontend/lib/api";
 import { maybeNotifyBudgetAlerts } from "@/frontend/lib/budget/notify";
 import {
   buildReminderDetails,
@@ -84,6 +84,14 @@ import { DEFAULT_CATEGORIES, validateTaxonomy } from "@/schemas/category";
 import type { TourPreference } from "@/schemas/profile";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import {
+  PAGE_REFRESH_RESOURCES,
+  refreshPageQueries,
+  type RefreshResource,
+  type RefreshTask,
+} from "@/frontend/lib/page-refresh";
+import { fetchFxRates } from "@/frontend/lib/fx";
 
 const ACTIVE_WALLET_KEY = "ledger:active-wallet";
 
@@ -210,6 +218,12 @@ export function useLedger(walletAddress: string) {
   const queryClient = useQueryClient();
   const wallet = walletAddress.toLowerCase();
   const cryptoReady = ledgerKeyStore.isUnlocked(wallet);
+  const [refreshingView, setRefreshingView] = useState<ViewId | null>(null);
+  const [refreshError, setRefreshError] = useState<unknown>(null);
+  const [refreshMessage, setRefreshMessage] = useState("");
+  const [refreshMessageView, setRefreshMessageView] = useState<ViewId | null>(null);
+  const [refreshedAt, setRefreshedAt] = useState(0);
+  const refreshPending = useRef<Promise<void> | null>(null);
 
   const [activeWalletId, setActiveWalletIdState] = useState<string | null>(() => {
     if (typeof localStorage === "undefined") return null;
@@ -225,61 +239,61 @@ export function useLedger(walletAddress: string) {
     enabled: cryptoReady,
   });
 
-  const walletsQuery = useQuery({
-    queryKey: keys.wallets(wallet),
-    queryFn: async () => {
-      const { wallets } = await api.wallets.list();
-      const cryptoKey = requireKey(wallet);
-      return Promise.all(
-        wallets.map(async (wire) => {
-          const decoded = await decodeWallet(wire, cryptoKey);
-          /* Migrate legacy plaintext name/financials into the E2EE payload.
+  const loadWallets = async (fresh = false) => {
+    const { wallets } = await api.wallets.list({ fresh });
+    const cryptoKey = requireKey(wallet);
+    return Promise.all(
+      wallets.map(async (wire) => {
+        const decoded = await decodeWallet(wire, cryptoKey);
+        /* Migrate legacy plaintext name/financials into the E2EE payload.
              Fire-and-forget: `decoded` already holds the values being sent,
              so this load doesn't need the round trip's echo back — a first
              load shouldn't block on a one-time migration write. Skipped
              offline (this data may itself be a stale cache-fallback read) —
              a later online load retries it. */
-          if ((!wire.enc || wire.name != null) && connectivity.isOnline()) {
-            /* Also skip while a "walletBudgets" write for this wallet is
+        if ((!wire.enc || wire.name != null) && !fresh && connectivity.isOnline()) {
+          /* Also skip while a "walletBudgets" write for this wallet is
                still queued — this migration write would otherwise race it
                with stale (pre-overlay) budgets and clobber whichever lands
                second. Vanishingly rare in practice (it takes a legacy
                plaintext wallet with a queued offline budgets edit), but
                free to check. */
-            void listOutbox(wallet)
-              .then(async (queued) => {
-                if (queued.some((e) => e.entity === "walletBudgets" && e.targetId === wire.id)) {
-                  return;
-                }
-                const encrypted = await encodeWalletFinancials(
-                  {
-                    name: decoded.name,
-                    income: decoded.income,
-                    startingBalance: decoded.startingBalance,
-                    budgets: decoded.budgets,
-                  },
-                  cryptoKey,
-                );
-                await api.wallets.update(wire.id, encrypted);
-              })
-              .catch(() => {
-                /* A later load retries the migration. */
-              });
-          }
-          return decoded;
-        }),
-      );
-    },
+          void listOutbox(wallet)
+            .then(async (queued) => {
+              if (queued.some((e) => e.entity === "walletBudgets" && e.targetId === wire.id)) {
+                return;
+              }
+              const encrypted = await encodeWalletFinancials(
+                {
+                  name: decoded.name,
+                  income: decoded.income,
+                  startingBalance: decoded.startingBalance,
+                  budgets: decoded.budgets,
+                },
+                cryptoKey,
+              );
+              await api.wallets.update(wire.id, encrypted);
+            })
+            .catch(() => {
+              /* A later load retries the migration. */
+            });
+        }
+        return decoded;
+      }),
+    );
+  };
+
+  const walletsQuery = useQuery({
+    queryKey: keys.wallets(wallet),
+    queryFn: () => loadWallets(),
     enabled: cryptoReady,
   });
 
-  const categoriesQuery = useQuery({
-    queryKey: keys.categories(wallet),
-    queryFn: async () => {
-      const wire = await api.categories.list();
-      const cryptoKey = requireKey(wallet);
+  const loadCategories = async (fresh = false) => {
+    const wire = await api.categories.list({ fresh });
+    const cryptoKey = requireKey(wallet);
 
-      /* Both branches below persist the returned value in the background —
+    /* Both branches below persist the returned value in the background —
          it's already what's being returned to the query, so this load
          doesn't need to wait for the write to land. Skipped offline, and
          skipped whenever a "categories" write is already queued — either
@@ -287,39 +301,43 @@ export function useLedger(walletAddress: string) {
          clobbering) the user's own queued taxonomy with defaults or a
          legacy copy. A later online load, once the queue has drained,
          retries whichever of these is still actually true. */
-      if (wire.seed) {
-        const defaults = cloneDefaultCategories();
-        if (connectivity.isOnline()) {
-          void listOutbox(wallet)
-            .then(async (queued) => {
-              if (queued.some((e) => e.entity === "categories")) return;
-              const encrypted = await encodeCategories(defaults, cryptoKey);
-              await api.categories.update(encrypted);
-            })
-            .catch(() => {
-              /* A later load retries seeding. */
-            });
-        }
-        return defaults;
+    if (wire.seed) {
+      const defaults = cloneDefaultCategories();
+      if (!fresh && connectivity.isOnline()) {
+        void listOutbox(wallet)
+          .then(async (queued) => {
+            if (queued.some((e) => e.entity === "categories")) return;
+            const encrypted = await encodeCategories(defaults, cryptoKey);
+            await api.categories.update(encrypted);
+          })
+          .catch(() => {
+            /* A later load retries seeding. */
+          });
       }
+      return defaults;
+    }
 
-      if (!wire.enc && wire.categories) {
-        if (connectivity.isOnline()) {
-          void listOutbox(wallet)
-            .then(async (queued) => {
-              if (queued.some((e) => e.entity === "categories")) return;
-              const encrypted = await encodeCategories(wire.categories!, cryptoKey);
-              await api.categories.update(encrypted);
-            })
-            .catch(() => {
-              /* A later load retries the migration. */
-            });
-        }
-        return wire.categories;
+    if (!wire.enc && wire.categories) {
+      if (!fresh && connectivity.isOnline()) {
+        void listOutbox(wallet)
+          .then(async (queued) => {
+            if (queued.some((e) => e.entity === "categories")) return;
+            const encrypted = await encodeCategories(wire.categories!, cryptoKey);
+            await api.categories.update(encrypted);
+          })
+          .catch(() => {
+            /* A later load retries the migration. */
+          });
       }
+      return wire.categories;
+    }
 
-      return decodeCategories(wire, cryptoKey);
-    },
+    return decodeCategories(wire, cryptoKey);
+  };
+
+  const categoriesQuery = useQuery({
+    queryKey: keys.categories(wallet),
+    queryFn: () => loadCategories(),
     enabled: cryptoReady,
   });
 
@@ -399,13 +417,15 @@ export function useLedger(walletAddress: string) {
     void queryClient.invalidateQueries({ queryKey: keys.capitalPlans(wallet) });
   }, [outboxTotal, queryClient, wallet]);
 
+  const loadCapitalPlans = async (fresh = false) => {
+    const { capitalPlans } = await api.capitalPlans.list({ fresh });
+    const cryptoKey = requireKey(wallet);
+    return Promise.all(capitalPlans.map((wire) => decodeCapitalPlan(wire, cryptoKey)));
+  };
+
   const capitalPlansQuery = useQuery({
     queryKey: keys.capitalPlans(wallet),
-    queryFn: async () => {
-      const { capitalPlans } = await api.capitalPlans.list();
-      const cryptoKey = requireKey(wallet);
-      return Promise.all(capitalPlans.map((wire) => decodeCapitalPlan(wire, cryptoKey)));
-    },
+    queryFn: () => loadCapitalPlans(),
     /* No dependency on profile — `month` (the only profile field this hook
        reads) already has a default, so gating on it was a pure waterfall. */
     enabled: cryptoReady,
@@ -434,37 +454,42 @@ export function useLedger(walletAddress: string) {
    * edit save the cleared assignment back.
    */
   const livePlans = useMemo(
-    () => (capitalPlansQuery.isSuccess ? overlaidCapitalPlanData : null),
-    [capitalPlansQuery.isSuccess, overlaidCapitalPlanData],
+    () => (capitalPlansQuery.data !== undefined ? overlaidCapitalPlanData : null),
+    [capitalPlansQuery.data, overlaidCapitalPlanData],
   );
 
-  const expensesQuery = useQuery({
-    queryKey: keys.expenses(wallet),
-    queryFn: async () => {
-      const from = monthStartIso(shiftMonthKey(CURRENT_MONTH_KEY, -EXPENSE_LOOKBACK_MONTHS));
-      const cryptoKey = requireKey(wallet);
-      const collected: Awaited<ReturnType<typeof decodeExpense>>[] = [];
-      let before: string | undefined;
-      let beforeId: string | undefined;
+  const loadExpenses = async (fresh = false) => {
+    const from = monthStartIso(shiftMonthKey(CURRENT_MONTH_KEY, -EXPENSE_LOOKBACK_MONTHS));
+    const cryptoKey = requireKey(wallet);
+    const collected: Awaited<ReturnType<typeof decodeExpense>>[] = [];
+    let before: string | undefined;
+    let beforeId: string | undefined;
 
-      for (;;) {
-        const page = await api.expenses.list({
+    for (;;) {
+      const page = await api.expenses.list(
+        {
           from,
           limit: LIST_PAGE_LIMIT,
           before,
           beforeId,
-        });
-        const decoded = await Promise.all(page.expenses.map((e) => decodeExpense(e, cryptoKey)));
-        collected.push(...decoded);
-        if (!page.hasMore || !page.nextBefore) break;
-        before = page.nextBefore;
-        beforeId = page.nextBeforeId ?? undefined;
-        /* Cap: LIST_PAGE_LIMIT * 5 = 10,000 rows across all wallets (~36-month window). */
-        if (collected.length >= LIST_PAGE_LIMIT * 5) break;
-      }
+        },
+        { fresh },
+      );
+      const decoded = await Promise.all(page.expenses.map((e) => decodeExpense(e, cryptoKey)));
+      collected.push(...decoded);
+      if (!page.hasMore || !page.nextBefore) break;
+      before = page.nextBefore;
+      beforeId = page.nextBeforeId ?? undefined;
+      /* Cap: LIST_PAGE_LIMIT * 5 = 10,000 rows across all wallets (~36-month window). */
+      if (collected.length >= LIST_PAGE_LIMIT * 5) break;
+    }
 
-      return collected;
-    },
+    return collected;
+  };
+
+  const expensesQuery = useQuery({
+    queryKey: keys.expenses(wallet),
+    queryFn: () => loadExpenses(),
     /* queryFn only needs requireKey(wallet) (cryptoReady) — it fetches by
        date range with no wallet or category filter (that filtering happens
        client-side below), so profile/wallets/categories were pure waterfall. */
@@ -510,27 +535,29 @@ export function useLedger(walletAddress: string) {
    * piggy balances, usedSubIds, and starting-mode wallet balance. Cap:
    * LIST_PAGE_LIMIT * 20 = 40,000 rows.
    */
+  const loadAllExpenses = async (fresh = false) => {
+    const cryptoKey = requireKey(wallet);
+    const collected: Awaited<ReturnType<typeof decodeExpense>>[] = [];
+    let before: string | undefined;
+    let beforeId: string | undefined;
+
+    for (;;) {
+      const page = await api.expenses.list({ limit: LIST_PAGE_LIMIT, before, beforeId }, { fresh });
+      const decoded = await Promise.all(page.expenses.map((e) => decodeExpense(e, cryptoKey)));
+      collected.push(...decoded);
+      if (!page.hasMore || !page.nextBefore) break;
+      before = page.nextBefore;
+      beforeId = page.nextBeforeId ?? undefined;
+      /* Cap: LIST_PAGE_LIMIT * 20 = 40,000 rows of full history. */
+      if (collected.length >= LIST_PAGE_LIMIT * 20) break;
+    }
+
+    return collected;
+  };
+
   const allExpensesQuery = useQuery({
     queryKey: keys.allExpenses(wallet),
-    queryFn: async () => {
-      const cryptoKey = requireKey(wallet);
-      const collected: Awaited<ReturnType<typeof decodeExpense>>[] = [];
-      let before: string | undefined;
-      let beforeId: string | undefined;
-
-      for (;;) {
-        const page = await api.expenses.list({ limit: LIST_PAGE_LIMIT, before, beforeId });
-        const decoded = await Promise.all(page.expenses.map((e) => decodeExpense(e, cryptoKey)));
-        collected.push(...decoded);
-        if (!page.hasMore || !page.nextBefore) break;
-        before = page.nextBefore;
-        beforeId = page.nextBeforeId ?? undefined;
-        /* Cap: LIST_PAGE_LIMIT * 20 = 40,000 rows of full history. */
-        if (collected.length >= LIST_PAGE_LIMIT * 20) break;
-      }
-
-      return collected;
-    },
+    queryFn: () => loadAllExpenses(),
     /* No wallet/category filter on this fetch either — see expensesQuery. */
     enabled: cryptoReady,
     staleTime: 5 * 60 * 1000,
@@ -590,88 +617,93 @@ export function useLedger(walletAddress: string) {
    * rather than hard-deleting (or archiving) on a partial answer.
    */
   const usedSubIds = useMemo(() => {
-    if (!allExpensesQuery.isSuccess) return null;
+    if (allExpensesQuery.data === undefined) return null;
     const subs = new Set(overlaidAllExpenseData.map((e) => e.sub));
     for (const e of overlaidExpenseData) subs.add(e.sub);
 
     return subs;
-  }, [allExpensesQuery.isSuccess, overlaidAllExpenseData, overlaidExpenseData]);
+  }, [allExpensesQuery.data, overlaidAllExpenseData, overlaidExpenseData]);
 
-  const eventsQuery = useQuery({
-    queryKey: keys.events(wallet, month),
-    queryFn: async () => {
-      /*
-       * Load by viewed month so once-events on future days (and recurring
-       * series that still occur this month) are included for holds/agenda.
-       */
-      const cryptoKey = requireKey(wallet);
-      const collected: Awaited<ReturnType<typeof decodeEvent>>[] = [];
-      let before: string | undefined;
-      let beforeId: string | undefined;
+  const loadEvents = async (fresh = false) => {
+    /*
+     * Load by viewed month so once-events on future days (and recurring
+     * series that still occur this month) are included for holds/agenda.
+     */
+    const cryptoKey = requireKey(wallet);
+    const collected: Awaited<ReturnType<typeof decodeEvent>>[] = [];
+    let before: string | undefined;
+    let beforeId: string | undefined;
 
-      for (;;) {
-        const page = await api.events.list({ month, limit: LIST_PAGE_LIMIT, before, beforeId });
-        const decoded = await Promise.all(
-          page.events.map(async (wire) => {
-            /* Migrate a legacy plaintext event into the E2EE payload. Only
+    for (;;) {
+      const page = await api.events.list(
+        { month, limit: LIST_PAGE_LIMIT, before, beforeId },
+        { fresh },
+      );
+      const decoded = await Promise.all(
+        page.events.map(async (wire) => {
+          /* Migrate a legacy plaintext event into the E2EE payload. Only
                attempted online — this data may itself be a stale
                cache-fallback read, and the write would hard-fail offline
                anyway; either way, decode `wire` directly and let a later
                online load retry the migration. */
-            if (!wire.enc && wire.title && connectivity.isOnline()) {
-              try {
-                const body = await encodeEventUpdate(
-                  {
-                    title: wire.title,
-                    comments: wire.comments ?? [],
-                    customLabel: wire.customLabel,
-                    customGlyph: wire.customGlyph,
-                    catId: wire.catId,
-                    date: wire.date,
-                    endDate: wire.endDate ?? null,
-                    allDay: wire.allDay,
-                    time: wire.time,
-                    endTime: wire.endTime ?? null,
-                    repeat: wire.repeat,
-                    exceptDates: wire.exceptDates,
-                    until: wire.until,
-                    notify: wire.notify,
-                    lead: wire.lead,
-                    email: wire.email ?? "",
-                  },
-                  cryptoKey,
-                );
-                const { event } = await api.events.update(wire.id, body);
-                return decodeEvent(event, cryptoKey);
-              } catch {
-                /* A later load retries the migration. */
-              }
+          if (!wire.enc && wire.title && !fresh && connectivity.isOnline()) {
+            try {
+              const body = await encodeEventUpdate(
+                {
+                  title: wire.title,
+                  comments: wire.comments ?? [],
+                  customLabel: wire.customLabel,
+                  customGlyph: wire.customGlyph,
+                  catId: wire.catId,
+                  date: wire.date,
+                  endDate: wire.endDate ?? null,
+                  allDay: wire.allDay,
+                  time: wire.time,
+                  endTime: wire.endTime ?? null,
+                  repeat: wire.repeat,
+                  exceptDates: wire.exceptDates,
+                  until: wire.until,
+                  notify: wire.notify,
+                  lead: wire.lead,
+                  email: wire.email ?? "",
+                },
+                cryptoKey,
+              );
+              const { event } = await api.events.update(wire.id, body);
+              return decodeEvent(event, cryptoKey);
+            } catch {
+              /* A later load retries the migration. */
             }
+          }
 
-            return decodeEvent(wire, cryptoKey);
-          }),
-        );
+          return decodeEvent(wire, cryptoKey);
+        }),
+      );
 
-        /* Fire-and-forget: notifyDetails only affects a future reminder send,
+      /* Fire-and-forget: notifyDetails only affects a future reminder send,
            not anything this load renders, so it shouldn't hold up the query.
            Skipped offline; a later online load retries. */
-        if (connectivity.isOnline()) {
-          void backfillReminderDetails(
-            page.events.map((wire, i) => ({ wire, event: decoded[i]! })),
-            activeWallet?.currency,
-            categoryIndex.catById,
-          );
-        }
-
-        collected.push(...decoded);
-        if (!page.hasMore || !page.nextBefore) break;
-        before = page.nextBefore;
-        beforeId = page.nextBeforeId ?? undefined;
-        if (collected.length >= LIST_PAGE_LIMIT * 5) break;
+      if (!fresh && connectivity.isOnline()) {
+        void backfillReminderDetails(
+          page.events.map((wire, i) => ({ wire, event: decoded[i]! })),
+          activeWallet?.currency,
+          categoryIndex.catById,
+        );
       }
 
-      return collected;
-    },
+      collected.push(...decoded);
+      if (!page.hasMore || !page.nextBefore) break;
+      before = page.nextBefore;
+      beforeId = page.nextBeforeId ?? undefined;
+      if (collected.length >= LIST_PAGE_LIMIT * 5) break;
+    }
+
+    return collected;
+  };
+
+  const eventsQuery = useQuery({
+    queryKey: keys.events(wallet, month),
+    queryFn: () => loadEvents(),
     enabled: cryptoReady && !!profileQuery.data,
     /*
      * The key is month-scoped, so switching months would otherwise put this
@@ -682,49 +714,53 @@ export function useLedger(walletAddress: string) {
     placeholderData: keepPreviousData,
   });
 
-  const todoListsQuery = useQuery({
-    queryKey: keys.todoLists(wallet),
-    queryFn: async () => {
-      const { todoLists } = await api.todoLists.list();
-      const cryptoKey = requireKey(wallet);
-      return Promise.all(
-        todoLists.map(async (wire) => {
-          if (!wire.enc && wire.name && connectivity.isOnline()) {
-            /* Fire-and-forget: decoding `wire` directly already gives the
+  const loadTodoLists = async (fresh = false) => {
+    const { todoLists } = await api.todoLists.list({ fresh });
+    const cryptoKey = requireKey(wallet);
+    return Promise.all(
+      todoLists.map(async (wire) => {
+        if (!wire.enc && wire.name && !fresh && connectivity.isOnline()) {
+          /* Fire-and-forget: decoding `wire` directly already gives the
                same result the round trip's echo would, so this load
                doesn't need to wait for the migration write to land.
                Skipped offline, and skipped while this list already has a
                queued write — this stale-cache-derived migration would
                otherwise race a real, newer offline edit. A later online
                load, once drained, retries if still needed. */
-            void listOutbox(wallet)
-              .then(async (queued) => {
-                if (queued.some((e) => e.entity === "todoList" && e.targetId === wire.id)) return;
-                const encrypted = await encodeTodoListUpdate(
-                  { name: wire.name!, icon: wire.icon ?? "📋", tasks: wire.tasks ?? [] },
-                  cryptoKey,
-                );
-                await api.todoLists.update(wire.id, encrypted);
-              })
-              .catch(() => {
-                /* A later load retries the migration. */
-              });
-          }
-          return decodeTodoList(wire, cryptoKey);
-        }),
-      );
-    },
+          void listOutbox(wallet)
+            .then(async (queued) => {
+              if (queued.some((e) => e.entity === "todoList" && e.targetId === wire.id)) return;
+              const encrypted = await encodeTodoListUpdate(
+                { name: wire.name!, icon: wire.icon ?? "📋", tasks: wire.tasks ?? [] },
+                cryptoKey,
+              );
+              await api.todoLists.update(wire.id, encrypted);
+            })
+            .catch(() => {
+              /* A later load retries the migration. */
+            });
+        }
+        return decodeTodoList(wire, cryptoKey);
+      }),
+    );
+  };
+
+  const todoListsQuery = useQuery({
+    queryKey: keys.todoLists(wallet),
+    queryFn: () => loadTodoLists(),
     /* No dependency on profile — see capitalPlansQuery. */
     enabled: cryptoReady,
   });
 
+  const loadVehicles = async (fresh = false) => {
+    const { vehicles } = await api.vehicles.list({ fresh });
+    const cryptoKey = requireKey(wallet);
+    return Promise.all(vehicles.map((wire) => decodeVehicle(wire, cryptoKey)));
+  };
+
   const vehiclesQuery = useQuery({
     queryKey: keys.vehicles(wallet),
-    queryFn: async () => {
-      const { vehicles } = await api.vehicles.list();
-      const cryptoKey = requireKey(wallet);
-      return Promise.all(vehicles.map((wire) => decodeVehicle(wire, cryptoKey)));
-    },
+    queryFn: () => loadVehicles(),
     /* No dependency on profile — see capitalPlansQuery. */
     enabled: cryptoReady,
   });
@@ -734,26 +770,31 @@ export function useLedger(walletAddress: string) {
    * relative to transaction volume — an unbounded fetch stays cheap in practice,
    * same reasoning as the allExpensesQuery above.
    */
+  const loadVehicleFills = async (fresh = false) => {
+    const cryptoKey = requireKey(wallet);
+    const collected: Awaited<ReturnType<typeof decodeVehicleFill>>[] = [];
+    let before: string | undefined;
+    let beforeId: string | undefined;
+
+    for (;;) {
+      const page = await api.vehicles.fills.list(
+        { limit: LIST_PAGE_LIMIT, before, beforeId },
+        { fresh },
+      );
+      const decoded = await Promise.all(page.fills.map((f) => decodeVehicleFill(f, cryptoKey)));
+      collected.push(...decoded);
+      if (!page.hasMore || !page.nextBefore) break;
+      before = page.nextBefore;
+      beforeId = page.nextBeforeId ?? undefined;
+      if (collected.length >= LIST_PAGE_LIMIT * 5) break;
+    }
+
+    return collected;
+  };
+
   const vehicleFillsQuery = useQuery({
     queryKey: keys.vehicleFills(wallet),
-    queryFn: async () => {
-      const cryptoKey = requireKey(wallet);
-      const collected: Awaited<ReturnType<typeof decodeVehicleFill>>[] = [];
-      let before: string | undefined;
-      let beforeId: string | undefined;
-
-      for (;;) {
-        const page = await api.vehicles.fills.list({ limit: LIST_PAGE_LIMIT, before, beforeId });
-        const decoded = await Promise.all(page.fills.map((f) => decodeVehicleFill(f, cryptoKey)));
-        collected.push(...decoded);
-        if (!page.hasMore || !page.nextBefore) break;
-        before = page.nextBefore;
-        beforeId = page.nextBeforeId ?? undefined;
-        if (collected.length >= LIST_PAGE_LIMIT * 5) break;
-      }
-
-      return collected;
-    },
+    queryFn: () => loadVehicleFills(),
     /* No dependency on profile — see capitalPlansQuery. */
     enabled: cryptoReady,
   });
@@ -1711,15 +1752,74 @@ export function useLedger(walletAddress: string) {
     walletsQuery.isLoading ||
     categoriesQuery.isLoading ||
     expensesQuery.isLoading;
-  const error =
-    profileQuery.error ??
-    walletsQuery.error ??
-    categoriesQuery.error ??
-    expensesQuery.error ??
-    eventsQuery.error ??
-    todoListsQuery.error ??
-    capitalPlansQuery.error ??
-    vehiclesQuery.error;
+  const queries = [
+    profileQuery,
+    walletsQuery,
+    categoriesQuery,
+    expensesQuery,
+    eventsQuery,
+    todoListsQuery,
+    capitalPlansQuery,
+    vehiclesQuery,
+    vehicleFillsQuery,
+    allExpensesQuery,
+  ];
+  const shellQueries = [profileQuery, walletsQuery, categoriesQuery, expensesQuery];
+  const isAuthError = (error: unknown) =>
+    error instanceof ApiError && (error.status === 401 || error.status === 403);
+  // Background failures keep usable content mounted; authentication failures still exit.
+  const error = isAuthError(refreshError)
+    ? refreshError
+    : (queries.find((query) => isAuthError(query.error))?.error ??
+      shellQueries.find((query) => query.error && query.data === undefined)?.error);
+
+  const refreshPage = (view: ViewId): Promise<void> => {
+    if (refreshPending.current) return refreshPending.current;
+    if (!cryptoReady) return Promise.resolve();
+    const loaders: Record<RefreshResource, RefreshTask> = {
+      wallets: { queryKey: keys.wallets(wallet), queryFn: () => loadWallets(true) },
+      categories: { queryKey: keys.categories(wallet), queryFn: () => loadCategories(true) },
+      expenses: { queryKey: keys.expenses(wallet), queryFn: () => loadExpenses(true) },
+      allExpenses: { queryKey: keys.allExpenses(wallet), queryFn: () => loadAllExpenses(true) },
+      capitalPlans: { queryKey: keys.capitalPlans(wallet), queryFn: () => loadCapitalPlans(true) },
+      events: { queryKey: keys.events(wallet, month), queryFn: () => loadEvents(true) },
+      todoLists: { queryKey: keys.todoLists(wallet), queryFn: () => loadTodoLists(true) },
+      vehicles: { queryKey: keys.vehicles(wallet), queryFn: () => loadVehicles(true) },
+      vehicleFills: { queryKey: keys.vehicleFills(wallet), queryFn: () => loadVehicleFills(true) },
+      fx: {
+        queryKey: ["fx", activeWallet?.currency ?? "MYR"],
+        queryFn: () => fetchFxRates(activeWallet?.currency ?? "MYR", true),
+      },
+    };
+    setRefreshingView(view);
+    setRefreshError(null);
+    setRefreshMessage("");
+    setRefreshMessageView(view);
+    refreshPending.current = refreshPageQueries(
+      queryClient,
+      wallet,
+      PAGE_REFRESH_RESOURCES[view].map((resource) => loaders[resource]),
+    )
+      .then(() => {
+        setRefreshedAt(Date.now());
+        setRefreshMessage(
+          view === "transparency" ? "This page is already up to date." : "Content updated.",
+        );
+      })
+      .catch((error: unknown) => {
+        setRefreshError(error);
+        setRefreshMessage(
+          error instanceof ApiError && error.status === 429
+            ? "Too many requests. Please wait a moment before refreshing again."
+            : "Could not refresh all content. Your current content is still available. Try again.",
+        );
+      })
+      .finally(() => {
+        refreshPending.current = null;
+        setRefreshingView(null);
+      });
+    return refreshPending.current;
+  };
 
   /**
    * Remap expenses from source subs onto dest, paced so a large ledger cannot
@@ -1843,10 +1943,17 @@ export function useLedger(walletAddress: string) {
   );
 
   return {
+    refreshPage,
+    refreshingView,
+    refreshError,
+    refreshMessage,
+    refreshMessageView,
+    refreshedAt,
     profile: profileQuery.data,
     wallets,
     activeWallet,
     allExpenses,
+    accountExpenses: allExpensesHealed,
     expenses,
     savingsTxns,
     balanceExpenses,

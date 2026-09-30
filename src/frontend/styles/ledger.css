@@ -9338,3 +9338,56 @@ select.text-in {
   color: var(--bg);
   border-color: var(--ink);
 }
+
+.page-refresh-btn > span {
+  display: inline-flex;
+}
+.page-refresh-btn--status {
+  display: none;
+}
+@media (min-width: 561px) {
+  .tb-row--status:not(:has(.offline-banner, .page-refresh-status)) {
+    display: none;
+  }
+}
+.page-refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.refresh-spinning {
+  animation: page-refresh-spin 0.9s linear infinite;
+}
+.page-refresh-status {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+@keyframes page-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .refresh-spinning {
+    animation: none;
+  }
+}
+@media (max-width: 560px) {
+  .page-refresh-btn--main {
+    display: none;
+  }
+  .page-refresh-btn--status {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    flex: none;
+  }
+  .tb-row--status {
+    flex-wrap: wrap;
+  }
+  .page-refresh-status {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+}

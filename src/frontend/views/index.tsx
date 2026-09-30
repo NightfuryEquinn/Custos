@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { useEnter, useModalMotion, useStagger } from "@/frontend/lib/animate";
 import { FadeIn } from "@/frontend/components/FadeIn";
 import { AreaTrend, Donut, MiniSpark, MoMBars } from "@/frontend/charts";
@@ -158,6 +159,7 @@ type OverviewProps = {
   onEdit: (expense: Expense) => void;
   onEditEvent: (event: LedgerEvent) => void;
   balanceExpenses?: Expense[];
+  refreshedAt?: number;
 };
 
 // ── Overview ────────────────────────────────────────────────────────
@@ -172,11 +174,12 @@ export function Overview({
   todoLists = [],
   events = [],
   balanceExpenses,
+  refreshedAt = 0,
   setView,
   onEdit,
   onEditEvent,
 }: OverviewProps) {
-  const [loadedAt] = useState(() => new Date());
+  const loadedAt = useMemo(() => new Date(refreshedAt || Date.now()), [refreshedAt]);
   const st = useMemo(
     () =>
       monthStats(expenses, budgets, wallet ?? EMPTY_WALLET, month, categoryIndex, undefined, {
@@ -1045,32 +1048,16 @@ export function Insights({
   const [habitPeriod, setHabitPeriod] = useState<HabitPeriod>("month");
   const [incomeWindow, setIncomeWindow] = useState<IncomeWindow>("6mo");
   const [viewCurrency, setViewCurrency] = useState(currency);
-  const [fxRates, setFxRates] = useState<Record<string, number> | null>(null);
-  const [fxStatus, setFxStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const fxQuery = useQuery({
+    queryKey: ["fx", currency],
+    queryFn: () => fetchFxRates(currency),
+    staleTime: 60 * 60 * 1000,
+  });
+  const fxRates = fxQuery.data?.rates ?? null;
+  const fxStatus = fxQuery.data ? "ready" : fxQuery.isFetching ? "loading" : "error";
 
   useEffect(() => {
     setViewCurrency(currency);
-  }, [currency]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setFxStatus("loading");
-    setFxRates(null);
-    fetchFxRates(currency)
-      .then((fx) => {
-        if (cancelled) return;
-        setFxRates(fx.rates);
-        setFxStatus("ready");
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setFxRates({ [currency]: 1 });
-        setFxStatus("error");
-        setViewCurrency(currency);
-      });
-    return () => {
-      cancelled = true;
-    };
   }, [currency]);
 
   const canConvert =

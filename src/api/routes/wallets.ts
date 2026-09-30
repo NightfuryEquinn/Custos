@@ -106,7 +106,13 @@ async function findOwnedWallet(accountId: string, walletId: string) {
 
 walletsRoutes.get("/", async (c) => {
   const accountId = c.get("accountId");
-  const wallets = await getUserWallets(accountId);
+  const wallets =
+    c.req.query("readOnly") === "true"
+      ? await getCollections(getDb())
+          .financialWallets.find({ accountId })
+          .sort({ createdAt: 1 })
+          .toArray()
+      : await getUserWallets(accountId);
   return c.json({ wallets: serializeDocs(wallets) });
 });
 

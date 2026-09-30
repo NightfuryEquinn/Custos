@@ -136,6 +136,10 @@ function PageTitle({ view }: { view: ViewId }) {
 
 export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppProps) {
   const ledger = useLedger(account.address);
+  const liveExpenseIds = useMemo(
+    () => new Set([...ledger.allExpenses, ...ledger.accountExpenses].map((e) => e.id)),
+    [ledger.allExpenses, ledger.accountExpenses],
+  );
   const [view, setView] = useState<ViewId>("overview");
   const [modal, setModal] = useState<
     | Expense
@@ -617,7 +621,6 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
 
   /* A fill whose logged expense was deleted must offer "Log" again. Same
      resolution the event modal does before showing "View Linked Payment". */
-  const liveExpenseIds = new Set(allExpenses.map((e) => e.id));
 
   const deleteExpense = async (
     id: string,
@@ -757,6 +760,19 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
               </button>
             </div>
             <div className="tb-actions">
+              <button
+                type="button"
+                className="icon-btn page-refresh-btn page-refresh-btn--main"
+                aria-label={`Refresh ${VIEW_TITLES[view]}`}
+                title={ledger.refreshingView ? "Refreshing content..." : "Refresh content"}
+                aria-busy={ledger.refreshingView !== null}
+                disabled={ledger.refreshingView !== null || isSaving || isMonthPending}
+                onClick={() => void ledger.refreshPage(view)}
+              >
+                <span className={ledger.refreshingView ? "refresh-spinning" : undefined}>
+                  <Icon name="recurring" size={20} />
+                </span>
+              </button>
               <ThemeToggle />
               <AccountMenu
                 account={account}
@@ -786,6 +802,27 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
           </div>
           <div className="tb-row tb-row--status">
             <OfflineBanner address={account.address} />
+            {(ledger.refreshingView === view ||
+              (ledger.refreshMessageView === view && ledger.refreshMessage)) && (
+              <span className="page-refresh-status" role="status" aria-live="polite">
+                {ledger.refreshingView === view
+                  ? `Refreshing ${VIEW_TITLES[view]}...`
+                  : ledger.refreshMessage}
+              </span>
+            )}
+            <button
+              type="button"
+              className="icon-btn page-refresh-btn page-refresh-btn--status"
+              aria-label={`Refresh ${VIEW_TITLES[view]}`}
+              title={ledger.refreshingView ? "Refreshing content..." : "Refresh content"}
+              aria-busy={ledger.refreshingView !== null}
+              disabled={ledger.refreshingView !== null || isSaving || isMonthPending}
+              onClick={() => void ledger.refreshPage(view)}
+            >
+              <span className={ledger.refreshingView ? "refresh-spinning" : undefined}>
+                <Icon name="recurring" size={20} />
+              </span>
+            </button>
           </div>
           {view !== "transparency" ? (
             <div className="tb-row tb-row--tools">
@@ -818,6 +855,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
             {view === "overview" && (
               <Overview
                 {...viewProps}
+                refreshedAt={ledger.refreshedAt}
                 balanceExpenses={ledger.balanceExpenses}
                 todoLists={ledger.todoLists}
                 events={events}

@@ -7,6 +7,7 @@ type FxCache = {
 };
 
 const CACHE_TTL_MS = 60 * 60 * 1000;
+const pending = new Map<string, Promise<FxRates>>();
 const cache = new Map<string, FxCache>();
 
 type FxRates = {
@@ -16,21 +17,27 @@ type FxRates = {
 };
 
 /** Fetches rates via the app API (ExchangeRate-API key stays server-side). */
-export async function fetchFxRates(base: string): Promise<FxRates> {
+export async function fetchFxRates(base: string, fresh = false): Promise<FxRates> {
   const code = (base || "USD").toUpperCase();
   const hit = cache.get(code);
-  if (hit && Date.now() - hit.fetchedAt < CACHE_TTL_MS) {
+  if (!fresh && hit && Date.now() - hit.fetchedAt < CACHE_TTL_MS) {
     return hit;
   }
 
-  const data = await api.fx.latest(code);
-  const entry: FxCache = {
-    base: data.base,
-    rates: data.rates,
-    fetchedAt: data.fetchedAt,
-  };
-  cache.set(code, entry);
-  return entry;
+  const existing = pending.get(code);
+  if (existing) return existing;
+  const request = api.fx
+    .latest(code, { fresh })
+    .then((data) => {
+      const entry: FxCache = { base: data.base, rates: data.rates, fetchedAt: data.fetchedAt };
+      cache.set(code, entry);
+      return entry;
+    })
+    .finally(() => {
+      pending.delete(code);
+    });
+  pending.set(code, request);
+  return request;
 }
 
 export function fxConvert(

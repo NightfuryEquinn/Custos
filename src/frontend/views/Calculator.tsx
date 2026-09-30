@@ -81,6 +81,8 @@ export function Calculator({
   categoryIndex,
 }: CalculatorProps) {
   const expenseCategories = categoryIndex.expenseCategories;
+  const grossDirty = useRef(false);
+  const draftWallet = useRef<string | undefined>(undefined);
   const [grossDraft, setGrossDraft] = useState("");
   const [taxLines, setTaxLines] = useState<TaxLine[]>(() => [emptyTaxLine(0)]);
   const [amtByCat, setAmtByCat] = useState<Record<string, string>>({});
@@ -97,6 +99,11 @@ export function Calculator({
 
   /** Prefill income from the active wallet when the wallet changes. */
   useEffect(() => {
+    if (draftWallet.current !== wallet?.id) {
+      grossDirty.current = false;
+      draftWallet.current = wallet?.id;
+    }
+    if (grossDirty.current) return;
     const income = wallet?.income ?? 0;
     setGrossDraft(income > 0 ? String(income) : "");
     setApplied(false);
@@ -259,6 +266,7 @@ export function Calculator({
               value={grossDraft}
               onChange={(e) => {
                 markDirty();
+                grossDirty.current = true;
                 setGrossDraft(stripNegativeInput(e.target.value));
               }}
               onKeyDown={preventNegativeKeys}
