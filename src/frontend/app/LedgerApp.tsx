@@ -764,7 +764,6 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
                 type="button"
                 className="icon-btn page-refresh-btn page-refresh-btn--main"
                 aria-label={`Refresh ${VIEW_TITLES[view]}`}
-                title={ledger.refreshingView ? "Refreshing content..." : "Refresh content"}
                 aria-busy={ledger.refreshingView !== null}
                 disabled={ledger.refreshingView !== null || isSaving || isMonthPending}
                 onClick={() => void ledger.refreshPage(view)}
@@ -814,7 +813,6 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
               type="button"
               className="icon-btn page-refresh-btn page-refresh-btn--status"
               aria-label={`Refresh ${VIEW_TITLES[view]}`}
-              title={ledger.refreshingView ? "Refreshing content..." : "Refresh content"}
               aria-busy={ledger.refreshingView !== null}
               disabled={ledger.refreshingView !== null || isSaving || isMonthPending}
               onClick={() => void ledger.refreshPage(view)}

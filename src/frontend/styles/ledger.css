@@ -7956,10 +7956,13 @@ textarea::placeholder {
   /* Buttons that sit at a clipping edge — the viewport top, or a modal's own
      overflow:hidden — drop the label below and right-aligned instead, same
      as the dark-mode toggle, so it's never cut off. */
-  :is(.theme-toggle, .tour-help-btn, .modal .icon-btn, .shepherd-cancel-icon)[aria-label]:is(
-      :hover,
-      :focus-visible
-    )::after {
+  :is(
+      .theme-toggle,
+      .tour-help-btn,
+      .page-refresh-btn,
+      .modal .icon-btn,
+      .shepherd-cancel-icon
+    )[aria-label]:is(:hover, :focus-visible)::after {
     top: calc(100% + 8px);
     right: 0;
     bottom: auto;

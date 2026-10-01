@@ -1,10 +1,12 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { resetFakeIdb } from "../helpers/fake-idb";
 import { fakeLocalStorage } from "../helpers/fake-storage";
 import { entry, TEST_ADDRESS as ADDRESS } from "../helpers/outbox";
 import { connectivity } from "@/frontend/lib/net/connectivity";
 import { enqueueOutbox, listOutbox } from "@/frontend/lib/sync/outbox";
 import { identityStorage } from "@/frontend/auth/lib/identity-storage";
+import { ApiError } from "@/frontend/lib/api";
+import { drainOutbox } from "@/frontend/lib/sync/engine";
 
 /* bun's test runtime has no browser localStorage — stub a minimal one, same
    convention as tests/auth/session-trust.test.ts and biometric.test.ts.
@@ -13,32 +15,30 @@ import { identityStorage } from "@/frontend/auth/lib/identity-storage";
    test below needs that set to ADDRESS unless it's specifically testing
    the mismatch case. */
 
-/** Install a fake apiFetch/ApiError pair and return control over the mock's outcomes. */
+/** Stub HTTP responses without replacing the shared API module. */
 function mockApi() {
-  class FakeApiError extends Error {
-    status: number;
-    constructor(status: number, message: string) {
-      super(message);
-      this.status = status;
-    }
-  }
-
   const calls: Array<{ path: string; method?: string }> = [];
   let outcomes: Array<() => Promise<unknown>> = [];
-
-  mock.module("@/frontend/lib/api", () => ({
-    ApiError: FakeApiError,
-    apiFetch: async (path: string, opts: { method?: string } = {}) => {
-      calls.push({ path, method: opts.method });
-      const next = outcomes.shift();
-      if (!next) return { ok: true };
-      return next();
-    },
-  }));
+  const fetchStub = (async (input, opts) => {
+    const url = new URL(String(input), "http://localhost");
+    // Real API failures also trigger a connectivity probe, separate from outbox sends.
+    if (url.pathname === "/manifest.webmanifest") return new Response(null, { status: 200 });
+    calls.push({ path: url.pathname.slice("/api".length) + url.search, method: opts?.method });
+    const next = outcomes.shift();
+    try {
+      return Response.json(next ? await next() : { ok: true });
+    } catch (error) {
+      if (error instanceof ApiError) {
+        return Response.json({ error: error.message }, { status: error.status });
+      }
+      throw error;
+    }
+  }) as typeof fetch;
 
   return {
     calls,
-    ApiError: FakeApiError,
+    ApiError,
+    fetchStub,
     queue(fn: () => Promise<unknown>) {
       outcomes.push(fn);
     },
@@ -51,11 +51,11 @@ function mockApi() {
 
 const api = mockApi();
 
-// Re-import engine.ts fresh each time isn't needed — bun's module cache is fine since
-// mock.module is installed before engine.ts is ever imported below.
-const { drainOutbox } = await import("@/frontend/lib/sync/engine");
+let originalFetch: typeof fetch;
 
 beforeEach(() => {
+  originalFetch = globalThis.fetch;
+  globalThis.fetch = api.fetchStub;
   resetFakeIdb();
   api.reset();
   connectivity.setStatusForTests("online");
@@ -64,6 +64,11 @@ beforeEach(() => {
   Object.defineProperty(globalThis.navigator, "onLine", { value: true, configurable: true });
   (globalThis as unknown as { localStorage: unknown }).localStorage = fakeLocalStorage();
   identityStorage.setSession(ADDRESS);
+});
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+  connectivity.setStatusForTests("online");
 });
 
 describe("drainOutbox", () => {
