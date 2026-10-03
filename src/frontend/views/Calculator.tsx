@@ -1,4 +1,6 @@
+import { ReadableValue } from "@/frontend/components/ReadableValue";
 import { useEnter, useModalMotion, useStagger } from "@/frontend/lib/animate";
+import { toast } from "@/frontend/lib/feedback";
 import { CatGlyph, EmptyState, Icon, Segmented, SummaryCard } from "@/frontend/components/ui";
 import {
   budgetsFromAmounts,
@@ -44,7 +46,7 @@ type TaxLine = {
 type CalculatorProps = {
   wallet: FinancialWallet | null | undefined;
   budgets: Budgets;
-  setBudgets: (next: Budgets) => void;
+  setBudgets: (next: Budgets) => void | Promise<void>;
   budgetsSaving?: boolean;
   currency: string;
   categoryIndex: CategoryIndex;
@@ -88,14 +90,19 @@ export function Calculator({
   const [amtByCat, setAmtByCat] = useState<Record<string, string>>({});
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [applyError, setApplyError] = useState("");
+  /* `applying` state alone can't stop two clicks landing in the same task. */
+  const applyingRef = useRef(false);
+  const busy = applying || budgetsSaving;
   const titleId = useId();
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const { requestClose } = useModalMotion(scrimRef, panelRef, {
+  const { dismiss } = useModalMotion(scrimRef, panelRef, {
     variant: "center",
     active: confirmOpen,
+    onDismiss: busy ? false : () => setConfirmOpen(false),
   });
-  const closeConfirm = () => requestClose(() => setConfirmOpen(false));
 
   /** Prefill income from the active wallet when the wallet changes. */
   useEffect(() => {
@@ -216,13 +223,32 @@ export function Calculator({
     });
   };
 
-  /** Persist computed budgets after modal confirm. */
-  const applyBudgets = () => {
-    if (!canApply || budgetsSaving) return;
+  /* Zero allocations are omitted from `computed`, so those categories keep their budget. */
+  const nextBudgets = { ...budgets, ...computed };
 
-    setBudgets({ ...budgets, ...computed });
-    setConfirmOpen(false);
-    setApplied(true);
+  const openApply = () => {
+    setApplyError("");
+    setConfirmOpen(true);
+  };
+
+  /** Persist computed budgets after modal confirm; success shows only once saved. */
+  const applyBudgets = async () => {
+    if (!canApply || busy || applyingRef.current) return;
+    applyingRef.current = true;
+    setApplying(true);
+    setApplyError("");
+
+    try {
+      await setBudgets(nextBudgets);
+      setConfirmOpen(false);
+      setApplied(true);
+      toast("Budgets applied");
+    } catch (e) {
+      setApplyError(e instanceof Error ? e.message : "Couldn't apply budgets. Please try again.");
+    } finally {
+      applyingRef.current = false;
+      setApplying(false);
+    }
   };
 
   /** Clear the success state when the user edits the calculator. */
@@ -449,7 +475,9 @@ export function Calculator({
                       <span>{c.name}</span>
                     </div>
                     <div className="calculator-alloc-controls">
-                      <div className="calculator-alloc-amt num">{formatPct(derivedPct)}</div>
+                      <ReadableValue as="div" className="calculator-alloc-amt num">
+                        {formatPct(derivedPct)}
+                      </ReadableValue>
                       <div className="calculator-field calculator-amt-field">
                         <input
                           type="number"
@@ -485,7 +513,7 @@ export function Calculator({
           type="button"
           className={"primary-btn" + (applied ? " calculator-apply-success" : "")}
           disabled={!canApply || applied}
-          onClick={() => setConfirmOpen(true)}
+          onClick={openApply}
         >
           {applied ? "Apply Successful" : "Apply to Budgets"}
         </button>
@@ -497,7 +525,7 @@ export function Calculator({
               ref={scrimRef}
               className="modal-scrim center"
               onMouseDown={(e) => {
-                if (e.target === e.currentTarget && !budgetsSaving) closeConfirm();
+                if (e.target === e.currentTarget) dismiss();
               }}
             >
               <div
@@ -512,8 +540,8 @@ export function Calculator({
                   <button
                     className="icon-btn"
                     type="button"
-                    onClick={closeConfirm}
-                    disabled={budgetsSaving}
+                    onClick={dismiss}
+                    disabled={busy}
                     aria-label="Close"
                   >
                     <Icon name="close" size={18} />
@@ -521,38 +549,47 @@ export function Calculator({
                 </div>
                 <div className="modal-body modal-scroll">
                   <p className="calculator-confirm-lead">
-                    This updates all expense category budgets on{" "}
-                    <strong>{wallet?.name ?? "this wallet"}</strong> to the amounts below.
+                    This replaces the expense category budgets on{" "}
+                    <strong>{wallet?.name ?? "this wallet"}</strong> with the amounts below.
+                    Categories left at 0 keep their current budget.
                   </p>
                   <ul className="calculator-confirm-list">
-                    {expenseCategories.map((c) => (
-                      <li key={c.id}>
-                        <span className="calculator-confirm-name">
-                          <CatGlyph glyph={c.glyph} id={c.id} /> {c.name}
-                        </span>
-                        <span className="num">{fmtMoney(computed[c.id] ?? 0, { currency })}</span>
-                      </li>
-                    ))}
+                    {expenseCategories.map((c) => {
+                      const before = budgets[c.id] ?? 0;
+                      const after = nextBudgets[c.id] ?? 0;
+
+                      return (
+                        <li key={c.id}>
+                          <span className="calculator-confirm-name">
+                            <CatGlyph glyph={c.glyph} id={c.id} /> {c.name}
+                          </span>
+                          <span className="num">
+                            {before !== after ? `${fmtMoney(before, { currency })} → ` : ""}
+                            {fmtMoney(after, { currency })}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
+                  {applyError ? (
+                    <p className="auth-error auth-error--gap" role="alert">
+                      {applyError}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="modal-foot">
                   <span />
                   <div className="mf-right">
-                    <button
-                      type="button"
-                      className="ghost-btn"
-                      disabled={budgetsSaving}
-                      onClick={closeConfirm}
-                    >
+                    <button type="button" className="ghost-btn" disabled={busy} onClick={dismiss}>
                       Cancel
                     </button>
                     <button
                       type="button"
                       className="primary-btn"
-                      disabled={budgetsSaving}
-                      onClick={applyBudgets}
+                      disabled={busy}
+                      onClick={() => void applyBudgets()}
                     >
-                      {budgetsSaving ? "Applying…" : "Confirm Apply"}
+                      {applying ? "Applying…" : "Confirm Apply"}
                     </button>
                   </div>
                 </div>

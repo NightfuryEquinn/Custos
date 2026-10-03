@@ -1,6 +1,7 @@
 import { useEnter, useModalMotion } from "@/frontend/lib/animate";
 import { ConfirmDialog, EmptyState, Icon } from "@/frontend/components/ui";
 import { slugId } from "@/frontend/lib/categories";
+import { toast } from "@/frontend/lib/feedback";
 import type { TodoList, TodoTask } from "@/frontend/lib/types";
 import { TODO_ICON_OPTIONS } from "@/lib/glyphs";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
@@ -45,23 +46,34 @@ export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(fu
   const [name, setName] = useState("");
   const [icon, setIcon] = useState<string>("📋");
   const [taskDraft, setTaskDraft] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [savingList, setSavingList] = useState(false);
+  const [deletingList, setDeletingList] = useState(false);
+  /* Which task action is in flight, so only that button shows its busy label. */
+  const [taskPending, setTaskPending] = useState<{
+    kind: "add" | "remove" | "toggle";
+    id?: string;
+  } | null>(null);
+  const busy = savingList || deletingList || !!taskPending;
   const [error, setError] = useState("");
+  const [editorError, setEditorError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<
     { type: "list"; id: string } | { type: "task"; listId: string; taskId: string } | null
   >(null);
   const taskSaveRef = useRef(false);
-  /* Same shape as taskSaveRef — `busy` state can't stop two clicks landing
-     in the same task from both calling persistList before either's
-     setBusy(true) commits. */
+  /* Same shape as taskSaveRef — `savingList` state can't stop two clicks landing
+     in the same task from both calling submitEditor before either's
+     setSavingList(true) commits. */
   const persistListRef = useRef(false);
+  const fields = JSON.stringify([name, icon]);
+  const [baseline, setBaseline] = useState(fields);
   const scrimRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const { requestClose } = useModalMotion(scrimRef, panelRef, {
+  const panelRef = useRef<HTMLFormElement>(null);
+  const { dismiss } = useModalMotion(scrimRef, panelRef, {
     variant: "center",
     active: !!editor,
+    onDismiss: savingList || deletingList ? false : () => setEditor(null),
+    dirty: fields !== baseline,
   });
-  const closeEditor = () => requestClose(() => setEditor(null));
 
   useEffect(() => {
     setLists(todoLists);
@@ -73,45 +85,24 @@ export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(fu
 
   const active = useMemo(() => lists.find((l) => l.id === activeId) ?? null, [lists, activeId]);
 
-  const persistList = async (
-    data: Partial<TodoList> & { id?: string; name?: string; icon?: string },
+  /** Persist a task change. Throws on failure so each caller picks where the error shows. */
+  const updateTasks = async (
+    listId: string,
+    tasks: TodoTask[],
+    pending: NonNullable<typeof taskPending>,
   ) => {
-    if (persistListRef.current) return undefined;
-    persistListRef.current = true;
-    setBusy(true);
-    setError("");
-    try {
-      const saved = await onSave(data);
-      setLists((prev) => {
-        if (data.id) return prev.map((l) => (l.id === saved.id ? saved : l));
-        return [...prev, saved];
-      });
-      if (!data.id) setActiveId(saved.id);
-      setEditor(null);
-      return saved;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save list");
-      throw err;
-    } finally {
-      persistListRef.current = false;
-      setBusy(false);
-    }
-  };
-
-  const updateTasks = async (listId: string, tasks: TodoTask[]) => {
-    if (taskSaveRef.current) return;
+    if (taskSaveRef.current) return false;
 
     taskSaveRef.current = true;
-    setBusy(true);
+    setTaskPending(pending);
     setError("");
     try {
       const saved = await onSave({ id: listId, tasks });
       setLists((prev) => prev.map((l) => (l.id === saved.id ? saved : l)));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save task");
+      return true;
     } finally {
       taskSaveRef.current = false;
-      setBusy(false);
+      setTaskPending(null);
     }
   };
 
@@ -119,7 +110,8 @@ export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(fu
     setEditor({ type: "add-list" });
     setName("");
     setIcon("📋");
-    setError("");
+    setBaseline(JSON.stringify(["", "📋"]));
+    setEditorError("");
   };
 
   useImperativeHandle(ref, () => ({ openAdd: openAddList }));
@@ -128,12 +120,13 @@ export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(fu
     setEditor({ type: "edit-list", listId: list.id });
     setName(list.name);
     setIcon(list.icon);
-    setError("");
+    setBaseline(JSON.stringify([list.name, list.icon]));
+    setEditorError("");
   };
 
+  /** Errors propagate to the ConfirmDialog, which shows them inline. */
   const removeList = async (listId: string) => {
-    setBusy(true);
-    setError("");
+    setDeletingList(true);
     try {
       await onDelete(listId);
       setLists((prev) => prev.filter((l) => l.id !== listId));
@@ -141,55 +134,84 @@ export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(fu
         const next = lists.filter((l) => l.id !== listId);
         setActiveId(next[0]?.id ?? null);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete list");
+      toast("List deleted");
+      setEditor(null);
     } finally {
-      setBusy(false);
+      setDeletingList(false);
     }
   };
 
   const submitEditor = async () => {
     if (!name.trim()) {
-      setError("Name is required");
+      setEditorError("Name is required");
       return;
     }
-    if (!editor) return;
+    if (!editor || persistListRef.current) return;
 
-    if (editor.type === "add-list") {
-      await persistList({ name: name.trim(), icon });
-      return;
+    persistListRef.current = true;
+    setSavingList(true);
+    setEditorError("");
+    try {
+      const data =
+        editor.type === "add-list"
+          ? { name: name.trim(), icon }
+          : { id: editor.listId, name: name.trim(), icon };
+      const saved = await onSave(data);
+      setLists((prev) =>
+        "id" in data ? prev.map((l) => (l.id === saved.id ? saved : l)) : [...prev, saved],
+      );
+      if (!("id" in data)) setActiveId(saved.id);
+      toast(editor.type === "add-list" ? "List added" : "List updated");
+      setEditor(null);
+    } catch (err) {
+      setEditorError(err instanceof Error ? err.message : "Could not save list");
+    } finally {
+      persistListRef.current = false;
+      setSavingList(false);
     }
-
-    await persistList({ id: editor.listId, name: name.trim(), icon });
   };
 
   const addTask = async () => {
     if (!active || !taskDraft.trim()) return;
-    const task: TodoTask = {
-      id: taskId(taskDraft, active.tasks),
-      title: taskDraft.trim(),
-      done: false,
-    };
-    setTaskDraft("");
-    await updateTasks(active.id, [...active.tasks, task]);
+    const title = taskDraft.trim();
+    const task: TodoTask = { id: taskId(title, active.tasks), title, done: false };
+    try {
+      /* Keep the text on failure; only clear it if it hasn't been edited meanwhile. */
+      if (await updateTasks(active.id, [...active.tasks, task], { kind: "add" })) {
+        setTaskDraft((draft) => (draft.trim() === title ? "" : draft));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not add task");
+    }
   };
 
   const toggleTask = async (listId: string, taskId: string) => {
     const list = lists.find((l) => l.id === listId);
     if (!list) return;
     const tasks = list.tasks.map((t) => (t.id === taskId ? { ...t, done: !t.done } : t));
-    await updateTasks(listId, tasks);
+    try {
+      await updateTasks(listId, tasks, { kind: "toggle", id: taskId });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update task");
+    }
   };
 
+  /** Errors propagate to the ConfirmDialog, which shows them inline. */
   const removeTask = async (listId: string, taskId: string) => {
     const list = lists.find((l) => l.id === listId);
     if (!list) return;
-    await updateTasks(
-      listId,
-      list.tasks.filter((t) => t.id !== taskId),
-    );
+    const tasks = list.tasks.filter((t) => t.id !== taskId);
+    if (!(await updateTasks(listId, tasks, { kind: "remove", id: taskId }))) {
+      throw new Error("Another change is still saving. Try again in a moment.");
+    }
+    toast("Task removed");
   };
 
+  const deleteTarget = confirmDelete
+    ? lists.find(
+        (l) => l.id === (confirmDelete.type === "list" ? confirmDelete.id : confirmDelete.listId),
+      )
+    : undefined;
   const editorTitle = editor?.type === "add-list" ? "New List" : editor ? "Edit List" : "";
   const viewRef = useRef<HTMLDivElement>(null);
   useEnter(viewRef);
@@ -240,8 +262,8 @@ export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(fu
                     className="danger"
                     disabled={busy}
                     onClick={() => setConfirmDelete({ type: "list", id: active.id })}
-                    aria-label={busy ? "Deleting…" : "Delete List"}
-                    title={busy ? "Deleting…" : "Delete List"}
+                    aria-label={deletingList ? "Deleting…" : "Delete List"}
+                    title={deletingList ? "Deleting…" : "Delete List"}
                   >
                     <Icon name="trash" size={16} />
                   </button>
@@ -272,7 +294,9 @@ export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(fu
                             setConfirmDelete({ type: "task", listId: active.id, taskId: task.id })
                           }
                         >
-                          {busy ? "Removing…" : "Remove"}
+                          {taskPending?.kind === "remove" && taskPending.id === task.id
+                            ? "Removing…"
+                            : "Remove"}
                         </button>
                       </div>
                     ))
@@ -297,11 +321,15 @@ export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(fu
                   disabled={busy || !taskDraft.trim()}
                   onClick={() => void addTask()}
                 >
-                  {busy ? "Adding…" : "Add"}
+                  {taskPending?.kind === "add" ? "Adding…" : "Add"}
                 </button>
               </div>
 
-              {error ? <p className="auth-error">{error}</p> : null}
+              {error ? (
+                <p className="auth-error auth-error--gap" role="alert">
+                  {error}
+                </p>
+              ) : null}
             </section>
           ) : null}
         </>
@@ -319,18 +347,28 @@ export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(fu
               ref={scrimRef}
               className="modal-scrim center"
               onMouseDown={(e) => {
-                if (e.target === e.currentTarget && !busy) closeEditor();
+                if (e.target === e.currentTarget) dismiss();
               }}
             >
-              <div ref={panelRef} className="modal sm" role="dialog" aria-modal="true">
+              <form
+                ref={panelRef}
+                className="modal sm"
+                role="dialog"
+                aria-modal="true"
+                noValidate
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void submitEditor();
+                }}
+              >
                 <div className="modal-head">
                   <h3>{editorTitle}</h3>
                   <button
                     className="icon-btn"
                     type="button"
-                    onClick={closeEditor}
+                    onClick={dismiss}
                     aria-label="Close"
-                    disabled={busy}
+                    disabled={savingList || deletingList}
                   >
                     <Icon name="close" size={18} />
                   </button>
@@ -363,53 +401,79 @@ export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(fu
                       ))}
                     </div>
 
-                    {error ? <p className="auth-error">{error}</p> : null}
-
-                    <div className="wallet-form-actions">
-                      <button
-                        className="ghost-btn full"
-                        type="button"
-                        onClick={closeEditor}
-                        disabled={busy}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        className="primary-btn full"
-                        type="button"
-                        disabled={busy || !name.trim()}
-                        onClick={() => void submitEditor()}
-                      >
-                        {busy ? "Saving…" : "Save"}
-                      </button>
-                    </div>
+                    {editorError ? (
+                      <p className="auth-error auth-error--gap" role="alert">
+                        {editorError}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
-              </div>
+                <div className="modal-foot">
+                  {editor.type === "edit-list" ? (
+                    <button
+                      className="ghost-btn danger"
+                      type="button"
+                      disabled={savingList || deletingList}
+                      onClick={() => setConfirmDelete({ type: "list", id: editor.listId })}
+                    >
+                      {deletingList ? "Deleting…" : "Delete"}
+                    </button>
+                  ) : (
+                    <span />
+                  )}
+                  <div className="mf-right">
+                    <button
+                      className="ghost-btn"
+                      type="button"
+                      onClick={dismiss}
+                      disabled={savingList || deletingList}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="primary-btn"
+                      type="submit"
+                      disabled={savingList || deletingList || !name.trim()}
+                    >
+                      {savingList
+                        ? "Saving…"
+                        : editor.type === "add-list"
+                          ? "Add List"
+                          : "Save Changes"}
+                    </button>
+                  </div>
+                </div>
+              </form>
             </div>,
             document.body,
           )
         : null}
 
-      {confirmDelete ? (
+      {confirmDelete?.type === "list" ? (
         <ConfirmDialog
-          title={confirmDelete.type === "list" ? "Delete List" : "Remove Task"}
+          title="Delete List"
           message={
-            confirmDelete.type === "list"
-              ? (() => {
-                  const list = lists.find((l) => l.id === confirmDelete.id);
-                  return `Delete "${list?.name ?? ""}" and all ${list?.tasks.length ?? 0} of its tasks? This cannot be undone.`;
-                })()
-              : (() => {
-                  const list = lists.find((l) => l.id === confirmDelete.listId);
-                  const task = list?.tasks.find((t) => t.id === confirmDelete.taskId);
-                  return `Remove "${task?.title ?? ""}"? This cannot be undone.`;
-                })()
+            deleteTarget?.tasks.length
+              ? `Delete "${deleteTarget.name}" and ${deleteTarget.tasks.length === 1 ? "its 1 task" : `all ${deleteTarget.tasks.length} of its tasks`}? This cannot be undone.`
+              : `Delete "${deleteTarget?.name ?? ""}"? This cannot be undone.`
           }
+          requireText={deleteTarget?.tasks.length ? deleteTarget.name.trim() : undefined}
           onCancel={() => setConfirmDelete(null)}
           onConfirm={async () => {
-            if (confirmDelete.type === "list") await removeList(confirmDelete.id);
-            else await removeTask(confirmDelete.listId, confirmDelete.taskId);
+            await removeList(confirmDelete.id);
+            setConfirmDelete(null);
+          }}
+        />
+      ) : null}
+      {confirmDelete?.type === "task" ? (
+        <ConfirmDialog
+          title="Remove Task"
+          message={`Remove "${deleteTarget?.tasks.find((t) => t.id === confirmDelete.taskId)?.title ?? ""}"? This cannot be undone.`}
+          confirmLabel="Remove"
+          pendingLabel="Removing…"
+          onCancel={() => setConfirmDelete(null)}
+          onConfirm={async () => {
+            await removeTask(confirmDelete.listId, confirmDelete.taskId);
             setConfirmDelete(null);
           }}
         />

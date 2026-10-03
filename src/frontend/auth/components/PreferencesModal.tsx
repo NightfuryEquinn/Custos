@@ -130,14 +130,17 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
   const modalBusy = busy || bioBusy;
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
+  const { dismiss } = useModalMotion(scrimRef, panelRef, {
+    variant: "center",
+    onDismiss: modalBusy ? false : onClose,
+  });
 
   return createPortal(
     <div
       ref={scrimRef}
       className="modal-scrim center"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !modalBusy) requestClose(onClose);
+        if (e.target === e.currentTarget) dismiss();
       }}
     >
       <div ref={panelRef} className="modal sm" role="dialog" aria-modal="true">
@@ -146,7 +149,7 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
           <button
             className="icon-btn"
             type="button"
-            onClick={() => requestClose(onClose)}
+            onClick={dismiss}
             aria-label="Close"
             disabled={modalBusy}
           >

@@ -151,6 +151,17 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const method = (opts.method ?? (body !== undefined ? "POST" : "GET")).toUpperCase();
   const address = identityStorage.session();
 
+  // A known offline read should not spend twenty seconds waiting for a failed fetch.
+  if (
+    !connectivity.isOnline() &&
+    opts.cache !== "no-store" &&
+    address &&
+    isCacheableGet(path, method)
+  ) {
+    const cached = await getCipherCache<T>(address, path);
+    if (cached != null) return cached;
+  }
+
   try {
     const json = await apiFetch<T>(path, opts);
     if (address && isCacheableGet(path, method)) {

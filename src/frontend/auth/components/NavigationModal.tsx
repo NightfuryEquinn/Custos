@@ -1,5 +1,6 @@
 import { Icon } from "@/frontend/components/ui";
 import { useModalMotion } from "@/frontend/lib/animate";
+import { toast } from "@/frontend/lib/feedback";
 import { NAV_ITEM_BY_ID, NAV_ITEMS, type NavItem } from "@/frontend/lib/nav";
 import type { ViewId } from "@/frontend/lib/types";
 import { DEFAULT_TAB_IDS, TAB_SLOTS, VIEW_IDS } from "@/lib/views";
@@ -32,8 +33,14 @@ export function NavigationModal({ sidebarItems, tabItems, onSave, onClose }: Nav
   const [error, setError] = useState("");
 
   const scrimRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
+  const panelRef = useRef<HTMLFormElement>(null);
+  const fields = JSON.stringify([order, tabs]);
+  const [baseline] = useState(fields);
+  const { requestClose, dismiss } = useModalMotion(scrimRef, panelRef, {
+    variant: "center",
+    onDismiss: busy ? false : onClose,
+    dirty: fields !== baseline,
+  });
 
   const toggleTab = (id: ViewId) => {
     setTabs((prev) => {
@@ -49,42 +56,51 @@ export function NavigationModal({ sidebarItems, tabItems, onSave, onClose }: Nav
     setError("");
   };
 
+  const canSave = tabs.length === TAB_SLOTS;
+
   const save = async () => {
+    if (!canSave || busy) return;
     setBusy(true);
     setError("");
     try {
       await onSave({ navOrder: order, navTabs: tabs });
+      toast("Navigation saved");
       requestClose(onClose);
-    } catch {
-      setError("Could not save — check your connection and try again.");
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Could not save. Check your connection and try again.",
+      );
     } finally {
       setBusy(false);
     }
   };
-
-  const canSave = tabs.length === TAB_SLOTS;
 
   return createPortal(
     <div
       ref={scrimRef}
       className="modal-scrim center"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !busy) requestClose(onClose);
+        if (e.target === e.currentTarget) dismiss();
       }}
     >
-      <div
+      <form
         ref={panelRef}
         className="modal sm modal--medium"
         role="dialog"
         aria-modal="true"
         aria-labelledby="nav-modal-title"
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
       >
         <div className="modal-head">
           <h3 id="nav-modal-title">Navigation</h3>
           <button
             className="icon-btn"
             type="button"
-            onClick={() => requestClose(onClose)}
+            onClick={dismiss}
             aria-label="Close"
             disabled={busy}
           >
@@ -94,10 +110,10 @@ export function NavigationModal({ sidebarItems, tabItems, onSave, onClose }: Nav
 
         <div className="modal-body modal-scroll">
           <div className="dm-sec">
-            <span className="fld-label">Mobile tab bar</span>
+            <span className="fld-label">Favorite destinations</span>
             <p className="dm-lead">
-              Pick four, in the order they should appear. Everything else lives under More. On
-              mobile, the app opens on the first one.
+              Pick four for the command index, in the order they should appear. On mobile, the app
+              opens on the first one.
             </p>
             <div className="nav-tab-preview">
               {tabs.map((id) => (
@@ -113,7 +129,7 @@ export function NavigationModal({ sidebarItems, tabItems, onSave, onClose }: Nav
               ))}
               <span className="nav-tab-preview-item nav-tab-preview-more">
                 <Icon name="more" size={16} />
-                More
+                Index
               </span>
             </div>
             <div className="sub-row">
@@ -138,8 +154,8 @@ export function NavigationModal({ sidebarItems, tabItems, onSave, onClose }: Nav
           <div className="dm-div" />
 
           <div className="dm-sec">
-            <span className="fld-label">Sidebar order</span>
-            <p className="dm-lead">Tablet and desktop show every view in this order.</p>
+            <span className="fld-label">Index order</span>
+            <p className="dm-lead">Open Custos shows every view in this order, on every device.</p>
             <ul className="nav-order-list">
               {order.map((id, i) => {
                 const [, label, icon] = NAV_ITEM_BY_ID.get(id)!;
@@ -171,26 +187,32 @@ export function NavigationModal({ sidebarItems, tabItems, onSave, onClose }: Nav
             </ul>
           </div>
 
-          {error ? <p className="dm-note">{error}</p> : null}
+          {!canSave ? (
+            <p className="fld-hint">
+              Pick {TAB_SLOTS} favorites to save ({tabs.length} selected).
+            </p>
+          ) : null}
+          {error ? (
+            <p className="auth-error auth-error--gap" role="alert">
+              {error}
+            </p>
+          ) : null}
         </div>
 
         <div className="modal-foot">
           <button className="ghost-btn" type="button" disabled={busy} onClick={resetDefaults}>
             Reset to Defaults
           </button>
-          <button
-            className="ghost-btn"
-            type="button"
-            disabled={busy}
-            onClick={() => requestClose(onClose)}
-          >
-            Cancel
-          </button>
-          <button className="primary-btn" type="button" disabled={busy || !canSave} onClick={save}>
-            {busy ? "Saving…" : "Save"}
-          </button>
+          <div className="mf-right">
+            <button className="ghost-btn" type="button" disabled={busy} onClick={dismiss}>
+              Cancel
+            </button>
+            <button className="primary-btn" type="submit" disabled={busy || !canSave}>
+              {busy ? "Saving…" : "Save Changes"}
+            </button>
+          </div>
         </div>
-      </div>
+      </form>
     </div>,
     document.body,
   );

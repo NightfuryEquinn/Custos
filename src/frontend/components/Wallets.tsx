@@ -2,7 +2,8 @@ import { evaluateExpression, isPlainNumber } from "@/frontend/lib/arithmetic";
 import { useModalMotion } from "@/frontend/lib/animate";
 import { fmtMoney, getCurrency } from "@/frontend/lib/data";
 import type { FinancialWallet } from "@/frontend/lib/types";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "@/frontend/lib/feedback";
+import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CurrencyPicker } from "./CurrencyPicker";
 import { FadeIn } from "@/frontend/components/FadeIn";
@@ -54,24 +55,25 @@ export function WalletManageModal({ wallets, onSave, onDelete, onClose }: Wallet
   );
   const startingBalanceIsExpression =
     startingBalanceEvaluated !== null && !isPlainNumber(startingBalance);
-  const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const busy = saving || deleting;
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
-  /* `busy` state can't stop two clicks landing in the same task from both
-     calling submit before either's setBusy(true) commits — a ref flips
+  /* Dirty baseline for the add/edit form, re-taken whenever the form opens. */
+  const [baseline, setBaseline] = useState("");
+  const fields = JSON.stringify([name, currency, fundingMode, income, startingBalance]);
+  /* `saving` state can't stop two clicks landing in the same task from both
+     calling submit before either's setSaving(true) commits — a ref flips
      synchronously, so the second call always sees it. */
   const submittingRef = useRef(false);
   const scrimRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
-
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy && !confirmDelete) requestClose(onClose);
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [busy, confirmDelete, onClose, requestClose]);
+  const panelRef = useRef<HTMLFormElement>(null);
+  const { dismiss } = useModalMotion(scrimRef, panelRef, {
+    variant: "center",
+    onDismiss: busy ? false : onClose,
+    dirty: mode !== "list" && fields !== baseline,
+  });
 
   const startAdd = () => {
     setMode("add");
@@ -81,6 +83,7 @@ export function WalletManageModal({ wallets, onSave, onDelete, onClose }: Wallet
     setFundingMode("monthly");
     setIncome("0");
     setStartingBalance("0");
+    setBaseline(JSON.stringify(["", "MYR", "monthly", "0", "0"]));
     setError("");
   };
 
@@ -92,6 +95,15 @@ export function WalletManageModal({ wallets, onSave, onDelete, onClose }: Wallet
     setFundingMode(w.fundingMode);
     setIncome(String(w.income));
     setStartingBalance(String(w.startingBalance));
+    setBaseline(
+      JSON.stringify([
+        w.name,
+        w.currency,
+        w.fundingMode,
+        String(w.income),
+        String(w.startingBalance),
+      ]),
+    );
     setError("");
   };
 
@@ -100,14 +112,30 @@ export function WalletManageModal({ wallets, onSave, onDelete, onClose }: Wallet
     setError("");
   };
 
+  /* Only the active funding field counts; the other is zeroed on save. */
+  const amountText = fundingMode === "monthly" ? income : startingBalance;
+  const amountValue = fundingMode === "monthly" ? incomeEvaluated : startingBalanceEvaluated;
+  const amountError =
+    amountValue === null
+      ? amountText.trim()
+        ? "Enter a valid amount, e.g. 3500 or 2000+1500."
+        : "Enter an amount, or 0."
+      : amountValue < 0
+        ? "Amount cannot be negative."
+        : "";
+
   const submit = async () => {
     if (!name.trim()) {
       setError("Name is required");
       return;
     }
+    if (amountError || amountValue === null) {
+      setError(amountError);
+      return;
+    }
     if (submittingRef.current) return;
     submittingRef.current = true;
-    setBusy(true);
+    setSaving(true);
     setError("");
     try {
       await onSave({
@@ -115,31 +143,34 @@ export function WalletManageModal({ wallets, onSave, onDelete, onClose }: Wallet
         name: name.trim(),
         currency,
         fundingMode,
-        income: fundingMode === "monthly" ? Math.max(0, Math.round(incomeEvaluated ?? 0)) : 0,
-        startingBalance:
-          fundingMode === "starting" ? Math.max(0, Math.round(startingBalanceEvaluated ?? 0)) : 0,
+        income: fundingMode === "monthly" ? Math.round(amountValue) : 0,
+        startingBalance: fundingMode === "starting" ? Math.round(amountValue) : 0,
       });
+      toast(mode === "add" ? "Wallet added" : "Wallet updated");
       setMode("list");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save wallet");
     } finally {
       submittingRef.current = false;
-      setBusy(false);
+      setSaving(false);
     }
   };
 
+  /** Errors propagate to the ConfirmDialog, which shows them inline. */
   const remove = async (id: string) => {
-    setBusy(true);
-    setError("");
+    setDeleting(true);
     try {
       await onDelete(id);
+      toast("Wallet deleted");
+      setConfirmDelete(false);
       setMode("list");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete wallet");
     } finally {
-      setBusy(false);
+      setDeleting(false);
     }
   };
+
+  const editingWallet = editId ? wallets.find((w) => w.id === editId) : undefined;
+  const canDelete = mode === "edit" && !!editingWallet && wallets.length > 1;
 
   const title = mode === "list" ? "Wallets" : mode === "add" ? "Add Wallet" : "Edit Wallet";
 
@@ -148,16 +179,26 @@ export function WalletManageModal({ wallets, onSave, onDelete, onClose }: Wallet
       ref={scrimRef}
       className="modal-scrim center"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !busy && !confirmDelete) requestClose(onClose);
+        if (e.target === e.currentTarget) dismiss();
       }}
     >
-      <div ref={panelRef} className="modal sm" role="dialog" aria-modal="true">
+      <form
+        ref={panelRef}
+        className="modal sm"
+        role="dialog"
+        aria-modal="true"
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (mode !== "list") void submit();
+        }}
+      >
         <div className="modal-head">
           <h3>{title}</h3>
           <button
             className="icon-btn"
             type="button"
-            onClick={() => requestClose(onClose)}
+            onClick={dismiss}
             aria-label="Close"
             disabled={busy}
           >
@@ -166,6 +207,10 @@ export function WalletManageModal({ wallets, onSave, onDelete, onClose }: Wallet
         </div>
 
         <div className="modal-body modal-scroll">
+          <p className="journal-note">
+            Creating, renaming, and deleting wallets requires a connection. Switching between
+            downloaded wallets works offline.
+          </p>
           {mode === "list" ? (
             <div className="dm-sec">
               <span className="fld-label">Your wallets</span>
@@ -279,6 +324,7 @@ export function WalletManageModal({ wallets, onSave, onDelete, onClose }: Wallet
                       }}
                     />
                   </div>
+                  {amountError ? <p className="fld-error">{amountError}</p> : null}
                 </>
               ) : (
                 <>
@@ -302,55 +348,55 @@ export function WalletManageModal({ wallets, onSave, onDelete, onClose }: Wallet
                       }}
                     />
                   </div>
+                  {amountError ? <p className="fld-error">{amountError}</p> : null}
                 </>
               )}
 
-              {error ? <p className="auth-error">{error}</p> : null}
-
-              {mode === "edit" && editId && wallets.length > 1 ? (
-                <>
-                  <div className="dm-div" />
-                  <span className="fld-label">Remove wallet</span>
-                  <p className="dm-lead">
-                    Delete this wallet only if it has no transactions. This cannot be undone.
-                  </p>
-                  <button
-                    className="ghost-btn danger full"
-                    type="button"
-                    disabled={busy}
-                    onClick={() => setConfirmDelete(true)}
-                  >
-                    {busy ? "Deleting…" : "Delete Wallet"}
-                  </button>
-                </>
+              {error ? (
+                <p className="auth-error auth-error--gap" role="alert">
+                  {error}
+                </p>
               ) : null}
-
-              <div className="wallet-form-actions">
-                <button className="ghost-btn full" type="button" onClick={backToList}>
-                  Back
-                </button>
-                <button
-                  className="primary-btn full"
-                  type="button"
-                  disabled={busy || !name.trim()}
-                  onClick={submit}
-                >
-                  {busy ? "Saving…" : mode === "add" ? "Add Wallet" : "Save Changes"}
-                </button>
-              </div>
             </div>
           )}
         </div>
-      </div>
-      {confirmDelete ? (
+
+        {mode !== "list" ? (
+          <div className="modal-foot">
+            {canDelete ? (
+              <button
+                className="ghost-btn danger"
+                type="button"
+                disabled={busy}
+                onClick={() => setConfirmDelete(true)}
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            ) : (
+              <span />
+            )}
+            <div className="mf-right">
+              <button className="ghost-btn" type="button" onClick={backToList} disabled={busy}>
+                Back
+              </button>
+              <button
+                className="primary-btn"
+                type="submit"
+                disabled={busy || !name.trim() || !!amountError}
+              >
+                {saving ? "Saving…" : mode === "add" ? "Add Wallet" : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </form>
+      {confirmDelete && editingWallet ? (
         <ConfirmDialog
           title="Delete Wallet"
-          message="Delete this wallet? This cannot be undone."
+          message={`Delete "${editingWallet.name}"? A wallet that still has transactions can't be deleted; move or delete them first. This cannot be undone.`}
+          requireText={editingWallet.name.trim()}
           onCancel={() => setConfirmDelete(false)}
-          onConfirm={async () => {
-            if (editId) await remove(editId);
-            setConfirmDelete(false);
-          }}
+          onConfirm={() => remove(editingWallet.id)}
         />
       ) : null}
     </div>,

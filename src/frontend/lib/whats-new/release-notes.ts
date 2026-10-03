@@ -37,6 +37,50 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "6.4.0",
+    date: "October 2026",
+    lead: "Deleting takes two steps, saving tells you what happened, and every screen lines up on the same edges.",
+    highlights: [
+      {
+        icon: "shield",
+        title: "Deletes ask twice",
+        body: "Every delete now needs a second tap to confirm. Wallets, vehicles with records, plans with items, lists with tasks, and clearing this device also ask you to type the name first.",
+      },
+      {
+        icon: "info",
+        title: "Clearer saving",
+        body: "A short notice confirms each save and delete, and a failed save now says why. Escape closes and Enter saves in every dialog, and closing one with unsaved edits asks before discarding them.",
+      },
+      {
+        icon: "sparkle",
+        title: "Even spacing everywhere",
+        body: "Rows, cards, and dialogs share one edge on phone, tablet, laptop, and desktop. Hover highlights no longer press against the text.",
+      },
+    ],
+  },
+  {
+    version: "6.3.0",
+    date: "October 2026",
+    lead: "A little room for life: your money, time, and intentions come together in a living journal.",
+    highlights: [
+      {
+        icon: "sparkle",
+        title: "Your everyday journal",
+        body: "Recent activity, today's schedule, upcoming plans, and monthly perspective share a quiet, responsive workspace.",
+      },
+      {
+        icon: "list",
+        title: "Open Custos",
+        body: "Find every view in a searchable index with your existing favorites. Add expenses, events, or tasks from anywhere. Use Ctrl or Command + K.",
+      },
+      {
+        icon: "wifi-on",
+        title: "Ready offline",
+        body: "Daily edits save on your device, including when React Query detects you're offline. All view assets download for offline access; inspect pending changes and reload safely when an update is ready.",
+      },
+    ],
+  },
+  {
     version: "6.2.2",
     date: "September 2026",
     lead: "Capitals get a clearer card and a steadier monthly figure, and Calculator taxes can be a flat amount.",

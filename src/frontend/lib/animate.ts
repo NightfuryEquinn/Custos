@@ -1,5 +1,6 @@
 import { animate, stagger, type JSAnimation } from "animejs";
 import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from "react";
+import { openConfirm } from "@/frontend/lib/feedback";
 
 const DUR = { fast: 160, base: 240, modal: 220, sheet: 260, scrim: 165, picker: 132 } as const;
 
@@ -34,7 +35,26 @@ type ModalMotionOpts = {
   variant?: ModalVariant;
   disabled?: boolean;
   active?: boolean;
+  /**
+   * Opt in to shared dismissal: Escape and dismiss() close the topmost
+   * managed modal. Pass `false` to lock it (e.g. while saving). Leave it
+   * undefined for modals that must not close on Escape.
+   */
+  onDismiss?: (() => void) | false;
+  /** Ask "Discard changes?" before dismissing. */
+  dirty?: boolean;
 };
+
+/** Managed modals, topmost last; one Escape listener serves them all. */
+const dismissStack: { dismiss: () => void }[] = [];
+
+/** Escape closes only the topmost managed modal. */
+function onEscape(event: KeyboardEvent) {
+  if (event.key !== "Escape" || event.defaultPrevented) return;
+  // ponytail: pickers own their Escape and aren't in the stack, so detect them by class.
+  if (document.querySelector(".picker-scrim")) return;
+  dismissStack.at(-1)?.dismiss();
+}
 
 /** Return whether the user prefers reduced motion. */
 function prefersReducedMotion() {
@@ -125,7 +145,7 @@ export function useStagger(
     const container = containerRef.current;
     if (!container || opts?.disabled) return;
 
-    const children = Array.from(container.querySelectorAll<HTMLElement>(childSelector));
+    const children = Array.from(container.querySelectorAll<HTMLElement>(childSelector)).slice(0, 6);
     if (!children.length) return;
 
     const y = opts?.y ?? 6;
@@ -177,6 +197,76 @@ export function useModalMotion(
   const closingRef = useRef(false);
   const variant = opts?.variant ?? "center";
   const active = opts?.active !== false;
+  const managed = opts?.onDismiss !== undefined;
+  const latest = useRef({ onDismiss: opts?.onDismiss, dirty: opts?.dirty });
+  useEffect(() => {
+    latest.current = { onDismiss: opts?.onDismiss, dirty: opts?.dirty };
+  });
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const scrim = scrimRef.current;
+    if (!active || !viewport || !scrim) return;
+    const resize = () => scrim.style.setProperty("--visual-height", `${viewport.height}px`);
+    resize();
+    viewport.addEventListener("resize", resize);
+    return () => {
+      viewport.removeEventListener("resize", resize);
+      scrim.style.removeProperty("--visual-height");
+    };
+  }, [active, scrimRef]);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!active || !panel || panel.getAttribute("role") !== "dialog") return;
+    const previous = document.activeElement as HTMLElement | null;
+    panel.setAttribute("aria-modal", "true");
+    const frame = requestAnimationFrame(() => {
+      // Respect an autoFocus the modal already set; otherwise prefer a field,
+      // then the safe footer action (Cancel), never the header close button.
+      if (document.activeElement !== panel && panel.contains(document.activeElement)) return;
+      (
+        panel.querySelector<HTMLElement>(
+          '[data-autofocus], input:not([type="hidden"]):not(:disabled), textarea:not(:disabled)',
+        ) ??
+        panel.querySelector<HTMLElement>(".modal-foot button:not(:disabled)") ??
+        panel.querySelector<HTMLElement>("button")
+      )?.focus();
+    });
+    const trap = (event: KeyboardEvent) => {
+      if (
+        event.key !== "Tab" ||
+        [...document.querySelectorAll('[aria-modal="true"]')].at(-1) !== panel
+      )
+        return;
+      const elements = [
+        ...panel.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), input:not(:disabled):not([type="hidden"]), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]',
+        ),
+      ].filter((el) => el.getClientRects().length > 0);
+      const first = elements[0];
+      const last = elements.at(-1);
+      if (
+        event.shiftKey &&
+        (document.activeElement === first || !panel.contains(document.activeElement))
+      ) {
+        event.preventDefault();
+        last?.focus();
+      } else if (
+        !event.shiftKey &&
+        (document.activeElement === last || !panel.contains(document.activeElement))
+      ) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener("keydown", trap);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", trap);
+      if (previous?.isConnected) previous.focus({ preventScroll: true });
+    };
+  }, [active, panelRef]);
 
   /* Cancel any in-flight exit animation on unmount, and also whenever
      `active` flips — a picker/sheet's owner stays mounted across opens, and
@@ -270,5 +360,30 @@ export function useModalMotion(
     [opts?.disabled, panelRef, scrimRef, variant],
   );
 
-  return { requestClose };
+  /** Close via the shared path: honours lock and unsaved-changes guard. */
+  const dismiss = useCallback(() => {
+    const { onDismiss, dirty } = latest.current;
+    if (!onDismiss) return;
+    if (!dirty) return requestClose(onDismiss);
+    openConfirm({
+      title: "Discard changes?",
+      message: "You have unsaved changes. Closing now will discard them.",
+      confirmLabel: "Discard",
+      pendingLabel: "Discarding…",
+      arm: false,
+      onConfirm: () => requestClose(onDismiss),
+    });
+  }, [requestClose]);
+
+  useEffect(() => {
+    if (!active || !managed) return;
+    const entry = { dismiss };
+    if (dismissStack.push(entry) === 1) window.addEventListener("keydown", onEscape, true);
+    return () => {
+      dismissStack.splice(dismissStack.indexOf(entry), 1);
+      if (!dismissStack.length) window.removeEventListener("keydown", onEscape, true);
+    };
+  }, [active, managed, dismiss]);
+
+  return { requestClose, dismiss };
 }

@@ -966,8 +966,14 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
   return (
     <AuthShell cardRef={cardRef}>
       <Brand variant="auth" />
-      <h1 className="auth-h1">Private by Design.</h1>
-      <p className="auth-lead">No email. No password. Just a cryptographic key only you hold.</p>
+      <h1 className="auth-h1">
+        A little room
+        <br />
+        for your life.
+      </h1>
+      <p className="auth-lead">
+        Money, time, and everyday intentions. A private journal, protected by a key only you hold.
+      </p>
       <div className="auth-actions">
         <button className="primary-btn lg" type="button" onClick={startCreate}>
           <Icon name="shield" size={18} /> Create New

@@ -1,0 +1,396 @@
+/*
+  Public journal identity: masthead, home page and footer, shared by all three pages.
+  Tokens, the shared frame (masthead / main / footer width) and the breakpoint tiers are
+  defined in site.css.
+*/
+.folio-skip {
+  position: absolute;
+  top: -100px;
+  left: var(--sp-5);
+}
+.folio-skip:focus {
+  top: var(--sp-2);
+  z-index: 100;
+  background: var(--bg);
+  padding: var(--sp-3);
+}
+
+/* Masthead: the same height on every page so the first block starts at the same y. */
+.folio-masthead {
+  --mast-pad: var(--sp-6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  min-height: calc(44px + 2 * var(--mast-pad));
+  padding-block: var(--mast-pad);
+}
+.folio-brand {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-5);
+  width: fit-content;
+  font: 32px var(--font-display);
+  text-decoration: none;
+}
+.folio-brand span,
+.folio-edition {
+  font: 11px var(--font-body);
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+}
+.folio-edition .ver {
+  margin-left: var(--sp-4);
+  font: 10px var(--font-mono);
+}
+.folio-masthead .folio-inline {
+  padding-block: var(--sp-2);
+}
+/* The brand takes the slack so the edition (or back link) and the theme toggle sit together. */
+.folio-masthead > :first-child {
+  margin-right: auto;
+}
+.folio-theme {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: border-color 0.16s ease;
+}
+.folio-theme[hidden] {
+  display: none;
+}
+.folio-theme svg {
+  width: 18px;
+  height: 18px;
+}
+.folio-theme-sun,
+:root[data-theme="dark"] .folio-theme-moon {
+  display: none;
+}
+:root[data-theme="dark"] .folio-theme-sun {
+  display: block;
+}
+@media (hover: hover) {
+  .folio-theme:hover {
+    border-color: var(--text-dim);
+  }
+}
+.folio-open {
+  position: fixed;
+  bottom: max(var(--sp-6), env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  padding: var(--sp-4) var(--sp-6);
+  background: var(--text);
+  color: var(--bg);
+  border-radius: 999px;
+  text-decoration: none;
+  font-size: 13px;
+  box-shadow: 0 8px 30px #00000015;
+  white-space: nowrap;
+}
+
+/* Underlined text link; the box is 44px tall so the underline sits clear of the text. */
+.folio-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-7);
+  width: fit-content;
+  min-height: 44px;
+  padding-block: var(--sp-3);
+  border-bottom: 1px solid var(--text);
+  text-decoration: none;
+}
+.folio-inline img {
+  width: 18px;
+  height: 18px;
+}
+.folio-kicker,
+.folio-chapter-label {
+  font: 10px/1.7 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.folio-kicker {
+  display: block;
+}
+.folio-caption {
+  margin-top: var(--sp-6);
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.8;
+}
+
+/* Opening: hero and sample journal. One column below 1024, two columns from the laptop tier. */
+.folio-opening {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--block-gap);
+  align-items: center;
+  padding-block: var(--section-y);
+}
+.folio-hero h1 {
+  margin: var(--sp-6) 0;
+  font: 400 clamp(38px, 5vw, 72px) / 1.16 var(--font-display);
+  letter-spacing: -0.055em;
+}
+.folio-hero h1 em {
+  font-style: normal;
+  color: var(--accent);
+}
+.folio-lead {
+  max-width: 440px;
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1.9;
+}
+.folio-hero .folio-inline {
+  margin-top: var(--sp-6);
+}
+.folio-sample {
+  background: var(--card);
+  padding: var(--sp-6);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  box-shadow: 10px 16px 0 var(--bg-alt);
+}
+.folio-sample-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-3);
+  font: 22px var(--font-display);
+}
+.folio-sample-head small {
+  font: 10px var(--font-mono);
+  color: var(--text-dim);
+}
+.folio-sample-balance {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-block: var(--sp-7);
+}
+.folio-sample-balance > span {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.folio-sample-balance strong {
+  font: 400 clamp(22px, 2.4vw, 32px) var(--font-mono);
+  letter-spacing: -0.04em;
+}
+.folio-sample-balance small {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.folio-entry {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding-block: var(--sp-5);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+.folio-entry time {
+  flex: none;
+  width: 40px;
+  font: 10px var(--font-mono);
+  color: var(--text-dim);
+}
+.folio-entry > div {
+  flex: 1;
+  min-width: 0;
+}
+.folio-entry strong {
+  display: block;
+  font-weight: 500;
+}
+.folio-entry div span {
+  display: block;
+  margin-top: var(--sp-1);
+  color: var(--text-dim);
+  font-size: 10px;
+}
+.folio-entry b {
+  font: 10px var(--font-mono);
+  white-space: nowrap;
+}
+.folio-sample-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sp-1) var(--sp-3);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+/* Chapters: a label row, then ruled text columns pushed to the right edge of the frame. */
+.folio-chapter {
+  border-top: 1px solid var(--border);
+  padding-block: var(--sp-7) var(--section-y);
+}
+.folio-chapter-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--sp-6);
+}
+.folio-chapter-label > span {
+  margin-right: auto;
+}
+.folio-chapter-label a {
+  padding-block: var(--sp-3);
+  text-decoration: none;
+}
+.folio-story,
+.folio-questions {
+  max-width: 740px;
+  margin: var(--block-gap) 0 0 auto;
+  padding-left: var(--indent);
+  border-left: 1px solid var(--border);
+}
+.folio-story {
+  padding-bottom: var(--sp-7);
+}
+.folio-story h2,
+.folio-ending h2 {
+  margin: var(--sp-4) 0 var(--sp-6);
+  font: 400 clamp(32px, 4vw, 52px) / 1.2 var(--font-display);
+  letter-spacing: -0.04em;
+}
+.folio-story > h2:first-child {
+  margin-top: 0;
+}
+.folio-story > p:not(.folio-caption) {
+  max-width: var(--measure);
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1.9;
+}
+.folio-story > p + p {
+  margin-top: var(--sp-4);
+}
+.folio-story > .folio-caption {
+  margin-top: var(--sp-6);
+}
+.folio-questions details {
+  border-bottom: 1px solid var(--border);
+}
+.folio-questions summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-height: 44px;
+  padding-block: var(--sp-5);
+  font-size: 16px;
+  list-style: none;
+  cursor: pointer;
+}
+.folio-questions summary::after {
+  content: "+";
+  font: 22px var(--font-mono);
+}
+.folio-questions details[open] summary::after {
+  content: "−";
+}
+.folio-questions p {
+  max-width: var(--measure);
+  margin-bottom: var(--sp-5);
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.9;
+}
+.folio-ending {
+  padding-block: var(--section-y);
+  border-top: 1px solid var(--border);
+}
+
+/* Footer: the shared frame, with room underneath for the floating "Open Custos" pill. */
+.folio-footer {
+  padding-block: var(--sp-7) 120px;
+  border-top: 1px solid var(--border);
+}
+.folio-footer > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--sp-6);
+  margin-block: var(--sp-2);
+  font-size: 12px;
+}
+.folio-footer > div a {
+  padding-block: var(--sp-2);
+}
+.folio-footer p {
+  max-width: 72ch;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+@media (min-width: 1024px) {
+  .folio-opening {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 0.8fr);
+    column-gap: clamp(var(--sp-7), 7vw, 96px);
+  }
+  .folio-sample {
+    padding: var(--sp-7);
+  }
+}
+@media (max-width: 639px) {
+  .folio-masthead {
+    --mast-pad: var(--sp-5);
+  }
+  .folio-brand span,
+  .folio-edition {
+    display: none;
+  }
+  .folio-brand {
+    font-size: 28px;
+  }
+  .folio-masthead {
+    gap: var(--sp-3);
+  }
+  .folio-masthead .folio-inline {
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .folio-hero h1 {
+    font-size: clamp(38px, 10vw, 58px);
+  }
+  .folio-lead {
+    font-size: 15px;
+  }
+  .folio-sample {
+    padding: var(--sp-6) var(--sp-5);
+    box-shadow: 6px 8px 0 var(--bg-alt);
+  }
+  .folio-sample-head {
+    font-size: 20px;
+  }
+  .folio-story > p:not(.folio-caption) {
+    font-size: 15px;
+  }
+  .folio-chapter-label > span {
+    width: 100%;
+  }
+  .folio-open {
+    bottom: calc(var(--sp-3) + env(safe-area-inset-bottom));
+  }
+}

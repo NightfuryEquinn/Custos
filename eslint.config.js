@@ -6,7 +6,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["dist/**", "node_modules/**", "api/handler.js", "api/index.js", ".vercel/**"],
+    ignores: ["dist/**", "node_modules/**", "api/handler.js", ".vercel/**", "website/generated/**"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

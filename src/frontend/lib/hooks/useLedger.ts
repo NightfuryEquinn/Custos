@@ -223,6 +223,13 @@ export function useLedger(walletAddress: string) {
   const [refreshMessage, setRefreshMessage] = useState("");
   const [refreshMessageView, setRefreshMessageView] = useState<ViewId | null>(null);
   const [refreshedAt, setRefreshedAt] = useState(0);
+  const [localMonth, setLocalMonth] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(`custos:month:${wallet}`);
+    } catch {
+      return null;
+    }
+  });
   const refreshPending = useRef<Promise<void> | null>(null);
 
   const [activeWalletId, setActiveWalletIdState] = useState<string | null>(() => {
@@ -368,7 +375,7 @@ export function useLedger(walletAddress: string) {
     [overlaidCategoriesData],
   );
 
-  const month = clampMonthKey(profileQuery.data?.currentMonth ?? CURRENT_MONTH_KEY);
+  const month = clampMonthKey(localMonth ?? profileQuery.data?.currentMonth ?? CURRENT_MONTH_KEY);
 
   const wallets = overlaidWalletsData.map((w) => ({
     ...w,
@@ -832,7 +839,27 @@ export function useLedger(walletAddress: string) {
   );
 
   const setMonthMutation = useMutation({
-    mutationFn: (currentMonth: string) => api.profile.update({ currentMonth }),
+    mutationFn: async (currentMonth: string) => {
+      setLocalMonth(currentMonth);
+      try {
+        localStorage.setItem(`custos:month:${wallet}`, currentMonth);
+      } catch {
+        /* Navigation still works in memory. */
+      }
+      const profile = profileQuery.data;
+      if (!profile) throw new Error("Profile is not loaded");
+      await enqueueOutbox({
+        address: wallet,
+        entity: "profile",
+        op: "update",
+        targetId: profile.id,
+        request: { method: "PATCH", path: "/profile", body: { currentMonth } },
+        dependsOn: [],
+        label: "Selected month",
+      });
+      void drainOutbox(wallet);
+      return { profile: { ...profile, currentMonth } };
+    },
     onSuccess: ({ profile }) => {
       queryClient.setQueryData(keys.profile(wallet), profile);
     },
@@ -1943,6 +1970,21 @@ export function useLedger(walletAddress: string) {
   );
 
   return {
+    unavailableResources: (
+      [
+        ["schedule", eventsQuery],
+        ["tasks", todoListsQuery],
+        ["savings history", allExpensesQuery],
+        ["capital plans", capitalPlansQuery],
+        ["vehicles", vehiclesQuery],
+        ["fuel logs", vehicleFillsQuery],
+      ] as const
+    )
+      .filter(([, query]) => query.data === undefined || query.isPlaceholderData)
+      .map(([label]) => label),
+    offlineDataReady: queries.every(
+      (query) => query.data !== undefined && !query.isPlaceholderData,
+    ),
     refreshPage,
     refreshingView,
     refreshError,
@@ -1984,7 +2026,7 @@ export function useLedger(walletAddress: string) {
     setNavPrefs: setNavPrefsMutation.mutateAsync,
     setMonth: (currentMonth: string) => setMonthMutation.mutate(currentMonth),
     isMonthPending: setMonthMutation.isPending,
-    setBudgets: (budgets: Budgets) => setBudgetsMutation.mutate(budgets),
+    setBudgets: (budgets: Budgets) => setBudgetsMutation.mutateAsync(budgets),
     saveCategories: saveCategoriesMutation.mutateAsync,
     transferHistory,
     saveWallet: saveWalletMutation.mutateAsync,

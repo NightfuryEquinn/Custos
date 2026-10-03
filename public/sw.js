@@ -1,84 +1,102 @@
-/* Custos service worker — app shell cache only (read path). */
-/* __SW_CACHE_VERSION__ is substituted with APP_VERSION at build time (see
-   build.ts) so `activate` below actually evicts the previous deploy's
-   shell cache instead of writing into the same never-changing cache name
-   forever. Unsubstituted in dev — fine, dev has no deploy boundary. */
+/* Versioned, complete application shell. API data stays in the encrypted IDB cache. */
 const SHELL_CACHE = "custos-shell-__SW_CACHE_VERSION__";
-const SHELL_URLS = ["/", "/manifest.webmanifest"];
+const SHELL_ASSETS = ["__SW_ASSETS__"].filter((path) => !path.startsWith("__"));
+const SHELL_URLS = ["/", "/manifest.webmanifest", ...SHELL_ASSETS];
+const clientEntries = new Map();
+
+async function pruneUnusedShells() {
+  const clients = await self.clients.matchAll({ includeUncontrolled: true });
+  // An old tab that has not identified its release still needs its cache.
+  if (clients.some((client) => !clientEntries.has(client.id))) return;
+  const names = (await caches.keys()).filter((name) => name.startsWith("custos-shell-"));
+  const keep = new Set([SHELL_CACHE]);
+  const current = await caches.open(SHELL_CACHE);
+  for (const client of clients) {
+    const entry = clientEntries.get(client.id);
+    if (await current.match(entry)) continue;
+    for (const name of names) {
+      if (await (await caches.open(name)).match(entry)) {
+        keep.add(name);
+        break;
+      }
+    }
+  }
+  await Promise.all(names.filter((name) => !keep.has(name)).map((name) => caches.delete(name)));
+  for (const id of clientEntries.keys())
+    if (!clients.some((client) => client.id === id)) clientEntries.delete(id);
+}
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches
-      .open(SHELL_CACHE)
-      .then((cache) => cache.addAll(SHELL_URLS))
-      .then(() => self.skipWaiting()),
-  );
+  // Install is atomic: a partial download never replaces the working release.
+  event.waitUntil(caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL_URLS)));
 });
-
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(keys.filter((k) => k !== SHELL_CACHE).map((k) => caches.delete(k))),
-      )
-      .then(() => self.clients.claim()),
+    (async () => {
+      // Existing tabs may still use old hashed chunks; preserve their caches.
+      const clients = await self.clients.matchAll({ includeUncontrolled: true });
+      if (!clients.length) {
+        const names = await caches.keys();
+        await Promise.all(
+          names
+            .filter((name) => name.startsWith("custos-shell-") && name !== SHELL_CACHE)
+            .map((name) => caches.delete(name)),
+        );
+      }
+      await self.clients.claim();
+    })(),
   );
 });
-
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "ACTIVATE_UPDATE") event.waitUntil(self.skipWaiting());
+  if (event.data?.type === "CHECK_OFFLINE_READY")
+    event.waitUntil(
+      (async () => {
+        const cache = await caches.open(SHELL_CACHE);
+        const ready =
+          SHELL_URLS.length > 2 &&
+          (await Promise.all(SHELL_URLS.map((url) => cache.match(url)))).every(Boolean);
+        event.ports[0]?.postMessage({ ready });
+        if (
+          event.source?.id &&
+          typeof event.data.entry === "string" &&
+          event.data.entry.startsWith("/chunk-")
+        ) {
+          clientEntries.set(event.source.id, event.data.entry);
+          await pruneUnusedShells();
+        }
+      })(),
+    );
+});
 self.addEventListener("fetch", (event) => {
   const req = event.request;
-  if (req.method !== "GET") return;
-
   const url = new URL(req.url);
-  /* Never intercept API — IndexedDB cipher cache handles offline reads in the page. */
-  if (url.pathname.startsWith("/api")) return;
-  /* Leave third-party requests alone (analytics, etc.). */
-  if (url.origin !== self.location.origin) return;
-
-  /* Content-hashed bundler output and self-hosted fonts never change under
-     a given filename (vercel.json also sends them as immutable) — serve
-     straight from cache with no network round trip, instead of the
-     network-first strategy below that's right for everything else. */
-  const isImmutableAsset = url.pathname.startsWith("/chunk-") || url.pathname.startsWith("/fonts/");
-  if (isImmutableAsset) {
+  if (
+    req.method !== "GET" ||
+    url.origin !== self.location.origin ||
+    url.pathname.startsWith("/api")
+  )
+    return;
+  if (req.mode === "navigate") {
     event.respondWith(
-      caches.match(req).then(
-        (cached) =>
-          cached ||
-          fetch(req).then((res) => {
-            if (res.ok) void caches.open(SHELL_CACHE).then((cache) => cache.put(req, res.clone()));
-            return res;
-          }),
-      ),
+      caches.open(SHELL_CACHE).then(async (cache) => (await cache.match("/")) || fetch(req)),
     );
     return;
   }
-
   event.respondWith(
-    fetch(req)
-      .then((res) => {
-        const copy = res.clone();
-        if (
-          res.ok &&
-          (url.pathname === "/" ||
-            url.pathname.endsWith(".js") ||
-            url.pathname.endsWith(".css") ||
-            url.pathname.endsWith(".woff2"))
-        ) {
-          void caches.open(SHELL_CACHE).then((cache) => cache.put(req, copy));
-        }
-        return res;
-      })
-      .catch(async () => {
-        const cached = await caches.match(req);
-        if (cached) return cached;
-        if (req.mode === "navigate") {
-          const shell = await caches.match("/");
-          if (shell) return shell;
-        }
-        throw new Error("offline");
-      }),
+    (async () => {
+      const cache = await caches.open(SHELL_CACHE);
+      const current = await cache.match(req);
+      if (current) return current;
+      const immutable = url.pathname.startsWith("/chunk-") || url.pathname.startsWith("/fonts/");
+      if (immutable) {
+        const previous = await caches.match(req);
+        if (previous) return previous;
+      }
+      const response = await fetch(req);
+      if (response.ok && immutable) await cache.put(req, response.clone());
+      return response;
+    })(),
   );
 });
 

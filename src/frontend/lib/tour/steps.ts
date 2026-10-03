@@ -14,14 +14,14 @@ interface TourStepButton {
 type TourStep = Omit<StepOptions, "buttons"> & { id: string; buttons?: TourStepButton[] };
 
 function navTarget(view: ViewId): string {
-  return `[data-tour="tour-nav-${view}"]`;
+  return `[data-tour="tour-nav-${view}"], [data-tour="tour-launcher"]`;
 }
 
 /* Extra mobile hint for a view that isn't always on the tab bar. Nav is now
    user-customizable (Account menu → Navigation), so this can no longer name
    a fixed set of views or claim exactly where one lives. */
 function moreNavHint(): string {
-  return " On phone and tablet, find it in the tab bar, or under More.";
+  return " Find it through Open Custos, on any device.";
 }
 
 function btn(text: string, kind: TourButtonKind): TourStepButton {
@@ -66,8 +66,8 @@ export const SHELL_TOUR_STEPS: TourStep[] = [
   step(
     "shell-nav",
     "Navigation",
-    "Jump between Overview, tasks, schedule, transactions, and more. On desktop, use the sidebar. On phone and tablet, use the tab bar at the bottom — everything else lives under More. Customize both from the account menu.",
-    ".sidebar .nav, .bottom-nav",
+    "Open Custos is your searchable index. Jump between your journal, tasks, schedule, and money. Use Ctrl or Command + K, and customize favorites from Account > Navigation.",
+    '[data-tour="tour-launcher"]',
     "right",
   ),
   step(
@@ -87,7 +87,7 @@ export const SHELL_TOUR_STEPS: TourStep[] = [
   step(
     "shell-fab",
     "Quick Add",
-    "A quick-add button appears here on Schedule, Transactions, Budgets, Recurring, Vehicles, and Capitals — it adds whatever that view manages.",
+    "Add an expense, event, or task from anywhere. Extra choices appear for the current view.",
     '[data-tour="tour-fab"]',
     "top",
   ),
@@ -126,7 +126,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "overview-recent",
       "Recent Transaction",
-      "Every transaction logged today. Tap one to edit, or View More for the full list.",
+      "Your six latest transactions this month. Tap one to edit, or Explore for the full list.",
       '[data-tour="tour-overview-recent"]',
     ),
     step(

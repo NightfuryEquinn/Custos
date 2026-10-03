@@ -5,6 +5,9 @@ on:
     branches: [develop]
     paths:
       - "website/**"
+      - "scripts/build-website.ts"
+      - "bun.lock"
+      - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -25,6 +28,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build local website motion
+        run: bun scripts/build-website.ts
+
+      - name: Drop website source files from the artifact
+        run: rm website/motion.ts website/theme.ts
 
       - name: Upload website folder as Pages artifact
         uses: actions/upload-pages-artifact@v3

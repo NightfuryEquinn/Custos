@@ -1,0 +1,7 @@
+/*
+ * One stylesheet entry so cascade order is explicit: the journal shell must load
+ * after the ledger base. Importing the two files separately from main.tsx works in
+ * production builds, but the dev server emits them in reverse and the base wins.
+ */
+@import "./ledger.css";
+@import "./journal.css";

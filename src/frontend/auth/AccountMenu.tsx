@@ -193,6 +193,7 @@ export function AccountMenu({
     <div className="acct" data-tour="tour-account" ref={ref}>
       <button
         className="acct-chip"
+        aria-label={`Account: ${account.codename}`}
         type="button"
         aria-expanded={open}
         aria-haspopup="menu"

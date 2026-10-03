@@ -2,8 +2,8 @@ import { DEFAULT_TAB_IDS, TAB_SLOTS, VIEW_IDS, type ViewId } from "@/lib/views";
 
 /**
  * One entry per view: [id, label, icon, shortLabel?]. `shortLabel` is used in
- * the mobile tab bar, which is 10px and ellipsizing and now shows whichever
- * views the user picks — not just the four this used to be tuned for.
+ * the Open Custos favorites, which ellipsize and show whichever views the user
+ * picks — not just the four this used to be tuned for.
  */
 export const NAV_ITEMS = [
   ["overview", "Overview", "overview"],

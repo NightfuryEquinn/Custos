@@ -1,0 +1,1331 @@
+/* The journal: quiet typography, ruled sections, and a single command surface. */
+/* Tiers: phone <=639, tablet 640-1023, laptop 1024-1279, desktop >=1280 (extra-small phone <=379). */
+:root {
+  --font-display: "Young Serif", Georgia, serif;
+  --pad: clamp(20px, 4vw, 56px);
+  --vgap: 32px;
+}
+.journal-app {
+  /* Hover/focus fill of interactive rows bleeds this far past the content edge; it must stay inside --pad (>=20px). */
+  --row-bleed: var(--sp-3);
+  --journal-balance-w: 290px; /* hero balance column (>=1024); the hero reserves it plus a gutter */
+}
+.journal-app .main {
+  margin-left: 0;
+  width: 100%;
+  padding-bottom: 0;
+}
+.journal-app .topbar {
+  padding: var(--sp-3) var(--pad);
+  gap: var(--sp-2);
+  flex-shrink: 0;
+  border: 0;
+}
+.journal-app .tb-row,
+.journal-masthead {
+  width: 100%;
+  max-width: 1328px;
+  margin-inline: auto;
+}
+.journal-masthead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--border);
+  gap: var(--sp-3);
+}
+.journal-brand {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-5);
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font: 30px var(--font-display);
+  cursor: pointer;
+  min-height: 44px;
+}
+.journal-brand span {
+  font: 11px var(--font-body);
+  color: var(--ink-soft);
+  letter-spacing: 0.06em;
+}
+.journal-app .page-title {
+  font: 400 clamp(24px, 2vw, 30px)/1.3 var(--font-display);
+  letter-spacing: -0.035em;
+  white-space: nowrap;
+}
+.journal-app .page-title:focus {
+  outline: none;
+}
+.journal-app .page-title-icon {
+  display: none;
+}
+.journal-app .view {
+  max-width: calc(1328px + 2 * var(--pad));
+}
+/* One bottom clearance: the fixed dock (about 58px tall, 24px from the bottom) plus the home-indicator inset. */
+.journal-app .scroll {
+  padding-bottom: calc(var(--dock-clearance, 96px) + env(safe-area-inset-bottom));
+}
+.journal-app .panel {
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  padding: var(--sp-6) 0;
+  box-shadow: none;
+}
+/* The bleeding row hover must not be clipped by the panel edge. */
+.journal-app .donut-panel {
+  overflow: visible;
+}
+.journal-app .panel-head h2 {
+  font: 400 clamp(20px, 2vw, 26px)/1.4 var(--font-display);
+  letter-spacing: -0.02em;
+}
+/* Summary cards are ruled columns: text starts on the page edge and the divider sits in the
+   column gap, so a card that wraps to a new row is as flush as the first one. */
+.journal-app .summary-grid {
+  gap: 0 var(--sp-7);
+  border-bottom: 1px solid var(--border);
+  overflow-x: clip;
+}
+.journal-app .summary-card {
+  position: relative;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: var(--sp-6) 0;
+}
+.journal-app .summary-card::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: calc(-0.5 * var(--sp-7));
+  border-left: 1px solid var(--border);
+}
+.journal-app .txn-group,
+.journal-app .budget-edit-list,
+.journal-app .cat-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+/* Interactive rows: content and dividers sit on the page edge; only the hover/focus fill bleeds
+   outward by --row-bleed (always inside the page gutter). The fill is drawn by ::before. */
+.journal-app :is(.txn, .recent-row, .rec-row, .legend-row, .journal-upcoming-row) {
+  position: relative;
+  isolation: isolate;
+  margin-inline: 0;
+  padding-inline: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.journal-app :is(.txn, .recent-row, .rec-row, .journal-upcoming-row) {
+  padding-block: var(--sp-4);
+  border-bottom: 1px solid var(--hair);
+}
+.journal-app .txn-group .txn,
+.journal-app .txn-group .txn:hover {
+  border-bottom: 1px solid var(--hair); /* beats the legacy >=1280 card border and lift */
+  transform: none;
+}
+.journal-app :is(.recent-row, .rec-row):last-child {
+  border-bottom: 0;
+}
+.journal-app .legend-row {
+  padding-block: var(--sp-2);
+}
+.journal-app :is(.txn, .recent-row, .rec-row, .legend-row, .journal-upcoming-row)::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(-1 * var(--row-bleed));
+  z-index: -1;
+  height: auto;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  pointer-events: none;
+  transition: background 0.15s;
+}
+.journal-app :is(.recent-row, .rec-row, .legend-row, .journal-upcoming-row):focus-visible {
+  outline: none;
+}
+.journal-app :is(.recent-row, .rec-row, .legend-row, .journal-upcoming-row):focus-visible::before {
+  background: var(--surface-2);
+  outline: 2px solid var(--accent);
+}
+.journal-app :is(.recent-row, .rec-row, .legend-row, .journal-upcoming-row):active::before {
+  background: var(--surface-2);
+}
+@media (hover: hover) and (pointer: fine) {
+  .journal-app :is(.txn, .recent-row, .rec-row, .legend-row, .journal-upcoming-row):hover {
+    background: transparent;
+  }
+  .journal-app :is(.txn, .recent-row, .rec-row, .legend-row, .journal-upcoming-row):hover::before {
+    background: var(--surface-2);
+  }
+  /* Row actions sit on the row's own fill, so their hover needs one step more contrast. */
+  .journal-app .txn-actions button:hover {
+    background: var(--surface-3);
+  }
+}
+/* Keyboard users reach the row actions without hovering. */
+.journal-app .txn:focus-within .txn-actions {
+  opacity: 1;
+}
+/* One definition per tier: glyph, main, amount, actions form straight columns (phone grid below). */
+.journal-app .txn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.journal-app .txn-amt {
+  text-align: right;
+}
+.journal-app .txn-group-head {
+  padding: var(--sp-4) 0 var(--sp-2);
+}
+/* The day label starts on the page edge like the rows beneath it. */
+.journal-app .txn-group-head .txn-date {
+  width: auto;
+  text-align: left;
+}
+.journal-app .rec-list {
+  padding-inline: 0;
+}
+.journal-app .bedit,
+.journal-app .cat-block {
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  padding: var(--sp-6) 0;
+}
+.journal-app .capital-grid,
+.journal-app .piggy-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-7);
+}
+.journal-app .capital-card,
+.journal-app .piggy-card {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: none;
+  padding: var(--card-pad);
+}
+
+.journal-app .capital-card.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.journal-app .capital-card-title h2,
+.journal-app .piggy-card-title h2 {
+  font: 400 28px/1.4 var(--font-display);
+}
+.journal-hero {
+  position: relative;
+  padding: var(--sp-2) 0 40px;
+  border-bottom: 1px solid var(--border);
+}
+.journal-eyebrow {
+  display: block;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  font: 10px var(--font-mono);
+  letter-spacing: 0.13em;
+  margin-bottom: var(--sp-5);
+}
+.journal-hero h2 {
+  font: 400 clamp(38px, 5.5vw, 76px)/1.15 var(--font-display);
+  letter-spacing: -0.055em;
+  margin: 0;
+  max-width: 780px;
+}
+.journal-hero h2 em {
+  color: var(--accent);
+  font-style: normal;
+}
+.journal-hero > p {
+  color: var(--ink-soft);
+  margin-top: var(--sp-5);
+  font-size: 14px;
+}
+.journal-balance {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  margin-top: var(--sp-7);
+}
+.journal-balance > span {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.journal-balance > strong {
+  font: 400 clamp(24px, 2.4vw, 32px) var(--font-num);
+  letter-spacing: -0.045em;
+  min-width: 0;
+}
+
+.journal-balance .link-btn {
+  align-self: flex-start;
+}
+.journal-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.52fr);
+  gap: clamp(var(--sp-7), 6vw, 88px);
+}
+.journal-timeline,
+.journal-margin {
+  min-width: 0;
+}
+.journal-timeline {
+  display: flex;
+  flex-direction: column;
+}
+.journal-date {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-4);
+  font: 20px var(--font-display);
+}
+.journal-date span:last-child {
+  font: 11px var(--font-mono);
+  color: var(--ink-soft);
+}
+.journal-timeline [data-tour="tour-overview-today-schedule"] {
+  order: 1;
+}
+.journal-timeline [data-tour="tour-overview-oldest-todo"] {
+  order: 2;
+}
+.journal-timeline [data-tour="tour-overview-recent"] {
+  order: 3;
+}
+.journal-margin {
+  padding-left: var(--sp-6);
+  border-left: 1px solid var(--border);
+}
+.journal-margin .journal-eyebrow {
+  margin-top: var(--sp-2);
+}
+.journal-margin .donut-wrap {
+  flex-direction: column;
+  gap: var(--sp-5);
+  align-items: stretch;
+}
+.journal-margin .donut-stage {
+  align-self: center;
+}
+.journal-margin .trend-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-4);
+}
+.journal-margin .trend-now {
+  font-size: 16px;
+}
+.journal-margin .trend-total {
+  min-width: 0;
+}
+.journal-upcoming {
+  padding-bottom: var(--sp-6);
+}
+.journal-upcoming-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: var(--sp-4);
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+.journal-upcoming-row > span:nth-child(2) {
+  flex: 1;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.journal-date-stamp {
+  flex: none;
+  min-width: 3rem; /* keeps event titles in one column */
+  font: 10px var(--font-mono);
+  color: var(--ink-soft);
+}
+.journal-note {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink-soft);
+  margin: var(--sp-3) 0;
+}
+.journal-data-notice {
+  width: calc(100% - 2 * var(--pad));
+  margin: var(--sp-4) auto 0;
+  max-width: 1328px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.6;
+  padding: var(--sp-3) var(--sp-4);
+  border-left: 2px solid var(--accent);
+  background: var(--surface-2);
+}
+.journal-dock {
+  position: fixed;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  padding: var(--sp-1);
+  gap: var(--sp-1);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: 0 8px 30px #00000012;
+  max-width: calc(100% - 32px);
+}
+.journal-launcher,
+.journal-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  white-space: nowrap;
+  min-height: 48px;
+  border: 0;
+  border-radius: 999px;
+  padding: var(--sp-3) var(--sp-5);
+  cursor: pointer;
+  font: 500 13px var(--font-body);
+}
+.journal-launcher {
+  background: transparent;
+  color: var(--ink);
+}
+.journal-launcher kbd {
+  font: 10px var(--font-mono);
+  color: var(--ink-soft);
+  margin-left: var(--sp-3);
+}
+.journal-add {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+.journal-add:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.journal-command-scrim {
+  z-index: 60;
+}
+.journal-command {
+  width: min(600px, 100%);
+  max-height: min(80dvh, 820px);
+  border-radius: 16px;
+}
+@media (min-width: 640px) {
+  /* A palette hangs below the top edge, fully rounded, instead of sitting flush on the bottom. */
+  .journal-command-scrim {
+    align-items: flex-start;
+    padding: 12dvh var(--sp-4) var(--sp-4);
+  }
+  .journal-command {
+    max-height: min(76dvh, 820px);
+  }
+}
+.journal-command .modal-head h2 {
+  font: 400 26px/1.3 var(--font-display);
+}
+.journal-command-body {
+  overflow: auto;
+}
+.journal-search {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+.journal-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  color: var(--ink);
+  background: transparent;
+  font: 16px var(--font-body);
+  padding: var(--sp-3) 0;
+}
+.journal-search input:focus-visible {
+  outline: none;
+}
+.journal-favorites {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-6);
+}
+.journal-favorites button {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  padding: var(--sp-3) var(--sp-4);
+  min-height: 44px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.journal-index button,
+.journal-capture-actions button {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  width: 100%;
+  min-height: 52px;
+  padding: var(--sp-3) 0;
+  border: 0;
+  border-bottom: 1px solid var(--hair);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+.journal-index button > span:not(.journal-index-number),
+.journal-capture-actions button span {
+  flex: 1;
+}
+.journal-index-number {
+  width: 24px;
+  font: 10px var(--font-mono);
+  color: var(--ink-soft);
+}
+.journal-index button[aria-current],
+.journal-index button:hover,
+.journal-capture-actions button:hover {
+  color: var(--accent);
+}
+.journal-sync {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  width: 100%;
+}
+.journal-sync-details {
+  position: relative;
+}
+.journal-sync-details summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  background: transparent;
+  color: var(--ink-soft);
+  padding: var(--sp-2) 0;
+}
+.journal-sync-details summary::-webkit-details-marker {
+  display: none;
+}
+.journal-readiness {
+  font: 10px var(--font-mono);
+  color: var(--ink-soft);
+}
+.journal-sync-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 30;
+  width: min(400px, calc(100vw - 48px));
+  max-height: 60dvh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: var(--sp-6);
+  box-shadow: 0 12px 40px #00000015;
+}
+.journal-sync-panel h3 {
+  font: 400 24px var(--font-display);
+}
+.journal-sync-panel ul {
+  padding: 0;
+  list-style: none;
+}
+.journal-sync-panel li {
+  display: flex;
+  gap: var(--sp-2);
+  justify-content: space-between;
+  padding: var(--sp-4) 0;
+  border-top: 1px solid var(--hair);
+  font-size: 12px;
+}
+.journal-sync-panel li > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.journal-sync-panel small {
+  display: block;
+  margin-top: var(--sp-2);
+  color: var(--ink-soft);
+}
+.auth-wrap .auth-h1,
+.auth-wrap .auth-h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.04em;
+  line-height: 1.25;
+}
+.auth-wrap .auth-h1 {
+  font-size: clamp(40px, 6vw, 60px);
+}
+.auth-wrap .auth-card {
+  max-width: 32rem;
+  padding: var(--sp-6);
+  border-top: 1px solid var(--border);
+}
+.auth-wrap .auth-card--tight {
+  max-width: 26rem;
+}
+
+@media (max-width: 639px) {
+  .auth-wrap .auth-card {
+    padding: var(--sp-5);
+  }
+}
+
+.auth-wrap .auth-ambient {
+  background: none;
+}
+.auth-wrap .auth-lead {
+  font-size: 15px;
+  line-height: 1.8;
+}
+.modal h3,
+.modal h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+.modal,
+.picker-menu {
+  box-shadow: 0 14px 50px #0000001a;
+}
+.modal button,
+.journal-app .icon-btn,
+.tour-help-btn,
+.link-btn {
+  min-height: 44px;
+}
+.journal-app .icon-btn,
+.tour-help-btn {
+  min-width: 44px;
+}
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+/* The detail sheet's head, body and foot carry their own insets; the panel adds none. */
+.journal-detail-scrim > .modal.sm {
+  padding: 0;
+}
+@media (min-width: 1024px) {
+  .journal-detail-scrim.center {
+    justify-content: flex-end;
+    padding: 0;
+    background: color-mix(in srgb, var(--scrim) 50%, transparent);
+  }
+  .journal-detail-scrim > .modal {
+    width: min(560px, 46vw);
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    border-left: 1px solid var(--border);
+  }
+  .journal-hero {
+    padding-right: calc(var(--journal-balance-w) + var(--sp-7));
+  }
+  .journal-balance {
+    position: absolute;
+    top: 40px;
+    right: 0;
+    width: var(--journal-balance-w);
+    padding-left: var(--sp-6);
+    border-left: 1px solid var(--border);
+  }
+
+  .journal-app .txn-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--vgap);
+  }
+
+  .journal-app .txn-group-head {
+    grid-column: 1 / -1;
+  }
+
+  .journal-app .piggy-grid,
+  .journal-app .capital-grid,
+  .journal-app .budget-edit-list,
+  .journal-app .cat-tree {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--vgap);
+    align-items: start;
+  }
+}
+@media (max-width: 1023px) {
+  .journal-detail-scrim.center {
+    justify-content: flex-end;
+    padding: 0;
+  }
+  .journal-detail-scrim > .modal {
+    width: min(560px, 70vw);
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+  /* One column below 1024: the margin column becomes a ruled section on the same edge. */
+  .journal-columns {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--vgap);
+  }
+  .journal-margin {
+    padding: var(--sp-6) 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+  .journal-margin .journal-eyebrow {
+    margin-top: 0;
+  }
+  .journal-command {
+    padding: var(--sp-5);
+  }
+  .journal-hero h2 {
+    font-size: clamp(38px, 6vw, 64px);
+  }
+}
+@media (max-width: 639px) {
+  .journal-detail-scrim > .modal {
+    width: 100%;
+  }
+  .journal-detail-scrim > .modal.sm .modal-head {
+    padding-top: max(var(--sp-4), env(safe-area-inset-top));
+  }
+  .journal-detail-scrim > .modal.sm .modal-foot {
+    padding-bottom: max(var(--sp-4), env(safe-area-inset-bottom));
+  }
+  .journal-app .view {
+    padding-bottom: var(--sp-6);
+  }
+  .journal-hero {
+    padding-bottom: var(--sp-6);
+  }
+  .journal-hero h2 {
+    font-size: clamp(36px, 10vw, 58px);
+  }
+  .journal-launcher kbd {
+    display: none;
+  }
+  .journal-dock {
+    bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+  .journal-sync {
+    gap: var(--sp-1) var(--sp-3);
+  }
+  .journal-readiness {
+    font-size: 9px;
+  }
+  .journal-command-scrim {
+    padding: 0;
+  }
+  .journal-command,
+  .modal-scrim:not(.center) > .modal {
+    width: 100%;
+    padding: var(--sp-4);
+    padding-top: max(var(--sp-4), env(safe-area-inset-top));
+    padding-bottom: max(var(--sp-4), env(safe-area-inset-bottom));
+    border-radius: 0;
+  }
+  .journal-command {
+    display: flex;
+    flex-direction: column;
+  }
+  .journal-command-body {
+    flex: 1;
+  }
+  .journal-command-scrim,
+  .journal-detail-scrim.center {
+    align-items: flex-start;
+  }
+  .journal-command,
+  .journal-detail-scrim > .modal {
+    height: var(--visual-height, 100dvh);
+    max-height: var(--visual-height, 100dvh);
+  }
+  /* Phone rows: two lines. Glyph, main text and amount share one grid; the second line carries the
+     actions (transactions) or the amount (recurring), always flush with the page edge. */
+  .journal-app .txn {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "glyph main amt"
+      "actions actions actions";
+    gap: var(--sp-2) var(--sp-3);
+  }
+  .journal-app .txn-glyph {
+    grid-area: glyph;
+    width: 36px;
+    height: 36px;
+  }
+  .journal-app .txn-main {
+    grid-area: main;
+  }
+  .journal-app .txn-amt {
+    grid-area: amt;
+  }
+  .journal-app .txn-actions {
+    grid-area: actions;
+    justify-content: flex-end;
+  }
+  /* A pointer can hover: the actions appear over the row's right end instead of reserving a line. */
+  @media (hover: hover) {
+    .journal-app .txn {
+      grid-template-areas: "glyph main amt";
+      row-gap: 0;
+    }
+    .journal-app .txn-actions {
+      position: absolute;
+      top: 50%;
+      right: 0;
+      transform: translateY(-50%);
+      border-radius: var(--r-sm);
+      background: var(--surface-2);
+    }
+  }
+  .journal-app .rec-row {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "glyph main day"
+      "amt amt amt";
+    align-items: start;
+    gap: var(--sp-2) var(--sp-3);
+  }
+  .journal-app .rec-glyph {
+    grid-area: glyph;
+    width: 40px;
+    height: 40px;
+  }
+  .journal-app .rec-main {
+    grid-area: main;
+    min-width: 0;
+  }
+  .journal-app .rec-day {
+    grid-area: day;
+    margin-left: 0;
+  }
+  .journal-app .rec-amt {
+    grid-area: amt;
+    width: auto;
+    min-width: 0;
+    padding-left: 0;
+    text-align: right;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Readability rules follow the legacy responsive styles in ledger.css. */
+.journal-brand {
+  flex: none;
+  white-space: nowrap;
+}
+.journal-app .tb-actions {
+  gap: var(--sp-1);
+}
+.journal-app .page-refresh-btn--main {
+  display: grid;
+}
+.journal-app .tb-row--context {
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+.journal-app .page-title-row {
+  min-width: 0;
+}
+.tb-context-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.journal-page-heading,
+.journal-status {
+  width: calc(100% - 2 * var(--pad));
+  max-width: 1328px;
+  margin-inline: auto;
+}
+.journal-page-heading {
+  padding-top: var(--sp-4);
+}
+.journal-active-wallet {
+  margin-top: var(--sp-2);
+  font-size: 12px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+.journal-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--sp-3);
+}
+.journal-status .journal-sync {
+  width: auto;
+  flex: 1 1 240px;
+}
+.journal-status .page-refresh-status {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.journal-app .view {
+  padding-top: var(--sp-5);
+}
+.wallet-chip-compact {
+  display: none;
+}
+.journal-app .tb-context-tools .wallet-chip-name {
+  display: none;
+}
+.journal-app .tb-context-tools .wallet-chip-compact {
+  display: inline;
+}
+.journal-app .tb-context-tools .wallet-chip {
+  min-height: 44px;
+  flex: none;
+}
+.journal-app .tb-context-tools .month-switch {
+  flex: none;
+}
+.journal-app .tb-context-tools .msbtn,
+.journal-app .tb-context-tools .ms-label-btn {
+  height: 44px;
+}
+.journal-app .journal-active-wallet {
+  white-space: normal;
+}
+
+/* Values keep their full precision and wrap (spaces first, then anywhere) instead of scrolling:
+   scrollbars are hidden app-wide, so a scrolled-off amount would be silently clipped. */
+.readable-value,
+:is(.journal-app, .modal, .picker-menu, .wallet-menu)
+  :is(
+    .sc-value,
+    .dc-value,
+    .trend-now,
+    .lg-amt,
+    .lg-sub-amt,
+    .rr-amt,
+    .txn-amt,
+    .rec-amt,
+    .be-amt,
+    .ct-amt,
+    .ct-delta,
+    .ts-amt,
+    .cap-stat-value,
+    .cap-band-value,
+    .capital-total,
+    .capital-pace-metric-value,
+    .psig-value,
+    .insight-card-metric-value,
+    .calculator-alloc-amt,
+    .ctip-total,
+    .ctip-amt,
+    .amount-live-total
+  ) {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  overflow: visible;
+  text-overflow: clip;
+  font-variant-numeric: tabular-nums;
+}
+.readable-value:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.journal-app
+  :is(
+    .panel,
+    .journal-hero,
+    .capital-card,
+    .piggy-card,
+    .bedit,
+    .trend-total,
+    .cap-band-cell,
+    .insight-card,
+    .calculator-tax-card
+  ) {
+  min-width: 0;
+}
+.journal-app :is(.summary-grid.sg-2, .summary-grid.sg-3, .summary-grid.sg-4, .summary-grid.sg-5) {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+}
+/* The legacy odd-last-card span assumed two columns; auto-fit decides the column count here. */
+.journal-app .summary-grid.sg-5 > .summary-card:last-child:nth-child(odd) {
+  grid-column: auto;
+}
+.journal-app .cap-stats {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
+}
+
+/* Content names and prose remain fully readable, including unbroken strings. */
+:is(
+    .journal-app,
+    .modal,
+    .picker-menu,
+    .wallet-menu,
+    .acct-menu,
+    .month-pick-menu,
+    .picker-currency-menu,
+    .picker-tz-menu
+  )
+  :is(
+    .offline-failed-label,
+    .wmi-name,
+    .pci-label,
+    .picker-currency-name,
+    .pti-label,
+    .picker-tz-city,
+    .ctip-name,
+    .dc-label,
+    .lg-name,
+    .rr-note,
+    .todo-tab-name,
+    .todo-panel-title h2,
+    .capital-pace-name,
+    .piggy-card-title h3,
+    .capital-card-title h3,
+    .capital-item-name,
+    .cal-chip-txt,
+    .ag-title,
+    .txn-note,
+    .txn-cat,
+    .rec-note,
+    .rec-sub,
+    .rr-sub,
+    .am-name,
+    .panel-sub,
+    .journal-note,
+    .sc-label,
+    .sc-sub,
+    .sc-foot,
+    .capital-card-title h2,
+    .piggy-card-title h2
+  ) {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
+  -webkit-line-clamp: unset;
+}
+.wallet-menu .wmi-name,
+.picker-menu :is(.pci-label, .pti-label) {
+  flex: 1;
+}
+.journal-app :is(.txn-note, .ag-title) {
+  flex-wrap: wrap;
+}
+.journal-app .cal-chip {
+  height: auto;
+}
+.journal-app
+  :is(.panel-head, .txn-group-head, .journal-date, .be-top, .capital-card-head, .piggy-card-head),
+.modal :is(.modal-actions, .modal-foot, .modal-footer, .form-actions) {
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+
+/* Controls keep icon and label together. Only short action buttons forbid label wrapping, and none
+   forces a minimum width, so a footer can wrap or stack at 320px instead of overflowing. */
+:is(.journal-app, .modal, .picker-menu, .wallet-menu, .acct-menu)
+  :is(
+    .primary-btn,
+    .ghost-btn,
+    .mini-btn,
+    .link-btn,
+    .fchip,
+    .seg button,
+    .journal-favorites button,
+    .wallet-menu-item.manage,
+    .journal-add,
+    .journal-launcher
+  ) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: var(--sp-2);
+}
+:is(.journal-app, .modal, .picker-menu, .wallet-menu, .acct-menu)
+  :is(.primary-btn, .ghost-btn, .link-btn) {
+  white-space: nowrap;
+}
+:is(.journal-app, .modal, .picker-menu, .wallet-menu, .acct-menu) button > svg {
+  flex: none;
+}
+.journal-app .tb-context-tools .link-btn {
+  gap: var(--sp-1);
+}
+.journal-app .acct-name {
+  display: none;
+}
+.journal-app .acct-chip {
+  min-height: 44px;
+  width: 44px;
+  padding: var(--sp-2);
+  gap: 0;
+  justify-content: center;
+}
+.journal-app .acct-chip > svg:last-child {
+  display: none;
+}
+.acct-menu {
+  max-width: calc(100vw - 24px);
+}
+.acct-menu .am-head > div {
+  min-width: 0;
+}
+.modal :is(.picker-trigger-label, .wallet-chip-name, .cc-label),
+.modal.sm .cat-chip .cc-label {
+  max-width: 100%;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+.modal :is(.picker-trigger, .wallet-chip, .cat-chip) {
+  height: auto;
+  min-height: 44px;
+}
+.journal-sync-panel li {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1279px) {
+  .journal-brand span {
+    display: none;
+  }
+}
+/* When the page title moves out of the topbar (compact header) the tools are the row's only child:
+   span the row. Selector-based so it follows the JS breakpoint exactly. */
+.journal-app .tb-context-tools:only-child {
+  width: 100%;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.journal-app .tb-row--context:empty {
+  display: none;
+}
+@media (max-width: 639px) {
+  .journal-app .topbar {
+    padding: max(var(--sp-2), env(safe-area-inset-top)) var(--pad) var(--sp-2);
+  }
+  .journal-app .journal-brand {
+    font-size: 24px;
+  }
+  .journal-app .tb-actions {
+    gap: 0;
+  }
+  .journal-app .journal-masthead {
+    gap: var(--sp-1);
+  }
+  .journal-app .ms-label-btn {
+    min-width: 0;
+    font-size: 12px;
+    padding-inline: var(--sp-2);
+  }
+  .journal-app .ms-label-btn > svg {
+    display: none;
+  }
+  .journal-app .tb-context-tools .wallet-chip {
+    padding-inline: var(--sp-2);
+    gap: var(--sp-1);
+    font-size: 12px;
+  }
+  .journal-app .tb-context-tools .wallet-chip-cur {
+    display: none;
+  }
+  .journal-app .journal-page-heading .page-title {
+    font-size: 24px;
+  }
+  /* Phone: one column of ruled cards (a fixed count, so the hairlines are always right). */
+  .journal-app :is(.summary-grid.sg-2, .summary-grid.sg-3, .summary-grid.sg-4, .summary-grid.sg-5) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .journal-app .summary-card {
+    padding: var(--sp-4) 0;
+  }
+  .journal-app .summary-card + .summary-card {
+    border-top: 1px solid var(--hair);
+  }
+  .journal-app .journal-dock {
+    gap: var(--sp-1);
+    max-width: calc(100% - 2 * var(--sp-3));
+  }
+  .journal-app :is(.journal-launcher, .journal-add) {
+    padding-inline: var(--sp-3);
+    gap: var(--sp-2);
+  }
+  .journal-sync-panel {
+    width: min(400px, calc(100vw - 2 * var(--pad)));
+    padding: var(--sp-4);
+  }
+}
+
+/* Inline figures sit in prose as one unit and wrap, never clip, when they cannot fit. */
+:is(.journal-app, .modal, .picker-menu) .num,
+.readable-value.numeric-inline {
+  display: inline-block;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
+  vertical-align: bottom;
+}
+.journal-app .journal-status .journal-active-wallet {
+  flex: 1 1 100%;
+  margin-block: var(--sp-2);
+}
+.journal-app :is(.piggy-balance, .piglet-balance, .capital-item-cost) {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+}
+.journal-app
+  :is(
+    .piggy-card-stats,
+    .cap-band-cell,
+    .ctrow,
+    .capital-item-row,
+    .piglet-row,
+    .capital-pace-head,
+    .journal-upcoming-row
+  ) {
+  min-width: 0;
+}
+.journal-app
+  :is(
+    .piggy-card-head,
+    .piggy-card-body,
+    .piggy-card-actions,
+    .capital-item-row,
+    .piglet-row,
+    .capital-pace-head
+  ) {
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.journal-app .piggy-card-stats {
+  flex: 1 1 160px;
+}
+.journal-app .capital-pace-metrics {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+}
+.journal-app :is(.piglet-name, .ct-name, .cat-block-name, .picker-trigger-label) {
+  min-width: 0;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+.journal-app :is(.todo-tab, .journal-favorites button, .seg button) {
+  height: auto;
+}
+:is(.journal-app, .modal) .seg {
+  flex-wrap: wrap;
+  height: auto;
+  max-width: 100%;
+}
+.modal :is(.modal-head, .modal-actions, .modal-foot, .modal-footer) > * {
+  min-width: 0;
+}
+.modal :is(h2, h3, p, .field-help, .fld-help, .error) {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 639px) {
+  .journal-app .piglet-balance {
+    flex: 1 1 100%;
+    text-align: right;
+  }
+  /* Capital item: the name line carries check, name, Log and remove; the cost sits under the name. */
+  .journal-app .capital-item-row {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "check name log remove"
+      ". cost cost cost";
+    align-items: center;
+    gap: 0 var(--sp-2);
+  }
+  .journal-app .capital-item-row > .todo-check {
+    grid-area: check;
+  }
+  .journal-app .capital-item-row > .capital-item-name {
+    grid-area: name;
+  }
+  .journal-app .capital-item-row > :is(.capital-item-cost, .capital-item-cost-in) {
+    grid-area: cost;
+    justify-self: start;
+    text-align: left;
+  }
+  .journal-app .capital-item-row > .capital-item-cost {
+    /* Text stays on the name's edge; only the hover fill reaches past it. */
+    margin-left: calc(-1 * var(--sp-2));
+    padding: var(--sp-1) var(--sp-2);
+    border-radius: var(--r-sm);
+  }
+  .journal-app .capital-item-row > .ghost-btn {
+    grid-area: log;
+    min-height: 32px;
+  }
+  .journal-app .capital-item-row > .capital-item-remove {
+    grid-area: remove;
+  }
+}
+
+.journal-app .insight-card-metric,
+.modal :is(.mf-right, .mf-row, .csv-import-actions, .reveal-actions) {
+  flex-wrap: wrap;
+  min-width: 0;
+  gap: var(--sp-2);
+}
+.journal-app .insight-card-metric-value {
+  flex: 0 1 auto;
+}

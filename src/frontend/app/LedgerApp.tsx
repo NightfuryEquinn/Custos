@@ -9,15 +9,12 @@ import { useEnter, useModalMotion } from "@/frontend/lib/animate";
 import { armSyncTriggers, drainOutbox } from "@/frontend/lib/sync/engine";
 import { LoadingBloom } from "@/frontend/components/LoadingBloom";
 import { OfflineBanner } from "@/frontend/components/OfflineBanner";
+import { toast } from "@/frontend/lib/feedback";
+import { JournalCommands } from "@/frontend/components/JournalCommands";
+import { useJournalNavigation } from "@/frontend/lib/journal-navigation";
 import { ThemeToggle } from "@/frontend/components/ThemeToggle";
 import { WalletManageModal, WalletSwitcher } from "@/frontend/components/Wallets";
-import {
-  AddExpenseModal,
-  Icon,
-  MobileBottomNav,
-  MonthSwitcher,
-  Sidebar,
-} from "@/frontend/components/ui";
+import { AddExpenseModal, Icon, MonthSwitcher } from "@/frontend/components/ui";
 import { CURRENT_MONTH_KEY, MONTHS, TODAY_ISO } from "@/frontend/lib/data";
 import { NAV_ITEM_BY_ID, resolveNav } from "@/frontend/lib/nav";
 import { releaseHoldForOccurrence, restoreHoldForOccurrence } from "@/frontend/lib/envelope-holds";
@@ -92,9 +89,8 @@ const Transparency = lazy(() =>
 /*
  * LedgerApp — authenticated app shell
  * ───────────────────────────────────
- * Desktop: sidebar + topbar + scrollable view.
- * Mobile (≤860px): tab bar + More sheet replaces the sidebar.
- * Hosts the global modals (expense, wallet management, event).
+ * Journal shell on every screen size: topbar + scrollable view + a bottom dock
+ * (Open Custos, Add). Hosts the global modals (expense, wallet management, event).
  */
 
 type LedgerAppProps = {
@@ -104,7 +100,7 @@ type LedgerAppProps = {
 };
 
 const VIEW_TITLES: Record<ViewId, string> = {
-  overview: "Overview",
+  overview: "Your journal",
   todos: "TO-DO List",
   schedule: "Schedule",
   transactions: "Transactions",
@@ -125,7 +121,7 @@ function PageTitle({ view }: { view: ViewId }) {
   useEnter(titleRef, { y: 4 });
 
   return (
-    <h1 ref={titleRef} className="page-title">
+    <h1 ref={titleRef} className="page-title" tabIndex={-1} data-tour={`tour-nav-${view}`}>
       <span className="page-title-icon" aria-hidden="true">
         <Icon name={NAV_ITEM_BY_ID.get(view)?.[2] ?? "overview"} size={23} />
       </span>
@@ -135,12 +131,23 @@ function PageTitle({ view }: { view: ViewId }) {
 }
 
 export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppProps) {
+  const [compactHeader, setCompactHeader] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches,
+  );
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 639px)");
+    const update = () => setCompactHeader(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
   const ledger = useLedger(account.address);
   const liveExpenseIds = useMemo(
     () => new Set([...ledger.allExpenses, ...ledger.accountExpenses].map((e) => e.id)),
     [ledger.allExpenses, ledger.accountExpenses],
   );
-  const [view, setView] = useState<ViewId>("overview");
+  const { view, setView } = useJournalNavigation();
   const [modal, setModal] = useState<
     | Expense
     | {
@@ -227,7 +234,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
 
   /* Custom nav layout, also account-wide. Undefined fields (never customized)
      fall back to the built-in defaults inside resolveNav. */
-  const { sidebarItems, tabItems, moreItems } = useMemo(
+  const { sidebarItems, tabItems } = useMemo(
     () => resolveNav(ledgerProfile?.navOrder, ledgerProfile?.navTabs),
     [ledgerProfile?.navOrder, ledgerProfile?.navTabs],
   );
@@ -239,10 +246,15 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
     if (landedRef.current || ledgerIsLoading || ledgerError) return;
     landedRef.current = true;
     const first = tabItems[0]?.[0];
-    if (first && first !== "overview" && window.matchMedia("(max-width: 860px)").matches) {
+    if (
+      first &&
+      first !== "overview" &&
+      !window.location.hash &&
+      window.matchMedia("(max-width: 639px)").matches
+    ) {
       setView(first);
     }
-  }, [ledgerIsLoading, ledgerError, tabItems]);
+  }, [ledgerIsLoading, ledgerError, tabItems, setView]);
 
   /* A 401/403 mid-session (expired cookie, revoked session) used to render
      the same "API is down" screen with no way out but a manual reload —
@@ -413,6 +425,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
       }
     }
     setModal(null);
+    toast(data.id ? "Transaction updated" : "Transaction added");
   };
 
   /** Open the transaction modal prefilled to log a capital plan item's payment. */
@@ -659,12 +672,14 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
     await unlinkCapitalItems(deletedIds);
 
     setModal(null);
+    toast("Transaction deleted");
   };
 
   const saveEvent = async (data: LedgerEvent & { id?: string }) => {
     await ledger.saveEvent(data);
     setEvModal(null);
     setEvOccurrenceIso(undefined);
+    toast(data.id ? "Event updated" : "Event added");
   };
 
   const deleteEvent = async (
@@ -674,6 +689,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
     await ledger.deleteEvent(id, opts);
     setEvModal(null);
     setEvOccurrenceIso(undefined);
+    toast("Event deleted");
   };
 
   /** Open an event for edit with the calendar occurrence under the cursor. */
@@ -743,22 +759,18 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
   const fabAction = fabByView[view];
 
   return (
-    <div className="app">
-      <Sidebar view={view} setView={setView} items={sidebarItems} />
+    <div className="app journal-app">
       <main className="main">
         <header className="topbar">
-          <div className="tb-row tb-row--main">
-            <div className="page-title-row">
-              <PageTitle key={view} view={view} />
-              <button
-                type="button"
-                className="tour-help-btn"
-                aria-label={`Tour ${VIEW_TITLES[view]}`}
-                onClick={() => startViewTour(view)}
-              >
-                <Icon name="info" size={17} />
-              </button>
-            </div>
+          <div className="journal-masthead">
+            <button
+              type="button"
+              className="journal-brand"
+              onClick={() => setView("overview")}
+              aria-label="Custos home"
+            >
+              custos<span>A little room for life.</span>
+            </button>
             <div className="tb-actions">
               <button
                 type="button"
@@ -799,8 +811,74 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
               />
             </div>
           </div>
-          <div className="tb-row tb-row--status">
-            <OfflineBanner address={account.address} />
+          <div className="tb-row tb-row--context">
+            {!compactHeader && (
+              <div className="page-title-row">
+                <PageTitle key={view} view={view} />
+                <button
+                  type="button"
+                  className="tour-help-btn"
+                  aria-label={`Tour ${VIEW_TITLES[view]}`}
+                  onClick={() => startViewTour(view)}
+                >
+                  <Icon name="info" size={17} />
+                </button>
+              </div>
+            )}
+            {view !== "transparency" && (
+              <div className="tb-context-tools">
+                {activeWallet && wallets.length ? (
+                  <WalletSwitcher
+                    wallets={wallets}
+                    activeId={activeWallet.id}
+                    onChange={setActiveWalletId}
+                    onManage={() => setWalletModal(true)}
+                  />
+                ) : null}
+                <MonthSwitcher
+                  months={MONTHS}
+                  current={month}
+                  onChange={setMonth}
+                  changing={isMonthPending}
+                />
+              </div>
+            )}
+          </div>
+        </header>
+
+        <div className="scroll">
+          {compactHeader && (
+            <div className="journal-page-heading">
+              <div className="page-title-row">
+                <PageTitle key={view} view={view} />
+                <button
+                  type="button"
+                  className="tour-help-btn"
+                  aria-label={`Tour ${VIEW_TITLES[view]}`}
+                  onClick={() => startViewTour(view)}
+                >
+                  <Icon name="info" size={17} />
+                </button>
+              </div>
+              {activeWallet && view !== "transparency" && (
+                <p className="journal-active-wallet">
+                  {activeWallet.name} &middot; {activeWallet.currency}
+                </p>
+              )}
+            </div>
+          )}
+          <div className="journal-status">
+            {!compactHeader && activeWallet && view !== "transparency" && (
+              <p className="journal-active-wallet">
+                {activeWallet.name} &middot; {activeWallet.currency}
+              </p>
+            )}
+            <OfflineBanner
+              address={account.address}
+              month={ledger.month}
+              dataReady={ledger.offlineDataReady}
+              saving={ledger.isSaving}
+            />
             {(ledger.refreshingView === view ||
               (ledger.refreshMessageView === view && ledger.refreshMessage)) && (
               <span className="page-refresh-status" role="status" aria-live="polite">
@@ -809,40 +887,20 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
                   : ledger.refreshMessage}
               </span>
             )}
-            <button
-              type="button"
-              className="icon-btn page-refresh-btn page-refresh-btn--status"
-              aria-label={`Refresh ${VIEW_TITLES[view]}`}
-              aria-busy={ledger.refreshingView !== null}
-              disabled={ledger.refreshingView !== null || isSaving || isMonthPending}
-              onClick={() => void ledger.refreshPage(view)}
-            >
-              <span className={ledger.refreshingView ? "refresh-spinning" : undefined}>
-                <Icon name="recurring" size={20} />
-              </span>
-            </button>
           </div>
-          {view !== "transparency" ? (
-            <div className="tb-row tb-row--tools">
-              {activeWallet && wallets.length ? (
-                <WalletSwitcher
-                  wallets={wallets}
-                  activeId={activeWallet.id}
-                  onChange={setActiveWalletId}
-                  onManage={() => setWalletModal(true)}
-                />
-              ) : null}
-              <MonthSwitcher
-                months={MONTHS}
-                current={month}
-                onChange={setMonth}
-                changing={isMonthPending}
-              />
-            </div>
-          ) : null}
-        </header>
 
-        <div className="scroll">
+          {ledger.unavailableResources.length > 0 && (
+            <p className="journal-data-notice" role="status">
+              Some content is unavailable: {ledger.unavailableResources.join(", ")}. Connect to
+              download it; empty sections may not reflect your records.
+            </p>
+          )}
+          {view === "recurring" && (
+            <p className="journal-data-notice">
+              Editing a recurring transaction series requires a connection. New entries can be saved
+              offline.
+            </p>
+          )}
           <Suspense
             fallback={
               <div className="view-loading">
@@ -860,6 +918,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
                 setView={setView}
                 onEdit={setModal}
                 onEditEvent={(ev: LedgerEvent) => openEvent(ev, TODAY_ISO)}
+                onOpenEvent={openEvent}
               />
             )}
             {view === "schedule" && (
@@ -957,28 +1016,46 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
               <Insights {...viewProps} capitalPlans={ledger.capitalPlans} setMonth={setMonth} />
             )}
             {view === "transparency" && <Transparency />}
-            <div className="scroll-pad" />
           </Suspense>
         </div>
       </main>
 
-      <MobileBottomNav view={view} setView={setView} tabItems={tabItems} moreItems={moreItems} />
-
-      <div data-tour="tour-fab" className={"fab-wrap" + (fabAction ? "" : " fab-wrap--hidden")}>
-        {fabAction ? (
-          /* A write is in flight somewhere in the app: opening a second editor
-             on top of it invites a duplicate submit, so hold the quick-add. */
-          <button
-            className="fab"
-            type="button"
-            aria-label={fabAction.label}
-            disabled={isSaving}
-            onClick={fabAction.onClick}
-          >
-            <Icon name="plus" size={24} />
-          </button>
-        ) : null}
-      </div>
+      <JournalCommands
+        view={view}
+        navigate={setView}
+        items={sidebarItems}
+        favorites={tabItems}
+        disabled={isSaving}
+        onTask={async (title) => {
+          if (ledger.unavailableResources.includes("tasks"))
+            throw new Error("Your task lists have not downloaded yet. Connect and try again.");
+          const list = ledger.todoLists[0];
+          await ledger.saveTodoList({
+            ...(list ?? { name: "Everyday", tasks: [] }),
+            tasks: [...(list?.tasks ?? []), { id: crypto.randomUUID(), title, done: false }],
+          });
+        }}
+        actions={[
+          {
+            id: "expense",
+            label: "Expense or income",
+            icon: "wallet",
+            run: () => setModal({ add: true }),
+          },
+          {
+            id: "event",
+            label: "Event",
+            icon: "calendar",
+            run: () => {
+              setEvOccurrenceIso(undefined);
+              setEvModal({ add: true, date: TODAY_ISO });
+            },
+          },
+          ...(fabAction && !["schedule", "transactions", "budgets", "recurring"].includes(view)
+            ? [{ id: "context", label: fabAction.label, icon: "plus", run: fabAction.onClick }]
+            : []),
+        ]}
+      />
 
       {vehiclePickerOpen
         ? createPortal(

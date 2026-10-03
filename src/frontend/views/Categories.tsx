@@ -2,6 +2,8 @@ import { useEnter, useModalMotion } from "@/frontend/lib/animate";
 import { ConfirmDialog, EmptyState, Icon, Segmented, glyphTint } from "@/frontend/components/ui";
 import { CategoryColorPicker } from "@/frontend/components/CategoryColorPicker";
 import { DatePicker } from "@/frontend/components/DateTimePicker";
+import { isPlainNumber } from "@/frontend/lib/arithmetic";
+import { openConfirm, toast } from "@/frontend/lib/feedback";
 import {
   liveSubs,
   nextCategoryColor,
@@ -75,13 +77,281 @@ type CategoriesViewProps = {
 };
 
 type EditorMode =
-  | { type: "add-cat"; catType: CategoryType }
+  | { type: "add-cat" }
   | { type: "add-sub"; catId: string }
   | { type: "edit-cat"; catId: string }
-  | { type: "edit-sub"; catId: string; subId: string }
-  | null;
+  | { type: "edit-sub"; catId: string; subId: string };
+
+type RetireTarget = { type: "cat"; id: string } | { type: "sub"; catId: string; subId: string };
 
 const GLYPHS = CATEGORY_GLYPH_OPTIONS;
+
+/**
+ * Add / edit modal for a category or subcategory. Draft state lives here so the
+ * unsaved-changes baseline is taken when the modal opens; `onSave` persists and
+ * closes it, and rejects with the reason a save failed.
+ */
+function CategoryEditor({
+  mode,
+  categories,
+  onSave,
+  onClose,
+}: {
+  mode: EditorMode;
+  categories: Category[];
+  onSave: (next: Category[], message: string, expandId?: string) => Promise<void>;
+  onClose: () => void;
+}) {
+  const parent = "catId" in mode ? categories.find((c) => c.id === mode.catId) : undefined;
+  /* The entry being edited; undefined when adding. */
+  const source =
+    mode.type === "edit-sub"
+      ? parent?.subs.find((s) => s.id === mode.subId)
+      : mode.type === "edit-cat"
+        ? parent
+        : undefined;
+  const [catType, setCatType] = useState<CategoryType>("expense");
+  const [name, setName] = useState(source?.name ?? "");
+  const [glyph, setGlyph] = useState(() =>
+    mode.type === "edit-cat" && parent ? displayGlyph(parent.glyph, parent.id) : DEFAULT_GLYPH,
+  );
+  const [color, setColor] = useState(() =>
+    mode.type === "edit-cat" && parent ? parent.color : nextCategoryColor(categories),
+  );
+  const [target, setTarget] = useState(source?.target != null ? String(source.target) : "");
+  const [deadline, setDeadline] = useState(source?.deadline ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  /* See persist's guard in Categories — `saving` state alone can't stop two
+     clicks in the same task from both saving. */
+  const savingRef = useRef(false);
+  const fields = JSON.stringify([catType, name, glyph, color, target, deadline]);
+  const [baseline] = useState(fields);
+  const scrimRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLFormElement>(null);
+  const { dismiss } = useModalMotion(scrimRef, panelRef, {
+    variant: "center",
+    onDismiss: saving ? false : onClose,
+    dirty: fields !== baseline,
+  });
+
+  const editing = mode.type === "edit-cat" || mode.type === "edit-sub";
+  const isSub = mode.type === "add-sub" || mode.type === "edit-sub";
+  /* Target and deadline only apply to savings categories and their subs. */
+  const isSavings =
+    mode.type === "add-cat"
+      ? catType === "savings"
+      : parent
+        ? resolveCategoryType(parent) === "savings"
+        : false;
+  const targetText = target.trim();
+  const targetValue = targetText ? Number(targetText) : undefined;
+  const targetInvalid =
+    isSavings && targetText !== "" && !(isPlainNumber(targetText) && Number.isFinite(targetValue));
+  const valid = !!name.trim() && !targetInvalid;
+  const title =
+    mode.type === "add-cat"
+      ? `Add ${typeLabel(catType)} Category`
+      : mode.type === "add-sub"
+        ? "Add Subcategory"
+        : mode.type === "edit-cat"
+          ? "Edit Category"
+          : "Rename Subcategory";
+
+  /** Build the next taxonomy for the open mode and hand it to the parent. */
+  const save = async () => {
+    if (!valid || saving || savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    setError("");
+    try {
+      const trimmed = name.trim();
+      const savings = isSavings
+        ? { target: targetValue, deadline: deadline.trim() || undefined }
+        : {};
+      if (mode.type === "add-cat") {
+        const id = slugId("cat", name);
+        const cat: Category = {
+          id,
+          name: trimmed,
+          color,
+          glyph,
+          type: catType,
+          builtin: false,
+          ...savings,
+          subs: [{ id: slugId("sub", name), name: trimmed }],
+        };
+        await onSave([...categories, cat], "Category added", id);
+      } else if (mode.type === "add-sub") {
+        const sub = { id: slugId("sub", name), name: trimmed, ...savings };
+        await onSave(
+          categories.map((c) => (c.id === mode.catId ? { ...c, subs: [...c.subs, sub] } : c)),
+          "Subcategory added",
+        );
+      } else if (mode.type === "edit-cat") {
+        await onSave(
+          categories.map((c) =>
+            c.id === mode.catId ? { ...c, name: trimmed, color, glyph, ...savings } : c,
+          ),
+          "Category updated",
+        );
+      } else {
+        await onSave(
+          categories.map((c) =>
+            c.id === mode.catId
+              ? {
+                  ...c,
+                  subs: c.subs.map((s) =>
+                    s.id === mode.subId ? { ...s, name: trimmed, ...savings } : s,
+                  ),
+                }
+              : c,
+          ),
+          "Subcategory updated",
+        );
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't save this category. Please try again.");
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  };
+
+  return createPortal(
+    <div
+      ref={scrimRef}
+      className="modal-scrim center"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) dismiss();
+      }}
+    >
+      <form
+        ref={panelRef}
+        className="modal sm"
+        role="dialog"
+        aria-modal="true"
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
+      >
+        <div className="modal-head">
+          <h3>{title}</h3>
+          <button
+            className="icon-btn"
+            type="button"
+            onClick={dismiss}
+            aria-label="Close"
+            disabled={saving}
+          >
+            <Icon name="close" size={18} />
+          </button>
+        </div>
+        <div className="modal-body modal-scroll">
+          <div className="dm-sec">
+            {mode.type === "add-cat" ? (
+              <Segmented
+                options={[
+                  { v: "expense", label: "Expense" },
+                  { v: "savings", label: "Savings" },
+                  { v: "income", label: "Income" },
+                ]}
+                value={catType}
+                onChange={setCatType}
+              />
+            ) : null}
+
+            <label className="fld-label" htmlFor="cat-name">
+              Name
+            </label>
+            <input
+              id="cat-name"
+              className="text-in wallet-field"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoFocus
+              placeholder={isSub ? "Subcategory name" : "Category name"}
+            />
+
+            {mode.type === "add-cat" || mode.type === "edit-cat" ? (
+              <>
+                <label className="fld-label">Color</label>
+                <CategoryColorPicker value={color} onChange={setColor} />
+
+                <label className="fld-label">Icon</label>
+                <div className="cat-glyph-row">
+                  {GLYPHS.map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      className={"cat-glyph-btn" + (glyph === g ? " active" : "")}
+                      style={glyph === g ? { borderColor: color, color } : undefined}
+                      onClick={() => setGlyph(g)}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : null}
+
+            {isSavings ? (
+              <>
+                <label className="fld-label" htmlFor="cat-target">
+                  Target Amount (optional)
+                </label>
+                <input
+                  id="cat-target"
+                  className="text-in wallet-field"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="No goal"
+                  value={target}
+                  onChange={(e) => setTarget(e.target.value)}
+                  aria-invalid={targetInvalid || undefined}
+                />
+                {targetInvalid ? (
+                  <p className="fld-error">Enter a number of 0 or more, or leave it blank.</p>
+                ) : null}
+
+                <label className="fld-label" htmlFor="cat-deadline">
+                  Deadline (optional)
+                </label>
+                <DatePicker value={deadline} onChange={setDeadline} className="wallet-field" />
+              </>
+            ) : null}
+
+            {error ? (
+              <p className="auth-error auth-error--gap" role="alert">
+                {error}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <div className="modal-foot">
+          <span />
+          <div className="mf-right">
+            <button className="ghost-btn" type="button" onClick={dismiss} disabled={saving}>
+              Cancel
+            </button>
+            <button className="primary-btn" type="submit" disabled={saving || !valid}>
+              {saving
+                ? "Saving…"
+                : editing
+                  ? "Save Changes"
+                  : isSub
+                    ? "Add Subcategory"
+                    : "Add Category"}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>,
+    document.body,
+  );
+}
 
 /** Imperative handle so the shell's quick-add FAB can trigger New Category. */
 export type CategoriesHandle = { openAdd: () => void };
@@ -95,21 +365,16 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
   const [categories, setCategories] = useState(categoryIndex.allCategories);
   const [filter, setFilter] = useState<"all" | CategoryType>("all");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [editor, setEditor] = useState<EditorMode>(null);
-  const [name, setName] = useState("");
-  const [glyph, setGlyph] = useState(DEFAULT_GLYPH);
-  const [color, setColor] = useState("#4a6fa5");
-  const [target, setTarget] = useState("");
-  const [deadline, setDeadline] = useState("");
+  const [editor, setEditor] = useState<EditorMode | null>(null);
   const [busy, setBusy] = useState(false);
+  /* Which archived row's Restore is running, so only that button says Restoring…. */
+  const [restoringId, setRestoringId] = useState<string | null>(null);
   const [error, setError] = useState("");
   /* `busy` state can't stop two clicks landing in the same task from both
      calling persist before either's setBusy(true) commits — a ref flips
      synchronously, so the second call always sees it. */
   const persistingRef = useRef(false);
-  const [confirmDelete, setConfirmDelete] = useState<
-    { type: "cat"; id: string } | { type: "sub"; catId: string; subId: string } | null
-  >(null);
+  const [confirmDelete, setConfirmDelete] = useState<RetireTarget | null>(null);
   const [transferSource, setTransferSource] = useState<TransferSource | null>(null);
   const [destCatId, setDestCatId] = useState("");
   const [destSubId, setDestSubId] = useState("");
@@ -119,26 +384,16 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
   const transferRetrySource = useRef<TransferSource | null>(null);
   const transferRetryDest = useRef<{ cat: Category; subId: string } | null>(null);
   const viewRef = useRef<HTMLDivElement>(null);
-  const scrimRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
   const transferScrimRef = useRef<HTMLDivElement>(null);
   const transferPanelRef = useRef<HTMLDivElement>(null);
   const progressScrimRef = useRef<HTMLDivElement>(null);
   const progressPanelRef = useRef<HTMLDivElement>(null);
-  const { requestClose } = useModalMotion(scrimRef, panelRef, {
-    variant: "center",
-    active: !!editor,
-  });
-  const { requestClose: requestCloseTransfer } = useModalMotion(
-    transferScrimRef,
-    transferPanelRef,
-    { variant: "center", active: !!transferSource && !progress },
-  );
+  /* The progress dialog passes no onDismiss: it must not close on Escape or
+     backdrop while a transfer is running. */
   useModalMotion(progressScrimRef, progressPanelRef, {
     variant: "center",
     active: !!progress,
   });
-  const closeEditor = () => requestClose(() => setEditor(null));
 
   useEffect(() => {
     setCategories(categoryIndex.allCategories);
@@ -175,9 +430,13 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
   /** True when this subcategory has transaction history. */
   const subInUse = (subId: string) => usedSubIds === null || usedSubIds.has(subId);
 
-  /** Persist taxonomy changes through the parent save handler. */
+  /**
+   * Persist taxonomy changes through the parent save handler. Resolves true once
+   * saved, false when another save is already running, and rejects on failure so
+   * each caller can show the reason where the user is looking.
+   */
   const persist = async (next: Category[]) => {
-    if (persistingRef.current) return;
+    if (persistingRef.current) return false;
     persistingRef.current = true;
     setBusy(true);
     setError("");
@@ -185,8 +444,8 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
       await onSave(next);
       setCategories(next);
       setEditor(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save categories");
+
+      return true;
     } finally {
       persistingRef.current = false;
       setBusy(false);
@@ -196,12 +455,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
   /** Open the add-category editor. Type defaults to Expense — switchable via
       the in-modal tab. */
   const openAddCat = () => {
-    setEditor({ type: "add-cat", catType: "expense" });
-    setName("");
-    setGlyph(DEFAULT_GLYPH);
-    setColor(nextCategoryColor(categories));
-    setTarget("");
-    setDeadline("");
+    setEditor({ type: "add-cat" });
     setError("");
   };
 
@@ -210,71 +464,85 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
   /** Open the add-subcategory editor. */
   const openAddSub = (catId: string) => {
     setEditor({ type: "add-sub", catId });
-    setName("");
-    setTarget("");
-    setDeadline("");
     setError("");
   };
 
   /** Open the edit-category editor. */
   const openEditCat = (cat: Category) => {
     setEditor({ type: "edit-cat", catId: cat.id });
-    setName(cat.name);
-    setGlyph(displayGlyph(cat.glyph, cat.id));
-    setColor(cat.color);
-    setTarget(cat.target != null ? String(cat.target) : "");
-    setDeadline(cat.deadline ?? "");
     setError("");
   };
 
   /** Open the rename-subcategory editor. */
-  const openEditSub = (
-    catId: string,
-    sub: { id: string; name: string; target?: number; deadline?: string },
-  ) => {
-    setEditor({ type: "edit-sub", catId, subId: sub.id });
-    setName(sub.name);
-    setTarget(sub.target != null ? String(sub.target) : "");
-    setDeadline(sub.deadline ?? "");
+  const openEditSub = (catId: string, subId: string) => {
+    setEditor({ type: "edit-sub", catId, subId });
     setError("");
   };
 
-  /** Parse the target field into a nonnegative number, or undefined when unset/invalid. */
-  const parsedTarget = () => {
-    const n = Number(target.trim());
-    return target.trim() && Number.isFinite(n) && n >= 0 ? n : undefined;
+  /** Persist the editor's result, then confirm it with a toast. */
+  const saveEditor = async (next: Category[], message: string, expandId?: string) => {
+    if (!(await persist(next))) return;
+    toast(message);
+    if (expandId) setExpanded((e) => ({ ...e, [expandId]: true }));
   };
-  const parsedDeadline = () => (deadline.trim() ? deadline.trim() : undefined);
+
+  /** What retiring this entry would do, or why it can't be done. */
+  const planRetire = (target: RetireTarget) =>
+    target.type === "cat"
+      ? retireCategory(categories, target.id, usedSubIds)
+      : retireSub(categories, target.catId, target.subId, usedSubIds);
 
   /**
-   * Retire a category. Unused ones are deleted; those with history are archived.
-   * Built-in and custom follow the same rule.
+   * Retire a category or subcategory. Unused ones are deleted; those with history
+   * are archived. Built-in and custom follow the same rule. Rejects with the
+   * reason it can't, so the confirm dialog shows it.
    */
-  const removeCategory = async (catId: string) => {
-    const result = retireCategory(categories, catId, usedSubIds);
-    if (!result.ok) {
-      setError(result.error);
-      return;
+  const retire = async (target: RetireTarget, verb: "deleted" | "archived") => {
+    const result = planRetire(target);
+    if (!result.ok) throw new Error(result.error);
+    if (await persist(result.categories)) {
+      toast(`${target.type === "cat" ? "Category" : "Subcategory"} ${verb}`);
     }
-    await persist(result.categories);
   };
 
-  /** Bring an archived category back into the pickers. */
-  const restoreCat = async (catId: string) => {
-    await persist(restoreCategory(categories, catId));
-  };
-
-  /**
-   * Retire a subcategory. Unused → delete; in use → archive. The last remaining
-   * sub retires its parent instead.
-   */
-  const removeSub = async (catId: string, subId: string) => {
-    const result = retireSub(categories, catId, subId, usedSubIds);
-    if (!result.ok) {
-      setError(result.error);
+  /** Archive keeps history and is reversible: one confirm, no arming. */
+  const askArchive = (target: RetireTarget) => {
+    const plan = planRetire(target);
+    if (!plan.ok) {
+      setError(plan.error);
       return;
     }
-    await persist(result.categories);
+    const cat = categories.find((c) => c.id === (target.type === "cat" ? target.id : target.catId));
+    const label =
+      target.type === "cat" ? cat?.name : cat?.subs.find((s) => s.id === target.subId)?.name;
+    /* Retiring a parent's last live sub archives the parent too. */
+    const parentToo =
+      target.type === "sub" && plan.categories.find((c) => c.id === target.catId)?.archived;
+    openConfirm({
+      title: target.type === "cat" ? "Archive Category" : "Archive Subcategory",
+      message:
+        `"${label ?? ""}" has transactions, so it will be archived rather than deleted.` +
+        (parentToo
+          ? ` It is the last active subcategory, so "${cat?.name}" is archived too.`
+          : "") +
+        " You can restore it any time.",
+      confirmLabel: "Archive",
+      pendingLabel: "Archiving…",
+      arm: false,
+      onConfirm: () => retire(target, "archived"),
+    });
+  };
+
+  /** Bring an archived category or subcategory back into the pickers. */
+  const restore = async (rowId: string, next: Category[], label: string) => {
+    setRestoringId(rowId);
+    try {
+      if (await persist(next)) toast(`${label} restored`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not restore. Please try again.");
+    } finally {
+      setRestoringId(null);
+    }
   };
 
   /** Source subcategory ids for a transfer. */
@@ -357,7 +625,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
         }
       }
 
-      await persist(
+      const removed = await persist(
         removeTransferredSource(
           categoriesRef.current,
           source.type === "cat"
@@ -367,6 +635,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
       );
       progressRef.current = null;
       setProgress(null);
+      if (removed) toast("Transfer complete");
     } catch (err) {
       const failed: TransferProgress = {
         ...(progressRef.current ?? nextProgress),
@@ -390,113 +659,6 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
     );
   };
 
-  /** Commit the active editor mode. */
-  const submitEditor = async () => {
-    if (!name.trim()) {
-      setError("Name is required");
-      return;
-    }
-    if (!editor) return;
-
-    if (editor.type === "add-cat") {
-      const id = slugId("cat", name);
-      const isSavings = editor.catType === "savings";
-      const cat: Category = {
-        id,
-        name: name.trim(),
-        color,
-        glyph,
-        type: editor.catType,
-        builtin: false,
-        ...(isSavings ? { target: parsedTarget(), deadline: parsedDeadline() } : {}),
-        subs: [{ id: slugId("sub", name), name: name.trim() }],
-      };
-      await persist([...categories, cat]);
-      setExpanded((e) => ({ ...e, [id]: true }));
-      return;
-    }
-
-    if (editor.type === "add-sub") {
-      const parent = categories.find((c) => c.id === editor.catId);
-      const isSavings = parent ? resolveCategoryType(parent) === "savings" : false;
-      const sub = {
-        id: slugId("sub", name),
-        name: name.trim(),
-        ...(isSavings ? { target: parsedTarget(), deadline: parsedDeadline() } : {}),
-      };
-      const next = categories.map((c) =>
-        c.id === editor.catId ? { ...c, subs: [...c.subs, sub] } : c,
-      );
-      await persist(next);
-      return;
-    }
-
-    if (editor.type === "edit-cat") {
-      const next = categories.map((c) => {
-        if (c.id !== editor.catId) return c;
-        const isSavings = resolveCategoryType(c) === "savings";
-
-        return {
-          ...c,
-          name: name.trim(),
-          color,
-          glyph,
-          ...(isSavings ? { target: parsedTarget(), deadline: parsedDeadline() } : {}),
-        };
-      });
-      await persist(next);
-      return;
-    }
-
-    if (editor.type === "edit-sub") {
-      const parent = categories.find((c) => c.id === editor.catId);
-      const isSavings = parent ? resolveCategoryType(parent) === "savings" : false;
-      const next = categories.map((c) =>
-        c.id === editor.catId
-          ? {
-              ...c,
-              subs: c.subs.map((s) =>
-                s.id === editor.subId
-                  ? {
-                      ...s,
-                      name: name.trim(),
-                      ...(isSavings ? { target: parsedTarget(), deadline: parsedDeadline() } : {}),
-                    }
-                  : s,
-              ),
-            }
-          : c,
-      );
-      await persist(next);
-    }
-  };
-
-  /** Whether the open editor is scoped to a savings category (target/deadline apply). */
-  const editorIsSavings = (() => {
-    if (!editor) return false;
-    if (editor.type === "add-cat") return editor.catType === "savings";
-    if (editor.type === "edit-cat") {
-      const cat = categories.find((c) => c.id === editor.catId);
-      return cat ? resolveCategoryType(cat) === "savings" : false;
-    }
-    if (editor.type === "add-sub" || editor.type === "edit-sub") {
-      const cat = categories.find((c) => c.id === editor.catId);
-      return cat ? resolveCategoryType(cat) === "savings" : false;
-    }
-    return false;
-  })();
-
-  const editorTitle =
-    editor?.type === "add-cat"
-      ? `Add ${typeLabel(editor.catType)} Category`
-      : editor?.type === "add-sub"
-        ? "Add Subcategory"
-        : editor?.type === "edit-cat"
-          ? "Edit Category"
-          : editor?.type === "edit-sub"
-            ? "Rename Subcategory"
-            : "";
-
   const transferDestCat = destCategories.find((c) => c.id === destCatId) ?? destCategories[0];
   const transferDestSubs = transferDestCat?.subs ?? [];
   const transferCount = transferSource
@@ -515,6 +677,13 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
           destTypeOf(transferDestCat),
         )
       : null;
+  /* Dismissable only while picking a destination; once a transfer runs the
+     progress dialog takes over and cannot be closed from the keyboard. */
+  const { dismiss: dismissTransfer } = useModalMotion(transferScrimRef, transferPanelRef, {
+    variant: "center",
+    active: !!transferSource && !!transferDestCat && !progress,
+    onDismiss: () => setTransferSource(null),
+  });
 
   useEnter(viewRef);
 
@@ -541,7 +710,9 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
         </div>
 
         {error && !editor && !transferSource && !progress ? (
-          <p className="auth-error">{error}</p>
+          <p className="auth-error" role="alert">
+            {error}
+          </p>
         ) : null}
 
         <div className="cat-tree" data-tour="tour-categories-tree">
@@ -608,20 +779,14 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
                         disabled={busy}
                         onClick={() =>
                           inUse
-                            ? removeCategory(cat.id)
+                            ? askArchive({ type: "cat", id: cat.id })
                             : setConfirmDelete({ type: "cat", id: cat.id })
                         }
-                        aria-label={
-                          busy ? (inUse ? "Archiving" : "Deleting") : inUse ? "Archive" : "Delete"
-                        }
+                        aria-label={inUse ? "Archive" : "Delete"}
                         title={
-                          busy
-                            ? inUse
-                              ? "Archiving…"
-                              : "Deleting…"
-                            : inUse
-                              ? "Archive — keeps past transactions classified correctly"
-                              : "Delete"
+                          inUse
+                            ? "Archive — keeps past transactions classified correctly"
+                            : "Delete"
                         }
                         tabIndex={filteredOut ? -1 : undefined}
                       >
@@ -642,7 +807,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
                               <button
                                 type="button"
                                 disabled={busy}
-                                onClick={() => openEditSub(cat.id, sub)}
+                                onClick={() => openEditSub(cat.id, sub.id)}
                                 aria-label="Rename"
                                 tabIndex={filteredOut || !open ? -1 : undefined}
                               >
@@ -652,24 +817,16 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
                                 type="button"
                                 className="danger"
                                 disabled={busy}
-                                onClick={() =>
-                                  used
-                                    ? removeSub(cat.id, sub.id)
-                                    : setConfirmDelete({
-                                        type: "sub",
-                                        catId: cat.id,
-                                        subId: sub.id,
-                                      })
-                                }
-                                aria-label={
-                                  busy
-                                    ? used
-                                      ? "Archiving"
-                                      : "Removing"
-                                    : used
-                                      ? "Archive"
-                                      : "Remove"
-                                }
+                                onClick={() => {
+                                  const target = {
+                                    type: "sub" as const,
+                                    catId: cat.id,
+                                    subId: sub.id,
+                                  };
+                                  if (used) askArchive(target);
+                                  else setConfirmDelete(target);
+                                }}
+                                aria-label={used ? "Archive" : "Remove"}
                                 title={
                                   used
                                     ? "Archive — keeps past transactions classified correctly"
@@ -731,9 +888,15 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
                       type="button"
                       className="ghost-btn"
                       disabled={busy || !!progress}
-                      onClick={() => restoreCat(cat.id)}
+                      onClick={() =>
+                        void restore(
+                          `cat:${cat.id}`,
+                          restoreCategory(categories, cat.id),
+                          "Category",
+                        )
+                      }
                     >
-                      {busy ? "Restoring…" : "Restore"}
+                      {restoringId === `cat:${cat.id}` ? "Restoring…" : "Restore"}
                     </button>
                     <button
                       type="button"
@@ -783,9 +946,15 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
                     type="button"
                     className="ghost-btn"
                     disabled={busy || !!progress}
-                    onClick={() => persist(restoreSub(categories, cat.id, sub.id))}
+                    onClick={() =>
+                      void restore(
+                        `sub:${sub.id}`,
+                        restoreSub(categories, cat.id, sub.id),
+                        "Subcategory",
+                      )
+                    }
                   >
-                    Restore
+                    {restoringId === `sub:${sub.id}` ? "Restoring…" : "Restore"}
                   </button>
                   <button
                     type="button"
@@ -802,134 +971,15 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
         </section>
       ) : null}
 
-      {editor
-        ? createPortal(
-            <div
-              ref={scrimRef}
-              className="modal-scrim center"
-              onMouseDown={(e) => {
-                if (e.target === e.currentTarget && !busy) closeEditor();
-              }}
-            >
-              <div ref={panelRef} className="modal sm" role="dialog" aria-modal="true">
-                <div className="modal-head">
-                  <h3>{editorTitle}</h3>
-                  <button
-                    className="icon-btn"
-                    type="button"
-                    onClick={closeEditor}
-                    aria-label="Close"
-                    disabled={busy}
-                  >
-                    <Icon name="close" size={18} />
-                  </button>
-                </div>
-                <div className="modal-body modal-scroll">
-                  <div className="dm-sec">
-                    {editor.type === "add-cat" ? (
-                      <Segmented
-                        options={[
-                          { v: "expense", label: "Expense" },
-                          { v: "savings", label: "Savings" },
-                          { v: "income", label: "Income" },
-                        ]}
-                        value={editor.catType}
-                        onChange={(catType) => setEditor({ type: "add-cat", catType })}
-                      />
-                    ) : null}
-
-                    <label className="fld-label" htmlFor="cat-name">
-                      Name
-                    </label>
-                    <input
-                      id="cat-name"
-                      className="text-in wallet-field"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      autoFocus
-                      placeholder={
-                        editor.type === "add-sub" || editor.type === "edit-sub"
-                          ? "Subcategory name"
-                          : "Category name"
-                      }
-                    />
-
-                    {editor.type === "add-cat" || editor.type === "edit-cat" ? (
-                      <>
-                        <label className="fld-label">Color</label>
-                        <CategoryColorPicker value={color} onChange={setColor} />
-
-                        <label className="fld-label">Icon</label>
-                        <div className="cat-glyph-row">
-                          {GLYPHS.map((g) => (
-                            <button
-                              key={g}
-                              type="button"
-                              className={"cat-glyph-btn" + (glyph === g ? " active" : "")}
-                              style={glyph === g ? { borderColor: color, color } : undefined}
-                              onClick={() => setGlyph(g)}
-                            >
-                              {g}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    ) : null}
-
-                    {editorIsSavings ? (
-                      <>
-                        <label className="fld-label" htmlFor="cat-target">
-                          Target Amount (optional)
-                        </label>
-                        <input
-                          id="cat-target"
-                          className="text-in wallet-field"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="No goal"
-                          value={target}
-                          onChange={(e) => setTarget(e.target.value)}
-                        />
-
-                        <label className="fld-label" htmlFor="cat-deadline">
-                          Deadline (optional)
-                        </label>
-                        <DatePicker
-                          value={deadline}
-                          onChange={setDeadline}
-                          className="wallet-field"
-                        />
-                      </>
-                    ) : null}
-
-                    {error ? <p className="auth-error">{error}</p> : null}
-
-                    <div className="wallet-form-actions">
-                      <button
-                        className="ghost-btn full"
-                        type="button"
-                        onClick={closeEditor}
-                        disabled={busy}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        className="primary-btn full"
-                        type="button"
-                        disabled={busy || !name.trim()}
-                        onClick={submitEditor}
-                      >
-                        {busy ? "Saving…" : "Save"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
+      {editor ? (
+        <CategoryEditor
+          key={JSON.stringify(editor)}
+          mode={editor}
+          categories={categories}
+          onSave={saveEditor}
+          onClose={() => setEditor(null)}
+        />
+      ) : null}
 
       {transferSource && transferDestCat
         ? createPortal(
@@ -937,9 +987,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
               ref={transferScrimRef}
               className="modal-scrim center"
               onMouseDown={(e) => {
-                if (e.target === e.currentTarget && !busy) {
-                  requestCloseTransfer(() => setTransferSource(null));
-                }
+                if (e.target === e.currentTarget) dismissTransfer();
               }}
             >
               <div ref={transferPanelRef} className="modal sm" role="dialog" aria-modal="true">
@@ -948,7 +996,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
                   <button
                     className="icon-btn"
                     type="button"
-                    onClick={() => requestCloseTransfer(() => setTransferSource(null))}
+                    onClick={dismissTransfer}
                     aria-label="Close"
                   >
                     <Icon name="close" size={18} />
@@ -1000,13 +1048,13 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
                     {transferTypeWarning ? (
                       <p className="auth-error">{transferTypeWarning}</p>
                     ) : null}
-                    {error ? <p className="auth-error">{error}</p> : null}
+                    {error ? (
+                      <p className="auth-error auth-error--gap" role="alert">
+                        {error}
+                      </p>
+                    ) : null}
                     <div className="wallet-form-actions">
-                      <button
-                        className="ghost-btn full"
-                        type="button"
-                        onClick={() => requestCloseTransfer(() => setTransferSource(null))}
-                      >
+                      <button className="ghost-btn full" type="button" onClick={dismissTransfer}>
                         Cancel
                       </button>
                       <button
@@ -1063,7 +1111,11 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
                       }}
                     />
                   </div>
-                  {progress.error ? <p className="auth-error">{progress.error}</p> : null}
+                  {progress.error ? (
+                    <p className="auth-error" role="alert">
+                      {progress.error}
+                    </p>
+                  ) : null}
                   {!progress.inFlight ? (
                     <div className="wallet-form-actions">
                       <button
@@ -1106,8 +1158,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
           }
           onCancel={() => setConfirmDelete(null)}
           onConfirm={async () => {
-            if (confirmDelete.type === "cat") await removeCategory(confirmDelete.id);
-            else await removeSub(confirmDelete.catId, confirmDelete.subId);
+            await retire(confirmDelete, "deleted");
             setConfirmDelete(null);
           }}
         />

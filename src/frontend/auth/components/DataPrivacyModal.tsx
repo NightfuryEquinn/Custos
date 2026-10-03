@@ -1,6 +1,8 @@
 import { ConfirmDialog, Icon } from "@/frontend/components/ui";
 import { api, type ApiSession } from "@/frontend/lib/api";
 import { useModalMotion } from "@/frontend/lib/animate";
+import { toast } from "@/frontend/lib/feedback";
+import { useOutboxEntries } from "@/frontend/lib/sync/useOutbox";
 import {
   SHARING_CARD_DESCRIPTION,
   SHARING_CARD_TITLE,
@@ -57,14 +59,23 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
   const [emailError, setEmailError] = useState("");
 
   const [sessions, setSessions] = useState<ApiSession[]>([]);
-  const [sessionsBusy, setSessionsBusy] = useState(false);
+  /* Session id being revoked, or "others" — so only that button shows its busy label. */
+  const [revoking, setRevoking] = useState<string | null>(null);
+  const sessionsBusy = revoking !== null;
   const [clearBusy, setClearBusy] = useState(false);
+  const [error, setError] = useState("");
+  const unsynced = useOutboxEntries(account.address).length;
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
   const [confirmRevokeOthers, setConfirmRevokeOthers] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
+  const { dismiss } = useModalMotion(scrimRef, panelRef, {
+    variant: "center",
+    onDismiss: clearBusy ? false : onClose,
+    /* The notification email is saved on blur, which Escape/backdrop skip. */
+    dirty: !emailLoading && notifyEmailDraft.trim() !== notifyEmail,
+  });
 
   useEffect(() => {
     api.auth
@@ -105,6 +116,7 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
     const next = !consent;
     setConsentState(next);
     setConsentBusy(true);
+    setError("");
     try {
       const { consent: record } = await api.consent.update(next);
       setConsentState(record.optedIn);
@@ -112,6 +124,7 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
       markSharingChoiceMade(account.address);
     } catch {
       setConsentState(!next); // revert on failure
+      setError("Could not update data sharing. Check your connection and try again.");
     } finally {
       setConsentBusy(false);
     }
@@ -121,10 +134,12 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
     const next = !remindersOn;
     setRemindersOn(next);
     setRemindersBusy(true);
+    setError("");
     try {
       await api.users.updateMe({ emailRemindersEnabled: next });
     } catch {
       setRemindersOn(!next); // revert on failure
+      setError("Could not update email reminders. Check your connection and try again.");
     } finally {
       setRemindersBusy(false);
     }
@@ -135,11 +150,13 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
     setBudgetAlertsOn(next);
     writeCachedBudgetAlertsEnabled(next);
     setBudgetAlertsBusy(true);
+    setError("");
     try {
       await api.users.updateMe({ budgetAlertsEnabled: next });
     } catch {
       setBudgetAlertsOn(!next);
       writeCachedBudgetAlertsEnabled(!next);
+      setError("Could not update budget alerts. Check your connection and try again.");
     } finally {
       setBudgetAlertsBusy(false);
     }
@@ -170,23 +187,27 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
     }
   };
 
+  /* The revoke/clear handlers let errors propagate: they run inside a
+     ConfirmDialog, which shows a failure inline and stays open for a retry. */
   const revokeSession = async (id: string) => {
-    setSessionsBusy(true);
+    setRevoking(id);
     try {
       await api.auth.revokeSession(id);
       setSessions((prev) => prev.filter((s) => s.id !== id));
+      toast("Session revoked");
     } finally {
-      setSessionsBusy(false);
+      setRevoking(null);
     }
   };
 
   const revokeOthers = async () => {
-    setSessionsBusy(true);
+    setRevoking("others");
     try {
       await api.auth.revokeOtherSessions();
       setSessions((prev) => prev.filter((s) => s.current));
+      toast("Other devices signed out");
     } finally {
-      setSessionsBusy(false);
+      setRevoking(null);
     }
   };
 
@@ -209,7 +230,7 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
       ref={scrimRef}
       className="modal-scrim center"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !clearBusy) requestClose(onClose);
+        if (e.target === e.currentTarget) dismiss();
       }}
     >
       <div ref={panelRef} className="modal sm modal--wide" role="dialog" aria-modal="true">
@@ -218,7 +239,7 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
           <button
             className="icon-btn"
             type="button"
-            onClick={() => requestClose(onClose)}
+            onClick={dismiss}
             aria-label="Close"
             disabled={clearBusy}
           >
@@ -254,7 +275,7 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
                         disabled={sessionsBusy}
                         onClick={() => setConfirmRevoke(s.id)}
                       >
-                        {sessionsBusy ? "Revoking…" : "Revoke"}
+                        {revoking === s.id ? "Revoking…" : "Revoke"}
                       </button>
                     ) : null}
                   </div>
@@ -270,7 +291,7 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
                 disabled={sessionsBusy}
                 onClick={() => setConfirmRevokeOthers(true)}
               >
-                {sessionsBusy ? "Signing Out…" : "Sign Out All Other Devices"}
+                {revoking === "others" ? "Signing Out…" : "Sign Out All Other Devices"}
               </button>
             ) : null}
           </div>
@@ -444,6 +465,12 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
               {clearBusy ? "Clearing…" : "Clear Sessions, Cookies & Local Data"}
             </button>
           </div>
+
+          {error ? (
+            <p className="auth-error auth-error--gap" role="alert">
+              {error}
+            </p>
+          ) : null}
         </div>
       </div>
       {confirmRevoke ? (
@@ -475,7 +502,12 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
       {confirmClear ? (
         <ConfirmDialog
           title="Clear Local Data"
-          message="Sign out everywhere and remove Ledger data stored in this browser, including saved identities and preferences. Your ledger itself stays on the server — restore it anytime with your recovery phrase."
+          message={`Signs you out everywhere and removes Custos data stored in this browser, including every saved identity on this device and your preferences. ${
+            unsynced
+              ? `${unsynced} change${unsynced === 1 ? "" : "s"} not yet synced will be lost.`
+              : "Any changes not yet synced will be lost."
+          } Your ledger stays on the server, but you will need your recovery phrase to sign back in.`}
+          requireText="CLEAR"
           confirmLabel="Clear Data"
           pendingLabel="Clearing…"
           onCancel={() => setConfirmClear(false)}

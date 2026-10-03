@@ -1,3 +1,4 @@
+import { ReadableValue } from "@/frontend/components/ReadableValue";
 import { useQuery } from "@tanstack/react-query";
 import { useEnter, useModalMotion, useStagger } from "@/frontend/lib/animate";
 import { FadeIn } from "@/frontend/components/FadeIn";
@@ -124,9 +125,9 @@ function todaysEvents(events: LedgerEvent[], now: Date) {
 /** Used wherever a wallet is legitimately absent (still loading, no wallet selected). */
 const EMPTY_WALLET: WalletFunding = { fundingMode: "starting", income: 0, startingBalance: 0 };
 
-const MOBILE_MQ = "(max-width: 860px)";
+const MOBILE_MQ = "(max-width: 639px)";
 
-/** Track whether the viewport matches the tablet/mobile breakpoint. */
+/** Track whether the viewport is in the phone tier (≤639px). */
 function useIsMobile() {
   const [mobile, setMobile] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia(MOBILE_MQ).matches : false,
@@ -158,6 +159,7 @@ type OverviewProps = {
   setView: (view: ViewId) => void;
   onEdit: (expense: Expense) => void;
   onEditEvent: (event: LedgerEvent) => void;
+  onOpenEvent?: (event: LedgerEvent, iso: string) => void;
   balanceExpenses?: Expense[];
   refreshedAt?: number;
 };
@@ -178,6 +180,7 @@ export function Overview({
   setView,
   onEdit,
   onEditEvent,
+  onOpenEvent,
 }: OverviewProps) {
   const loadedAt = useMemo(() => new Date(refreshedAt || Date.now()), [refreshedAt]);
   const st = useMemo(
@@ -257,279 +260,376 @@ export function Overview({
   const trendSpent = (cum.length ? cum[cum.length - 1]!.v : 0) - st.saved;
 
   const todayIso = isoDateOf(loadedAt);
-  const recent = st.list.filter((e) => e.date === todayIso);
+  const recent = sortExpensesByDateDesc(st.list).slice(0, 6);
+  const upcoming = useMemo(() => {
+    const seen = new Set<string>();
+    const entries: Array<{ ev: LedgerEvent; iso: string }> = [];
+    const start =
+      month === CURRENT_MONTH_KEY ? new Date(loadedAt) : new Date(`${month}-01T12:00:00`);
+    for (let day = 0; day < 14; day++) {
+      const date = new Date(start);
+      date.setDate(start.getDate() + day);
+      const iso = isoDateOf(date);
+      if (!iso.startsWith(month)) break;
+      for (const occurrence of eventDaysForDay(events, iso)) {
+        if (seen.has(occurrence.ev.id)) continue;
+        seen.add(occurrence.ev.id);
+        entries.push({ ev: occurrence.ev, iso });
+      }
+    }
+    return entries.slice(0, 5);
+  }, [events, month, loadedAt]);
   const { accent } = useTheme();
   const activeCat = hoverCat;
   const viewRef = useRef<HTMLDivElement>(null);
   useEnter(viewRef);
 
   return (
-    <div ref={viewRef} className="view">
-      <section className="panel donut-panel" data-tour="tour-overview-donut">
-        <div className="panel-head panel-head--row">
-          <h2>By Category</h2>
-          <Segmented
-            options={[
-              { v: "expense", label: "Expense" },
-              { v: "income", label: "Income" },
-            ]}
-            value={catKind}
-            onChange={setCatKind}
-          />
+    <div ref={viewRef} className="view journal-view">
+      <section className="journal-hero">
+        <span className="journal-eyebrow">
+          {monthLabel(month)} · {wallet?.name ?? "Your wallet"}
+        </span>
+        <h2>
+          A little room
+          <br />
+          for <em>everyday life.</em>
+        </h2>
+        <p>Your money, your time, your next small step.</p>
+        <div className="journal-balance">
+          <span>Remaining this month</span>
+          <ReadableValue as="strong" className={st.remaining < 0 ? "danger" : ""}>
+            {fmtMoney(st.remaining, { currency })}
+          </ReadableValue>
+          <button type="button" className="link-btn" onClick={() => setView("budgets")}>
+            Shape your budget <Icon name="chevR" size={16} />
+          </button>
         </div>
-        <div className="donut-wrap">
-          <div className="donut-stage">
-            <Donut
-              data={donutData}
-              size={donutSize}
-              thickness={donutThickness}
-              onHover={setHoverCat}
-              activeId={activeCat}
-            />
-            <div className="donut-center">
-              <div className="dc-label">
-                {activeCat
-                  ? (categoryIndex.catById[activeCat]?.name ?? "Total (RM)")
-                  : "Total (RM)"}
-              </div>
-              <div className="dc-value">
-                {activeCat ? (catByCat[activeCat]?.toFixed(2) ?? "0.00") : totalAll.toFixed(2)}
-              </div>
-            </div>
+      </section>
+      <div className="journal-columns">
+        <div className="journal-timeline">
+          <div className="journal-date">
+            <span>{dayLabel(todayIso)}</span>
+            <span>{weekdayLabel(todayIso)}</span>
           </div>
-          {donutData.length ? (
-            <ul className="legend">
-              {donutData.map((d) => {
-                const open = expandedCat[d.id] ?? false;
-                const subs = categoryIndex.catById[d.id]?.subs ?? [];
-                const subRows = subs
-                  .map((s) => ({ ...s, value: catBySub[s.id] || 0 }))
-                  .filter((s) => s.value > 0)
-                  .sort((a, b) => b.value - a.value);
+          <section className="panel" data-tour="tour-overview-recent">
+            <div className="panel-head panel-head--row">
+              <h2>Money in motion</h2>
+              <button type="button" className="link-btn" onClick={() => setView("transactions")}>
+                Explore
+              </button>
+            </div>
+            <div className="recent-list">
+              {recent.length ? (
+                recent.map((e) => {
+                  const cat = categoryIndex.catById[catOf(e.sub, categoryIndex)];
+                  if (!cat) return null;
 
-                return (
-                  <li
-                    key={d.id}
-                    className={"legend-block" + (activeCat && activeCat !== d.id ? " dim" : "")}
-                  >
+                  return (
                     <button
                       type="button"
-                      className="legend-row"
-                      aria-expanded={subRows.length ? open : undefined}
-                      aria-label={
-                        subRows.length
-                          ? `${open ? "Collapse" : "Expand"} ${d.label} subcategories`
-                          : d.label
-                      }
-                      onClick={() => {
-                        if (!subRows.length) return;
-                        setExpandedCat((e) => ({ ...e, [d.id]: !open }));
-                      }}
-                      onMouseEnter={() => setHoverCat(d.id)}
-                      onMouseLeave={() => setHoverCat(null)}
-                      onTouchStart={() => setHoverCat(d.id)}
+                      key={e.id}
+                      className="recent-row"
+                      onClick={() => onEdit(e)}
                     >
-                      <span className="legend-expand">
-                        {subRows.length ? <Icon name="chevD" size={14} /> : null}
+                      <span className="rr-glyph" style={glyphTint(cat.color)}>
+                        {displayGlyph(cat.glyph, cat.id)}
                       </span>
-                      <span className="lg-swatch">{d.glyph}</span>
-                      <span className="lg-name">{d.label}</span>
-                      <span className="lg-amt">{fmtMoney(d.value, { currency })}</span>
+                      <span className="rr-main">
+                        <span className="rr-note">{e.note}</span>
+                        <span className="rr-sub">
+                          {categoryIndex.subById[e.sub]?.name ?? e.sub} · {dayLabel(e.date)}
+                        </span>
+                      </span>
+                      <ReadableValue
+                        as="span"
+                        className={"rr-amt" + (isIncome(e) ? " income" : " expense")}
+                      >
+                        {isIncome(e) ? "+" : "−"}
+                        {fmtMoney(e.amount, { currency })}
+                      </ReadableValue>
                     </button>
-                    {subRows.length ? (
-                      <div className={"legend-sub-reveal" + (open ? "" : " is-collapsed")}>
-                        <ul className="legend-sub-list">
-                          {subRows.map((s) => (
-                            <li key={s.id}>
-                              <span className="lg-name">{s.name}</span>
-                              <span className="lg-amt lg-sub-amt">
-                                {fmtMoney(s.value, { currency })}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <EmptyState
-              title={catKind === "income" ? "No Income Yet" : "No Spending Yet"}
-              sub="Categories fill in as you log transactions."
-            />
-          )}
-        </div>
-      </section>
+                  );
+                })
+              ) : (
+                <EmptyState
+                  title="A fresh page"
+                  sub="Your recent transactions for this month will appear here."
+                />
+              )}
+            </div>
+          </section>
+          <section className="panel" data-tour="tour-overview-today-schedule">
+            <div className="panel-head panel-head--row">
+              <h2>On today's page</h2>
+              <button type="button" className="link-btn" onClick={() => setView("schedule")}>
+                Explore
+              </button>
+            </div>
+            <div className="recent-list">
+              {todayEvents.length ? (
+                todayEvents.map((day) => {
+                  const ev = day.ev;
+                  /* eventCatMeta always resolves to a real entry (EVENT_CAT_BY_ID.custom is
+                   * always present) — noUncheckedIndexedAccess just can't see that, so fall
+                   * back to the same "custom" meta it would already have picked. */
+                  const cat = eventCatMeta(ev) ?? {
+                    id: "custom",
+                    name: "Custom",
+                    color: "#8a7355",
+                    glyph: "✨",
+                  };
 
-      <section className="panel trend-panel" data-tour="tour-overview-trend">
-        <div className="trend-stats">
-          <div className="trend-total">
-            <span className="trend-key">
-              <i className="trend-dot" style={{ background: accent }} /> Spending
-            </span>
-            <span className="trend-now">{fmtMoney(trendSpent, { currency })}</span>
-          </div>
-          <div className="trend-total">
-            <span className="trend-key">
-              <i className="trend-dot trend-dot--earn" /> Earning
-            </span>
-            <span className="trend-now trend-now--earn">{fmtMoney(st.earned, { currency })}</span>
-          </div>
-          <div className="trend-total">
-            <span className="trend-key">
-              <i className="trend-dot trend-dot--saved" /> Saved
-            </span>
-            <span className="trend-now trend-now--saved">{fmtMoney(st.saved, { currency })}</span>
-          </div>
-          <div className="trend-total">
-            <span className="trend-key">
-              <i
-                className={
-                  "trend-dot" + (st.remaining < 0 ? " trend-dot--danger" : " trend-dot--ok")
-                }
-              />
-              Remaining
-            </span>
-            <span
-              className={"trend-now" + (st.remaining < 0 ? " trend-now--danger" : " trend-now--ok")}
-            >
-              {fmtMoney(st.remaining, { currency })}
-            </span>
-          </div>
-        </div>
-        <AreaTrend
-          points={cum.length ? cum : [{ x: "1", v: 0 }]}
-          compare={earnCum.length ? earnCum : [{ x: "1", v: 0 }]}
-          accent={accent}
-          height={210}
-          budgetLine={st.totalBudget}
-          details={trendDetails.length ? trendDetails : null}
-          format={(n) => fmtMoney(n, { currency })}
-        />
-      </section>
+                  return (
+                    <button
+                      key={ev.id}
+                      type="button"
+                      className="recent-row"
+                      onClick={() => (onEditEvent ? onEditEvent(ev) : setView("schedule"))}
+                    >
+                      <span className="rr-glyph" style={glyphTint(cat.color)}>
+                        {displayGlyph(cat.glyph, cat.id)}
+                      </span>
+                      <span className="rr-main">
+                        <span className="rr-note">{ev.title}</span>
+                        <span className="rr-sub">
+                          {cat.name} · {eventTimeLabel(ev, day)}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })
+              ) : (
+                <EmptyState title="Nothing Today" sub="No events scheduled for today." />
+              )}
+            </div>
+          </section>
+          <section className="panel" data-tour="tour-overview-oldest-todo">
+            <div className="panel-head panel-head--row">
+              <h2>A little intention</h2>
+              <button type="button" className="link-btn" onClick={() => setView("todos")}>
+                Explore
+              </button>
+            </div>
+            <div className="recent-list">
+              {pendingTodos.length ? (
+                pendingTodos.map((list) => {
+                  const done = list.tasks.filter((t) => t.done).length;
+                  const total = list.tasks.length;
 
-      <section className="panel" data-tour="tour-overview-recent">
-        <div className="panel-head panel-head--row">
-          <h2>Recent Transaction</h2>
-          <button className="link-btn" onClick={() => setView("transactions")}>
-            View More
-          </button>
+                  return (
+                    <button
+                      key={list.id}
+                      type="button"
+                      className="recent-row"
+                      onClick={() => setView("todos")}
+                    >
+                      <span className="rr-glyph" style={{ background: "var(--surface-3)" }}>
+                        {list.icon}
+                      </span>
+                      <span className="rr-main">
+                        <span className="rr-note">{list.name}</span>
+                        <span className="rr-sub">
+                          {total ? `${done}/${total} done` : "No Tasks Yet"}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })
+              ) : (
+                <EmptyState
+                  title="Nothing Pending"
+                  sub="Every list is done, or create a new one."
+                />
+              )}
+            </div>
+          </section>
         </div>
-        <div className="recent-list">
-          {recent.length ? (
-            recent.map((e) => {
-              const cat = categoryIndex.catById[catOf(e.sub, categoryIndex)];
-              if (!cat) return null;
-
-              return (
-                <button key={e.id} className="recent-row" onClick={() => onEdit(e)}>
-                  <span className="rr-glyph" style={glyphTint(cat.color)}>
-                    {displayGlyph(cat.glyph, cat.id)}
-                  </span>
-                  <span className="rr-main">
-                    <span className="rr-note">{e.note}</span>
-                    <span className="rr-sub">
-                      {categoryIndex.subById[e.sub]?.name ?? e.sub} · {dayLabel(e.date)}
-                    </span>
-                  </span>
-                  <span className={"rr-amt" + (isIncome(e) ? " income" : " expense")}>
-                    {isIncome(e) ? "+" : "−"}
-                    {fmtMoney(e.amount, { currency })}
-                  </span>
-                </button>
-              );
-            })
-          ) : (
-            <EmptyState title="No Transactions Today" sub="Add one to see it here." />
-          )}
-        </div>
-      </section>
-
-      <section className="panel" data-tour="tour-overview-today-schedule">
-        <div className="panel-head panel-head--row">
-          <h2>Recent Schedule</h2>
-          <button className="link-btn" onClick={() => setView("schedule")}>
-            View More
-          </button>
-        </div>
-        <div className="recent-list">
-          {todayEvents.length ? (
-            todayEvents.map((day) => {
-              const ev = day.ev;
-              /* eventCatMeta always resolves to a real entry (EVENT_CAT_BY_ID.custom is
-               * always present) — noUncheckedIndexedAccess just can't see that, so fall
-               * back to the same "custom" meta it would already have picked. */
-              const cat = eventCatMeta(ev) ?? {
-                id: "custom",
-                name: "Custom",
-                color: "#8a7355",
-                glyph: "✨",
-              };
-
-              return (
+        <aside className="journal-margin" aria-label="Monthly perspective">
+          <span className="journal-eyebrow">In the margins</span>
+          <section className="journal-upcoming">
+            <div className="panel-head panel-head--row">
+              <h2>Just ahead</h2>
+              <button type="button" className="link-btn" onClick={() => setView("schedule")}>
+                Plan something
+              </button>
+            </div>
+            <p className="journal-note">Next 14 days within {monthLabel(month)}.</p>
+            {upcoming.length ? (
+              upcoming.map(({ ev, iso }) => (
                 <button
+                  type="button"
+                  className="journal-upcoming-row"
                   key={ev.id}
-                  type="button"
-                  className="recent-row"
-                  onClick={() => (onEditEvent ? onEditEvent(ev) : setView("schedule"))}
+                  onClick={() => (onOpenEvent ? onOpenEvent(ev, iso) : onEditEvent(ev))}
                 >
-                  <span className="rr-glyph" style={glyphTint(cat.color)}>
-                    {displayGlyph(cat.glyph, cat.id)}
-                  </span>
-                  <span className="rr-main">
-                    <span className="rr-note">{ev.title}</span>
-                    <span className="rr-sub">
-                      {cat.name} · {eventTimeLabel(ev, day)}
-                    </span>
-                  </span>
+                  <span className="journal-date-stamp">{dayLabel(iso)}</span>
+                  <span>{ev.title}</span>
+                  <Icon name="chevR" size={16} />
                 </button>
-              );
-            })
-          ) : (
-            <EmptyState title="Nothing Today" sub="No events scheduled for today." />
-          )}
-        </div>
-      </section>
+              ))
+            ) : (
+              <p className="journal-note">
+                Nothing scheduled in this window. There's space to make a plan.
+              </p>
+            )}
+          </section>
+          <section className="panel donut-panel" data-tour="tour-overview-donut">
+            <div className="panel-head panel-head--row">
+              <h2>By Category</h2>
+              <Segmented
+                options={[
+                  { v: "expense", label: "Expense" },
+                  { v: "income", label: "Income" },
+                ]}
+                value={catKind}
+                onChange={setCatKind}
+              />
+            </div>
+            <div className="donut-wrap">
+              <div className="donut-stage">
+                <Donut
+                  data={donutData}
+                  size={donutSize}
+                  thickness={donutThickness}
+                  onHover={setHoverCat}
+                  activeId={activeCat}
+                />
+                <div className="donut-center">
+                  <div className="dc-label">
+                    {activeCat
+                      ? (categoryIndex.catById[activeCat]?.name ?? `Total (${currency})`)
+                      : `Total (${currency})`}
+                  </div>
+                  <ReadableValue as="div" className="dc-value">
+                    {activeCat ? (catByCat[activeCat]?.toFixed(2) ?? "0.00") : totalAll.toFixed(2)}
+                  </ReadableValue>
+                </div>
+              </div>
+              {donutData.length ? (
+                <ul className="legend">
+                  {donutData.map((d) => {
+                    const open = expandedCat[d.id] ?? false;
+                    const subs = categoryIndex.catById[d.id]?.subs ?? [];
+                    const subRows = subs
+                      .map((s) => ({ ...s, value: catBySub[s.id] || 0 }))
+                      .filter((s) => s.value > 0)
+                      .sort((a, b) => b.value - a.value);
 
-      <section className="panel" data-tour="tour-overview-oldest-todo">
-        <div className="panel-head panel-head--row">
-          <h2>Pending To-Dos</h2>
-          <button className="link-btn" onClick={() => setView("todos")}>
-            View More
-          </button>
-        </div>
-        <div className="recent-list">
-          {pendingTodos.length ? (
-            pendingTodos.map((list) => {
-              const done = list.tasks.filter((t) => t.done).length;
-              const total = list.tasks.length;
+                    return (
+                      <li
+                        key={d.id}
+                        className={"legend-block" + (activeCat && activeCat !== d.id ? " dim" : "")}
+                      >
+                        <button
+                          type="button"
+                          className="legend-row"
+                          aria-expanded={subRows.length ? open : undefined}
+                          aria-label={
+                            subRows.length
+                              ? `${open ? "Collapse" : "Expand"} ${d.label} subcategories`
+                              : d.label
+                          }
+                          onClick={() => {
+                            if (!subRows.length) return;
+                            setExpandedCat((e) => ({ ...e, [d.id]: !open }));
+                          }}
+                          onMouseEnter={() => setHoverCat(d.id)}
+                          onMouseLeave={() => setHoverCat(null)}
+                          onTouchStart={() => setHoverCat(d.id)}
+                        >
+                          <span className="legend-expand">
+                            {subRows.length ? <Icon name="chevD" size={14} /> : null}
+                          </span>
+                          <span className="lg-swatch">{d.glyph}</span>
+                          <span className="lg-name">{d.label}</span>
+                          <ReadableValue as="span" className="lg-amt">
+                            {fmtMoney(d.value, { currency })}
+                          </ReadableValue>
+                        </button>
+                        {subRows.length ? (
+                          <div className={"legend-sub-reveal" + (open ? "" : " is-collapsed")}>
+                            <ul className="legend-sub-list">
+                              {subRows.map((s) => (
+                                <li key={s.id}>
+                                  <span className="lg-name">{s.name}</span>
+                                  <ReadableValue as="span" className="lg-amt lg-sub-amt">
+                                    {fmtMoney(s.value, { currency })}
+                                  </ReadableValue>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <EmptyState
+                  title={catKind === "income" ? "No Income Yet" : "No Spending Yet"}
+                  sub="Categories fill in as you log transactions."
+                />
+              )}
+            </div>
+          </section>
 
-              return (
-                <button
-                  key={list.id}
-                  type="button"
-                  className="recent-row"
-                  onClick={() => setView("todos")}
+          <section className="panel trend-panel" data-tour="tour-overview-trend">
+            <div className="trend-stats">
+              <div className="trend-total">
+                <span className="trend-key">
+                  <i className="trend-dot" style={{ background: accent }} /> Spending
+                </span>
+                <ReadableValue as="span" className="trend-now">
+                  {fmtMoney(trendSpent, { currency })}
+                </ReadableValue>
+              </div>
+              <div className="trend-total">
+                <span className="trend-key">
+                  <i className="trend-dot trend-dot--earn" /> Earning
+                </span>
+                <ReadableValue as="span" className="trend-now trend-now--earn">
+                  {fmtMoney(st.earned, { currency })}
+                </ReadableValue>
+              </div>
+              <div className="trend-total">
+                <span className="trend-key">
+                  <i className="trend-dot trend-dot--saved" /> Saved
+                </span>
+                <ReadableValue as="span" className="trend-now trend-now--saved">
+                  {fmtMoney(st.saved, { currency })}
+                </ReadableValue>
+              </div>
+              <div className="trend-total">
+                <span className="trend-key">
+                  <i
+                    className={
+                      "trend-dot" + (st.remaining < 0 ? " trend-dot--danger" : " trend-dot--ok")
+                    }
+                  />
+                  Remaining
+                </span>
+                <span
+                  className={
+                    "trend-now" + (st.remaining < 0 ? " trend-now--danger" : " trend-now--ok")
+                  }
                 >
-                  <span className="rr-glyph" style={{ background: "var(--surface-3)" }}>
-                    {list.icon}
-                  </span>
-                  <span className="rr-main">
-                    <span className="rr-note">{list.name}</span>
-                    <span className="rr-sub">
-                      {total ? `${done}/${total} done` : "No Tasks Yet"}
-                    </span>
-                  </span>
-                </button>
-              );
-            })
-          ) : (
-            <EmptyState title="Nothing Pending" sub="Every list is done, or create a new one." />
-          )}
-        </div>
-      </section>
+                  {fmtMoney(st.remaining, { currency })}
+                </span>
+              </div>
+            </div>
+            <AreaTrend
+              points={cum.length ? cum : [{ x: "1", v: 0 }]}
+              compare={earnCum.length ? earnCum : [{ x: "1", v: 0 }]}
+              accent={accent}
+              height={210}
+              budgetLine={st.totalBudget}
+              details={trendDetails.length ? trendDetails : null}
+              format={(n) => fmtMoney(n, { currency })}
+            />
+          </section>
+        </aside>
+      </div>
     </div>
   );
 }
@@ -847,7 +947,7 @@ export function Transactions({
 type BudgetsProps = {
   expenses: Expense[];
   budgets: Budgets;
-  setBudgets: (budgets: Budgets) => void;
+  setBudgets: (budgets: Budgets) => void | Promise<void>;
   budgetsSaving?: boolean;
   wallet: FinancialWallet | null | undefined;
   month: string;
@@ -876,6 +976,12 @@ export function Budgets({
   );
   const [editId, setEditId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [editError, setEditError] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  /* Refs flip synchronously: they stop a blur right after Enter/Escape (or a
+     double commit) from re-saving, and unlike state they never read stale. */
+  const editRef = useRef<string | null>(null);
+  const savingEditRef = useRef(false);
   const draftEvaluated = useMemo(() => evaluateExpression(draft), [draft]);
   const draftIsExpression = draftEvaluated !== null && !isPlainNumber(draft);
   const totalBudget = st.totalBudget;
@@ -885,17 +991,43 @@ export function Budgets({
 
   /** Open the inline budget editor for a category. */
   const startEdit = (id: string) => {
+    editRef.current = id;
     setEditId(id);
     setDraft(isBudgetSet(budgets[id]) ? String(budgets[id]) : "");
+    setEditError("");
   };
-  /** Commit the drafted budget amount for the category being edited. */
-  const commit = () => {
-    const id = editId;
-    if (!id || budgetsSaving) return;
-
+  const closeEdit = () => {
+    editRef.current = null;
     setEditId(null);
-    const v = Math.max(0, roundMoney(draftEvaluated ?? 0));
-    setBudgets({ ...budgets, [id]: v });
+    setEditError("");
+  };
+  /**
+   * Commit the drafted amount. Blank means "unchanged" (clear a budget by typing
+   * 0); an invalid draft keeps the editor open with an inline error.
+   */
+  const commit = async () => {
+    const id = editRef.current;
+    if (!id || savingEditRef.current) return;
+    if (!draft.trim()) return closeEdit();
+    if (draftEvaluated === null || draftEvaluated < 0) {
+      setEditError("Enter a valid amount, 0 or more.");
+      return;
+    }
+    const v = roundMoney(draftEvaluated);
+    if (v === (budgets[id] ?? 0)) return closeEdit();
+
+    savingEditRef.current = true;
+    setSavingEdit(true);
+    setEditError("");
+    try {
+      await setBudgets({ ...budgets, [id]: v });
+      closeEdit();
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : "Couldn't save this budget. Please try again.");
+    } finally {
+      savingEditRef.current = false;
+      setSavingEdit(false);
+    }
   };
   const viewRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -962,21 +1094,28 @@ export function Budgets({
                         <span className="be-cur">{getCurrency(currency).symbol}</span>
                         <input
                           autoFocus
-                          disabled={budgetsSaving}
+                          disabled={savingEdit || budgetsSaving}
                           type="text"
                           inputMode="text"
                           value={draft}
-                          onChange={(e) => setDraft(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") commit();
-                            if (e.key === "Escape") setEditId(null);
+                          aria-label={`${c.name} budget`}
+                          aria-invalid={!!editError}
+                          aria-describedby={editError ? "budget-edit-error" : undefined}
+                          onChange={(e) => {
+                            setDraft(e.target.value);
+                            setEditError("");
                           }}
-                          onBlur={commit}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") void commit();
+                            if (e.key === "Escape") closeEdit();
+                          }}
+                          onBlur={() => void commit()}
                         />
                       </div>
                     </>
                   ) : (
                     <button
+                      type="button"
                       className={"be-amt" + (over ? " over" : "")}
                       onClick={() => startEdit(c.id)}
                     >
@@ -985,6 +1124,11 @@ export function Budgets({
                     </button>
                   )}
                 </div>
+                {editId === c.id && editError ? (
+                  <p className="fld-error" id="budget-edit-error" role="alert">
+                    {editError}
+                  </p>
+                ) : null}
                 <div className="br-track tall">
                   <div
                     className="br-fill"
@@ -1349,7 +1493,9 @@ export function Insights({
                   <CatGlyph glyph={c.glyph} id={c.id} /> {c.name}
                 </div>
                 <MiniSpark values={series} color={c.color} />
-                <div className="ct-amt">{money(now)}</div>
+                <ReadableValue as="div" className="ct-amt">
+                  {money(now)}
+                </ReadableValue>
                 <div
                   className={
                     "ct-delta " + (delta > 0.001 ? "up" : delta < -0.001 ? "down" : "flat")
@@ -1379,7 +1525,9 @@ export function Insights({
                     <span>
                       {s.name} <span className="ts-cat">· {c.name}</span>
                     </span>
-                    <span className="ts-amt">{money(v)}</span>
+                    <ReadableValue as="span" className="ts-amt">
+                      {money(v)}
+                    </ReadableValue>
                   </div>
                   <div className="ts-track">
                     <div
@@ -1466,11 +1614,11 @@ export function Insights({
               <div className="profile-signals">
                 <div className="profile-signal">
                   <p className="psig-label">Busiest day</p>
-                  <p className="psig-value">
+                  <ReadableValue as="p" className="psig-value">
                     {habit.metrics.topDowSampleDate
                       ? weekdayLabel(habit.metrics.topDowSampleDate)
                       : "—"}
-                  </p>
+                  </ReadableValue>
                   <p className="psig-hint">
                     {Math.round(habit.metrics.topDowShare * 100)}% of transactions
                   </p>
@@ -1582,7 +1730,9 @@ export function Insights({
                       <CatGlyph glyph={cat!.glyph} id={cat!.id} /> {name}
                     </div>
                     <MiniSpark values={series} color={cat!.color} />
-                    <div className="ct-amt">{money(now)}</div>
+                    <ReadableValue as="div" className="ct-amt">
+                      {money(now)}
+                    </ReadableValue>
                     <div
                       className={
                         "ct-delta ct-delta--income " +
@@ -1620,7 +1770,9 @@ export function Insights({
                         <span>
                           {s.name} <span className="ts-cat">· {c.name}</span>
                         </span>
-                        <span className="ts-amt">{money(v)}</span>
+                        <ReadableValue as="span" className="ts-amt">
+                          {money(v)}
+                        </ReadableValue>
                       </div>
                       <div className="ts-track">
                         <div
@@ -1837,7 +1989,12 @@ export function Recurring({ expenses, month, currency, categoryIndex, onEdit }: 
               const dueDay = recurringDueDay(e, month);
               const scheduleKey = recurringScheduleKey(e);
               return (
-                <button key={scheduleKey} className="rec-row" onClick={() => onEdit(e)}>
+                <button
+                  type="button"
+                  key={scheduleKey}
+                  className="rec-row"
+                  onClick={() => onEdit(e)}
+                >
                   <span className="rec-glyph" style={glyphTint(c.color)}>
                     {displayGlyph(c.glyph, c.id)}
                   </span>
@@ -1851,7 +2008,9 @@ export function Recurring({ expenses, month, currency, categoryIndex, onEdit }: 
                     <span className="rec-day-n">{dueDay}</span>
                     <span className="rec-day-l">{monthLabel(month, false)}</span>
                   </span>
-                  <span className="rec-amt">{fmtMoney(e.amount, { currency })}</span>
+                  <ReadableValue as="span" className="rec-amt">
+                    {fmtMoney(e.amount, { currency })}
+                  </ReadableValue>
                 </button>
               );
             })

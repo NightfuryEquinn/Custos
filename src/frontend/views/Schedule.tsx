@@ -441,6 +441,7 @@ export function Schedule({
                             : `${fmtTime(ev.time)} ${ev.title}`;
                       return (
                         <button
+                          type="button"
                           key={ev.id}
                           className={"cal-chip" + runCls}
                           style={{ background: c.color + "1c", color: c.color }}
@@ -611,8 +612,8 @@ export function EventModal({
      stop two clicks landing in the same task from both queuing a create. */
   const savingRef = useRef(false);
   const scrimRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
+  const panelRef = useRef<HTMLFormElement>(null);
+  const [error, setError] = useState("");
   const [holdEnabled, setHoldEnabled] = useState(Boolean(initial?.budgetHoldEnabled));
   const [holdAmount, setHoldAmount] = useState(
     initial?.budgetHoldAmount ? String(initial.budgetHoldAmount) : "",
@@ -620,6 +621,31 @@ export function EventModal({
   const [holdCategoryId, setHoldCategoryId] = useState(
     initial?.budgetHoldCategoryId ?? categoryIndex?.expenseCategories[0]?.id ?? "",
   );
+  const fields = JSON.stringify([
+    title,
+    catId,
+    customLabel,
+    customGlyph,
+    date,
+    endDate,
+    allDay,
+    time,
+    endTime,
+    repeat,
+    notify,
+    lead,
+    comments.map((c) => c.id),
+    draft,
+    holdEnabled,
+    holdAmount,
+    holdCategoryId,
+  ]);
+  const [baseline] = useState(fields);
+  const { dismiss } = useModalMotion(scrimRef, panelRef, {
+    variant: "center",
+    onDismiss: busy ? false : onClose,
+    dirty: fields !== baseline,
+  });
 
   const paymentOccurrenceIso = occurrenceIso || initial?.date || date;
 
@@ -654,13 +680,6 @@ export function EventModal({
   useEffect(() => {
     if (titleRef.current) titleRef.current.focus();
   }, []);
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !scopeOpen && !confirmOpen && !busy) requestClose(onClose);
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [scopeOpen, confirmOpen, busy, onClose, requestClose]);
 
   /** Toggle all-day: clear the end time, or seed it one hour after start. */
   const handleAllDayChange = (checked: boolean) => {
@@ -704,6 +723,7 @@ export function EventModal({
     if (!valid || saving || savingRef.current) return;
     savingRef.current = true;
     setSaving(true);
+    setError("");
     try {
       const holdFields =
         holdEnabled && holdAmountNum > 0 && resolvedHoldCategoryId
@@ -736,6 +756,8 @@ export function EventModal({
         comments,
         ...holdFields,
       });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't save this event. Please try again.");
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -755,26 +777,40 @@ export function EventModal({
   /** Confirm a scoped recurring event delete. */
   const confirmScopedDelete = async (scope: DeleteScope) => {
     if (!initial?.id) return;
-    await onDelete(initial.id, { scope, fromDate: deleteFromDate });
+    setDeleting(true);
+    try {
+      await onDelete(initial.id, { scope, fromDate: deleteFromDate });
+    } finally {
+      setDeleting(false);
+    }
     setScopeOpen(false);
   };
 
   return (
     <div
       ref={scrimRef}
-      className="modal-scrim center"
+      className="modal-scrim center journal-detail-scrim"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !scopeOpen && !confirmOpen && !busy)
-          requestClose(onClose);
+        if (e.target === e.currentTarget) dismiss();
       }}
     >
-      <div ref={panelRef} className="modal sm" role="dialog" aria-modal="true">
+      <form
+        ref={panelRef}
+        className="modal sm"
+        role="dialog"
+        aria-modal="true"
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
+      >
         <div className="modal-head">
           <h3>{editing ? "Edit Event" : "New Event"}</h3>
           <button
             className="icon-btn"
             type="button"
-            onClick={() => requestClose(onClose)}
+            onClick={dismiss}
             aria-label="Close"
             disabled={busy}
           >
@@ -790,9 +826,6 @@ export function EventModal({
             placeholder="Event title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") submit();
-            }}
           />
 
           <div className="event-div" />
@@ -1095,6 +1128,11 @@ export function EventModal({
               </button>
             </div>
           </div>
+          {error ? (
+            <p className="auth-error auth-error--gap" role="alert">
+              {error}
+            </p>
+          ) : null}
         </div>
 
         <div className={"modal-foot" + (showLogPayment ? " modal-foot-stacked" : "")}>
@@ -1139,25 +1177,15 @@ export function EventModal({
             <span />
           )}
           <div className="mf-right">
-            <button
-              className="ghost-btn"
-              type="button"
-              onClick={() => requestClose(onClose)}
-              disabled={busy}
-            >
+            <button className="ghost-btn" type="button" onClick={dismiss} disabled={busy}>
               Cancel
             </button>
-            <button
-              className="primary-btn"
-              type="button"
-              disabled={!valid || saving}
-              onClick={submit}
-            >
+            <button className="primary-btn" type="submit" disabled={!valid || saving}>
               {saving ? "Saving…" : editing ? "Save Changes" : "Add Event"}
             </button>
           </div>
         </div>
-      </div>
+      </form>
       {scopeOpen && initial?.id ? (
         <DeleteScopeDialog
           title="Delete Recurring Event"

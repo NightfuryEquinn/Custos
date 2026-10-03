@@ -59,14 +59,8 @@ await Bun.write(htmlPath, patched);
 
 const apiDir = path.join(root, "api");
 await mkdir(apiDir, { recursive: true });
-await rm(path.join(apiDir, "index.js"), { force: true });
 await rm(path.join(apiDir, "handler.js"), { force: true });
 await rm(path.join(apiDir, "vercel-api.js"), { force: true });
-
-/* Drop prior hashed email assets from the old type:"file" import approach. */
-for await (const entry of new Bun.Glob("logo-*.png").scan({ cwd: apiDir })) {
-  await rm(path.join(apiDir, entry), { force: true });
-}
 
 /* Embed the logo in the API bundle so Vercel serverless has no sidecar PNG. */
 const logoBytes = await Bun.file(path.join(root, "src/frontend/assets/logo.png")).arrayBuffer();
@@ -165,4 +159,21 @@ for (const cssOutput of cssOutputs) {
 }
 console.log(
   ` ${path.relative(root, fontsDestDir)}/*  ${fontCount} font file(s), ${(fontBytes / 1024).toFixed(1)} KB extracted from CSS`,
+);
+
+// Include lazy views and extracted fonts, even before the user visits them.
+const shellAssets = [...new Bun.Glob("**/*").scanSync({ cwd: outdir })]
+  .filter((name) => /\.(js|css|woff2|png)$/.test(name) && name !== "sw.js")
+  .map((name) => `/${name.replaceAll("\\", "/")}`)
+  .sort();
+const shellVersion = `${APP_VERSION}-${Bun.hash(JSON.stringify(shellAssets)).toString(16)}`;
+const workerPath = path.join(outdir, "sw.js");
+const worker = await Bun.file(workerPath).text();
+if (!worker.includes('"__SW_ASSETS__"'))
+  throw new Error("Missing service-worker asset placeholder");
+await Bun.write(
+  workerPath,
+  worker
+    .replace(`custos-shell-${APP_VERSION}`, `custos-shell-${shellVersion}`)
+    .replace('"__SW_ASSETS__"', shellAssets.map((asset) => JSON.stringify(asset)).join(",")),
 );

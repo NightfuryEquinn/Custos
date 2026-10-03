@@ -1,3 +1,4 @@
+import { ReadableValue } from "@/frontend/components/ReadableValue";
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useFadeIn } from "@/frontend/lib/animate";
 
@@ -199,7 +200,9 @@ function TipSection({ title, total, entries, dotColor, dotClass, empty, format }
           />
           {title}
         </span>
-        <span className="ctip-total">{format(total)}</span>
+        <ReadableValue as="span" className="ctip-total">
+          {format(total)}
+        </ReadableValue>
       </div>
       {shown.length ? (
         <ul className="ctip-list">
@@ -210,7 +213,9 @@ function TipSection({ title, total, entries, dotColor, dotClass, empty, format }
               </span>
               <span className="ctip-name">{entry.name}</span>
               {entry.count > 1 ? <span className="ctip-count">×{entry.count}</span> : null}
-              <span className="ctip-amt">{format(entry.amount)}</span>
+              <ReadableValue as="span" className="ctip-amt">
+                {format(entry.amount)}
+              </ReadableValue>
             </li>
           ))}
           {rest > 0 ? <li className="ctip-more">+{rest} more</li> : null}
@@ -563,13 +568,17 @@ function MoMBars({
             <span className="ctip-key">
               <i className="trend-dot" style={{ background: accent }} /> Total Spend
             </span>
-            <span className="ctip-total">{format(hovered.spent)}</span>
+            <ReadableValue as="span" className="ctip-total">
+              {format(hovered.spent)}
+            </ReadableValue>
           </div>
           <div className="ctip-line">
             <span className="ctip-key">
               <i className="trend-dot trend-dot--earn" /> Total Income
             </span>
-            <span className="ctip-total">{format(hovered.earned || 0)}</span>
+            <ReadableValue as="span" className="ctip-total">
+              {format(hovered.earned || 0)}
+            </ReadableValue>
           </div>
           <div className="ctip-line ctip-line--net">
             <span className="ctip-key">Net</span>

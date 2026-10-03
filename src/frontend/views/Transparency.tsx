@@ -68,7 +68,7 @@ const COLLECTIONS: CollectionDoc[] = [
       {
         key: "navTabs?",
         value: '["overview", "budgets", …]',
-        note: "Mobile tab-bar picks, in order; undefined means never customized",
+        note: "Favorite views in Open Custos, in order; undefined means never customized",
       },
       {
         key: "navOrder?",
@@ -351,7 +351,7 @@ const COLLECTIONS: CollectionDoc[] = [
 const RELATIONSHIP_CHART = `flowchart TB
   subgraph Client["Browser client"]
     direction TB
-    UI["React UI<br/>sidebar · tab bar + More sheet"]
+    UI["React UI<br/>Open Custos index · favorites"]
     Key["In-memory ledger key<br/>from wallet signature"]
     LS["localStorage<br/>identities · session · theme · tour<br/>active wallet · prefs · whatsnew"]
     UI --> Key
@@ -547,13 +547,12 @@ export function Transparency() {
               app as self-hosted SIL OFL files — no third-party font CDN.
             </p>
             <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
-              On desktop you navigate from the sidebar; on phone and tablet portrait a tab bar —
-              customizable, four views by default — plus a More sheet for the rest replaces it. A
-              device passphrase wraps your in-app recovery key on this browser; encrypted backups
-              download to your machine only. Optional Face ID / Touch ID unlock runs entirely in the
-              browser through WebAuthn — it can prompt on its own when you open the app, but the
-              server never receives the credential, the assertion, or any signal that a biometric
-              check happened.
+              You navigate with Open Custos (Ctrl or Command + K), a searchable index of every view
+              with four customizable favorites. A device passphrase wraps your in-app recovery key
+              on this browser; encrypted backups download to your machine only. Optional Face ID /
+              Touch ID unlock runs entirely in the browser through WebAuthn — it can prompt on its
+              own when you open the app, but the server never receives the credential, the
+              assertion, or any signal that a biometric check happened.
             </p>
             <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
               The installable PWA caches ciphertext locally so the app opens, unlocks, and reads

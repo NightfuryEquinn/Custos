@@ -12,7 +12,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 
 ### Ledger
 
-- **Overview, transactions, budgets, insights, recurring** — monthly tracking with charts, category breakdowns, and budget progress (including **Reserved** amounts from schedule envelope holds); By Category leads the Overview page. Two-column card grids from 1280px up.
+- **Overview, transactions, budgets, insights, recurring** — monthly tracking with charts, category breakdowns, and budget progress (including **Reserved** amounts from schedule envelope holds); The home journal brings daily activity, upcoming plans, and monthly perspective together with editorial typography and responsive layouts.
 - **Piggies** — savings tracker per category ("piggy") and subcategory ("piglet"): lifetime balance (deposits minus withdrawals, excluding Capitals-assigned savings), an optional target/deadline with a progress ring (piggies with no goal show no ring), and a **Piggy Insights** engine (rate, streak, best month, pace-vs-deadline) on the Insights view — spanning Piggies and Capitals together, with a pace line per Capitals plan. Linked from Overview, Budgets, and Categories; exports to CSV.
 - **Capitals** — planner for big expenses (marriage, trips, loans, or custom): a total budget, paid line items, and assigned savings deposits, shown as Total / Saved / Paid / Unspent with a progress bar. **Save/mo** is the need at the start of the month (unpaid budget less what's still in the pot) divided by months to target, so it holds steady when you deposit mid-month, with a "left this month" line beside **Remaining**. **Log** records a real payment against an item; deleting a plan returns its deposits to savings.
 - **Subcategory breakdowns** — Overview's By Category and Transactions both drill into subcategories.
@@ -42,11 +42,14 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - **Encrypted backup** — one pack covering ledger data and account/profile settings (notify email, timezone, theme, nav layout), encrypted with your ledger key, download/restore via **Account → Exports & imports**.
 - **CSV export & import** — transactions, schedule events, and to-do lists.
 - **Encrypted ledger** — amounts, names, categories, notes, titles, holds, and to-dos encrypted client-side; unlocked with your wallet key each session.
-- **Offline unlock, reads & writes** — installable app shell + IndexedDB cache opens and unlocks with no connection; most edits queue already-encrypted and sync once back online. A locally-restored session with no server confirmation is trusted for 30 days.
+- **Offline unlock, reads & writes** — installable app shell + IndexedDB cache opens and unlocks with no connection; daily edits queue already-encrypted and sync once back online. All application chunks and fonts are precached, including unopened views. The status panel distinguishes local saves, syncing, failures, and verified offline readiness for downloaded records; updates wait for a safe reload. Wallet administration and recurring-series edits require a connection. A locally-restored session with no server confirmation is trusted for 30 days.
 - **Budget alerts** — email when a category nears/exceeds its monthly budget; the client evaluates and sends names/amounts, the server only delivers.
 - **Transparency** — in-app map of hosting roles, what the server can infer, collections, and E2EE vs plaintext fields.
 - **Guided tour** — Shepherd.js walkthrough per view; a first-sign-in modal offers guided or explore-alone, stored on your profile so it follows you across devices. Replay from the **?** beside any page title or **Account → Take a Tour**.
-- **Mobile navigation** — at ≤860px the sidebar becomes a customizable tab bar (four views, More sheet for the rest) and the app opens on your first configured tab; desktop still opens on Overview.
+- **Command navigation** — Open Custos replaces the sidebar and tab bar with a searchable index (Ctrl/Command + K), four customizable favorites, and URL-backed destinations with browser Back/Forward. Add an expense, event, or task from any view.
+- **Two-step deletes** — every delete asks twice: the first press arms the button ("Confirm Delete"), the second performs it, and a second click that lands within 400ms is ignored. Deleting a wallet, a vehicle with records, a Capitals plan with items, a to-do list with tasks, or clearing local data also asks you to type the name first. Archiving an in-use category, marking a paid Capitals item unpaid, restoring an encrypted backup, and discarding offline changes each confirm before they act.
+- **Consistent editors** — Escape closes and Enter saves in every dialog, closing one with unsaved edits asks "Discard changes?", a failed save or delete shows its reason inline instead of failing silently, invalid numbers are flagged rather than turned into 0, and a short notice confirms each save or delete (adding "syncs when online" while offline).
+- **One layout grid** — the app and the public site share four width tiers (phone ≤639px, tablet 640–1023px, laptop 1024–1279px, desktop ≥1280px) and a 4px spacing scale (`--sp-1`…`--sp-7`). Content, topbar, rows, and dialogs share one left edge, and hover highlights extend past the text rather than touching it. `tests/frontend/layout-tokens.test.ts` enforces the tiers and the scale.
 - **What's New** — release notes open once per device per app version (see [Versioning](#versioning)); reachable anytime from **Account → What's New**.
 
 ### Security
@@ -103,7 +106,8 @@ src/
     ├── auth/             # wallet sign-in, device vault, backups, account menu, session UI
     ├── assets/           # logo
     ├── charts/           # SVG charts (donut, trend, MoM bars)
-    ├── components/       # Brand, ThemeToggle, Wallets, pickers, shared UI (incl. MobileBottomNav)
+    ├── components/       # Brand, ThemeToggle, Wallets, pickers, shared UI (ConfirmDialog, AddExpenseModal),
+    │                     # Feedback (toasts + imperative confirm host), JournalCommands (Open Custos)
     ├── lib/
     │   ├── budget/         # in-tab budget-alert notifications
     │   ├── crypto/         # E2EE codec, key derivation, unlock flow
@@ -113,7 +117,8 @@ src/
     │   ├── sync/           # offline write queue (outbox, overlay, drain engine)
     │   ├── net/            # connectivity detection, ApiError, offline-failure classification
     │   ├── hooks/          # useLedger, useTheme
-    │   ├── animate.ts      # anime.js motion hooks (modals, views, pickers)
+    │   ├── animate.ts      # anime.js motion hooks (modals, views, pickers) + shared Escape/dismiss handling
+    │   ├── feedback.ts     # toast + imperative confirm store (rendered by components/Feedback.tsx)
     │   ├── tour/           # guided tour steps and runner
     │   ├── whats-new/      # release notes, per-device seen state, auto-show gate
     │   ├── fx.ts             # currency conversion for Insights
@@ -126,7 +131,7 @@ src/
     │   ├── capitals.ts        # capital plan totals, unpaid/budget remaining, monthly save, templates
     │   ├── capitalTemplates.ts # built-in Capitals templates (marriage, trip, car/house loan)
     │   └── envelope-holds.ts  # schedule ↔ budget hold math
-    ├── styles/           # ledger.css (theme tokens + layout)
+    ├── styles/           # ledger.css (theme tokens + layout), journal.css (shell, rows, dialogs)
     ├── views/            # Calculator, Capitals, Categories, Piggies, Schedule, TodoList,
     │                     # Transparency, Vehicles, index.tsx (Overview, Transactions,
     │                     # Budgets, Recurring, Insights)
@@ -246,6 +251,7 @@ bun test           # crypto, reminders, calculator, spending habits, income prof
                     # budget alerts, envelope holds, schedule recurrence/multi-day, push dedupe,
                     # ranked insights, fuel insights, vehicle routes, release-notes gate
 bun run typecheck  # tsc --noEmit
+bun run check      # lint + format check + tests + typecheck + knip (the same steps CI runs)
 bun run knip       # unused files/exports/deps
 ```
 
@@ -450,3 +456,7 @@ Custos is proprietary ([LICENSE](LICENSE)). The repository is public for **trans
 - **Free to use** on the Licensor's official hosted app (full features), under the in-app Terms. Custos does not share your data with anyone — the "data sharing" toggle under Data & privacy only records a preference for a possible future opt-in programme that does not exist yet.
 - **Not free to self-host, rebrand, claim as your product, or offer as a competing service.** Those uses need a written commercial agreement (monthly fee, collaboration, or copyright buyout) — see [Commercial and self-hosting](https://nightfuryequinn.github.io/Custos/services.html) for fixed-price options.
 - Contact: [xianzyip8@gmail.com](mailto:xianzyip8@gmail.com)
+
+### Public website development
+
+Run `bun scripts/build-website.ts` to bundle the public site’s local Anime.js motion before previewing `website/`. GitHub Pages CI builds this asset automatically.

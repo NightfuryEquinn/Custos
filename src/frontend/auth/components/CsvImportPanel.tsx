@@ -24,6 +24,8 @@ type CsvImportPanelProps = {
   onClear: () => void;
   resultSummary?: string | null;
   resultPartial?: boolean;
+  /** Read/import failure, shown inline under the panel. */
+  error?: string;
   footnote?: string;
 };
 
@@ -40,6 +42,7 @@ export function CsvImportPanel({
   onClear,
   resultSummary,
   resultPartial,
+  error,
   footnote,
 }: CsvImportPanelProps) {
   const [dragging, setDragging] = useState(false);
@@ -165,6 +168,12 @@ export function CsvImportPanel({
             </button>
           </div>
         </div>
+      ) : null}
+
+      {error ? (
+        <p className="auth-error auth-error--gap" role="alert">
+          {error}
+        </p>
       ) : null}
 
       {resultSummary ? (

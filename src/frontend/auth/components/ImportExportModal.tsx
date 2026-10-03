@@ -3,6 +3,7 @@ import { Icon } from "@/frontend/components/ui";
 import { api } from "@/frontend/lib/api";
 import { ledgerKeyStore } from "@/frontend/lib/crypto/key-store";
 import { useModalMotion } from "@/frontend/lib/animate";
+import { openConfirm } from "@/frontend/lib/feedback";
 import type {
   Category,
   CategoryIndex,
@@ -32,6 +33,8 @@ import { downloadPiggiesCsv } from "../lib/export-piggies";
 import { parseEventsCsv } from "../lib/import-events";
 import { parseTodosCsv, type TodoImportList } from "../lib/import-todos";
 import { parseExpenseCsv, type ExpenseImportRow } from "../lib/import";
+
+type CsvKey = "txn" | "sched" | "todo";
 
 type ImportExportModalProps = {
   accountAddress: string;
@@ -87,7 +90,10 @@ export function ImportExportModal({
   const [todoExported, setTodoExported] = useState(false);
   const [piggiesExported, setPiggiesExported] = useState(false);
   const [backupExported, setBackupExported] = useState(false);
-  const [backupBusy, setBackupBusy] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+  /* "reading" while the file is decrypted, "restoring" once the user confirmed. */
+  const [restorePhase, setRestorePhase] = useState<"reading" | "restoring" | null>(null);
+  const backupBusy = exportBusy || restorePhase !== null;
   const [backupError, setBackupError] = useState("");
   const [backupResult, setBackupResult] = useState<BackupRestoreResult | null>(null);
 
@@ -101,7 +107,25 @@ export function ImportExportModal({
   const modalBusy = backupBusy || txnBusy || schedBusy || todoBusy;
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
+  const { dismiss } = useModalMotion(scrimRef, panelRef, {
+    variant: "center",
+    onDismiss: modalBusy ? false : onClose,
+  });
+
+  const [csvErrors, setCsvErrors] = useState<Record<CsvKey, string>>({
+    txn: "",
+    sched: "",
+    todo: "",
+  });
+  /** Run a CSV read/import step; a failure shows under that panel instead of vanishing. */
+  const guard = async (key: CsvKey, step: () => Promise<void>, fallback: string) => {
+    setCsvErrors((prev) => ({ ...prev, [key]: "" }));
+    try {
+      await step();
+    } catch (e) {
+      setCsvErrors((prev) => ({ ...prev, [key]: e instanceof Error ? e.message : fallback }));
+    }
+  };
 
   const [txnResult, setTxnResult] = useState<{
     imported: number;
@@ -162,7 +186,7 @@ export function ImportExportModal({
   /** Download an encrypted full-ledger backup (client-only). */
   const exportEncryptedBackup = async () => {
     setBackupError("");
-    setBackupBusy(true);
+    setExportBusy(true);
     try {
       const key = ledgerKeyStore.get(accountAddress);
       if (!key) throw new Error("Unlock your ledger before exporting a backup.");
@@ -201,25 +225,48 @@ export function ImportExportModal({
     } catch (e) {
       setBackupError(e instanceof Error ? e.message : "Could not export backup.");
     }
-    setBackupBusy(false);
+    setExportBusy(false);
   };
 
-  /** Restore from an encrypted backup JSON file. */
+  /** Decrypt a backup file, then ask before restoring it into the ledger. */
   const readBackupFile = async (file: File) => {
     if (!onRestoreBackup) return;
     setBackupError("");
     setBackupResult(null);
-    setBackupBusy(true);
+    setRestorePhase("reading");
+    let plain: LedgerBackupPlain;
     try {
       const key = ledgerKeyStore.get(accountAddress);
       if (!key) throw new Error("Unlock your ledger before restoring a backup.");
-      const parsed = parseBackupFile(await file.text());
-      const plain = await decryptBackup(key, parsed);
-      setBackupResult(await onRestoreBackup(plain));
+      plain = await decryptBackup(key, parseBackupFile(await file.text()));
     } catch (e) {
-      setBackupError(e instanceof Error ? e.message : "Could not restore backup.");
+      setBackupError(e instanceof Error ? e.message : "Could not read this backup.");
+      setRestorePhase(null);
+      return;
     }
-    setBackupBusy(false);
+    setRestorePhase(null);
+    /* restoreBackupToLedger: categories and account settings are overwritten;
+       every other record is skipped when its id already exists, else added. */
+    openConfirm({
+      title: "Restore Backup",
+      message:
+        "This replaces your categories and account settings (notification email, timezone, accent, navigation layout, data-sharing choice) with the backup's. Wallets, transactions, events, to-do lists, piggies and vehicles are merged: ones you already have are kept, and the rest are added.",
+      confirmLabel: "Restore",
+      pendingLabel: "Restoring…",
+      danger: true,
+      onConfirm: async () => {
+        setBackupError("");
+        setRestorePhase("restoring");
+        try {
+          setBackupResult(await onRestoreBackup(plain));
+        } catch (e) {
+          setBackupError(e instanceof Error ? e.message : "Could not restore backup.");
+          throw e;
+        } finally {
+          setRestorePhase(null);
+        }
+      },
+    });
   };
 
   const readTxnFile = async (file: File) => {
@@ -393,7 +440,7 @@ export function ImportExportModal({
       ref={scrimRef}
       className="modal-scrim center"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !modalBusy) requestClose(onClose);
+        if (e.target === e.currentTarget) dismiss();
       }}
     >
       <div
@@ -408,7 +455,7 @@ export function ImportExportModal({
           <button
             className="icon-btn"
             type="button"
-            onClick={() => requestClose(onClose)}
+            onClick={dismiss}
             aria-label="Close"
             disabled={modalBusy}
           >
@@ -436,7 +483,7 @@ export function ImportExportModal({
               onClick={() => void exportEncryptedBackup()}
             >
               <Icon name={backupExported ? "check" : "download"} size={17} />
-              {backupBusy
+              {exportBusy
                 ? "Working…"
                 : backupExported
                   ? "Downloaded"
@@ -445,7 +492,11 @@ export function ImportExportModal({
             {onRestoreBackup ? (
               <label className="ghost-btn full u-gap-top ie-file-label">
                 <Icon name="download" size={17} />
-                {backupBusy ? "Restoring…" : "Restore Encrypted Backup"}
+                {restorePhase === "restoring"
+                  ? "Restoring…"
+                  : restorePhase === "reading"
+                    ? "Reading Backup…"
+                    : "Restore Encrypted Backup"}
                 <input
                   type="file"
                   accept="application/json,.json"
@@ -459,7 +510,11 @@ export function ImportExportModal({
                 />
               </label>
             ) : null}
-            {backupError ? <p className="auth-error">{backupError}</p> : null}
+            {backupError ? (
+              <p className="auth-error auth-error--gap" role="alert">
+                {backupError}
+              </p>
+            ) : null}
             {backupResult ? (
               <p className="dm-note">
                 Restored {backupResult.expenses} expenses · {backupResult.events} events ·{" "}
@@ -483,11 +538,15 @@ export function ImportExportModal({
                 exportLabel="Export Transactions"
                 onExport={exportTransactions}
                 countNote={`${txnCount} transaction${txnCount === 1 ? "" : "s"} across all wallets.`}
-                onReadFile={readTxnFile}
+                onReadFile={(file) =>
+                  guard("txn", () => readTxnFile(file), "Could not read this file.")
+                }
+                error={csvErrors.txn}
                 preview={txnPanelPreview}
                 importBusy={txnBusy}
-                onImport={() => void runTxnImport()}
+                onImport={() => void guard("txn", runTxnImport, "Import failed. Please try again.")}
                 onClear={() => {
+                  setCsvErrors((prev) => ({ ...prev, txn: "" }));
                   setTxnPreview(null);
                   setTxnResult(null);
                 }}
@@ -521,11 +580,17 @@ export function ImportExportModal({
                 exportLabel="Export Schedule"
                 onExport={exportSchedule}
                 countNote={`${eventCount} event${eventCount === 1 ? "" : "s"} in your calendar.`}
-                onReadFile={readSchedFile}
+                onReadFile={(file) =>
+                  guard("sched", () => readSchedFile(file), "Could not read this file.")
+                }
+                error={csvErrors.sched}
                 preview={schedPanelPreview}
                 importBusy={schedBusy}
-                onImport={() => void runSchedImport()}
+                onImport={() =>
+                  void guard("sched", runSchedImport, "Import failed. Please try again.")
+                }
                 onClear={() => {
+                  setCsvErrors((prev) => ({ ...prev, sched: "" }));
                   setSchedPreview(null);
                   setSchedResult(null);
                 }}
@@ -559,11 +624,17 @@ export function ImportExportModal({
                 exportLabel="Export To-Do Lists"
                 onExport={exportTodos}
                 countNote={`${todoLists.length} list${todoLists.length === 1 ? "" : "s"} · ${todoTaskCount} task${todoTaskCount === 1 ? "" : "s"}.`}
-                onReadFile={readTodoFile}
+                onReadFile={(file) =>
+                  guard("todo", () => readTodoFile(file), "Could not read this file.")
+                }
+                error={csvErrors.todo}
                 preview={todoPanelPreview}
                 importBusy={todoBusy}
-                onImport={() => void runTodoImport()}
+                onImport={() =>
+                  void guard("todo", runTodoImport, "Import failed. Please try again.")
+                }
                 onClear={() => {
+                  setCsvErrors((prev) => ({ ...prev, todo: "" }));
                   setTodoPreview(null);
                   setTodoResult(null);
                 }}

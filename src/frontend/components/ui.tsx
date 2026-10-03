@@ -1,4 +1,4 @@
-import { Brand } from "@/frontend/components/Brand";
+import { ReadableValue } from "@/frontend/components/ReadableValue";
 import { DatePicker } from "@/frontend/components/DateTimePicker";
 import { FadeIn } from "@/frontend/components/FadeIn";
 import { useFadeIn, useModalMotion } from "@/frontend/lib/animate";
@@ -72,10 +72,8 @@ import type {
   FinancialWallet,
   MonthEntry,
   RecurringInterval,
-  ViewId,
 } from "@/frontend/lib/types";
 import { displayGlyph } from "@/lib/glyphs";
-import type { NavItem } from "@/frontend/lib/nav";
 import type { DeleteScope } from "@/lib/delete-scope";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -112,105 +110,99 @@ function DeleteScopeDialog({
   onCancel: () => void;
 }) {
   const [scope, setScope] = useState<DeleteScope>("this");
-  const [busy, setBusy] = useState(false);
-  const scrimRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
 
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) requestClose(onCancel);
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [busy, onCancel, requestClose]);
-
-  /** Confirm the selected delete scope. */
-  const confirm = async () => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      await onConfirm(scope);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return createPortal(
-    <div
-      ref={scrimRef}
-      className="modal-scrim center"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !busy) requestClose(onCancel);
-      }}
+  return (
+    <ConfirmDialog
+      title={title}
+      message="Choose how much of this series to remove. This cannot be undone."
+      onConfirm={() => onConfirm(scope)}
+      onCancel={onCancel}
     >
-      <div
-        ref={panelRef}
-        className="modal sm"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="delete-scope-title"
-      >
-        <div className="modal-head">
-          <h3 id="delete-scope-title">{title}</h3>
-          <button
-            className="icon-btn"
-            type="button"
-            onClick={() => requestClose(onCancel)}
-            aria-label="Close"
-            disabled={busy}
-          >
-            <Icon name="close" size={18} />
-          </button>
-        </div>
-        <div className="modal-body">
-          <p className="dm-lead">
-            Choose how much of this series to remove. This cannot be undone.
-          </p>
-          <div className="delete-scope-list" role="radiogroup" aria-label="Delete Scope">
-            {DELETE_SCOPE_OPTIONS.map((o) => (
-              <label key={o.v} className={"delete-scope-option" + (scope === o.v ? " active" : "")}>
-                <input
-                  type="radio"
-                  name="delete-scope"
-                  value={o.v}
-                  checked={scope === o.v}
-                  onChange={() => setScope(o.v)}
-                />
-                <span className="delete-scope-copy">
-                  <span className="delete-scope-label">{o.label}</span>
-                  <span className="delete-scope-note">{o.note}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className="modal-foot">
-          <button
-            className="ghost-btn"
-            type="button"
-            onClick={() => requestClose(onCancel)}
-            disabled={busy}
-          >
-            Cancel
-          </button>
-          <button className="ghost-btn danger" type="button" onClick={confirm} disabled={busy}>
-            {busy ? "Deleting…" : "Delete"}
-          </button>
-        </div>
+      <div className="delete-scope-list" role="radiogroup" aria-label="Delete Scope">
+        {DELETE_SCOPE_OPTIONS.map((o) => (
+          <label key={o.v} className={"delete-scope-option" + (scope === o.v ? " active" : "")}>
+            <input
+              type="radio"
+              name="delete-scope"
+              value={o.v}
+              checked={scope === o.v}
+              onChange={() => setScope(o.v)}
+            />
+            <span className="delete-scope-copy">
+              <span className="delete-scope-label">{o.label}</span>
+              <span className="delete-scope-note">{o.note}</span>
+            </span>
+          </label>
+        ))}
       </div>
-    </div>,
-    document.body,
+    </ConfirmDialog>
   );
 }
 
-/** Generic yes/no confirmation before a destructive action. */
+/** Ignore a second press this soon after arming, so a double-click can't confirm. */
+const ARM_GUARD_MS = 400;
+/** An armed button relaxes back if left alone this long. */
+const ARM_TIMEOUT_MS = 5000;
+
+/** Two-step confirm button: the first press arms it, the second performs the action. */
+function ArmedButton({
+  label,
+  pendingLabel,
+  danger,
+  arm,
+  busy,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  pendingLabel: string;
+  danger: boolean;
+  arm: boolean;
+  busy: boolean;
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  const [armedAt, setArmedAt] = useState(0);
+  const armed = arm && armedAt > 0 && !disabled && !busy;
+
+  useEffect(() => {
+    if (!armed) return;
+    const timer = setTimeout(() => setArmedAt(0), ARM_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [armed]);
+
+  const press = () => {
+    if (!arm) return onPress();
+    if (!armed) return setArmedAt(Date.now());
+    if (Date.now() - armedAt >= ARM_GUARD_MS) onPress();
+  };
+
+  return (
+    <button
+      className={"ghost-btn" + (danger ? " danger" : "") + (armed ? " armed" : "")}
+      type="button"
+      onClick={press}
+      disabled={busy || disabled}
+    >
+      {busy ? pendingLabel : armed ? `Confirm ${label}` : label}
+    </button>
+  );
+}
+
+/**
+ * Confirmation before a destructive action. The button is two-step by
+ * default (`arm`), and `requireText` makes the user type a name first.
+ * `children` render under the message (e.g. the recurring scope picker).
+ */
 function ConfirmDialog({
   title,
   message,
   confirmLabel = "Delete",
   pendingLabel = "Deleting…",
   danger = true,
+  arm = true,
+  requireText,
+  children,
   onConfirm,
   onCancel,
 }: {
@@ -219,28 +211,31 @@ function ConfirmDialog({
   confirmLabel?: string;
   pendingLabel?: string;
   danger?: boolean;
+  arm?: boolean;
+  requireText?: string;
+  children?: ReactNode;
   onConfirm: () => void | Promise<void>;
   onCancel: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [error, setError] = useState("");
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
+  const { dismiss } = useModalMotion(scrimRef, panelRef, {
+    variant: "center",
+    onDismiss: busy ? false : onCancel,
+  });
 
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) requestClose(onCancel);
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [busy, onCancel, requestClose]);
-
-  /** Confirm the pending action. */
+  /** Run the pending action; a failure stays visible instead of vanishing. */
   const confirm = async () => {
     if (busy) return;
     setBusy(true);
+    setError("");
     try {
       await onConfirm();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -251,7 +246,7 @@ function ConfirmDialog({
       ref={scrimRef}
       className="modal-scrim center"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !busy) requestClose(onCancel);
+        if (e.target === e.currentTarget) dismiss();
       }}
     >
       <div
@@ -266,7 +261,7 @@ function ConfirmDialog({
           <button
             className="icon-btn"
             type="button"
-            onClick={() => requestClose(onCancel)}
+            onClick={dismiss}
             aria-label="Close"
             disabled={busy}
           >
@@ -275,24 +270,44 @@ function ConfirmDialog({
         </div>
         <div className="modal-body">
           <p className="dm-lead">{message}</p>
+          {children}
+          {requireText ? (
+            <label className="fld-label confirm-type">
+              <span>
+                Type <strong>{requireText}</strong> to confirm
+              </span>
+              <input
+                className="text-in"
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                autoComplete="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                disabled={busy}
+              />
+            </label>
+          ) : null}
+          {error ? (
+            <p className="auth-error auth-error--gap" role="alert">
+              {error}
+            </p>
+          ) : null}
         </div>
         <div className="modal-foot">
-          <button
-            className="ghost-btn"
-            type="button"
-            onClick={() => requestClose(onCancel)}
-            disabled={busy}
-          >
+          <button className="ghost-btn" type="button" onClick={dismiss} disabled={busy}>
             Cancel
           </button>
-          <button
-            className={"ghost-btn" + (danger ? " danger" : "")}
-            type="button"
-            onClick={confirm}
-            disabled={busy}
-          >
-            {busy ? pendingLabel : confirmLabel}
-          </button>
+          <ArmedButton
+            label={confirmLabel}
+            pendingLabel={pendingLabel}
+            danger={danger}
+            arm={arm}
+            busy={busy}
+            disabled={
+              requireText !== undefined && typed.trim().toLowerCase() !== requireText.toLowerCase()
+            }
+            onPress={confirm}
+          />
         </div>
       </div>
     </div>,
@@ -373,172 +388,6 @@ function CatGlyph({ glyph, id }: { glyph?: string; id?: string }) {
 }
 
 // ── Sidebar (desktop navigation) ────────────────────────────────────
-function Sidebar({
-  view,
-  setView,
-  items,
-}: {
-  view: ViewId;
-  setView: (id: ViewId) => void;
-  items: readonly NavItem[];
-}) {
-  return (
-    <aside className="sidebar">
-      <Brand variant="sidebar" />
-      <nav className="nav">
-        {items.map(([id, label, icon]) => (
-          <button
-            key={id}
-            data-tour={`tour-nav-${id}`}
-            className={"nav-item" + (view === id ? " active" : "")}
-            onClick={() => setView(id)}
-          >
-            <Icon name={icon} size={20} />
-            <span>{label}</span>
-          </button>
-        ))}
-      </nav>
-    </aside>
-  );
-}
-
-/** Mobile tab bar (5 slots) plus a bottom sheet for the remaining views. */
-function MobileBottomNav({
-  view,
-  setView,
-  tabItems,
-  moreItems,
-}: {
-  view: ViewId;
-  setView: (id: ViewId) => void;
-  tabItems: readonly NavItem[];
-  moreItems: readonly NavItem[];
-}) {
-  const [moreOpen, setMoreOpen] = useState(false);
-  const scrimRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const moreActive = useMemo(() => moreItems.some(([id]) => id === view), [moreItems, view]);
-  const { requestClose } = useModalMotion(scrimRef, panelRef, {
-    variant: "sheet",
-    active: moreOpen,
-  });
-
-  /** Close the sheet when navigation changes. */
-  useEffect(() => {
-    setMoreOpen(false);
-  }, [view]);
-
-  /** Trap body scroll while the More sheet is open. */
-  useEffect(() => {
-    if (!moreOpen) return;
-
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        requestClose(() => setMoreOpen(false));
-      }
-    };
-    window.addEventListener("keydown", onKeyDown, true);
-
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      window.removeEventListener("keydown", onKeyDown, true);
-    };
-  }, [moreOpen, requestClose]);
-
-  const pickView = (id: ViewId) => {
-    setView(id);
-    setMoreOpen(false);
-  };
-
-  const moreSheet = moreOpen
-    ? createPortal(
-        <div
-          ref={scrimRef}
-          className="modal-scrim nav-more-scrim"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) requestClose(() => setMoreOpen(false));
-          }}
-        >
-          <div
-            ref={panelRef}
-            className="modal nav-more-panel"
-            role="dialog"
-            aria-label="More navigation"
-          >
-            <div className="nav-more-head">
-              <h3>More</h3>
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label="Close"
-                onClick={() => requestClose(() => setMoreOpen(false))}
-              >
-                <Icon name="close" size={18} />
-              </button>
-            </div>
-            <div className="nav-more-grid">
-              {moreItems.map(([id, label, icon]) => (
-                <button
-                  key={id}
-                  type="button"
-                  data-tour={`tour-nav-${id}`}
-                  className={"nav-more-item" + (view === id ? " active" : "")}
-                  onClick={() => pickView(id)}
-                >
-                  <Icon name={icon} size={22} />
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )
-    : null;
-
-  return (
-    <>
-      <nav className="bottom-nav" aria-label="Main navigation">
-        {tabItems.map(([id, label, icon, shortLabel]) => (
-          <button
-            key={id}
-            type="button"
-            data-tour={`tour-nav-${id}`}
-            className={"bn-item" + (view === id ? " active" : "")}
-            onClick={() => {
-              setMoreOpen(false);
-              setView(id);
-            }}
-            aria-label={label}
-            aria-current={view === id ? "page" : undefined}
-          >
-            <Icon name={icon} size={21} />
-            <span className="bn-label">{shortLabel ?? label}</span>
-          </button>
-        ))}
-        <button
-          type="button"
-          data-tour="tour-nav-more"
-          className={"bn-item" + (moreActive || moreOpen ? " active" : "")}
-          onClick={() => setMoreOpen((open) => !open)}
-          aria-label="More"
-          aria-expanded={moreOpen}
-          aria-haspopup="dialog"
-        >
-          <Icon name="more" size={21} />
-          <span className="bn-label">More</span>
-        </button>
-      </nav>
-      {moreSheet}
-    </>
-  );
-}
-
-// ── MonthSwitcher: prev / label picker / next ─────────────────────
 const MONTH_SHORT = [
   "Jan",
   "Feb",
@@ -554,11 +403,12 @@ const MONTH_SHORT = [
   "Dec",
 ];
 
-/** Viewport height left below a fixed dropdown, keeping the bottom nav clear. */
-function dropdownMaxHeightPx(anchorBottom: number) {
-  const bottomNav = window.matchMedia("(max-width: 860px)").matches ? 92 : 16;
+/** Space reserved at the bottom for the fixed journal dock (Open Custos / Add). */
+const DOCK_CLEARANCE_PX = 96;
 
-  return Math.max(140, Math.round(window.innerHeight - anchorBottom - bottomNav));
+/** Viewport height left below a fixed dropdown, keeping the dock clear. */
+function dropdownMaxHeightPx(anchorBottom: number) {
+  return Math.max(140, Math.round(window.innerHeight - anchorBottom - DOCK_CLEARANCE_PX));
 }
 
 /** True when a scroll started inside the open dropdown (do not dismiss). */
@@ -719,6 +569,7 @@ function MonthSwitcher({
   return (
     <div className="month-switch" data-tour="tour-month" ref={rootRef}>
       <button
+        type="button"
         className="msbtn"
         disabled={idx <= 0 || changing}
         onClick={() => go(-1)}
@@ -739,6 +590,7 @@ function MonthSwitcher({
         <Icon name="chevD" size={14} />
       </button>
       <button
+        type="button"
         className="msbtn"
         disabled={idx >= months.length - 1 || changing}
         onClick={() => go(1)}
@@ -768,7 +620,9 @@ function SummaryCard({
   return (
     <div className={"summary-card" + (tone ? " tone-" + tone : "")}>
       <div className="sc-label">{label}</div>
-      <div className="sc-value">{value}</div>
+      <ReadableValue as="div" className="sc-value">
+        {value}
+      </ReadableValue>
       {sub ? <div className="sc-sub">{sub}</div> : null}
       {foot ? <div className="sc-foot">{foot}</div> : null}
     </div>
@@ -826,15 +680,18 @@ function TransactionRow({
           {walletName ? <span className="txn-wallet"> · {walletName}</span> : null}
         </div>
       </div>
-      <div className={"txn-amt" + (exp.kind === "income" ? " income" : " expense")}>
+      <ReadableValue
+        as="div"
+        className={"txn-amt" + (exp.kind === "income" ? " income" : " expense")}
+      >
         {exp.kind === "income" ? "+" : "−"}
         {fmtMoney(exp.amount, { currency })}
-      </div>
+      </ReadableValue>
       <div className="txn-actions">
-        <button onClick={() => onEdit(exp)} aria-label="Edit">
+        <button type="button" onClick={() => onEdit(exp)} aria-label="Edit">
           <Icon name="edit" size={16} />
         </button>
-        <button onClick={requestDelete} aria-label="Delete" disabled={deleting}>
+        <button type="button" onClick={requestDelete} aria-label="Delete" disabled={deleting}>
           <Icon name="trash" size={16} />
         </button>
       </div>
@@ -843,7 +700,12 @@ function TransactionRow({
           title="Delete Recurring Transaction"
           onCancel={() => setScopeOpen(false)}
           onConfirm={async (scope) => {
-            await onDelete(exp.id, { scope, fromDate: exp.date });
+            setDeleting(true);
+            try {
+              await onDelete(exp.id, { scope, fromDate: exp.date });
+            } finally {
+              setDeleting(false);
+            }
             setScopeOpen(false);
           }}
         />
@@ -851,7 +713,7 @@ function TransactionRow({
       {confirmOpen ? (
         <ConfirmDialog
           title="Delete Transaction"
-          message="Delete this transaction? This cannot be undone."
+          message={`Delete "${exp.note}"? This cannot be undone.`}
           onCancel={() => setConfirmOpen(false)}
           onConfirm={async () => {
             setDeleting(true);
@@ -882,6 +744,7 @@ function Segmented<T extends string>({
     <div className="seg">
       {options.map((o) => (
         <button
+          type="button"
           key={o.v}
           className={"seg-btn" + (value === o.v ? " active" : "")}
           onClick={() => onChange(o.v)}
@@ -918,7 +781,9 @@ function InsightCard({ insight }: { insight: Insight }) {
       {insight.metric ? (
         <div className="insight-card-metric">
           <span className="insight-card-metric-label">{insight.metric.label}</span>
-          <span className="insight-card-metric-value">{insight.metric.value}</span>
+          <ReadableValue className="insight-card-metric-value">
+            {insight.metric.value}
+          </ReadableValue>
         </div>
       ) : null}
       <p className="insight-card-body">{insight.body}</p>
@@ -972,9 +837,13 @@ function WalletPicker({ wallets, value, onChange, onManage, className }: WalletP
     setMenuStyle({
       position: "fixed",
       top,
-      left: r.left,
+      left: Math.max(
+        12,
+        Math.min(r.left, window.innerWidth - Math.min(320, window.innerWidth - 24) - 12),
+      ),
       right: "auto",
-      minWidth: Math.max(r.width, 220),
+      width: Math.min(320, window.innerWidth - 24),
+      minWidth: Math.min(220, window.innerWidth - 24),
       maxHeight: dropdownMaxHeightPx(top),
       zIndex: 60,
     });
@@ -1054,12 +923,16 @@ function WalletPicker({ wallets, value, onChange, onManage, className }: WalletP
       <button
         ref={chipRef}
         className="wallet-chip"
+        aria-label={`Wallet: ${selected.name}, ${selected.currency}`}
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
         <Icon name="wallet" size={16} />
         <span className="wallet-chip-name">{selected.name}</span>
+        <span className="wallet-chip-compact" aria-hidden="true">
+          Wallet
+        </span>
         <span className="wallet-chip-cur num">{selected.currency}</span>
         <Icon name="chevD" size={14} />
       </button>
@@ -1142,7 +1015,21 @@ function AddExpenseModal({
   const [capitalPlanId, setCapitalPlanId] = useState(initial?.capitalPlanId ?? "");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState("");
   const busy = saving || deleting;
+  const fields = JSON.stringify([
+    kind,
+    walletId,
+    catId,
+    sub,
+    amount,
+    date,
+    note,
+    recurringOn,
+    recurringFreq,
+    capitalPlanId,
+  ]);
+  const [baseline] = useState(fields);
   /* `saving` state alone isn't enough — two clicks landing in the same task
      (a touch device's synthesized click racing the real one, or a fast
      double-tap) can both read `busy === false` before React commits the
@@ -1156,19 +1043,16 @@ function AddExpenseModal({
     !locked && kind === "expense" && isSavingsCategory(catById[catId]) && capitalPlans.length > 0;
   const amtRef = useRef<HTMLInputElement>(null);
   const scrimRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
+  const panelRef = useRef<HTMLFormElement>(null);
+  const { dismiss } = useModalMotion(scrimRef, panelRef, {
+    variant: "center",
+    onDismiss: busy ? false : onClose,
+    dirty: fields !== baseline,
+  });
 
   useEffect(() => {
     if (amtRef.current) amtRef.current.focus();
   }, []);
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !scopeOpen && !confirmOpen && !busy) requestClose(onClose);
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [scopeOpen, confirmOpen, busy, onClose, requestClose]);
 
   const switchKind = (next: "expense" | "income") => {
     setKind(next);
@@ -1210,8 +1094,13 @@ function AddExpenseModal({
       else if (editing) payload.capitalPlanId = "";
     }
     setSaving(true);
+    setError("");
     try {
       await onSave(payload);
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Couldn't save this transaction. Please try again.",
+      );
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -1231,19 +1120,28 @@ function AddExpenseModal({
   return (
     <div
       ref={scrimRef}
-      className="modal-scrim center"
+      className="modal-scrim center journal-detail-scrim"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !scopeOpen && !confirmOpen && !busy)
-          requestClose(onClose);
+        if (e.target === e.currentTarget) dismiss();
       }}
     >
-      <div ref={panelRef} className="modal sm" role="dialog" aria-modal="true">
+      <form
+        ref={panelRef}
+        className="modal sm"
+        role="dialog"
+        aria-modal="true"
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
+      >
         <div className="modal-head">
           <h3>{title ?? (editing ? "Edit Transaction" : "Add Transaction")}</h3>
           <button
             className="icon-btn"
             type="button"
-            onClick={() => requestClose(onClose)}
+            onClick={dismiss}
             aria-label="Close"
             disabled={busy}
           >
@@ -1300,9 +1198,6 @@ function AddExpenseModal({
               placeholder="0.00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") submit();
-              }}
               onBlur={() => {
                 if (amountIsExpression) setAmount(String(amountEvaluated));
               }}
@@ -1420,6 +1315,11 @@ function AddExpenseModal({
               ) : null}
             </>
           ) : null}
+          {error ? (
+            <p className="auth-error auth-error--gap" role="alert">
+              {error}
+            </p>
+          ) : null}
         </div>
 
         <div className="modal-foot">
@@ -1436,20 +1336,10 @@ function AddExpenseModal({
             <span />
           )}
           <div className="mf-right">
-            <button
-              className="ghost-btn"
-              type="button"
-              onClick={() => requestClose(onClose)}
-              disabled={busy}
-            >
+            <button className="ghost-btn" type="button" onClick={dismiss} disabled={busy}>
               Cancel
             </button>
-            <button
-              className="primary-btn"
-              type="button"
-              disabled={!valid || busy}
-              onClick={submit}
-            >
+            <button className="primary-btn" type="submit" disabled={!valid || busy}>
               {saving
                 ? "Saving…"
                 : locked
@@ -1462,13 +1352,18 @@ function AddExpenseModal({
             </button>
           </div>
         </div>
-      </div>
+      </form>
       {scopeOpen && initialId ? (
         <DeleteScopeDialog
           title="Delete Recurring Transaction"
           onCancel={() => setScopeOpen(false)}
           onConfirm={async (scope) => {
-            await onDelete(initialId, { scope, fromDate: initialDate });
+            setDeleting(true);
+            try {
+              await onDelete(initialId, { scope, fromDate: initialDate });
+            } finally {
+              setDeleting(false);
+            }
             setScopeOpen(false);
           }}
         />
@@ -1476,7 +1371,7 @@ function AddExpenseModal({
       {confirmOpen && initialId ? (
         <ConfirmDialog
           title="Delete Transaction"
-          message="Delete this transaction? This cannot be undone."
+          message={`Delete "${initial?.note || "this transaction"}"? This cannot be undone.`}
           onCancel={() => setConfirmOpen(false)}
           onConfirm={async () => {
             setDeleting(true);
@@ -1501,10 +1396,8 @@ export {
   EmptyState,
   Icon,
   InsightFeed,
-  MobileBottomNav,
   MonthSwitcher,
   Segmented,
-  Sidebar,
   SummaryCard,
   TransactionRow,
   WalletPicker,

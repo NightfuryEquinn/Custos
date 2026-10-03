@@ -97,6 +97,7 @@ export async function putCipherCache(address: string, path: string, body: unknow
       tx.onerror = () => reject(tx.error ?? new Error("cache put failed"));
     });
     void sweepOverCap(db);
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("custos-cache-changed"));
   } catch {
     /* Cache is best-effort — never break the live request path. */
   }
@@ -125,6 +126,25 @@ export async function getCipherCache<T>(address: string, path: string): Promise<
     return JSON.parse(entry.body) as T;
   } catch {
     return null;
+  }
+}
+
+/** Only cache metadata is exposed to readiness UI; no decrypted records. */
+export async function cachedPathsForAddress(address: string): Promise<string[]> {
+  try {
+    const db = await openCustosDb();
+    const entries = await new Promise<CacheEntry[]>((resolve, reject) => {
+      const req = db
+        .transaction(STORE, "readonly")
+        .objectStore(STORE)
+        .index("address")
+        .getAll(address.toLowerCase());
+      req.onsuccess = () => resolve(req.result as CacheEntry[]);
+      req.onerror = () => reject(req.error);
+    });
+    return entries.filter((e) => Date.now() - e.updatedAt <= ENTRY_TTL_MS).map((e) => e.path);
+  } catch {
+    return [];
   }
 }
 

@@ -14,7 +14,7 @@
       content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
     />
     <meta name="author" content="NightfuryEquinn" />
-    <meta name="theme-color" content="#0b0d12" />
+    <meta name="theme-color" content="#f5f4f0" />
     <meta name="google-site-verification" content="4aKGLqSDZRkT9CG58mWhhfvgwvcJvmdiADJzvAIzBD4" />
 
     <!-- Open Graph / Facebook / LinkedIn / WhatsApp / Discord -->
@@ -25,7 +25,7 @@
     <meta property="og:title" content="Custos — Your money and schedule, encrypted end-to-end" />
     <meta
       property="og:description"
-      content="A private expense ledger, schedule, and to-do app. Track spending across wallets and 29 currencies, plan bills with email and push reminders, and sign in with a Web3 wallet — the server only ever sees ciphertext."
+      content="A private expense ledger, schedule, and to-do app. Track spending across wallets and 29 currencies, plan bills with email and push reminders, and sign in with a Web3 wallet — financial content encrypted on your device."
     />
     <meta property="og:image" content="https://nightfuryequinn.github.io/Custos/og-image.png" />
     <meta property="og:image:type" content="image/png" />
@@ -42,7 +42,7 @@
     <meta name="twitter:title" content="Custos — Your money and schedule, encrypted end-to-end" />
     <meta
       name="twitter:description"
-      content="A private expense ledger, schedule, and to-do app. Track spending across wallets and 29 currencies, plan bills with email and push reminders, and sign in with a Web3 wallet — the server only ever sees ciphertext."
+      content="A private expense ledger, schedule, and to-do app. Track spending across wallets and 29 currencies, plan bills with email and push reminders, and sign in with a Web3 wallet — financial content encrypted on your device."
     />
     <meta name="twitter:image" content="https://nightfuryequinn.github.io/Custos/og-image.png" />
     <meta
@@ -53,677 +53,9 @@
     <link rel="icon" href="logo.png" type="image/png" />
     <link rel="apple-touch-icon" href="logo.png" />
     <link rel="stylesheet" href="fonts.css" />
-    <style>
-      :root {
-        --bg: #0b0d12;
-        --bg-alt: #12151d;
-        --card: #161a24;
-        --border: #242938;
-        --text: #e8eaf0;
-        --text-dim: #9aa1b4;
-        --accent: #6ee7b7;
-        --accent2: #7c9aff;
-        --accent3: #f0b866;
-        --radius: 14px;
-        --font-display: "Young Serif", Georgia, serif;
-        --font-body: "Schibsted Grotesk", system-ui, sans-serif;
-        --font-mono: "Azeret Mono", ui-monospace, monospace;
-        --tracking: 0.015em;
-      }
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-      html {
-        scroll-behavior: smooth;
-      }
-      body {
-        background: var(--bg);
-        color: var(--text);
-        font-family: var(--font-body);
-        line-height: 1.6;
-        letter-spacing: var(--tracking);
-        overflow-x: hidden;
-      }
-      a {
-        color: inherit;
-        text-decoration: none;
-      }
-      .wrap {
-        max-width: 1120px;
-        margin: 0 auto;
-        padding: 0 24px;
-      }
-
-      header {
-        position: sticky;
-        top: 0;
-        z-index: 50;
-        backdrop-filter: blur(12px);
-        background: rgba(11, 13, 18, 0.72);
-        border-bottom: 1px solid var(--border);
-      }
-      nav {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 16px 24px;
-        max-width: 1120px;
-        margin: 0 auto;
-      }
-      .brand {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-family: var(--font-display);
-        font-weight: 400;
-        font-size: 1.15rem;
-      }
-      .brand img {
-        width: 30px;
-        height: 30px;
-        border-radius: 8px;
-      }
-      .nav-links {
-        display: flex;
-        gap: 28px;
-        font-size: 0.92rem;
-        color: var(--text-dim);
-      }
-      .nav-links a:hover {
-        color: var(--text);
-      }
-      .nav-cta {
-        display: inline-block;
-        padding: 9px 18px;
-        border-radius: 999px;
-        background: var(--text);
-        color: var(--bg);
-        font-weight: 600;
-        font-size: 0.88rem;
-        transition: opacity 0.15s;
-      }
-      .nav-cta:hover {
-        opacity: 0.85;
-      }
-
-      section {
-        position: relative;
-        z-index: 1;
-      }
-
-      .hero {
-        padding: 96px 24px 80px;
-        text-align: center;
-        position: relative;
-        overflow: hidden;
-      }
-      .hero .wrap {
-        position: relative;
-        z-index: 2;
-      }
-      .badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 6px 14px;
-        border: 1px solid var(--border);
-        border-radius: 999px;
-        font-size: 0.8rem;
-        color: var(--text-dim);
-        background: var(--bg-alt);
-        margin-bottom: 28px;
-      }
-      .badge .dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: var(--accent);
-      }
-      .badge .ver {
-        padding: 2px 8px;
-        border-radius: 999px;
-        background: linear-gradient(135deg, rgba(110, 231, 183, 0.18), rgba(124, 154, 255, 0.18));
-        border: 1px solid var(--border);
-        color: var(--text);
-        font-weight: 700;
-        font-size: 0.74rem;
-      }
-      .hero h1 {
-        font-family: var(--font-display);
-        font-size: clamp(2.2rem, 5vw, 3.6rem);
-        font-weight: 400;
-        letter-spacing: -0.01em;
-        max-width: 820px;
-        margin: 0 auto 22px;
-      }
-      .hero h1 .grad {
-        background: linear-gradient(90deg, var(--accent), var(--accent2));
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-      }
-      .hero p {
-        font-size: 1.15rem;
-        color: var(--text-dim);
-        max-width: 600px;
-        margin: 0 auto 36px;
-      }
-      .hero-ctas {
-        display: flex;
-        gap: 14px;
-        justify-content: center;
-        flex-wrap: wrap;
-        margin-bottom: 56px;
-      }
-      .btn-primary {
-        padding: 13px 26px;
-        border-radius: 10px;
-        background: var(--text);
-        color: var(--bg);
-        font-weight: 700;
-        font-size: 0.95rem;
-        transition:
-          transform 0.15s,
-          opacity 0.15s;
-      }
-      .btn-primary:hover {
-        transform: translateY(-2px);
-      }
-      .btn-secondary {
-        padding: 13px 26px;
-        border-radius: 10px;
-        border: 1px solid var(--border);
-        font-weight: 600;
-        font-size: 0.95rem;
-        color: var(--text);
-        background: var(--card);
-        transition: border-color 0.15s;
-      }
-      .btn-secondary:hover {
-        border-color: var(--accent2);
-      }
-
-      .stack-strip {
-        display: flex;
-        gap: 12px;
-        justify-content: center;
-        flex-wrap: wrap;
-        color: var(--text-dim);
-        font-size: 0.82rem;
-      }
-      .stack-strip span {
-        padding: 6px 12px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        background: var(--bg-alt);
-      }
-
-      .section-head {
-        text-align: center;
-        max-width: 640px;
-        margin: 0 auto 48px;
-      }
-      .eyebrow {
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        font-size: 0.78rem;
-        color: var(--accent);
-        font-weight: 700;
-        margin-bottom: 12px;
-      }
-      .section-head h2 {
-        font-family: var(--font-display);
-        font-size: clamp(1.6rem, 3vw, 2.2rem);
-        font-weight: 400;
-        letter-spacing: 0;
-        margin-bottom: 12px;
-      }
-      .section-head p {
-        color: var(--text-dim);
-        font-size: 1rem;
-      }
-
-      .features {
-        padding: 80px 24px;
-      }
-      .grid3 {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 20px;
-      }
-      .card {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 26px;
-        transition:
-          border-color 0.2s,
-          transform 0.2s;
-      }
-      .card:hover {
-        border-color: var(--accent2);
-        transform: translateY(-3px);
-      }
-      .card .icon {
-        width: 44px;
-        height: 44px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.3rem;
-        margin-bottom: 16px;
-        background: linear-gradient(135deg, rgba(110, 231, 183, 0.15), rgba(124, 154, 255, 0.15));
-        border: 1px solid var(--border);
-      }
-      .card h3 {
-        font-size: 1.05rem;
-        font-weight: 700;
-        margin-bottom: 8px;
-      }
-      .card p {
-        color: var(--text-dim);
-        font-size: 0.92rem;
-      }
-
-      .split {
-        padding: 80px 24px;
-        background: var(--bg-alt);
-        border-top: 1px solid var(--border);
-        border-bottom: 1px solid var(--border);
-      }
-      .split + .split {
-        border-top: none;
-      }
-      .split-inner {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 56px;
-        align-items: center;
-      }
-      .split h2 {
-        font-family: var(--font-display);
-        font-size: clamp(1.5rem, 3vw, 2rem);
-        font-weight: 400;
-        margin-bottom: 16px;
-        letter-spacing: 0;
-      }
-      .split p {
-        color: var(--text-dim);
-        margin-bottom: 20px;
-      }
-      .checklist {
-        list-style: none;
-      }
-      .checklist li {
-        display: flex;
-        gap: 10px;
-        padding: 9px 0;
-        font-size: 0.94rem;
-        color: var(--text);
-        border-bottom: 1px solid var(--border);
-      }
-      .checklist li:last-child {
-        border-bottom: none;
-      }
-      .checklist li::before {
-        content: "✓";
-        color: var(--accent);
-        font-weight: 800;
-        flex-shrink: 0;
-      }
-      .mock {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 22px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-      }
-      .mock-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px 0;
-        border-bottom: 1px dashed var(--border);
-        font-size: 0.88rem;
-      }
-      .mock-row:last-child {
-        border-bottom: none;
-      }
-      .mock-row .amt {
-        font-family: var(--font-mono);
-        font-weight: 500;
-      }
-      .amt.pos {
-        color: var(--accent);
-      }
-      .amt.neg {
-        color: #f38ba8;
-      }
-      .mock-head {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 14px;
-      }
-      .mock-head .tag {
-        font-size: 0.75rem;
-        color: var(--text-dim);
-      }
-      .mock-head .total {
-        font-family: var(--font-mono);
-        font-size: 1.4rem;
-        font-weight: 500;
-      }
-
-      .privacy {
-        padding: 80px 24px;
-      }
-      .privacy-inner {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 56px;
-        align-items: center;
-      }
-      .privacy h2 {
-        font-family: var(--font-display);
-        font-weight: 400;
-      }
-      .lock-visual {
-        background:
-          radial-gradient(circle at 30% 20%, rgba(110, 231, 183, 0.12), transparent 60%),
-          var(--card);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 40px;
-        font-family: var(--font-mono);
-        font-size: 0.82rem;
-        color: var(--accent);
-        line-height: 1.8;
-        overflow-x: auto;
-      }
-      .lock-visual .muted {
-        color: var(--text-dim);
-      }
-      .lock-visual .pink {
-        color: #f38ba8;
-      }
-      .lock-visual .blue {
-        color: var(--accent2);
-      }
-
-      .stats {
-        padding: 60px 24px;
-        border-top: 1px solid var(--border);
-        border-bottom: 1px solid var(--border);
-        background: var(--bg-alt);
-      }
-      .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 24px;
-        text-align: center;
-      }
-      .stat h3 {
-        font-family: var(--font-mono);
-        font-size: 2rem;
-        font-weight: 500;
-        background: linear-gradient(90deg, var(--accent), var(--accent2));
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-      }
-      .stat p {
-        color: var(--text-dim);
-        font-size: 0.85rem;
-        margin-top: 6px;
-      }
-
-      .faq-list {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
-        align-items: start;
-      }
-      .faq-item {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 20px 22px;
-        transition: border-color 0.2s;
-      }
-      .faq-item[open] {
-        border-color: var(--accent2);
-      }
-      .faq-item summary {
-        cursor: pointer;
-        font-weight: 700;
-        font-size: 0.98rem;
-        list-style: none;
-        display: flex;
-        gap: 14px;
-        align-items: flex-start;
-        justify-content: space-between;
-      }
-      .faq-item summary::-webkit-details-marker {
-        display: none;
-      }
-      .faq-item summary::after {
-        content: "+";
-        color: var(--accent);
-        font-family: var(--font-mono);
-        font-size: 1.15rem;
-        line-height: 1.3;
-        flex-shrink: 0;
-      }
-      .faq-item[open] summary::after {
-        content: "\2212";
-      }
-      .faq-item p {
-        color: var(--text-dim);
-        font-size: 0.92rem;
-        margin-top: 12px;
-      }
-
-      .cta-final {
-        padding: 96px 24px;
-        text-align: center;
-      }
-      .cta-final h2 {
-        font-family: var(--font-display);
-        font-size: clamp(1.8rem, 4vw, 2.6rem);
-        font-weight: 400;
-        margin-bottom: 16px;
-        letter-spacing: 0;
-      }
-      .cta-final p {
-        color: var(--text-dim);
-        max-width: 520px;
-        margin: 0 auto 32px;
-      }
-
-      footer {
-        padding: 40px 24px;
-        border-top: 1px solid var(--border);
-      }
-      .footer-inner {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 16px;
-      }
-      .footer-inner .brand {
-        font-size: 0.95rem;
-      }
-      .footer-links {
-        display: flex;
-        gap: 22px;
-        color: var(--text-dim);
-        font-size: 0.85rem;
-        flex-wrap: wrap;
-      }
-      .footer-links a:hover {
-        color: var(--text);
-      }
-      .foot-note {
-        color: var(--text-dim);
-        font-size: 0.78rem;
-        margin-top: 20px;
-        text-align: center;
-      }
-
-      @media (max-width: 860px) {
-        .grid3 {
-          grid-template-columns: 1fr;
-        }
-        .split-inner,
-        .privacy-inner {
-          grid-template-columns: 1fr;
-        }
-        .stats-grid {
-          grid-template-columns: repeat(2, 1fr);
-        }
-        .faq-list {
-          grid-template-columns: 1fr;
-        }
-        .nav-links {
-          display: none;
-        }
-        .hero {
-          padding: 72px 20px 56px;
-        }
-        .features,
-        .split,
-        .privacy {
-          padding: 56px 20px;
-        }
-        .section-head {
-          margin-bottom: 36px;
-        }
-      }
-
-      @media (max-width: 600px) {
-        .wrap {
-          padding: 0 18px;
-        }
-        nav {
-          padding: 14px 18px;
-        }
-        .brand {
-          font-size: 0.95rem;
-        }
-        .brand img {
-          width: 26px;
-          height: 26px;
-        }
-        .hero {
-          padding: 56px 16px 44px;
-        }
-        .hero h1 {
-          font-size: clamp(1.8rem, 8vw, 2.4rem);
-          margin-bottom: 16px;
-        }
-        .hero p {
-          font-size: 1rem;
-          margin-bottom: 28px;
-        }
-        .badge {
-          font-size: 0.72rem;
-          padding: 5px 12px;
-          margin-bottom: 20px;
-          text-align: left;
-        }
-        .hero-ctas {
-          flex-direction: column;
-          margin-bottom: 40px;
-        }
-        .hero-ctas a {
-          width: 100%;
-          text-align: center;
-        }
-        .stack-strip {
-          gap: 8px;
-        }
-        .stack-strip span {
-          font-size: 0.74rem;
-          padding: 5px 10px;
-        }
-        .features,
-        .split,
-        .privacy {
-          padding: 48px 16px;
-        }
-        .section-head h2 {
-          font-size: 1.5rem;
-        }
-        .card {
-          padding: 20px;
-        }
-        .faq-item {
-          padding: 18px;
-        }
-        .faq-item summary {
-          font-size: 0.92rem;
-        }
-        .split h2,
-        .privacy h2 {
-          font-size: 1.4rem;
-        }
-        .mock {
-          padding: 18px;
-        }
-        .mock-row {
-          font-size: 0.84rem;
-          padding: 10px 0;
-        }
-        .lock-visual {
-          padding: 22px 18px;
-          font-size: 0.74rem;
-          overflow-x: auto;
-          white-space: pre;
-        }
-        .stats {
-          padding: 40px 16px;
-        }
-        .stats-grid {
-          grid-template-columns: repeat(2, 1fr);
-          gap: 20px;
-        }
-        .stat h3 {
-          font-size: 1.6rem;
-        }
-        .cta-final {
-          padding: 64px 16px;
-        }
-        .cta-final h2 {
-          font-size: 1.7rem;
-        }
-        .cta-final .hero-ctas {
-          margin-bottom: 0;
-        }
-        footer {
-          padding: 32px 16px;
-        }
-        .footer-inner {
-          flex-direction: column;
-          align-items: flex-start;
-          gap: 14px;
-        }
-        .footer-links {
-          gap: 16px;
-          font-size: 0.8rem;
-        }
-      }
-
-      @media (max-width: 400px) {
-        .stats-grid {
-          grid-template-columns: 1fr;
-        }
-      }
-    </style>
     <link rel="stylesheet" href="site.css" />
+    <link rel="stylesheet" href="folio.css" />
+    <script src="generated/theme.js"></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -739,7 +71,7 @@
             "@id": "https://nightfuryequinn.github.io/Custos/#website",
             "url": "https://nightfuryequinn.github.io/Custos/",
             "name": "Custos",
-            "description": "Custos is a private expense ledger, schedule, and to-do app. Track spending across wallets and 29 currencies, plan bills and events with email and push reminders, and sign in with a Web3 wallet — the server only ever sees ciphertext.",
+            "description": "Custos is a private expense ledger, schedule, and to-do app. Track spending across wallets and 29 currencies, plan bills and events with email and push reminders, and sign in with a Web3 wallet — financial content encrypted on your device.",
             "inLanguage": "en",
             "publisher": {
               "@id": "https://nightfuryequinn.github.io/Custos/#author"
@@ -759,8 +91,8 @@
             "applicationSubCategory": "Personal budgeting and expense tracking",
             "operatingSystem": "Web browser, Android, iOS",
             "browserRequirements": "Requires a modern browser with WebCrypto support",
-            "softwareVersion": "6.2.2",
-            "description": "Custos is a private expense ledger, schedule, and to-do app. Track spending across wallets and 29 currencies, plan bills and events with email and push reminders, and sign in with a Web3 wallet — the server only ever sees ciphertext.",
+            "softwareVersion": "6.4.0",
+            "description": "Custos is a private expense ledger, schedule, and to-do app. Track spending across wallets and 29 currencies, plan bills and events with email and push reminders, and sign in with a Web3 wallet — financial content encrypted on your device.",
             "image": "https://nightfuryequinn.github.io/Custos/og-image.png",
             "screenshot": "https://nightfuryequinn.github.io/Custos/og-image.png",
             "inLanguage": "en",
@@ -801,74 +133,34 @@
             "mainEntity": [
               {
                 "@type": "Question",
-                "name": "Is Custos really end-to-end encrypted?",
+                "name": "How do I get started?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Yes. Amounts, wallet names, categories, notes, schedule titles, budget holds, and to-dos are encrypted with AES-256-GCM in your browser before anything reaches the database, so the server only ever stores ciphertext it cannot read. Two deliberate exceptions stay in plaintext: day-level dates, which are needed to fire reminders on time, and — only on events where you switch reminders on — a readable copy of what that email or push notification will say."
+                  "text": "Open Custos and create an identity or restore your recovery phrase. Save the phrase safely, protect this device with a passphrase, and set up your wallet. No email address is required for sign-in."
                 }
               },
               {
                 "@type": "Question",
-                "name": "Do I need an email address or a password?",
+                "name": "What works offline?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "No. You sign in with an in-browser Web3 wallet, created or restored from a 12- or 24-word recovery phrase, using a cryptographic challenge instead of credentials. There is no signup form, no password to reuse, and no email address on file unless you switch on email reminders yourself."
+                  "text": "After the app and records finish downloading, daily expense entries, tasks, events, budget edits, and supported savings and vehicle workflows work offline. Check the Ready offline status before disconnecting. Uncached history and server-dependent actions require a connection."
                 }
               },
               {
                 "@type": "Question",
-                "name": "Do I need to buy crypto or pay gas fees?",
+                "name": "Is it free?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "No. The wallet is used purely as an identity key to sign in and derive your encryption key — Custos never sends a transaction, never touches a blockchain, and never asks you to fund anything. You can use a ledger-only key so your sign-in address is not correlated with any on-chain activity."
+                  "text": "All features are free on the official host. Optional tips never gate a feature. The source is public for transparency under the Custos Proprietary License; self-hosting or rebranding requires a written commercial agreement."
                 }
               },
               {
                 "@type": "Question",
-                "name": "How is this different from other budgeting apps?",
+                "name": "Can you recover my key?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Most expense trackers keep your data in plaintext on their servers and ask for an email address, a password, and often a bank connection. Custos asks for none of that: no signup form, no bank linking, and no readable server-side copy of your spending. What you trade for it is recovery — the key is yours alone."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "Is Custos free?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "Yes — every feature is free on the official hosted app, and always will be. Optional tips help fund it, but never gate anything. The source is public for transparency under a proprietary license, which means it is not free to self-host, rebrand, or offer as a competing service; those uses need a written commercial agreement."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "What happens if I lose my recovery phrase?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "There is no recovery. Because your ledger is encrypted with a key only you hold, nobody — the operator included — can restore access or read your data. Keep the phrase somewhere safe, set a device passphrase so the key is wrapped on each browser, and download an encrypted backup from Account → Exports & imports."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "Can I install Custos on my phone?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "Yes. It is an installable PWA — add it to your home screen on Android or iOS and it runs like a native app, with Web Push reminders delivered even when it is closed. An IndexedDB ciphertext cache keeps your ledger readable offline, and most edits (expenses, schedule, to-dos, Capitals, vehicles, budgets, categories) queue already-encrypted and sync automatically once you reconnect."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "Which currencies are supported, and how does conversion work?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "You can create wallets in any of 29 currencies and run several side by side, each with its own budgets and categories. Insights converts across them using live rates so cross-wallet totals stay comparable, while individual entries always keep the currency you recorded them in."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "Does dark mode stay readable?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "Yes. The app follows your system preference (or a manual toggle) and the dark palette is tuned for WCAG 2.1 AA contrast — at least 4.5:1 for normal text and 3.0:1 for large text and UI chrome. Secondary labels, borders, filled buttons, and status fills are brightened so the ledger stays easy to scan in low light or glare."
+                  "text": "No. Your recovery phrase is the way to restore your identity on another device. Custos cannot reset it. Keep your phrase and encrypted backups somewhere safe."
                 }
               }
             ]
@@ -877,537 +169,191 @@
       }
     </script>
   </head>
-  <body class="marketing-home">
-    <header>
-      <nav aria-label="Primary">
-        <div class="brand">
-          <img src="logo.png" alt="Custos logo" width="30" height="30" decoding="async" />Custos
-        </div>
-        <div class="nav-links">
-          <a href="#features">Ledger</a>
-          <a href="#schedule">Schedule</a>
-          <a href="#goals">Goals</a>
-          <a href="#privacy">Privacy</a>
-          <a href="#faq">FAQ</a>
-          <a href="#stack">Stack</a>
-        </div>
-        <a class="nav-cta" href="https://custos-kappa.vercel.app" target="_blank" rel="noopener"
-          >Open app</a
-        >
-      </nav>
+  <body class="marketing-home folio">
+    <a class="folio-skip" href="#journal">Skip to content</a>
+    <header class="folio-masthead">
+      <a class="folio-brand" href="index.html">custos<span>A little room for life.</span></a
+      ><span class="folio-edition">A private everyday journal <span class="ver">v6.4.0</span></span>
+      <button type="button" class="folio-theme" aria-label="Switch theme" hidden>
+        <svg class="folio-theme-moon" aria-hidden="true" viewBox="0 0 256 256" fill="currentColor">
+          <path
+            d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23ZM188.9,190.34A88,88,0,0,1,65.66,67.11a89,89,0,0,1,31.4-26A106,106,0,0,0,96,56,104.11,104.11,0,0,0,200,160a106,106,0,0,0,14.92-1.06A89,89,0,0,1,188.9,190.34Z"
+          />
+        </svg>
+        <svg class="folio-theme-sun" aria-hidden="true" viewBox="0 0 256 256" fill="currentColor">
+          <path
+            d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"
+          />
+        </svg>
+      </button>
     </header>
-
-    <main>
-      <section class="hero">
-        <div class="wrap">
-          <div class="hero-copy">
-            <div class="badge">
-              <span class="ver">v6.2.2</span> <span class="dot"></span> End-to-end encrypted · Web3
-              sign-in · No email or password
-            </div>
-            <h1>Your money and schedule,<br /><span class="grad">encrypted end-to-end.</span></h1>
-            <p>
-              One private place for spending, plans, and reminders. Your ledger is encrypted in your
-              browser and unlocked with your own wallet key.
-            </p>
-            <div class="hero-ctas">
-              <a
-                class="btn-primary"
-                href="https://custos-kappa.vercel.app"
-                target="_blank"
-                rel="noopener"
-                >Get started free</a
-              >
-              <a class="btn-secondary" href="#privacy">See how privacy works</a>
-            </div>
-            <div class="stack-strip">
-              <span>Bun</span><span>Hono</span><span>MongoDB</span><span>React 19</span
-              ><span>AES-256-GCM</span><span>PWA</span>
-            </div>
-          </div>
-          <div
-            class="hero-preview"
-            role="img"
-            aria-label="Illustrative Custos ledger showing wallet balance, monthly spending, and upcoming bills"
-          >
-            <div class="preview-top">
-              <span><img src="icons/Wallet.svg" alt="" /> Overview</span><span>This month</span>
-            </div>
-            <div class="preview-balance">
-              <small>Available across wallets</small><strong>RM 12,840.00</strong
-              ><span><img src="icons/ShieldCheck.svg" alt="" /> Private on your device</span>
-            </div>
-            <div class="preview-metrics">
-              <div><small>Spent this month</small><strong>RM 2,160.00</strong></div>
-              <div><small>Budget remaining</small><strong>RM 3,940.00</strong></div>
-            </div>
-            <div class="preview-heading">Upcoming</div>
-            <div class="preview-row">
-              <span><img src="icons/House.svg" alt="" /> Rent</span><span>Monthly</span>
-            </div>
-            <div class="preview-row">
-              <span><img src="icons/DeviceMobile.svg" alt="" /> Phone plan</span
-              ><span>Recurring</span>
-            </div>
-            <small class="preview-caption">Illustrative preview</small>
-          </div>
-        </div>
-      </section>
-
-      <section class="features" id="features">
-        <div class="wrap">
-          <div class="section-head">
-            <div class="eyebrow">Ledger</div>
-            <h2>Your money, clearly arranged</h2>
-            <p>Wallets, budgets, recurring costs, and insights in one encrypted ledger.</p>
-          </div>
-          <div class="grid3">
-            <div class="card">
-              <div class="icon"><img src="icons/Wallet.svg" alt="" loading="lazy" /></div>
-              <h3>Multiple wallets, 29 currencies</h3>
-              <p>Keep separate wallets and budgets in 29 currencies.</p>
-            </div>
-            <div class="card">
-              <div class="icon"><img src="icons/Calculator.svg" alt="" loading="lazy" /></div>
-              <h3>Built-in budget calculator</h3>
-              <p>Turn net income into category budgets, with optional Malaysia tax presets.</p>
-            </div>
-            <div class="card">
-              <div class="icon"><img src="icons/ArrowsClockwise.svg" alt="" loading="lazy" /></div>
-              <h3>Recurring transactions</h3>
-              <p>Post monthly, quarterly, and yearly expenses on schedule.</p>
-            </div>
-            <div class="card">
-              <div class="icon"><img src="icons/Tag.svg" alt="" loading="lazy" /></div>
-              <h3>Custom categories</h3>
-              <p>Organize income and spending with your own names, glyphs, and colors.</p>
-            </div>
-            <div class="card">
-              <div class="icon"><img src="icons/ChartBar.svg" alt="" loading="lazy" /></div>
-              <h3>Insights that go deep</h3>
-              <p>See forecasts, unusual charges, price creep, and cross-wallet trends.</p>
-            </div>
-            <div class="card">
-              <div class="icon"><img src="icons/Moon.svg" alt="" loading="lazy" /></div>
-              <h3>Accessible dark mode</h3>
-              <p>System-aware light and dark palettes with clear financial states.</p>
-            </div>
-            <div class="card">
-              <div class="icon"><img src="icons/Car.svg" alt="" loading="lazy" /></div>
-              <h3>Vehicles &amp; Fuel Insights</h3>
-              <p>Track fuel and EV charging costs, consumption, and price trends.</p>
-            </div>
-            <div class="card">
-              <div class="icon"><img src="icons/Bell.svg" alt="" loading="lazy" /></div>
-              <h3>Budget alerts</h3>
-              <p>Get near-limit and over-budget email alerts without exposing ledger data.</p>
-            </div>
-            <div class="card">
-              <div class="icon"><img src="icons/DeviceMobile.svg" alt="" loading="lazy" /></div>
-              <h3>Push notifications</h3>
-              <p>Opt in per device for event reminders even while Custos is closed.</p>
-            </div>
-            <div class="card">
-              <div class="icon"><img src="icons/DownloadSimple.svg" alt="" loading="lazy" /></div>
-              <h3>Export and import</h3>
-              <p>Move CSV data or download a full encrypted backup.</p>
-            </div>
-            <div class="card">
-              <div class="icon"><img src="icons/WifiHigh.svg" alt="" loading="lazy" /></div>
-              <h3>Installable PWA</h3>
-              <p>Install on your phone; read and edit offline, then sync when connected.</p>
-            </div>
-            <div class="card">
-              <div class="icon"><img src="icons/Fingerprint.svg" alt="" loading="lazy" /></div>
-              <h3>Zero-tap Face ID</h3>
-              <p>Unlock with Face ID or Touch ID, with a passphrase fallback.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="split" id="schedule">
-        <div class="wrap split-inner">
-          <div>
-            <div class="eyebrow">Schedule & tasks</div>
-            <h2>Bills and budgets, finally in sync</h2>
-            <p>Plan a bill, reserve its budget, and log the payment from the same place.</p>
-            <ul class="checklist">
-              <li>
-                Calendar and agenda views with daily, weekly, biweekly, monthly, or yearly
-                recurrence
-              </li>
-              <li>Multi-day events; Upcoming shows the next instance of each series</li>
-              <li>Budget holds reserve money until payment or release</li>
-              <li>Log payment links the expense and releases its hold</li>
-              <li>
-                Optional email reminders in your timezone, with lead times, holds, and comments
-              </li>
-              <li>Per-device push reminders, even when the app is closed</li>
-              <li>Multiple named to-do lists with inline task management</li>
-            </ul>
-          </div>
-          <div class="mock">
-            <div class="mock-head">
-              <div>
-                <div class="tag">This month · Held</div>
-                <div class="total">RM 1,240.00</div>
-              </div>
-              <div class="tag">3 active holds</div>
-            </div>
-            <div class="mock-row">
-              <span><img src="icons/House.svg" alt="" /> Rent — due in 4 days</span
-              ><span class="amt neg">RM 900.00</span>
-            </div>
-            <div class="mock-row">
-              <span><img src="icons/DeviceMobile.svg" alt="" /> Phone plan — due in 9 days</span
-              ><span class="amt neg">RM 60.00</span>
-            </div>
-            <div class="mock-row">
-              <span><img src="icons/Car.svg" alt="" /> Car insurance — due in 21 days</span
-              ><span class="amt neg">RM 280.00</span>
-            </div>
-            <div class="mock-row">
-              <span><img src="icons/Wallet.svg" alt="" /> Salary — posted</span
-              ><span class="amt pos">+ RM 4,500.00</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="split" id="goals">
-        <div class="wrap split-inner">
-          <div>
-            <div class="eyebrow">Savings & goals</div>
-            <h2>Piggies for saving, Capitals for planning</h2>
-            <p>Set aside savings in Piggies. Plan larger costs and deadlines in Capitals.</p>
-            <ul class="checklist">
-              <li>
-                Each savings category becomes a Piggy with balance, progress, an optional date, and
-                piglet subcategories
-              </li>
-              <li>Assign a deposit to a Capitals plan when it belongs to a larger goal</li>
-              <li>Savings insights show streaks, rates, best months, and pace</li>
-              <li>Capitals count toward savings and show funding and pace</li>
-              <li>Withdraw from a Piggy without recording income</li>
-              <li>Start a Capitals plan from a template or a blank page</li>
-              <li>Check off paid items and log payments to the ledger</li>
-              <li>Monthly savings targets follow unpaid costs, remaining funds, and time left</li>
-            </ul>
-          </div>
-          <div class="mock">
-            <div class="mock-head">
-              <div>
-                <div class="tag">Goals · Active</div>
-                <div class="total">RM 11,720.00</div>
-              </div>
-              <div class="tag">4 in progress</div>
-            </div>
-            <div class="mock-row">
-              <span><img src="icons/PiggyBank.svg" alt="" /> Emergency Fund — 62% saved</span
-              ><span class="amt pos">RM 3,720.00</span>
-            </div>
-            <div class="mock-row">
-              <span><img src="icons/Target.svg" alt="" /> Bali Trip — save RM 480/mo</span
-              ><span class="amt pos">RM 8,000.00</span>
-            </div>
-            <div class="mock-row">
-              <span><img src="icons/Target.svg" alt="" /> Wedding Fund — RM 2,400 unspent</span
-              ><span class="amt pos">RM 10,000.00</span>
-            </div>
-            <div class="mock-row">
-              <span><img src="icons/Car.svg" alt="" /> Car Loan Payoff — planned</span
-              ><span class="amt pos">RM 12,000.00</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="privacy" id="privacy">
-        <div class="wrap privacy-inner">
-          <div class="lock-visual">
-            <span class="muted">// what MongoDB actually stores</span><br />
-            {<br />
-            &nbsp;&nbsp;"_id": <span class="blue">ObjectId(...)</span>,<br />
-            &nbsp;&nbsp;"accountId": <span class="blue">"7f2a...e91"</span>,<br />
-            &nbsp;&nbsp;"ciphertext": <span class="pink">"U2FsdGVkX1..."</span>,<br />
-            &nbsp;&nbsp;"iv": <span class="pink">"8x92Ka=="</span>,<br />
-            &nbsp;&nbsp;<span class="muted">// amount, title, notes, category —</span><br />
-            &nbsp;&nbsp;<span class="muted">// none of it readable server-side</span><br />
-            }
-          </div>
-          <div>
-            <div class="eyebrow">Privacy & identity</div>
-            <h2>The server sees ciphertext. That's it.</h2>
-            <p>
-              Amounts, wallet names, categories, notes, schedule titles, budget holds, and to-dos
-              are AES-256-GCM encrypted in your browser before anything reaches the database. Only
-              day-level dates needed for accurate reminders stay in plaintext — plus, on events
-              where you switch reminders on, a readable copy of what that email or push notification
-              says. Everything else is unreadable server-side.
-            </p>
-            <ul class="checklist">
-              <li>
-                Sign in with a Web3 wallet — create or restore with a 12- or 24-word recovery
-                phrase, no email or password
-              </li>
-              <li>
-                Device passphrase vault wraps your keys locally with PBKDF2 + AES-GCM instead of
-                plaintext storage
-              </li>
-              <li>
-                Encrypted backup you can download and restore, encrypted with your own ledger key —
-                never stored server-side
-              </li>
-              <li>
-                Revoke devices and clear local data anytime — nothing is ever shared with third
-                parties
-              </li>
-              <li>
-                In-app Transparency view maps exactly what the server can and can't infer, with
-                top-to-bottom diagrams
-              </li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <section class="stats">
-        <div class="wrap stats-grid">
-          <div class="stat">
-            <h3>29</h3>
-            <p>supported currencies</p>
-          </div>
-          <div class="stat">
-            <h3>AES-256</h3>
-            <p>client-side encryption</p>
-          </div>
-          <div class="stat">
-            <h3>0</h3>
-            <p>emails or passwords required</p>
-          </div>
-          <div class="stat">
-            <h3>PWA</h3>
-            <p>installable, works offline — reads and edits</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="features" id="faq">
-        <div class="wrap">
-          <div class="section-head">
-            <div class="eyebrow">FAQ</div>
-            <h2>Questions worth asking before you trust an app with your money</h2>
-            <p>
-              What Custos encrypts, what it still needs in plaintext, and what you give up in
-              exchange.
-            </p>
-          </div>
-          <div class="faq-list">
-            <details class="faq-item">
-              <summary>Is Custos really end-to-end encrypted?</summary>
-              <p>
-                Yes. Amounts, wallet names, categories, notes, schedule titles, budget holds, and
-                to-dos are encrypted with AES-256-GCM in your browser before anything reaches the
-                database, so the server only ever stores ciphertext it cannot read. Two deliberate
-                exceptions stay in plaintext: day-level dates, which are needed to fire reminders on
-                time, and — only on events where you switch reminders on — a readable copy of what
-                that email or push notification will say.
-              </p>
-            </details>
-            <details class="faq-item">
-              <summary>Do I need an email address or a password?</summary>
-              <p>
-                No. You sign in with an in-browser Web3 wallet, created or restored from a 12- or
-                24-word recovery phrase, using a cryptographic challenge instead of credentials.
-                There is no signup form, no password to reuse, and no email address on file unless
-                you switch on email reminders yourself.
-              </p>
-            </details>
-            <details class="faq-item">
-              <summary>Do I need to buy crypto or pay gas fees?</summary>
-              <p>
-                No. The wallet is used purely as an identity key to sign in and derive your
-                encryption key — Custos never sends a transaction, never touches a blockchain, and
-                never asks you to fund anything. You can use a ledger-only key so your sign-in
-                address is not correlated with any on-chain activity.
-              </p>
-            </details>
-            <details class="faq-item">
-              <summary>How is this different from other budgeting apps?</summary>
-              <p>
-                Most expense trackers keep your data in plaintext on their servers and ask for an
-                email address, a password, and often a bank connection. Custos asks for none of
-                that: no signup form, no bank linking, and no readable server-side copy of your
-                spending. What you trade for it is recovery — the key is yours alone.
-              </p>
-            </details>
-            <details class="faq-item">
-              <summary>Is Custos free?</summary>
-              <p>
-                Yes — every feature is free on the official hosted app, and always will be. Optional
-                <a href="offers.html#support">tips</a> help fund it, but never gate anything. The
-                source is public for transparency under a proprietary license, which means it is not
-                free to self-host, rebrand, or offer as a competing service; those uses need a
-                written commercial agreement.
-              </p>
-            </details>
-            <details class="faq-item">
-              <summary>What happens if I lose my recovery phrase?</summary>
-              <p>
-                There is no recovery. Because your ledger is encrypted with a key only you hold,
-                nobody — the operator included — can restore access or read your data. Keep the
-                phrase somewhere safe, set a device passphrase so the key is wrapped on each
-                browser, and download an encrypted backup from Account → Exports &amp; imports.
-              </p>
-            </details>
-            <details class="faq-item">
-              <summary>Does Custos send my fingerprint or face anywhere?</summary>
-              <p>
-                No. Face ID / Touch ID unlock runs entirely through your browser's WebAuthn support
-                — it returns a derived value that never leaves the device, and the server is never
-                told a biometric check happened at all. Once enabled, it can prompt on its own when
-                you open the app; a typed device passphrase always works as a fallback.
-              </p>
-            </details>
-            <details class="faq-item">
-              <summary>Can I install Custos on my phone?</summary>
-              <p>
-                Yes. It is an installable PWA — add it to your home screen on Android or iOS and it
-                runs like a native app, with Web Push reminders delivered even when it is closed. An
-                IndexedDB ciphertext cache keeps your ledger readable offline, and most edits
-                (expenses, schedule, to-dos, Capitals, vehicles, budgets, categories) queue
-                already-encrypted and sync automatically once you reconnect.
-              </p>
-            </details>
-            <details class="faq-item">
-              <summary>Which currencies are supported, and how does conversion work?</summary>
-              <p>
-                You can create wallets in any of 29 currencies and run several side by side, each
-                with its own budgets and categories. Insights converts across them using live rates
-                so cross-wallet totals stay comparable, while individual entries always keep the
-                currency you recorded them in.
-              </p>
-            </details>
-            <details class="faq-item">
-              <summary>Does dark mode stay readable?</summary>
-              <p>
-                Yes. The app follows your system preference (or a manual toggle) and the dark
-                palette is tuned for WCAG 2.1 AA contrast — at least 4.5:1 for normal text and 3.0:1
-                for large text and UI chrome. Secondary labels, borders, filled buttons, and status
-                fills are brightened so the ledger stays easy to scan in low light or glare.
-              </p>
-            </details>
-          </div>
-        </div>
-      </section>
-
-      <section class="features" id="stack">
-        <div class="wrap">
-          <div class="section-head">
-            <div class="eyebrow">Under the hood</div>
-            <h2>A modern, no-nonsense stack</h2>
-            <p>
-              Built for speed and correctness — no bloat, no unnecessary third-party data access.
-            </p>
-          </div>
-          <div class="grid3">
-            <div class="card">
-              <div class="icon"><img src="icons/Lightning.svg" alt="" loading="lazy" /></div>
-              <h3>Bun + Hono</h3>
-              <p>Fast runtime and API layer, with Zod validation on every route.</p>
-            </div>
-            <div class="card">
-              <div class="icon"><img src="icons/Database.svg" alt="" loading="lazy" /></div>
-              <h3>MongoDB</h3>
-              <p>
-                Stores ciphertext and minimal plaintext metadata only — opaque account IDs, not
-                wallet addresses.
-              </p>
-            </div>
-            <div class="card">
-              <div class="icon"><img src="icons/Atom.svg" alt="" loading="lazy" /></div>
-              <h3>React 19 + TanStack Query</h3>
-              <p>
-                React 19 and TanStack Query power the UI, with ethers v6 for wallet identity.
-                Schibsted Grotesk and Azeret Mono keep the interface clear.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="cta-final">
-        <div class="wrap">
-          <h2>Take your ledger back from the cloud.</h2>
-          <p>
-            Free full features on the official host. Source is public for transparency under a
-            proprietary license — not free to self-host or rebrand. For a commercial deal (monthly
-            fee, collaboration, or copyright buyout), email
-            <a href="mailto:xianzyip8@gmail.com">xianzyip8@gmail.com</a>.
+    <a class="folio-open" href="https://custos-kappa.vercel.app"
+      >Open Custos <span aria-hidden="true">&#8599;</span></a
+    >
+    <main id="journal">
+      <div class="folio-opening">
+        <section class="folio-hero">
+          <p class="folio-kicker">Money &middot; time &middot; intention</p>
+          <h1>Life happens.<br /><em>Give it a little room.</em></h1>
+          <p class="folio-lead">
+            The coffee you bought. The trip you're saving for. The thing you promised yourself you'd
+            do. One quiet place to keep it all.
           </p>
-          <div class="hero-ctas">
-            <a
-              class="btn-primary"
-              href="https://custos-kappa.vercel.app"
-              target="_blank"
-              rel="noopener"
-              >Launch Custos</a
-            >
-            <a
-              class="btn-secondary"
-              href="https://github.com/NightfuryEquinn/Custos"
-              target="_blank"
-              rel="noopener"
-              >View source on GitHub</a
-            >
+          <a class="folio-inline" href="#a-day"
+            >Turn the page <img src="icons/ArrowRight.svg" alt="" width="18" height="18"
+          /></a>
+          <p class="folio-caption">
+            Encrypted by you. Available offline. Free on the official host.
+          </p>
+        </section>
+        <aside class="folio-sample" aria-label="Illustrative journal with sample data">
+          <div class="folio-sample-head">
+            <span>A Thursday, yours.</span><small>Sample journal</small>
           </div>
+          <div class="folio-sample-balance">
+            <span>A little breathing room</span><strong>RM 1,842.00</strong
+            ><small>Remaining this month</small>
+          </div>
+          <div class="folio-entry">
+            <time>08:40</time>
+            <div>
+              <strong>The usual coffee</strong><span>A small pleasure, accounted for.</span>
+            </div>
+            <b>&minus; 12.00</b>
+          </div>
+          <div class="folio-entry">
+            <time>12:00</time>
+            <div><strong>Lunch with Maya</strong><span>Time for the people who matter.</span></div>
+            <span aria-hidden="true">&#9675;</span>
+          </div>
+          <div class="folio-entry">
+            <time>Later</time>
+            <div>
+              <strong>Book the train tickets</strong><span>One step closer to the weekend.</span>
+            </div>
+            <span aria-hidden="true">&#9633;</span>
+          </div>
+          <div class="folio-sample-foot">
+            <span>&#10022; Saved on device</span><span>Your day, at your pace.</span>
+          </div>
+        </aside>
+      </div>
+      <section class="folio-chapter" id="a-day">
+        <div class="folio-chapter-label">
+          <span>01 / Everyday</span><a href="#features">Money</a><a href="#schedule">Time</a
+          ><a href="#goals">Intentions</a>
         </div>
+        <div class="folio-story" id="features">
+          <span class="folio-kicker">A morning well spent</span>
+          <h2>Notice where<br />your money goes.</h2>
+          <p>
+            Keep a ledger across wallets and 29 currencies. Give categories a budget. Find the
+            patterns behind everyday spending, without turning your life into a spreadsheet.
+          </p>
+          <p class="folio-caption">
+            Transactions / budgets / insights / recurring entries / calculator
+          </p>
+        </div>
+        <div class="folio-story" id="schedule">
+          <span class="folio-kicker">An afternoon with a plan</span>
+          <h2>Make time.<br />Leave some space.</h2>
+          <p>
+            Bring bills, appointments, and tasks into view. Set recurring events, reserve a budget
+            for a commitment, and link its payment when it happens.
+          </p>
+          <p class="folio-caption">
+            Agenda / calendar / task lists / budget holds / email &amp; push reminders
+          </p>
+        </div>
+        <div class="folio-story" id="goals">
+          <span class="folio-kicker">Something to look forward to</span>
+          <h2>Small steps.<br />Bigger possibilities.</h2>
+          <p>
+            Build savings with Piggies, plan the big expenses with Capitals, and keep vehicle costs
+            in perspective. A quiet record of progress toward what matters to you.
+          </p>
+          <p class="folio-caption">Savings goals / capital plans / vehicle &amp; fuel insights</p>
+        </div>
+      </section>
+      <section class="folio-chapter folio-privacy" id="privacy">
+        <div class="folio-chapter-label"><span>02 / Your own space</span></div>
+        <div class="folio-story">
+          <h2>Private by design.<br />Useful without Wi-Fi.</h2>
+          <p>
+            Your financial and journal content is encrypted on your device. Unlock your prepared app
+            offline, log daily changes, and keep going. Your queued changes sync when you reconnect
+            and open Custos.
+          </p>
+          <p>
+            Some delivery and account metadata is visible to the server. Email and push reminders
+            need a connection; wallet administration and recurring-series edits also require the
+            server. The app's Transparency view explains the details.
+          </p>
+          <p class="folio-caption">
+            Local passphrase vault / optional biometric unlock / encrypted backups / CSV import
+            &amp; export
+          </p>
+        </div>
+      </section>
+      <section class="folio-chapter" id="faq">
+        <div class="folio-chapter-label"><span>03 / A few things to know</span></div>
+        <div class="folio-questions">
+          <details>
+            <summary>How do I get started?</summary>
+            <p>
+              Open Custos and create an identity or restore your recovery phrase. Save the phrase
+              safely, protect this device with a passphrase, and set up your wallet. No email
+              address is required for sign-in.
+            </p>
+          </details>
+          <details>
+            <summary>What works offline?</summary>
+            <p>
+              After the app and records finish downloading, daily expense entries, tasks, events,
+              budget edits, and supported savings and vehicle workflows work offline. Check the
+              Ready offline status before disconnecting. Uncached history and server-dependent
+              actions require a connection.
+            </p>
+          </details>
+          <details>
+            <summary>Is it free?</summary>
+            <p>
+              All features are free on the official host. Optional tips never gate a feature. The
+              source is public for transparency under the Custos Proprietary License; self-hosting
+              or rebranding requires a written commercial agreement.
+            </p>
+          </details>
+          <details>
+            <summary>Can you recover my key?</summary>
+            <p>
+              No. Your recovery phrase is the way to restore your identity on another device. Custos
+              cannot reset it. Keep your phrase and encrypted backups somewhere safe.
+            </p>
+          </details>
+        </div>
+      </section>
+      <section class="folio-ending">
+        <span class="folio-kicker">Your next page is waiting</span>
+        <h2>A little less noise.<br />A little more life.</h2>
+        <a class="folio-inline" href="https://custos-kappa.vercel.app"
+          >Begin your journal &#8599;</a
+        >
       </section>
     </main>
-
-    <footer>
-      <div class="wrap">
-        <div class="footer-inner">
-          <div class="brand">
-            <img
-              src="logo.png"
-              alt="Custos logo"
-              width="26"
-              height="26"
-              loading="lazy"
-              decoding="async"
-              style="width: 26px; height: 26px; border-radius: 7px"
-            />Custos
-          </div>
-          <div class="footer-links">
-            <a href="https://github.com/NightfuryEquinn/Custos" target="_blank" rel="noopener"
-              >GitHub</a
-            >
-            <a href="#features">Ledger</a>
-            <a href="#schedule">Schedule</a>
-            <a href="#goals">Goals</a>
-            <a href="#privacy">Privacy</a>
-            <a href="#faq">FAQ</a>
-            <a href="offers.html">Offers</a>
-            <a href="services.html">Services</a>
-          </div>
-        </div>
-        <p class="foot-note">
-          © 2026 Yip Zi Xian. Custos v6.2.2 — private expense ledger, schedule, and to-do app. E2EE
-          by default. Free on the official host, always — optional tips (<a
-            href="offers.html#support"
-            >ways to support</a
-          >) never gate a feature. Source public for transparency under the
-          <a
-            href="https://github.com/NightfuryEquinn/Custos/blob/develop/LICENSE"
-            target="_blank"
-            rel="noopener"
-            style="text-decoration: underline"
-            >Custos Proprietary License</a
-          >. Licensing: <a href="mailto:xianzyip8@gmail.com">xianzyip8@gmail.com</a>.
-        </p>
+    <footer class="folio-footer">
+      <a class="folio-brand" href="index.html">custos</a>
+      <div>
+        <a href="offers.html">Support &amp; offers</a
+        ><a href="services.html">Commercial &amp; self-hosting</a
+        ><a href="https://github.com/NightfuryEquinn/Custos">Source &amp; license</a>
       </div>
+      <p>
+        &copy; 2026 Yip Zi Xian. Custos v6.4.0 — free on the official host.
+        <a href="https://github.com/NightfuryEquinn/Custos/blob/develop/LICENSE"
+          >Custos Proprietary License</a
+        >. Licensing: <a href="mailto:xianzyip8@gmail.com">xianzyip8@gmail.com</a>.
+      </p>
     </footer>
+    <script type="module" src="generated/journal-motion.js"></script>
   </body>
 </html>

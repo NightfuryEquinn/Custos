@@ -1,3 +1,4 @@
+import { ReadableValue } from "@/frontend/components/ReadableValue";
 import type { CapitalPace } from "@/frontend/lib/savingsInsights";
 
 /**
@@ -82,7 +83,9 @@ export function CapitalPaceList({
               {paceMetrics(plan, money).map((metric) => (
                 <div key={metric.label} className="capital-pace-metric">
                   <span className="capital-pace-metric-label">{metric.label}</span>
-                  <span className="capital-pace-metric-value">{metric.value}</span>
+                  <ReadableValue as="span" className="capital-pace-metric-value">
+                    {metric.value}
+                  </ReadableValue>
                 </div>
               ))}
             </div>

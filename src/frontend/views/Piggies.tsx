@@ -1,3 +1,4 @@
+import { ReadableValue } from "@/frontend/components/ReadableValue";
 import { useEnter } from "@/frontend/lib/animate";
 import { Donut, MiniSpark } from "@/frontend/charts";
 import { CatGlyph, EmptyState, Icon, glyphTint } from "@/frontend/components/ui";
@@ -122,9 +123,21 @@ export function Piggies({
                   </div>
                 ) : null}
                 <div className="piggy-card-stats">
-                  <div className="piggy-balance">{money(piggy.balance)}</div>
+                  <ReadableValue as="div" className="piggy-balance">
+                    {money(piggy.balance)}
+                  </ReadableValue>
                   <div className="piggy-target">
-                    {piggy.target ? `of ${money(piggy.target)} goal` : "no goal set"}
+                    {piggy.target ? (
+                      <>
+                        of{" "}
+                        <ReadableValue className="numeric-inline">
+                          {money(piggy.target)}
+                        </ReadableValue>{" "}
+                        goal
+                      </>
+                    ) : (
+                      "no goal set"
+                    )}
                   </div>
                   {piggy.deadline ? (
                     <div className="piggy-deadline">Due {dayLabel(piggy.deadline)}</div>
@@ -149,7 +162,7 @@ export function Piggies({
                         {p.name}
                         {p.archived ? <span className="piggy-tag">Archived</span> : null}
                       </span>
-                      <span className="piglet-balance">{money(p.balance)}</span>
+                      <ReadableValue className="piglet-balance">{money(p.balance)}</ReadableValue>
                     </div>
                   ))}
                 </div>

@@ -23,7 +23,7 @@ function readOutboxOnce(address: string): Promise<OutboxEntry[]> {
 }
 
 /** Live list of this address's outbox entries, re-fetched on every change. */
-function useOutboxEntries(address: string): OutboxEntry[] {
+export function useOutboxEntries(address: string): OutboxEntry[] {
   const [entries, setEntries] = useState<OutboxEntry[]>([]);
 
   useEffect(() => {
@@ -42,6 +42,16 @@ function useOutboxEntries(address: string): OutboxEntry[] {
   }, [address]);
 
   return entries;
+}
+
+export function useSyncStatus(address: string) {
+  const entries = useOutboxEntries(address);
+  return {
+    pending: entries.filter((e) => e.status === "pending" || e.status === "inflight").length,
+    blocked: entries.filter((e) => e.status === "blocked").length,
+    failed: entries.filter((e) => e.status === "failed").length,
+    total: entries.length,
+  };
 }
 
 /** How to render one list-shaped entity's pending outbox entries — see overlay.ts. */
@@ -116,27 +126,4 @@ export function usePendingSingletonOverlay<T>(
   }, [base, entries, key, entity, targetId]);
 
   return overlaid;
-}
-
-export type SyncStatus = {
-  pending: number;
-  blocked: number;
-  failed: number;
-  total: number;
-};
-
-/** Pending/blocked/failed counts for the sync-status UI. */
-export function useSyncStatus(address: string): SyncStatus {
-  const entries = useOutboxEntries(address);
-  const pending = entries.filter((e) => e.status === "pending" || e.status === "inflight").length;
-  const blocked = entries.filter((e) => e.status === "blocked").length;
-  const failed = entries.filter((e) => e.status === "failed").length;
-
-  return { pending, blocked, failed, total: entries.length };
-}
-
-/** The permanently-failed or blocked entries, for a retry/discard panel. */
-export function useFailedOutboxEntries(address: string): OutboxEntry[] {
-  const entries = useOutboxEntries(address);
-  return entries.filter((e) => e.status === "failed" || e.status === "blocked");
 }
