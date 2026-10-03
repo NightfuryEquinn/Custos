@@ -6202,9 +6202,13 @@ textarea::placeholder {
 }
 
 /* ── 11. Modals & empty states ────────────────────────────────────── */
+/* --visual-top / --visual-height come from useModalMotion and track the on-screen keyboard. */
 .modal-scrim {
   position: fixed;
   inset: 0;
+  top: var(--visual-top, 0);
+  bottom: auto;
+  height: var(--visual-height, 100dvh);
   background: var(--scrim);
   display: flex;
   align-items: flex-end;

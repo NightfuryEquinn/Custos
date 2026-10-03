@@ -2,7 +2,7 @@ import { Icon } from "@/frontend/components/ui";
 import { useModalMotion } from "@/frontend/lib/animate";
 import { toast } from "@/frontend/lib/feedback";
 import type { NavItem } from "@/frontend/lib/nav";
-import type { ViewId } from "@/frontend/lib/types";
+import type { TodoList, ViewId } from "@/frontend/lib/types";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -15,7 +15,8 @@ type Props = {
   favorites: readonly NavItem[];
   actions: CaptureAction[];
   disabled: boolean;
-  onTask: (title: string) => Promise<void>;
+  todoLists: readonly Pick<TodoList, "id" | "name" | "icon">[];
+  onTask: (title: string, listId: string | null) => Promise<void>;
 };
 
 export function JournalCommands({
@@ -25,11 +26,14 @@ export function JournalCommands({
   favorites,
   actions,
   disabled,
+  todoLists,
   onTask,
 }: Props) {
   const [mode, setMode] = useState<"index" | "add" | "task" | null>(null);
   const [query, setQuery] = useState("");
   const [task, setTask] = useState("");
+  const [listId, setListId] = useState<string | null>(null);
+  const targetList = todoLists.find((l) => l.id === listId) ?? todoLists[0];
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const scrim = useRef<HTMLDivElement>(null);
@@ -64,10 +68,14 @@ export function JournalCommands({
     const dock = document.querySelector<HTMLElement>(".journal-dock");
     if (main) main.inert = true;
     if (dock) dock.inert = true;
+    /* On touch, focusing the search field would pop the keyboard over the index. */
+    const touch = window.matchMedia("(pointer: coarse)").matches;
     (
-      panel.current?.querySelector<HTMLElement>("input") ??
+      (touch
+        ? panel.current?.querySelector<HTMLElement>(".journal-command-body button")
+        : panel.current?.querySelector<HTMLElement>("input")) ??
       panel.current?.querySelector<HTMLElement>("button")
-    )?.focus();
+    )?.focus({ preventScroll: true });
     const keys = (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;
       const elements = Array.from(
@@ -229,6 +237,7 @@ export function JournalCommands({
                       onClick={() => {
                         setMode("task");
                         setTask("");
+                        setListId(todoLists[0]?.id ?? null);
                       }}
                     >
                       <Icon name="checklist" />
@@ -243,7 +252,7 @@ export function JournalCommands({
                       if (!task.trim() || busy) return;
                       setBusy(true);
                       setError("");
-                      void onTask(task.trim())
+                      void onTask(task.trim(), targetList?.id ?? null)
                         .then(() => {
                           toast("Task added");
                           requestClose(() => setMode(null));
@@ -267,8 +276,29 @@ export function JournalCommands({
                       autoFocus
                       onChange={(e) => setTask(e.target.value)}
                     />
+                    {todoLists.length > 1 ? (
+                      <>
+                        <span className="fld-label journal-task-list-label">List</span>
+                        <div className="sub-row" role="radiogroup" aria-label="Task list">
+                          {todoLists.map((list) => (
+                            <button
+                              key={list.id}
+                              type="button"
+                              role="radio"
+                              aria-checked={targetList?.id === list.id}
+                              className={"sub-chip" + (targetList?.id === list.id ? " active" : "")}
+                              onClick={() => setListId(list.id)}
+                            >
+                              {list.icon} {list.name}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    ) : null}
                     <p className="journal-note">
-                      Added to your first task list. Available offline.
+                      {targetList
+                        ? `Added to ${targetList.icon} ${targetList.name}. Available offline.`
+                        : "Added to a new Everyday list. Available offline."}
                     </p>
                     {error && (
                       <p className="auth-error auth-error--gap" role="alert">

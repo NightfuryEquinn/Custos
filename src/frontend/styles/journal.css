@@ -444,8 +444,15 @@
 .journal-command .modal-head h2 {
   font: 400 26px/1.3 var(--font-display);
 }
+/* The inset gives the 2px + 4px-offset focus ring room inside the scroll box. */
 .journal-command-body {
   overflow: auto;
+  padding: var(--sp-2);
+  margin: calc(-1 * var(--sp-2));
+}
+
+.journal-task-list-label {
+  margin-top: var(--sp-4);
 }
 .journal-search {
   display: flex;
@@ -638,6 +645,10 @@ input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 4px;
 }
+
+.amount-field input:focus-visible {
+  outline: none;
+}
 /* The detail sheet's head, body and foot carry their own insets; the panel adds none. */
 .journal-detail-scrim > .modal.sm {
   padding: 0;
@@ -650,8 +661,8 @@ input:focus-visible {
   }
   .journal-detail-scrim > .modal {
     width: min(560px, 46vw);
-    height: 100dvh;
-    max-height: 100dvh;
+    height: var(--visual-height, 100dvh);
+    max-height: var(--visual-height, 100dvh);
     border-radius: 0;
     border-left: 1px solid var(--border);
   }
@@ -694,8 +705,8 @@ input:focus-visible {
   }
   .journal-detail-scrim > .modal {
     width: min(560px, 70vw);
-    height: 100dvh;
-    max-height: 100dvh;
+    height: var(--visual-height, 100dvh);
+    max-height: var(--visual-height, 100dvh);
     border-radius: 0;
   }
   /* One column below 1024: the margin column becomes a ruled section on the same edge. */

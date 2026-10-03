@@ -207,12 +207,21 @@ export function useModalMotion(
     const viewport = window.visualViewport;
     const scrim = scrimRef.current;
     if (!active || !viewport || !scrim) return;
-    const resize = () => scrim.style.setProperty("--visual-height", `${viewport.height}px`);
+    /** Pin the scrim to the visible area so an on-screen keyboard can't push the modal away. */
+    const resize = () => {
+      scrim.style.setProperty("--visual-height", `${viewport.height}px`);
+      scrim.style.setProperty("--visual-top", `${viewport.offsetTop}px`);
+    };
+
     resize();
     viewport.addEventListener("resize", resize);
+    viewport.addEventListener("scroll", resize);
+
     return () => {
       viewport.removeEventListener("resize", resize);
+      viewport.removeEventListener("scroll", resize);
       scrim.style.removeProperty("--visual-height");
+      scrim.style.removeProperty("--visual-top");
     };
   }, [active, scrimRef]);
 

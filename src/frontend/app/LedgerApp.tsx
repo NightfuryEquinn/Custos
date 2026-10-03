@@ -1026,10 +1026,11 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
         items={sidebarItems}
         favorites={tabItems}
         disabled={isSaving}
-        onTask={async (title) => {
+        todoLists={ledger.todoLists}
+        onTask={async (title, listId) => {
           if (ledger.unavailableResources.includes("tasks"))
             throw new Error("Your task lists have not downloaded yet. Connect and try again.");
-          const list = ledger.todoLists[0];
+          const list = ledger.todoLists.find((l) => l.id === listId) ?? ledger.todoLists[0];
           await ledger.saveTodoList({
             ...(list ?? { name: "Everyday", tasks: [] }),
             tasks: [...(list?.tasks ?? []), { id: crypto.randomUUID(), title, done: false }],
