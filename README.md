@@ -30,7 +30,8 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - **Log payment** — open a prefilled expense from an event and link `eventId` ↔ `expenseId`, releasing that occurrence's hold.
 - **Email reminders** — optional Resend emails with per-event lead time and your timezone, plus a reminder at the event's own start; delivered to your account notify email.
 - **Push notifications** — opt-in Web Push per device under **Account → Preferences**, on the same 15-minute poll as email.
-- **TO-DO lists** — multiple named lists with inline task management.
+- **TO-DO lists** — multiple named lists with inline task management; quick to-dos from the Add sheet go to the list you pick.
+- **Add sheet** — the dock's **Add** button creates a transaction, event, to-do, list, Capitals plan, category, or vehicle fill-up from any view, switching to the right view and opening its editor.
 
 ### Identity & privacy
 

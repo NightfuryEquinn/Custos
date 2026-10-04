@@ -191,6 +191,8 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
   const capitalsRef = useRef<CapitalsHandle>(null);
   const todoListRef = useRef<TodoListViewHandle>(null);
   const categoriesRef = useRef<CategoriesHandle>(null);
+  /** An add action waiting for its lazily loaded view to mount; run returns false until it can. */
+  const [pendingAdd, setPendingAdd] = useState<{ view: ViewId; run: () => boolean } | null>(null);
   const tourReady = !ledger.isLoading && !ledger.error && !!ledger.profile;
   const { setTourState, tourPreference, toursSeen } = ledger;
   const {
@@ -255,6 +257,29 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
       setView(first);
     }
   }, [ledgerIsLoading, ledgerError, tabItems, setView]);
+
+  useEffect(() => {
+    if (!pendingAdd) return;
+    if (pendingAdd.view !== view) {
+      setPendingAdd(null);
+      return;
+    }
+
+    /* The view's chunk may still be loading under Suspense, so retry until its ref attaches. */
+    const deadline = performance.now() + 2000;
+    let frame = 0;
+    const attempt = () => {
+      if (pendingAdd.run() || performance.now() > deadline) {
+        setPendingAdd(null);
+        return;
+      }
+      frame = requestAnimationFrame(attempt);
+    };
+
+    attempt();
+
+    return () => cancelAnimationFrame(frame);
+  }, [pendingAdd, view]);
 
   /* A 401/403 mid-session (expired cookie, revoked session) used to render
      the same "API is down" screen with no way out but a manual reload —
@@ -724,39 +749,20 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
     categoryIndex: ledger.categoryIndex,
   };
 
-  /* Quick-add is context-aware: one direct action per view, not a menu. Views
-     not listed here get no FAB at all. */
-  const fabByView: Record<ViewId, { label: string; onClick: () => void } | null> = {
-    overview: null,
-    todos: { label: "New List", onClick: () => todoListRef.current?.openAdd() },
-    schedule: {
-      label: "New Event",
-      onClick: () => {
-        setEvOccurrenceIso(undefined);
-        setEvModal({ add: true, date: TODAY_ISO });
-      },
-    },
-    transactions: { label: "New Transaction", onClick: () => setModal({ add: true }) },
-    budgets: { label: "New Transaction", onClick: () => setModal({ add: true }) },
-    recurring: { label: "New Transaction", onClick: () => setModal({ add: true }) },
-    vehicles:
-      ledger.vehicles.length === 0
-        ? null
-        : {
-            label: "Add Fill Up",
-            onClick: () =>
-              ledger.vehicles.length >= 2
-                ? setVehiclePickerOpen(true)
-                : vehiclesRef.current?.openAddFillForSelected(),
-          },
-    categories: { label: "New Category", onClick: () => categoriesRef.current?.openAdd() },
-    piggies: null,
-    capitals: { label: "New Plan", onClick: () => capitalsRef.current?.openAdd() },
-    calculator: null,
-    insights: null,
-    transparency: null,
+  /** Switch to a view, then run its add action once the lazy view has mounted. */
+  const addInView = (target: ViewId, run: () => boolean) => {
+    setView(target);
+    setPendingAdd({ view: target, run });
   };
-  const fabAction = fabByView[view];
+
+  /** Open the fill-up editor for one vehicle, from any view. */
+  const addFillFor = (vehicleId: string) =>
+    addInView("vehicles", () => {
+      if (!vehiclesRef.current) return false;
+      vehiclesRef.current.openAddFillFor(vehicleId);
+
+      return true;
+    });
 
   return (
     <div className="app journal-app">
@@ -1052,8 +1058,56 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
               setEvModal({ add: true, date: TODAY_ISO });
             },
           },
-          ...(fabAction && !["schedule", "transactions", "budgets", "recurring"].includes(view)
-            ? [{ id: "context", label: fabAction.label, icon: "plus", run: fabAction.onClick }]
+        ]}
+        moreActions={[
+          {
+            id: "list",
+            label: "New List",
+            icon: "list",
+            run: () =>
+              addInView("todos", () => {
+                if (!todoListRef.current) return false;
+                todoListRef.current.openAdd();
+
+                return true;
+              }),
+          },
+          {
+            id: "plan",
+            label: "New Plan",
+            icon: "capital",
+            run: () =>
+              addInView("capitals", () => {
+                if (!capitalsRef.current) return false;
+                capitalsRef.current.openAdd();
+
+                return true;
+              }),
+          },
+          {
+            id: "category",
+            label: "New Category",
+            icon: "tags",
+            run: () =>
+              addInView("categories", () => {
+                if (!categoriesRef.current) return false;
+                categoriesRef.current.openAdd();
+
+                return true;
+              }),
+          },
+          ...(ledger.vehicles.length
+            ? [
+                {
+                  id: "fill",
+                  label: "New Fill Up",
+                  icon: "car",
+                  run: () =>
+                    ledger.vehicles.length >= 2
+                      ? setVehiclePickerOpen(true)
+                      : addFillFor(ledger.vehicles[0]!.id),
+                },
+              ]
             : []),
         ]}
       />
@@ -1083,8 +1137,8 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
                       role="option"
                       className="picker-category-item"
                       onClick={() => {
-                        vehiclesRef.current?.openAddFillFor(v.id);
                         requestCloseVehiclePicker(() => setVehiclePickerOpen(false));
+                        addFillFor(v.id);
                       }}
                     >
                       <span className="pci-glyph">{v.glyph}</span>

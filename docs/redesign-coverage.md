@@ -37,7 +37,7 @@ A short notice confirms each save, delete, archive, and restore, and adds "syncs
 | Area          | Surfaces to inspect in browser                                                                                                                                                                                     |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Promotional   | Home hero, features, schedule, goals, privacy, stats, FAQ, stack, final CTA, footer; Offers; Services                                                                                                              |
-| Shell         | Topbar, account menu, wallet and month controls, Open Custos index, Add sheet, dock, theme toggle                                                                                                                  |
+| Shell         | Topbar, account menu, wallet and month controls, Open Custos index, Add sheet (incl. list, plan, category, fill-up), dock, theme toggle                                                                            |
 | Views         | Overview, Transactions, Budgets, Recurring, Schedule, To-do, Vehicles, Categories, Piggies, Capitals, Calculator, Insights, Transparency                                                                           |
 | Editors       | Transaction, event, wallet, category, subcategory, to-do list, vehicle, fuel/charge record, capital plan and item                                                                                                  |
 | Confirmations | Generic delete, recurring scope, typed confirmation, discard changes, transfer and progress, calculator apply, backup restore, session revoke and local data clear                                                 |
@@ -52,7 +52,7 @@ For each row, check light and dark appearance, 390px, 768px, 1280px, and 1440px 
 Reviewed in headless Chrome against a local database, at 390, 768, 1280, and 1440px in the dark theme, and at 390 and 1280px in the light theme where noted. No horizontal page scroll at any width.
 
 - **Views at all four widths:** Overview, Transactions, Budgets, Recurring, Schedule, To-do, Vehicles, Categories, Capitals, Calculator, Insights, Transparency, and Piggies.
-- **Dialogs at 390px and 1280px:** Add Transaction, edit transaction, New Event, quick task, Open Custos index, delete confirmation with the armed button, typed confirmation, discard changes, vehicle, plan, to-do list, and category editors, Wallets, account menu, Navigation, Data & Privacy, Import & Export, Support, and the month picker.
+- **Dialogs at 390px and 1280px:** Add Transaction, edit transaction, New Event, quick to-do, Open Custos index, delete confirmation with the armed button, typed confirmation, discard changes, vehicle, plan, to-do list, and category editors, Wallets, account menu, Navigation, Data & Privacy, Import & Export, Support, and the month picker.
 - **Light theme:** hover fill, armed button, and notice.
 - **Auth screens:** welcome, identity, and unlock at 390px and 1280px.
 - **Public site:** home, Offers, and Services at 320, 390, 768, 1024, 1280, and 1440px, in light and dark.

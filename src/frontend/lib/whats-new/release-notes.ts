@@ -37,6 +37,28 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "6.4.1",
+    date: "October 2026",
+    lead: "The Add button reaches everything you can create, quick to-dos land where you want them, and dialogs stay put on phones.",
+    highlights: [
+      {
+        icon: "sparkle",
+        title: "Add anything from anywhere",
+        body: "The Add button now creates lists, plans, categories, and fill-ups as well as transactions, events, and to-dos, from any view.",
+      },
+      {
+        icon: "list",
+        title: "Pick the list",
+        body: "A quick to-do goes to the list you choose instead of always the first one.",
+      },
+      {
+        icon: "info",
+        title: "Steadier dialogs",
+        body: "The page behind a dialog no longer scrolls, the keyboard no longer pushes dialogs off screen, Open Custos no longer opens the keyboard on phones, and stray focus rings are gone from amount fields and budgets.",
+      },
+    ],
+  },
+  {
     version: "6.4.0",
     date: "October 2026",
     lead: "Deleting takes two steps, saving tells you what happened, and every screen lines up on the same edges.",

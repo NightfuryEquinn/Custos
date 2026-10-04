@@ -46,8 +46,6 @@ export function CategoryPicker({
 
   useEffect(() => {
     if (!open) return;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     activeRef.current?.scrollIntoView({ block: "nearest" });
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -58,7 +56,6 @@ export function CategoryPicker({
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => {
-      document.body.style.overflow = prevOverflow;
       window.removeEventListener("keydown", onKeyDown, true);
     };
   }, [open]);

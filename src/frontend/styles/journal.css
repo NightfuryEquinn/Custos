@@ -646,7 +646,8 @@ input:focus-visible {
   outline-offset: 4px;
 }
 
-.amount-field input:focus-visible {
+.amount-field input:focus-visible,
+.be-edit input:focus-visible {
   outline: none;
 }
 /* The detail sheet's head, body and foot carry their own insets; the panel adds none. */

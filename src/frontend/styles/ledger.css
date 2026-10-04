@@ -512,6 +512,15 @@ h3 {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+/* useModalMotion sets .modal-open while any modal or picker is open; only the modal scrolls. */
+html.modal-open,
+html.modal-open body,
+html.modal-open .scroll {
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 /* ── 4. Controls ──────────────────────────────────────────────────── */
@@ -6220,6 +6229,15 @@ textarea::placeholder {
 
 .modal-scrim .modal {
   will-change: opacity, transform;
+}
+
+/* Stop a swipe at the end of a modal from carrying on into the page behind it. */
+.modal-scrim,
+.picker-scrim,
+.modal,
+.modal-body,
+.journal-command-body {
+  overscroll-behavior: contain;
 }
 
 .modal-scrim.center {

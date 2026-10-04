@@ -14,6 +14,8 @@ type Props = {
   items: readonly NavItem[];
   favorites: readonly NavItem[];
   actions: CaptureAction[];
+  /** Listed after To-Do in the Add sheet. */
+  moreActions: CaptureAction[];
   disabled: boolean;
   todoLists: readonly Pick<TodoList, "id" | "name" | "icon">[];
   onTask: (title: string, listId: string | null) => Promise<void>;
@@ -25,6 +27,7 @@ export function JournalCommands({
   items,
   favorites,
   actions,
+  moreActions,
   disabled,
   todoLists,
   onTask,
@@ -241,9 +244,16 @@ export function JournalCommands({
                       }}
                     >
                       <Icon name="checklist" />
-                      <span>Task</span>
+                      <span>To-Do</span>
                       <Icon name="plus" size={16} />
                     </button>
+                    {moreActions.map((action) => (
+                      <button key={action.id} type="button" onClick={() => pick(action.run)}>
+                        <Icon name={action.icon} />
+                        <span>{action.label}</span>
+                        <Icon name="plus" size={16} />
+                      </button>
+                    ))}
                   </div>
                 ) : (
                   <form
@@ -254,7 +264,7 @@ export function JournalCommands({
                       setError("");
                       void onTask(task.trim(), targetList?.id ?? null)
                         .then(() => {
-                          toast("Task added");
+                          toast("To-Do added");
                           requestClose(() => setMode(null));
                         })
                         .catch((err: unknown) =>
@@ -266,7 +276,7 @@ export function JournalCommands({
                     }}
                   >
                     <label className="fld-label" htmlFor="journal-task">
-                      Task title
+                      To-Do title
                     </label>
                     <input
                       id="journal-task"
@@ -306,7 +316,7 @@ export function JournalCommands({
                       </p>
                     )}
                     <button className="primary-btn" type="submit" disabled={!task.trim() || busy}>
-                      {busy ? "Saving…" : "Add Task"}
+                      {busy ? "Saving…" : "Add To-Do"}
                     </button>
                   </form>
                 )}

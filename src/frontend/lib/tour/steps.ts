@@ -87,7 +87,7 @@ export const SHELL_TOUR_STEPS: TourStep[] = [
   step(
     "shell-fab",
     "Quick Add",
-    "Add an expense, event, or task from anywhere. Extra choices appear for the current view.",
+    "Add an expense, event, to-do, list, plan, category, or fill-up from anywhere.",
     '[data-tour="tour-fab"]',
     "top",
   ),

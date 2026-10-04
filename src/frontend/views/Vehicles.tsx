@@ -48,7 +48,6 @@ type VehiclesProps = {
 export type VehiclesHandle = {
   select: (id: string) => void;
   openAddFillFor: (id: string) => void;
-  openAddFillForSelected: () => void;
 };
 
 type EditorMode =
@@ -652,9 +651,6 @@ export const Vehicles = forwardRef<VehiclesHandle, VehiclesProps>(function Vehic
     openAddFillFor: (id: string) => {
       setSelectedId(id);
       openAddFill(id);
-    },
-    openAddFillForSelected: () => {
-      if (selectedVehicle) openAddFill(selectedVehicle.id);
     },
   }));
 

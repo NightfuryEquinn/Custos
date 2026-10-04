@@ -37,8 +37,6 @@ export function TimezonePicker({ value, onChange, className, disabled, id }: Tim
 
   useEffect(() => {
     if (!open) return;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     activeRef.current?.scrollIntoView({ block: "nearest" });
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -49,7 +47,6 @@ export function TimezonePicker({ value, onChange, className, disabled, id }: Tim
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => {
-      document.body.style.overflow = prevOverflow;
       window.removeEventListener("keydown", onKeyDown, true);
     };
   }, [open]);

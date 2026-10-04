@@ -212,11 +212,6 @@ export function UnlockScreen({
         <div ref={cardRef} className="auth-card">
           <Brand />
           <h1>Use Face ID on this Device?</h1>
-          <p className="auth-lead">
-            Next time, Custos will ask for Face ID or Touch ID on its own — no need to type your
-            passphrase. Your passphrase is encrypted with your biometric key and never leaves this
-            device.
-          </p>
           {offerError ? <p className="auth-error">{offerError}</p> : null}
           <button
             type="button"
@@ -244,16 +239,6 @@ export function UnlockScreen({
       <div ref={cardRef} className="auth-card">
         <Brand />
         <h1>Unlock Your Ledger</h1>
-        <p className="auth-lead">
-          Transaction amounts and notes are encrypted end-to-end.{" "}
-          {needsWalletSign
-            ? "Sign a message with your wallet to derive your decryption key."
-            : needsPassphrase
-              ? migrating
-                ? "Set a device passphrase to encrypt your local key, then unlock."
-                : "Enter your device passphrase, then unlock to derive your decryption key."
-              : "Your encryption key will be derived from your wallet."}
-        </p>
         {canBiometricUnlock ? (
           <button
             type="button"

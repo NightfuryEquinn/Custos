@@ -48,6 +48,20 @@ type ModalMotionOpts = {
 /** Managed modals, topmost last; one Escape listener serves them all. */
 const dismissStack: { dismiss: () => void }[] = [];
 
+/** Open modals and pickers; the page behind stays locked until the last one closes. */
+let openModalCount = 0;
+
+/** Lock background scrolling while a modal is open; returns the matching unlock. */
+function lockPageScroll() {
+  openModalCount += 1;
+  document.documentElement.classList.add("modal-open");
+
+  return () => {
+    openModalCount -= 1;
+    if (openModalCount === 0) document.documentElement.classList.remove("modal-open");
+  };
+}
+
 /** Escape closes only the topmost managed modal. */
 function onEscape(event: KeyboardEvent) {
   if (event.key !== "Escape" || event.defaultPrevented) return;
@@ -202,6 +216,12 @@ export function useModalMotion(
   useEffect(() => {
     latest.current = { onDismiss: opts?.onDismiss, dirty: opts?.dirty };
   });
+
+  useEffect(() => {
+    if (!active || !scrimRef.current) return;
+
+    return lockPageScroll();
+  }, [active, scrimRef]);
 
   useEffect(() => {
     const viewport = window.visualViewport;
