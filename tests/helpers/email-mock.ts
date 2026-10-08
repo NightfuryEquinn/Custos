@@ -1,5 +1,4 @@
-import { budgetAlertEmailHtml } from "@/api/lib/email";
-import { reminderEmailHtml } from "@/api/lib/reminder-email-html";
+import { budgetAlertEmailHtml, resendEmailBody } from "@/api/lib/email";
 import { mock } from "bun:test";
 
 type SendEmailResult = { ok: true; id: string } | { ok: false; error: string };
@@ -9,17 +8,21 @@ type EmailMockOverrides = {
   sendEmail?: (input: {
     to: string;
     subject: string;
-    html: string;
+    html?: string;
     text?: string;
+    template?: {
+      id: string;
+      variables: Record<string, string>;
+    };
   }) => Promise<SendEmailResult>;
 };
 
-/** Mock outbound email while keeping real HTML template implementations. */
+/** Mock outbound email while keeping real HTML and Resend body builders. */
 export function installEmailMock(overrides: EmailMockOverrides = {}) {
   mock.module("@/api/lib/email", () => ({
     emailConfigured: overrides.emailConfigured ?? (() => false),
     sendEmail: overrides.sendEmail ?? (async () => ({ ok: true, id: "test" })),
-    reminderEmailHtml,
     budgetAlertEmailHtml,
+    resendEmailBody,
   }));
 }

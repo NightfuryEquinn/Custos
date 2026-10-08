@@ -1,20 +1,62 @@
-import { escapeHtml, wrapEmailBody } from "@/api/lib/email-layout";
+import { emailCommentsBlock, emailDetailRows, escapeHtml } from "@/api/lib/email-layout";
+
+/** Resend rejects a template variable longer than this. */
+const RESEND_VARIABLE_MAX = 2000;
+
+const CONFIRMATION_TEMPLATE_ID = "we-got-you-covered";
+const DUE_TEMPLATE_ID = "reminder-now";
 
 /**
- * Upper-case the first letter so table values read as standalone labels
- * ("On the day of the event"), while the same phrase stays lower-case where
- * it is embedded mid-sentence.
+ * Upper-case the first letter so the Notify row reads as a label
+ * ("On the day of the event"), while the intro keeps the same phrase mid-sentence.
  */
 function capitalizeFirst(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/** Build reminder / confirmation email subject, HTML, and plain text.
- * Title falls back to a generic label when the event has no plaintext copy for
- * delivery (content is E2EE, so the server has nothing else to render).
- * `hold` and `comments` are rendered only when the client supplied them.
+/** Hold card for the template slot, or empty when the event has no budget hold. */
+function holdHtml(hold: string | undefined): string {
+  if (!hold) return "";
+
+  const html = emailDetailRows([{ label: "Hold", value: escapeHtml(hold) }], 20);
+
+  return html.length <= RESEND_VARIABLE_MAX ? html : "";
+}
+
+/**
+ * Comments card for the template slot.
+ * Drops trailing comments until the block fits a Resend variable, since a
+ * notifying event can store more text than one variable allows.
  */
-export function reminderEmailHtml(opts: {
+function commentsHtml(comments: string[] | undefined): string {
+  const items = (comments ?? []).filter((c) => c.trim());
+  if (!items.length) return "";
+
+  let kept = items;
+  let html = emailCommentsBlock(kept);
+
+  while (html.length > RESEND_VARIABLE_MAX && kept.length > 1) {
+    kept = kept.slice(0, -1);
+    html = emailCommentsBlock(kept);
+  }
+
+  return html.length <= RESEND_VARIABLE_MAX ? html : "";
+}
+
+export type ReminderEmailTemplate = {
+  /** Published Resend template alias. */
+  id: string;
+  /** Plain-text subject. The API value wins over the template default. */
+  subject: string;
+  variables: Record<string, string>;
+};
+
+/**
+ * Variables for the Resend reminder templates.
+ * Confirmation is `we-got-you-covered`; a due reminder is `reminder-now`.
+ * Plain fields are escaped because `{{{VAR}}}` is inserted as HTML.
+ */
+export function reminderEmailTemplate(opts: {
   title: string;
   when: string;
   category: string;
@@ -22,42 +64,30 @@ export function reminderEmailHtml(opts: {
   hold?: string;
   comments?: string[];
   isConfirmation?: boolean;
-}): { html: string; text: string; subject: string } {
-  const subject = opts.isConfirmation ? `Reminder set: ${opts.title}` : `Upcoming: ${opts.title}`;
+}): ReminderEmailTemplate {
+  const shared = {
+    EVENT_TITLE: escapeHtml(opts.title),
+    WHEN: escapeHtml(opts.when),
+    EVENT_TYPE: escapeHtml(opts.category),
+    LEAD: escapeHtml(opts.lead),
+    HOLD_HTML: holdHtml(opts.hold),
+    COMMENTS_HTML: commentsHtml(opts.comments),
+  };
 
-  const intro = opts.isConfirmation
-    ? `We'll email you <strong>${escapeHtml(opts.lead)}</strong> this event.`
-    : "This is your reminder for an upcoming event.";
-
-  const comments = (opts.comments ?? []).filter((c) => c.trim());
-
-  const detailRows = [
-    ...(opts.isConfirmation
-      ? [{ label: "Event", value: escapeHtml(opts.title), strong: true }]
-      : []),
-    { label: "When", value: escapeHtml(opts.when) },
-    { label: "Type", value: escapeHtml(opts.category) },
-    ...(opts.hold ? [{ label: "Hold", value: escapeHtml(opts.hold) }] : []),
-    ...(opts.isConfirmation
-      ? [{ label: "Notify", value: escapeHtml(capitalizeFirst(opts.lead)) }]
-      : []),
-  ];
-
-  const html = wrapEmailBody({
-    heading: opts.isConfirmation ? "Reminder scheduled" : escapeHtml(opts.title),
-    introHtml: intro,
-    detailRows,
-    comments,
-  });
-
-  const lines = opts.isConfirmation
-    ? [`Reminder set for "${opts.title}" on ${opts.when}. We'll notify you ${opts.lead}.`]
-    : [`Reminder: "${opts.title}" on ${opts.when} (${opts.category}).`];
-
-  if (opts.hold) lines.push(`Hold: ${opts.hold}`);
-  if (comments.length) {
-    lines.push("Comments:", ...comments.map((c) => `- ${c}`));
+  if (opts.isConfirmation) {
+    return {
+      id: CONFIRMATION_TEMPLATE_ID,
+      subject: `Reminder set: ${opts.title}`,
+      variables: {
+        ...shared,
+        LEAD_LABEL: escapeHtml(capitalizeFirst(opts.lead)),
+      },
+    };
   }
 
-  return { html, text: lines.join("\n"), subject };
+  return {
+    id: DUE_TEMPLATE_ID,
+    subject: `Upcoming: ${opts.title}`,
+    variables: shared,
+  };
 }

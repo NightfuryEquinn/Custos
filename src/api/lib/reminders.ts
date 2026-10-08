@@ -1,4 +1,5 @@
-import { emailConfigured, reminderEmailHtml, sendEmail } from "@/api/lib/email";
+import { emailConfigured, sendEmail } from "@/api/lib/email";
+import { reminderEmailTemplate } from "@/api/lib/reminder-email-html";
 import { formatMoneyLabel } from "@/api/lib/money";
 import {
   accountHasPushSubscription,
@@ -173,7 +174,7 @@ export async function sendEventConfirmation(doc: EventDocument): Promise<void> {
   const leadSummary = doc.lead === "at" ? chosenLead : `${chosenLead}, and again ${atLead}`;
   /* Multi-day events also get a daily nudge, so say so up front. */
   const lead = span > 1 ? `${leadSummary}, then each morning it is still running` : leadSummary;
-  const { html, text, subject } = reminderEmailHtml({
+  const { id, subject, variables } = reminderEmailTemplate({
     ...reminderContent(doc),
     when,
     category,
@@ -181,7 +182,7 @@ export async function sendEventConfirmation(doc: EventDocument): Promise<void> {
     isConfirmation: true,
   });
 
-  await sendEmail({ to: prefs.notifyEmail, subject, html, text });
+  await sendEmail({ to: prefs.notifyEmail, subject, template: { id, variables } });
 }
 
 /**
@@ -379,9 +380,14 @@ async function sendReminderOnce(
   const [emailResult, pushResult] = await Promise.all([
     wanted.includes("email")
       ? (async () => {
-          const { html, text, subject } = reminderEmailHtml({ ...content, when, category, lead });
+          const { id, subject, variables } = reminderEmailTemplate({
+            ...content,
+            when,
+            category,
+            lead,
+          });
 
-          return sendEmail({ to: email, subject, html, text });
+          return sendEmail({ to: email, subject, template: { id, variables } });
         })()
       : null,
     wanted.includes("push")

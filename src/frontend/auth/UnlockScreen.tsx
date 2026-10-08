@@ -211,7 +211,7 @@ export function UnlockScreen({
       <div className="auth-wrap">
         <div ref={cardRef} className="auth-card">
           <Brand />
-          <h1>Use Face ID on this Device?</h1>
+          <h1 className="auth-h1">Use Face ID on this Device?</h1>
           {offerError ? <p className="auth-error">{offerError}</p> : null}
           <button
             type="button"
@@ -238,7 +238,7 @@ export function UnlockScreen({
     <div className="auth-wrap">
       <div ref={cardRef} className="auth-card">
         <Brand />
-        <h1>Unlock Your Ledger</h1>
+        <h1 className="auth-h1">Unlock Your Ledger</h1>
         {canBiometricUnlock ? (
           <button
             type="button"

@@ -21,7 +21,7 @@ export function emailLogoHtml(): string {
 }
 
 /** Render label/value rows inside a card-style table block. */
-export function emailDetailRows(rows: DetailRow[]): string {
+export function emailDetailRows(rows: DetailRow[], marginTop = 0): string {
   const inner = rows
     .map((row, index) => {
       const isLast = index === rows.length - 1;
@@ -35,7 +35,9 @@ export function emailDetailRows(rows: DetailRow[]): string {
     })
     .join("\n    ");
 
-  return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;background:#f7f5f2;border:1px solid #e8e4df;border-radius:12px">
+  const margin = marginTop > 0 ? `margin-top:${marginTop}px;` : "";
+
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="${margin}width:100%;border-collapse:collapse;background:#f7f5f2;border:1px solid #e8e4df;border-radius:12px">
   <tr>
     <td style="padding:20px">
       <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse">

@@ -37,6 +37,33 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "6.4.2",
+    date: "October 2026",
+    lead: "Dialogs stay usable with the keyboard up, the app no longer reloads on its own, and reminder emails get a cleaner look.",
+    highlights: [
+      {
+        icon: "info",
+        title: "Room to type",
+        body: "Dialogs now fit above the on-screen keyboard and scroll inside themselves, while the page behind stays still.",
+      },
+      {
+        icon: "wifi-on",
+        title: "No surprise reloads",
+        body: "Update ready only reloads once the new version has actually taken over, and Your changes now closes when you tap outside it.",
+      },
+      {
+        icon: "bell",
+        title: "Fresh reminder emails",
+        body: "Reminder and confirmation emails use a new design, with holds and comments in their own cards.",
+      },
+      {
+        icon: "shield",
+        title: "Unlock in style",
+        body: "The unlock screen title now uses the same serif as the rest of sign-in.",
+      },
+    ],
+  },
+  {
     version: "6.4.1",
     date: "October 2026",
     lead: "The Add button reaches everything you can create, quick to-dos land where you want them, and dialogs stay put on phones.",

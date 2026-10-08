@@ -6,7 +6,58 @@ import type { OutboxEntry } from "@/frontend/lib/sync/types";
 import { useOutboxEntries } from "@/frontend/lib/sync/useOutbox";
 import { useOfflineReadiness } from "@/frontend/lib/pwa/readiness";
 import { drainOutbox } from "@/frontend/lib/sync/engine";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+/** How long to wait for a waiting worker to become the page controller. */
+const UPDATE_TAKEOVER_MS = 4000;
+
+/** True while an update click is waiting to see if that worker takes control. */
+let updateRequested = false;
+
+/** Reload after this waiting worker becomes the controller; otherwise drop the listener. */
+function activateWaitingWorker(worker: ServiceWorker) {
+  if (updateRequested) return;
+
+  updateRequested = true;
+  let settled = false;
+  let timer = 0;
+
+  /** Clear the takeover listeners, and reload only when this worker won. */
+  const finish = (reload: boolean) => {
+    if (settled) return;
+
+    settled = true;
+    updateRequested = false;
+    window.clearTimeout(timer);
+    navigator.serviceWorker.removeEventListener("controllerchange", onController);
+    worker.removeEventListener("statechange", onState);
+    if (reload) window.location.reload();
+  };
+
+  /** Reload once the page is controlled by the worker we asked to activate. */
+  const onController = () => {
+    if (navigator.serviceWorker.controller === worker) finish(true);
+  };
+
+  /** Reload when this worker activates; drop the listener if it is discarded. */
+  const onState = () => {
+    if (worker.state === "activated") finish(true);
+    if (worker.state === "redundant") finish(false);
+  };
+
+  timer = window.setTimeout(() => {
+    if (navigator.serviceWorker.controller !== worker) finish(false);
+  }, UPDATE_TAKEOVER_MS);
+
+  navigator.serviceWorker.addEventListener("controllerchange", onController);
+  worker.addEventListener("statechange", onState);
+
+  try {
+    worker.postMessage({ type: "ACTIVATE_UPDATE" });
+  } catch {
+    finish(false);
+  }
+}
 
 export function OfflineBanner({
   address,
@@ -24,6 +75,7 @@ export function OfflineBanner({
   const ready = useOfflineReadiness(address, month, dataReady);
   const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
   const [error, setError] = useState("");
+  const changesRef = useRef<HTMLDetailsElement>(null);
   const failed = entries.some((e) => e.status === "failed" || e.status === "blocked");
   const syncing = entries.some((e) => e.status === "inflight");
   const label = failed
@@ -58,6 +110,20 @@ export function OfflineBanner({
       installing?.removeEventListener("statechange", check);
     };
   }, []);
+  useEffect(() => {
+    /** Close the changes panel when the pointer lands outside it. */
+    const onPointerDown = (event: PointerEvent) => {
+      const panel = changesRef.current;
+      if (!panel?.open) return;
+      if (event.target instanceof Node && panel.contains(event.target)) return;
+
+      panel.open = false;
+    };
+
+    document.addEventListener("pointerdown", onPointerDown);
+
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, []);
   const retry = async (id: string) => {
     setError("");
     try {
@@ -88,7 +154,7 @@ export function OfflineBanner({
   };
   return (
     <div className="journal-sync">
-      <details className="journal-sync-details">
+      <details ref={changesRef} className="journal-sync-details">
         <summary className="offline-banner">
           <Icon name={status === "offline" ? "wifi-off" : "lock"} size={15} />
           <span>
@@ -161,14 +227,7 @@ export function OfflineBanner({
           type="button"
           className="link-btn"
           disabled={saving}
-          onClick={() => {
-            navigator.serviceWorker.addEventListener(
-              "controllerchange",
-              () => window.location.reload(),
-              { once: true },
-            );
-            waiting.postMessage({ type: "ACTIVATE_UPDATE" });
-          }}
+          onClick={() => activateWaitingWorker(waiting)}
         >
           Update ready / Reload
         </button>

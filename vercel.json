@@ -38,7 +38,7 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" },
     {
-      "source": "/((?!api/|fonts/|sitemap\\.xml|robots\\.txt|sw\\.js|manifest\\.webmanifest|logo\\.png|og-image\\.png).*)",
+      "source": "/((?!_vercel/|api/|fonts/|sitemap\\.xml|robots\\.txt|sw\\.js|manifest\\.webmanifest|logo\\.png|og-image\\.png).*)",
       "destination": "/index.html"
     }
   ],

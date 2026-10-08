@@ -6,12 +6,22 @@ import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:tes
 import { installEmailMock } from "../helpers/email-mock";
 import { installMemoryDb, uninstallMemoryDb, type MemoryDb } from "../helpers/memory-db";
 
-const emailSends: Array<{ to: string; subject: string }> = [];
+const emailSends: Array<{
+  to: string;
+  subject: string;
+  html?: string;
+  template?: { id: string; variables: Record<string, string> };
+}> = [];
 
 installEmailMock({
   emailConfigured: () => true,
   sendEmail: async (input) => {
-    emailSends.push({ to: input.to, subject: input.subject });
+    emailSends.push({
+      to: input.to,
+      subject: input.subject,
+      html: input.html,
+      template: input.template,
+    });
 
     return { ok: true, id: "test" };
   },
@@ -93,7 +103,18 @@ describe("event reminder email routing", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 20));
 
-    expect(emailSends.some((s) => s.to === "owner@example.com")).toBe(true);
+    const confirmation = emailSends.find((s) => s.to === "owner@example.com");
+    expect(confirmation?.subject).toBe("Reminder set: Rent");
+    expect(confirmation?.html).toBeUndefined();
+    expect(confirmation?.template?.id).toBe("we-got-you-covered");
+    expect(confirmation?.template?.variables.EVENT_TITLE).toBe("Rent");
+    expect(confirmation?.template?.variables.EVENT_TYPE).toBe("Bill / Payment");
+    expect(confirmation?.template?.variables.LEAD).toBe(
+      "1 day before, and again on the day of the event (9:00 AM)",
+    );
+    expect(confirmation?.template?.variables.LEAD_LABEL).toBe(
+      "1 day before, and again on the day of the event (9:00 AM)",
+    );
     expect(emailSends.some((s) => s.to === "attacker@evil.example")).toBe(false);
   });
 });

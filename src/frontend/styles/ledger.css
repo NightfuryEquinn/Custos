@@ -6255,7 +6255,7 @@ textarea::placeholder {
   border-radius: var(--r-2xl) var(--r-2xl) 0 0;
   padding: var(--modal-pad);
   box-shadow: 0 16px 48px -20px rgba(0, 0, 0, 0.34);
-  max-height: min(92vh, calc(100dvh - 16px));
+  max-height: min(92vh, calc(var(--visual-height, 100dvh) - 16px));
   overflow-x: hidden;
   overflow-y: auto;
   --modal-pad: var(--sp-6);
@@ -6270,7 +6270,7 @@ textarea::placeholder {
   width: min(100%, 440px);
   max-width: 100%;
   border-radius: var(--r-2xl);
-  max-height: min(88vh, 760px, calc(100dvh - 32px));
+  max-height: min(88vh, 760px, calc(var(--visual-height, 100dvh) - 32px));
   display: flex;
   flex-direction: column;
   padding: 0;
@@ -7229,7 +7229,7 @@ textarea::placeholder {
 /* ── What's New changelog ─────────────────────────────────────────── */
 .wn-modal {
   width: min(100%, 460px);
-  max-height: min(88vh, 800px, calc(100dvh - 32px));
+  max-height: min(88vh, 800px, calc(var(--visual-height, 100dvh) - 32px));
 }
 
 .wn-release + .wn-release {
@@ -8053,11 +8053,11 @@ select.text-in {
   }
 
   .modal.sm {
-    max-height: min(90dvh, calc(100dvh - 24px));
+    max-height: min(90dvh, calc(var(--visual-height, 100dvh) - 24px));
   }
 
   .wn-modal {
-    max-height: min(90dvh, calc(100dvh - 24px));
+    max-height: min(90dvh, calc(var(--visual-height, 100dvh) - 24px));
   }
 
   .session-row {
@@ -8360,20 +8360,20 @@ select.text-in {
   .modal {
     --modal-pad: var(--sp-4);
     max-width: none;
-    max-height: min(92dvh, calc(100dvh - env(safe-area-inset-top) - 8px));
+    max-height: min(92dvh, calc(var(--visual-height, 100dvh) - env(safe-area-inset-top) - 8px));
   }
 
   .modal.sm {
     width: 100%;
     max-width: none;
     border-radius: var(--r-2xl) var(--r-2xl) 0 0;
-    max-height: min(92dvh, calc(100dvh - env(safe-area-inset-top) - 8px));
+    max-height: min(92dvh, calc(var(--visual-height, 100dvh) - env(safe-area-inset-top) - 8px));
   }
 
   .wn-modal {
     width: 100%;
     max-width: none;
-    max-height: min(92dvh, calc(100dvh - env(safe-area-inset-top) - 8px));
+    max-height: min(92dvh, calc(var(--visual-height, 100dvh) - env(safe-area-inset-top) - 8px));
   }
 
   .modal.sm .modal-head h3 {

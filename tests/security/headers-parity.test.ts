@@ -16,4 +16,14 @@ describe("security headers parity", () => {
 
     expect(actual).toEqual(expected);
   });
+
+  test("the app rewrite leaves Vercel Speed Insights routes alone", () => {
+    const vercelPath = join(import.meta.dir, "..", "..", "vercel.json");
+    const vercel = JSON.parse(readFileSync(vercelPath, "utf8")) as {
+      rewrites?: Array<{ source: string; destination: string }>;
+    };
+    const appRewrite = vercel.rewrites?.find((rule) => rule.destination === "/index.html");
+
+    expect(appRewrite?.source).toContain("_vercel/");
+  });
 });

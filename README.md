@@ -163,7 +163,7 @@ Create a `.env` file in the project root (see `.env.example`):
 | `APP_ORIGIN`            | Production | Public origin embedded in sign-in messages (required when `NODE_ENV=production` / on Vercel; otherwise falls back to the request origin) |
 | `APP_TIMEZONE`          | No         | Server default IANA timezone for cron/reminders (fallback: `Asia/Kuala_Lumpur`)                                                          |
 | `CRON_SECRET`           | For cron   | Bearer token for `GET /api/cron/reminders`                                                                                               |
-| `RESEND_API_KEY`        | For email  | Resend API key for schedule reminders and budget alerts                                                                                  |
+| `RESEND_API_KEY`        | For email  | Resend API key for schedule reminders and budget alerts; reminders need the published templates `we-got-you-covered` and `reminder-now`  |
 | `EMAIL_FROM`            | No         | Sender address (default: `Custos <onboarding@resend.dev>`)                                                                               |
 | `VAPID_PUBLIC_KEY`      | For push   | Web Push application server key (generate with `npx web-push generate-vapid-keys`)                                                       |
 | `VAPID_PRIVATE_KEY`     | For push   | Web Push private key — pairs with `VAPID_PUBLIC_KEY`                                                                                     |

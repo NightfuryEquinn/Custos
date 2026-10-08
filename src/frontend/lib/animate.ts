@@ -51,14 +51,49 @@ const dismissStack: { dismiss: () => void }[] = [];
 /** Open modals and pickers; the page behind stays locked until the last one closes. */
 let openModalCount = 0;
 
+/** Removes the scroll pin installed by the first open dialog. */
+let releaseScrollPin: (() => void) | null = null;
+
 /** Lock background scrolling while a modal is open; returns the matching unlock. */
 function lockPageScroll() {
   openModalCount += 1;
   document.documentElement.classList.add("modal-open");
 
+  if (openModalCount === 1) {
+    const scroller = document.querySelector<HTMLElement>(".scroll");
+    const lockedTop = scroller?.scrollTop ?? 0;
+    const lockedWindowY = window.scrollY;
+
+    /** Put the page scroller back if the keyboard or a touch moves it. */
+    const pinScroll = () => {
+      if (!scroller || scroller.scrollTop === lockedTop) return;
+
+      scroller.scrollTop = lockedTop;
+    };
+
+    /** Put the window back if the keyboard pans the layout viewport. */
+    const pinWindow = () => {
+      if (window.scrollY !== lockedWindowY) window.scrollTo(0, lockedWindowY);
+    };
+
+    scroller?.addEventListener("scroll", pinScroll);
+    window.addEventListener("scroll", pinWindow);
+    window.visualViewport?.addEventListener("scroll", pinWindow);
+
+    releaseScrollPin = () => {
+      scroller?.removeEventListener("scroll", pinScroll);
+      window.removeEventListener("scroll", pinWindow);
+      window.visualViewport?.removeEventListener("scroll", pinWindow);
+      releaseScrollPin = null;
+    };
+  }
+
   return () => {
     openModalCount -= 1;
-    if (openModalCount === 0) document.documentElement.classList.remove("modal-open");
+    if (openModalCount !== 0) return;
+
+    releaseScrollPin?.();
+    document.documentElement.classList.remove("modal-open");
   };
 }
 

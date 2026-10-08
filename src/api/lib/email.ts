@@ -1,17 +1,25 @@
 import { escapeHtml, LOGO_CONTENT_ID, wrapEmailBody } from "@/api/lib/email-layout";
-import { reminderEmailHtml } from "@/api/lib/reminder-email-html";
-
-export { reminderEmailHtml };
 
 /** Injected by build.ts into the Vercel API bundle; unset in local/dev. */
 declare const __EMAIL_LOGO_BASE64__: string | undefined;
 
-type SendEmailInput = {
+type HtmlEmailInput = {
   to: string;
   subject: string;
   html: string;
   text?: string;
 };
+
+type TemplateEmailInput = {
+  to: string;
+  subject: string;
+  template: {
+    id: string;
+    variables: Record<string, string>;
+  };
+};
+
+type SendEmailInput = HtmlEmailInput | TemplateEmailInput;
 
 type LogoAttachment = {
   content: string;
@@ -19,6 +27,40 @@ type LogoAttachment = {
   content_type: string;
   content_id: string;
 };
+
+type ResendBodyInput = {
+  from: string;
+  to: string;
+  subject: string;
+  html?: string;
+  text?: string;
+  attachments?: LogoAttachment[];
+  template?: TemplateEmailInput["template"];
+};
+
+/**
+ * JSON body for one Resend send.
+ * A template send cannot also include html, text, or attachments.
+ */
+export function resendEmailBody(input: ResendBodyInput): Record<string, unknown> {
+  if (input.template) {
+    return {
+      from: input.from,
+      to: [input.to],
+      subject: input.subject,
+      template: input.template,
+    };
+  }
+
+  return {
+    from: input.from,
+    to: [input.to],
+    subject: input.subject,
+    html: input.html,
+    text: input.text,
+    attachments: input.attachments,
+  };
+}
 
 let logoBase64: string | undefined;
 
@@ -59,7 +101,10 @@ async function getLogoAttachment(): Promise<LogoAttachment> {
   };
 }
 
-/** Send a transactional email via Resend, embedding the Custos logo. */
+/**
+ * Send a transactional email via Resend.
+ * HTML sends embed the Custos logo. Template sends leave the logo to the template.
+ */
 export async function sendEmail(
   input: SendEmailInput,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
@@ -72,7 +117,22 @@ export async function sendEmail(
   }
 
   const from = process.env.EMAIL_FROM?.trim() || "Custos <onboarding@resend.dev>";
-  const logo = await getLogoAttachment();
+  const body =
+    "template" in input
+      ? resendEmailBody({
+          from,
+          to: input.to,
+          subject: input.subject,
+          template: input.template,
+        })
+      : resendEmailBody({
+          from,
+          to: input.to,
+          subject: input.subject,
+          html: input.html,
+          text: input.text,
+          attachments: [await getLogoAttachment()],
+        });
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -80,14 +140,7 @@ export async function sendEmail(
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from,
-      to: [input.to],
-      subject: input.subject,
-      html: input.html,
-      text: input.text,
-      attachments: [logo],
-    }),
+    body: JSON.stringify(body),
   });
 
   const payload = (await res.json().catch(() => ({}))) as { id?: string; message?: string };

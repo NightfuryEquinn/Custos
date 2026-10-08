@@ -18,10 +18,23 @@ function linkManifest(): void {
   document.head.appendChild(link);
 }
 
+/** True for the production client bundle, never for the hot-reload dev server. */
+function isProductionBuild(): boolean {
+  if (import.meta.hot) return false;
+
+  try {
+    return process.env.NODE_ENV === "production";
+  } catch {
+    return false;
+  }
+}
+
 /** Register `/sw.js` when the browser supports service workers. */
 export function registerServiceWorker(): void {
   if (typeof window === "undefined") return;
   linkManifest();
+  /* A cached shell must not answer dev reloads. */
+  if (!isProductionBuild()) return;
   if (!("serviceWorker" in navigator)) return;
 
   window.addEventListener("load", () => {
