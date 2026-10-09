@@ -1,11 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import {
   decodeCategories,
+  decodeDailyCompletion,
+  decodeDailyRoutine,
   decodeEvent,
   decodeExpense,
   decodeTodoList,
   decodeWallet,
   encodeCategories,
+  encodeDailyCompletion,
+  encodeDailyRoutine,
   encodeEventCreate,
   encodeEventUpdate,
   encodeExpenseCreate,
@@ -513,5 +517,65 @@ describe("crypto codec", () => {
     );
     expect(decoded.name).toBe("Chores");
     expect(decoded.tasks[0]!.done).toBe(true);
+  });
+});
+
+describe("daily codec", () => {
+  const routine = {
+    title: "Stretch",
+    notes: "ten minutes",
+    schedule: [{ from: "2026-10-05", kind: "weekdays" as const, weekdays: [0, 2, 4] }],
+    createdAt: "2026-10-05T08:00:00.000Z",
+  };
+
+  test("a routine round-trips, with no plaintext title in the payload", async () => {
+    const key = await testKey();
+    const wire = await encodeDailyRoutine(routine, key);
+
+    expect(wire.enc).toBe(1);
+    expect(wire.payload).not.toContain("Stretch");
+    expect(await decodeDailyRoutine({ id: "r1", ...wire }, key)).toEqual({ id: "r1", ...routine });
+  });
+
+  test("a completion round-trips and is identified by routine and period", async () => {
+    const key = await testKey();
+    const at = "2026-10-09T08:00:00.000Z";
+    const wire = await encodeDailyCompletion(
+      { routineId: "r1", period: "2026-10-09", done: true, at },
+      key,
+    );
+
+    expect(wire).toMatchObject({ routineId: "r1", period: "2026-10-09", enc: 1 });
+    expect(await decodeDailyCompletion({ id: "mongo-id", ...wire }, key)).toEqual({
+      id: "r1:2026-10-09",
+      routineId: "r1",
+      period: "2026-10-09",
+      done: true,
+      at,
+    });
+  });
+
+  test("done and undone payloads are the same length, so the stored state does not leak", async () => {
+    const key = await testKey();
+    const at = "2026-10-09T08:00:00.000Z";
+    const on = await encodeDailyCompletion(
+      { routineId: "r1", period: "2026-10-09", done: true, at },
+      key,
+    );
+    const off = await encodeDailyCompletion(
+      { routineId: "r1", period: "2026-10-09", done: false, at },
+      key,
+    );
+
+    expect(on.payload.length).toBe(off.payload.length);
+  });
+
+  test("decoding without ciphertext fails instead of guessing", async () => {
+    const key = await testKey();
+
+    await expect(decodeDailyRoutine({ id: "r1" }, key)).rejects.toThrow();
+    await expect(
+      decodeDailyCompletion({ id: "x", routineId: "r1", period: "2026-10-09" }, key),
+    ).rejects.toThrow();
   });
 });

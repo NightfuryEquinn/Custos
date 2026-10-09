@@ -13,6 +13,7 @@ import type {
   TodoList,
   Vehicle,
 } from "@/frontend/lib/types";
+import type { DailyCompletion, DailyRoutine } from "@/lib/daily";
 import type { BackupSettings, LedgerBackupPlain } from "./encrypted-backup";
 
 type BackupRestoreApi = {
@@ -24,6 +25,12 @@ type BackupRestoreApi = {
   saveCapitalPlan: (plan: Omit<CapitalPlan, "id"> & { id?: string }) => Promise<unknown>;
   saveVehicle: (vehicle: Omit<Vehicle, "id"> & { id?: string }) => Promise<Vehicle>;
   saveVehicleFill: (fill: Omit<FuelFill, "id"> & { id?: string }) => Promise<unknown>;
+  /** Create a routine; resolves with its new id, which its completions are attached to. */
+  saveDailyRoutine?: (routine: Omit<DailyRoutine, "id">) => Promise<DailyRoutine>;
+  /** Set one routine's checkbox for one period (idempotent on routine + period). */
+  putDailyCompletion?: (
+    completion: Pick<DailyCompletion, "routineId" | "period" | "done" | "at">,
+  ) => Promise<unknown>;
   /** Account preferences — codename, notify email, timezone, reminder toggles. */
   updateUser?: (settings: BackupSettings) => Promise<unknown>;
   /** Profile preferences — tour state, accent, nav layout. */
@@ -41,6 +48,8 @@ export type BackupRestoreResult = {
   capitalPlans: number;
   vehicles: number;
   vehicleFills: number;
+  dailyRoutines: number;
+  dailyCompletions: number;
   settings: boolean;
   failed: number;
 };
@@ -57,6 +66,8 @@ export async function restoreBackupToLedger(
     capitalPlans: CapitalPlan[];
     vehicles: Vehicle[];
     vehicleFills: FuelFill[];
+    dailyRoutines?: DailyRoutine[];
+    dailyCompletions?: DailyCompletion[];
   },
   api: BackupRestoreApi,
 ): Promise<BackupRestoreResult> {
@@ -73,6 +84,8 @@ export async function restoreBackupToLedger(
     capitalPlans: 0,
     vehicles: 0,
     vehicleFills: 0,
+    dailyRoutines: 0,
+    dailyCompletions: 0,
     settings: false,
     failed: 0,
   };
@@ -193,6 +206,48 @@ export async function restoreBackupToLedger(
       const { id: _id, ...rest } = row;
       await api.saveVehicleFill({ ...rest, vehicleId });
       result.vehicleFills++;
+    } catch {
+      result.failed++;
+    }
+  }
+
+  /* A restored routine gets a new id, so a repeat restore recognises it by when it was
+     created and what it is called. Completions are then matched by routine and period,
+     which keeps a second restore from adding rows (and so points) twice. */
+  const routineIdMap = new Map<string, string>();
+  const existingRoutines = current.dailyRoutines ?? [];
+  for (const r of existingRoutines) routineIdMap.set(r.id, r.id);
+  for (const row of plain.dailyRoutines ?? []) {
+    const same = existingRoutines.find(
+      (r) => r.id === row.id || (r.createdAt === row.createdAt && r.title === row.title),
+    );
+    if (same) {
+      routineIdMap.set(row.id, same.id);
+      continue;
+    }
+    try {
+      if (!api.saveDailyRoutine) throw new Error("Daily restore is not available");
+      const { id: _id, ...rest } = row;
+      const created = await api.saveDailyRoutine(rest);
+      routineIdMap.set(row.id, created.id);
+      result.dailyRoutines++;
+    } catch {
+      result.failed++;
+    }
+  }
+
+  const existingCompletionIds = new Set((current.dailyCompletions ?? []).map((c) => c.id));
+  for (const row of plain.dailyCompletions ?? []) {
+    const routineId = routineIdMap.get(row.routineId);
+    if (!routineId) {
+      result.failed++;
+      continue;
+    }
+    if (existingCompletionIds.has(`${routineId}:${row.period}`)) continue;
+    try {
+      if (!api.putDailyCompletion) throw new Error("Daily restore is not available");
+      await api.putDailyCompletion({ routineId, period: row.period, done: row.done, at: row.at });
+      result.dailyCompletions++;
     } catch {
       result.failed++;
     }

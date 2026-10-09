@@ -169,4 +169,29 @@ export async function rekeyLedgerToCustos(oldKey: CryptoKey, newKey: CryptoKey):
   }
 
   await rekeyVehicleFills(oldKey, newKey);
+
+  const { routines } = await api.daily.routines.list();
+
+  for (const wire of routines) {
+    if (wire.enc !== 1 || !wire.payload) continue;
+
+    const payload = await rewritePayload(oldKey, newKey, wire.payload);
+    await api.daily.routines.update(wire.id, { enc: 1, payload });
+  }
+
+  /* Completions are rewritten through the same idempotent set-state the app uses,
+     so each stays on its routine and period. */
+  const { completions } = await api.daily.completions.list();
+
+  for (const wire of completions) {
+    if (wire.enc !== 1 || !wire.payload) continue;
+
+    const payload = await rewritePayload(oldKey, newKey, wire.payload);
+    await api.daily.completions.put({
+      routineId: wire.routineId,
+      period: wire.period,
+      enc: 1,
+      payload,
+    });
+  }
 }

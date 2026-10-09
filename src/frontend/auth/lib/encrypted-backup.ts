@@ -1,3 +1,4 @@
+import type { DailyCompletion, DailyRoutine } from "@/lib/daily";
 /**
  * Client-only encrypted ledger backup — download / restore a portable blob.
  * Outer layer uses the unlocked ledger AES key (same as E2EE).
@@ -59,6 +60,9 @@ export type LedgerBackupPlain = {
   capitalPlans?: CapitalPlan[];
   vehicles?: Vehicle[];
   vehicleFills?: FuelFill[];
+  /** Present on backups from 6.5.0 onward; omitted on older exports. */
+  dailyRoutines?: DailyRoutine[];
+  dailyCompletions?: DailyCompletion[];
   /** Present on backups from 6.0.0 onward; omitted on older exports. */
   settings?: BackupSettings;
 };
@@ -88,6 +92,8 @@ export function buildBackupPlain(input: {
   capitalPlans?: CapitalPlan[];
   vehicles?: Vehicle[];
   vehicleFills?: FuelFill[];
+  dailyRoutines?: DailyRoutine[];
+  dailyCompletions?: DailyCompletion[];
   settings?: BackupSettings;
 }): LedgerBackupPlain {
   return {
@@ -103,6 +109,8 @@ export function buildBackupPlain(input: {
     capitalPlans: input.capitalPlans,
     vehicles: input.vehicles,
     vehicleFills: input.vehicleFills,
+    dailyRoutines: input.dailyRoutines,
+    dailyCompletions: input.dailyCompletions,
     settings: input.settings,
   };
 }

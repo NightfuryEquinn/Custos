@@ -128,3 +128,100 @@ describe("restoreBackupToLedger settings", () => {
     ).rejects.toThrow(/different wallet address/);
   });
 });
+
+describe("restoreBackupToLedger daily", () => {
+  const routine = {
+    id: "old-r1",
+    title: "Stretch",
+    notes: "",
+    schedule: [{ from: "2026-10-05", kind: "daily" as const }],
+    createdAt: "2026-10-05T08:00:00.000Z",
+  };
+  const completion = (period: string, done = true) => ({
+    id: `old-r1:${period}`,
+    routineId: "old-r1",
+    period,
+    done,
+    at: "2026-10-09T08:00:00.000Z",
+  });
+  const backup: LedgerBackupPlain = {
+    ...BASE_PLAIN,
+    dailyRoutines: [routine],
+    dailyCompletions: [completion("2026-10-05"), completion("2026-10-06")],
+  };
+
+  /** A Daily API that records writes and hands out fresh ids like the real server round trip. */
+  function dailyApi() {
+    const routines: unknown[] = [];
+    const completions: { routineId: string; period: string; done: boolean }[] = [];
+    return {
+      routines,
+      completions,
+      api: {
+        ...noopApi(),
+        saveDailyRoutine: async (r: object) => {
+          routines.push(r);
+          return { ...r, id: `new-r${routines.length}` } as never;
+        },
+        putDailyCompletion: async (c: { routineId: string; period: string; done: boolean }) => {
+          completions.push(c);
+        },
+      },
+    };
+  }
+
+  test("recreates routines and attaches each completion to its new routine, keeping its period", async () => {
+    const { api, routines, completions } = dailyApi();
+
+    const result = await restoreBackupToLedger(backup, EMPTY_CURRENT, api);
+
+    expect(routines).toHaveLength(1);
+    expect(routines[0]).not.toHaveProperty("id");
+    expect(completions.map((c) => [c.routineId, c.period])).toEqual([
+      ["new-r1", "2026-10-05"],
+      ["new-r1", "2026-10-06"],
+    ]);
+    expect(result).toMatchObject({ dailyRoutines: 1, dailyCompletions: 2, failed: 0 });
+  });
+
+  test("restoring the same backup again adds no routines and no completions", async () => {
+    const { api, routines, completions } = dailyApi();
+    const restored = {
+      ...EMPTY_CURRENT,
+      dailyRoutines: [{ ...routine, id: "new-r1" }],
+      dailyCompletions: [
+        { ...completion("2026-10-05"), id: "new-r1:2026-10-05", routineId: "new-r1" },
+        { ...completion("2026-10-06"), id: "new-r1:2026-10-06", routineId: "new-r1" },
+      ],
+    };
+
+    const result = await restoreBackupToLedger(backup, restored, api);
+
+    expect(routines).toHaveLength(0);
+    expect(completions).toHaveLength(0);
+    expect(result).toMatchObject({ dailyRoutines: 0, dailyCompletions: 0, failed: 0 });
+  });
+
+  test("a completion whose routine is missing from the backup is counted as failed, not written", async () => {
+    const { api, completions } = dailyApi();
+
+    const result = await restoreBackupToLedger(
+      { ...BASE_PLAIN, dailyCompletions: [completion("2026-10-05")] },
+      EMPTY_CURRENT,
+      api,
+    );
+
+    expect(completions).toHaveLength(0);
+    expect(result.failed).toBe(1);
+  });
+
+  test("a backup from before Daily existed restores without touching it", async () => {
+    const { api, routines, completions } = dailyApi();
+
+    const result = await restoreBackupToLedger(BASE_PLAIN, EMPTY_CURRENT, api);
+
+    expect(routines).toHaveLength(0);
+    expect(completions).toHaveLength(0);
+    expect(result).toMatchObject({ dailyRoutines: 0, dailyCompletions: 0 });
+  });
+});

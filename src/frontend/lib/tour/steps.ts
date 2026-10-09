@@ -128,6 +128,33 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
       "right",
     ),
   ],
+  daily: [
+    step(
+      "daily-nav",
+      "Daily",
+      "Routines you repeat every day, on chosen weekdays, or once a week. Each completed one earns 10 points.",
+      navTarget("daily"),
+      "right",
+    ),
+    step(
+      "daily-progress",
+      "Progress",
+      "How many are done today, and your lifetime points.",
+      '[data-tour="tour-daily-progress"]',
+    ),
+    step(
+      "daily-list",
+      "Routines",
+      "Tick a routine to complete it. The number beside it is its streak. Tap a title to rename it, change when it repeats, or archive it.",
+      '[data-tour="tour-daily-list"]',
+    ),
+    lastStep(
+      "daily-add",
+      "Add a routine",
+      "Type a title for a daily routine, or open Add routine to pick weekdays or once a week.",
+      '[data-tour="tour-daily-add"]',
+    ),
+  ],
   todos: [
     step(
       "todos-nav",

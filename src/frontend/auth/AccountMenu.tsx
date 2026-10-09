@@ -1,9 +1,11 @@
+import type { DailyCompletion, DailyRoutine } from "@/lib/daily";
 import { useFadeIn } from "@/frontend/lib/animate";
 import { ACCOUNT_STALE_DAYS } from "@/lib/account-retention";
 import { APP_VERSION } from "@/lib/version";
 import { TimezonePicker } from "@/frontend/components/TimezonePicker";
 import { Icon } from "@/frontend/components/ui";
 import { api } from "@/frontend/lib/api";
+import { dailyTimezoneKey } from "@/frontend/lib/hooks/useDaily";
 import type { NavItem } from "@/frontend/lib/nav";
 import type {
   Account,
@@ -18,6 +20,7 @@ import type {
   Vehicle,
   ViewId,
 } from "@/frontend/lib/types";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { DataPrivacyModal } from "./components/DataPrivacyModal";
 import { ImportExportModal } from "./components/ImportExportModal";
@@ -68,6 +71,8 @@ type AccountMenuProps = {
   capitalPlans?: CapitalPlan[];
   vehicles?: Vehicle[];
   vehicleFills?: FuelFill[];
+  dailyRoutines?: DailyRoutine[];
+  dailyCompletions?: DailyCompletion[];
   onImportExpenses?: (
     rows: ExpenseImportRow[],
     categories?: Category[],
@@ -110,6 +115,8 @@ export function AccountMenu({
   capitalPlans = [],
   vehicles = [],
   vehicleFills = [],
+  dailyRoutines = [],
+  dailyCompletions = [],
   onImportExpenses,
   onImportEvents,
   onImportTodos,
@@ -121,6 +128,7 @@ export function AccountMenu({
   onSaveNavPrefs,
   startView,
 }: AccountMenuProps) {
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [reveal, setReveal] = useState(false);
   const [dataOpen, setDataOpen] = useState(false);
@@ -160,11 +168,14 @@ export function AccountMenu({
           .then(() => {
             setTimezone(tz);
             setTimezoneSaved(true);
+            void queryClient.invalidateQueries({
+              queryKey: dailyTimezoneKey(account.address.toLowerCase()),
+            });
           })
           .catch(() => {});
       })
       .catch(() => {});
-  }, [account.address]);
+  }, [account.address, queryClient]);
 
   useEffect(() => {
     const onMouseDown = (e: MouseEvent) => {
@@ -182,6 +193,9 @@ export function AccountMenu({
     setTzBusy(true);
     try {
       await api.users.updateMe({ timezone: next });
+      void queryClient.invalidateQueries({
+        queryKey: dailyTimezoneKey(account.address.toLowerCase()),
+      });
       setTimezoneSaved(true);
     } catch {
       api.users
@@ -408,6 +422,8 @@ export function AccountMenu({
           capitalPlans={capitalPlans}
           vehicles={vehicles}
           vehicleFills={vehicleFills}
+          dailyRoutines={dailyRoutines}
+          dailyCompletions={dailyCompletions}
           onImportExpenses={onImportExpenses}
           onImportEvents={onImportEvents}
           onImportTodos={onImportTodos}

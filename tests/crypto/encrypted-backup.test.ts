@@ -131,4 +131,41 @@ describe("encrypted backup", () => {
     expect(() => parseBackupFile("{not json")).toThrow();
     expect(() => parseBackupFile(JSON.stringify({ format: "other" }))).toThrow(/Not a Custos/);
   });
+
+  test("daily routines and completions survive the encrypt / decrypt round trip", async () => {
+    const { key, address } = await testKey();
+    const dailyRoutines = [
+      {
+        id: "r1",
+        title: "Stretch",
+        notes: "",
+        schedule: [{ from: "2026-10-05", kind: "daily" as const }],
+        createdAt: "2026-10-05T08:00:00.000Z",
+      },
+    ];
+    const dailyCompletions = [
+      {
+        id: "r1:2026-10-05",
+        routineId: "r1",
+        period: "2026-10-05",
+        done: true,
+        at: "2026-10-05T09:00:00.000Z",
+      },
+    ];
+    const plain = buildBackupPlain({
+      address,
+      wallets: [],
+      categories: [],
+      expenses: [],
+      events: [],
+      todoLists: [],
+      dailyRoutines,
+      dailyCompletions,
+    });
+
+    const restored = await decryptBackup(key, await encryptBackup(key, plain));
+
+    expect(restored.dailyRoutines).toEqual(dailyRoutines);
+    expect(restored.dailyCompletions).toEqual(dailyCompletions);
+  });
 });

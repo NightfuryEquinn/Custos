@@ -25,6 +25,8 @@ export const COLLECTIONS = {
   capitalPlans: "capital_plans",
   vehicles: "vehicles",
   vehicleFills: "vehicle_fills",
+  dailyRoutines: "daily_routines",
+  dailyCompletions: "daily_completions",
   rateLimits: "rate_limits",
 } as const;
 
@@ -214,6 +216,27 @@ type VehicleFillDocument = {
   updatedAt: Date;
 };
 
+type DailyRoutineDocument = {
+  _id: ObjectId;
+  accountId: string;
+  enc: 1;
+  payload: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+/** `routineId` is a hex string, so ownership and the unique index need no ObjectId conversion. */
+type DailyCompletionDocument = {
+  _id: ObjectId;
+  accountId: string;
+  routineId: string;
+  period: string;
+  enc: 1;
+  payload: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 type Collections = {
   users: Collection<UserDocument>;
   ledgerProfiles: Collection<LedgerProfileDocument>;
@@ -231,6 +254,8 @@ type Collections = {
   capitalPlans: Collection<CapitalPlanDocument>;
   vehicles: Collection<VehicleDocument>;
   vehicleFills: Collection<VehicleFillDocument>;
+  dailyRoutines: Collection<DailyRoutineDocument>;
+  dailyCompletions: Collection<DailyCompletionDocument>;
 };
 
 /** Get typed collection handles for the connected database. */
@@ -252,5 +277,7 @@ export function getCollections(db: Db): Collections {
     capitalPlans: db.collection<CapitalPlanDocument>(COLLECTIONS.capitalPlans),
     vehicles: db.collection<VehicleDocument>(COLLECTIONS.vehicles),
     vehicleFills: db.collection<VehicleFillDocument>(COLLECTIONS.vehicleFills),
+    dailyRoutines: db.collection<DailyRoutineDocument>(COLLECTIONS.dailyRoutines),
+    dailyCompletions: db.collection<DailyCompletionDocument>(COLLECTIONS.dailyCompletions),
   };
 }

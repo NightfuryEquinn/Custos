@@ -1,0 +1,246 @@
+import { api } from "@/frontend/lib/api";
+import {
+  decodeDailyCompletion,
+  decodeDailyRoutine,
+  encodeDailyCompletion,
+  encodeDailyRoutine,
+} from "@/frontend/lib/crypto/codec";
+import { ledgerKeyStore } from "@/frontend/lib/crypto/key-store";
+import { drainOutbox } from "@/frontend/lib/sync/engine";
+import { clientObjectId } from "@/frontend/lib/sync/object-id";
+import { enqueueOutbox, listOutbox } from "@/frontend/lib/sync/outbox";
+import { dailyCompletionOverlay, dailyRoutineOverlay } from "@/frontend/lib/sync/overlay";
+import { useOutboxEntries, usePendingOverlay } from "@/frontend/lib/sync/useOutbox";
+import {
+  currentPeriod,
+  msUntilNextDay,
+  type DailyCompletion,
+  type DailyRoutine,
+} from "@/lib/daily";
+import { zonedTodayIso } from "@/lib/recurring";
+import { DEFAULT_TIMEZONE } from "@/lib/timezone";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+
+export type DailyState = ReturnType<typeof useDaily>;
+
+export type DailyData = { routines: DailyRoutine[]; completions: DailyCompletion[] };
+
+const keys = {
+  data: (address: string) => ["daily", address] as const,
+  /** The account timezone decides which calendar day a period key names. */
+  timezone: (address: string) => ["daily-timezone", address] as const,
+};
+
+/** Query key to invalidate when the account timezone changes, so Daily re-reads the day. */
+export const dailyTimezoneKey = keys.timezone;
+
+function requireKey(address: string): CryptoKey {
+  const key = ledgerKeyStore.get(address);
+  if (!key) throw new Error("Encryption key is locked");
+  return key;
+}
+
+/** Today's calendar key in the account timezone, rolled over at local midnight and on app resume. */
+function useToday(timeZone: string | undefined): string | null {
+  const [today, setToday] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!timeZone) {
+      setToday(null);
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout>;
+    const sync = () => {
+      const now = zonedTodayIso(timeZone);
+      setToday(now);
+      clearTimeout(timer);
+      /* A little past midnight so the day key has really changed; never spin on a tiny delay. */
+      timer = setTimeout(sync, Math.max(1_000, msUntilNextDay(now, timeZone, Date.now()) + 500));
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") sync();
+    };
+    sync();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [timeZone]);
+
+  return today;
+}
+
+/**
+ * Daily routines: encrypted reads, offline-queued writes, and the current day.
+ * Called from useLedger so Daily is cached for offline use and refreshed with
+ * the rest of the ledger, but kept here so the ledger hook only gains a few lines.
+ */
+export function useDaily(address: string, cryptoReady: boolean) {
+  const queryClient = useQueryClient();
+
+  const load = async (fresh = false): Promise<DailyData> => {
+    const [{ routines }, { completions }] = await Promise.all([
+      api.daily.routines.list({ fresh }),
+      api.daily.completions.list({ fresh }),
+    ]);
+    const key = requireKey(address);
+
+    return {
+      routines: await Promise.all(routines.map((wire) => decodeDailyRoutine(wire, key))),
+      completions: await Promise.all(completions.map((wire) => decodeDailyCompletion(wire, key))),
+    };
+  };
+
+  const query = useQuery({
+    queryKey: keys.data(address),
+    queryFn: () => load(),
+    enabled: cryptoReady,
+  });
+  const timezoneQuery = useQuery({
+    queryKey: keys.timezone(address),
+    queryFn: async () => (await api.users.me()).user.timezone ?? DEFAULT_TIMEZONE,
+    enabled: cryptoReady,
+  });
+  const timeZone = timezoneQuery.data;
+  const today = useToday(timeZone);
+
+  const key = ledgerKeyStore.get(address);
+  const routines = usePendingOverlay(address, query.data?.routines, key, dailyRoutineOverlay);
+  const completions = usePendingOverlay(
+    address,
+    query.data?.completions,
+    key,
+    dailyCompletionOverlay,
+  );
+  const pending = useOutboxEntries(address).filter((e) => e.entity.startsWith("daily"));
+
+  /** Insert or replace one row in the cached list, so the UI answers before the queue drains. */
+  const patchCache = (patch: (data: DailyData) => DailyData) =>
+    queryClient.setQueryData<DailyData>(keys.data(address), (prev) => prev && patch(prev));
+
+  const saveRoutineMutation = useMutation({
+    mutationFn: async (data: Omit<DailyRoutine, "id"> & { id?: string }) => {
+      const cryptoKey = requireKey(address);
+      const { id, ...rest } = data;
+      const encrypted = await encodeDailyRoutine(rest, cryptoKey);
+
+      if (id) {
+        await enqueueOutbox({
+          address,
+          entity: "dailyRoutine",
+          op: "update",
+          targetId: id,
+          request: { method: "PATCH", path: `/daily/routines/${id}`, body: encrypted },
+          dependsOn: [],
+          label: rest.title,
+        });
+        void drainOutbox(address);
+        return { id, ...rest };
+      }
+
+      const newId = clientObjectId();
+      await enqueueOutbox({
+        address,
+        entity: "dailyRoutine",
+        op: "create",
+        targetId: newId,
+        request: { method: "POST", path: "/daily/routines", body: { id: newId, ...encrypted } },
+        dependsOn: [],
+        label: rest.title,
+      });
+      void drainOutbox(address);
+      return { id: newId, ...rest };
+    },
+    onSuccess: (saved) =>
+      patchCache((data) => ({
+        ...data,
+        routines: data.routines.some((r) => r.id === saved.id)
+          ? data.routines.map((r) => (r.id === saved.id ? saved : r))
+          : [...data.routines, saved],
+      })),
+  });
+
+  /**
+   * Queue one checkbox state for one period. The period is fixed by the caller
+   * and travels in the request, so a write that syncs after midnight still lands
+   * on the day it was made.
+   */
+  const queueCompletion = async (
+    routine: Pick<DailyRoutine, "id" | "title">,
+    completion: Pick<DailyCompletion, "period" | "done" | "at">,
+  ): Promise<DailyCompletion> => {
+    const body = await encodeDailyCompletion(
+      { routineId: routine.id, ...completion },
+      requireKey(address),
+    );
+    /* A routine still waiting to be created must reach the server first. */
+    const create = (await listOutbox(address)).find(
+      (e) => e.entity === "dailyRoutine" && e.op === "create" && e.targetId === routine.id,
+    );
+    const id = `${routine.id}:${completion.period}`;
+    await enqueueOutbox({
+      address,
+      entity: "dailyCompletion",
+      op: "update",
+      targetId: id,
+      request: { method: "PUT", path: "/daily/completions", body },
+      dependsOn: create ? [create.opId] : [],
+      label: routine.title,
+    });
+    void drainOutbox(address);
+
+    return { id, routineId: routine.id, ...completion };
+  };
+
+  const cacheCompletion = (saved: DailyCompletion) =>
+    patchCache((data) => ({
+      ...data,
+      completions: data.completions.some((c) => c.id === saved.id)
+        ? data.completions.map((c) => (c.id === saved.id ? saved : c))
+        : [...data.completions, saved],
+    }));
+
+  /** Check or uncheck a routine for the period that is due right now. */
+  const setDoneMutation = useMutation({
+    mutationFn: ({ routine, done }: { routine: DailyRoutine; done: boolean }) => {
+      if (!timeZone) throw new Error("Daily is not ready yet");
+      const period = currentPeriod(routine, zonedTodayIso(timeZone));
+      if (!period) throw new Error("This routine is not due today");
+
+      return queueCompletion(routine, { period, done, at: new Date().toISOString() });
+    },
+    onSuccess: cacheCompletion,
+  });
+
+  /** Write a past period's state from a restored backup (the UI itself only edits the current period). */
+  const restoreCompletionMutation = useMutation({
+    mutationFn: (c: Pick<DailyCompletion, "routineId" | "period" | "done" | "at">) => {
+      const routine = routines.find((r) => r.id === c.routineId);
+
+      return queueCompletion({ id: c.routineId, title: routine?.title ?? "Routine" }, c);
+    },
+    onSuccess: cacheCompletion,
+  });
+
+  return {
+    query,
+    timezoneQuery,
+    /** Everything Daily needs has loaded (from the network or the offline cache). */
+    ready: query.data !== undefined && !!timeZone && today !== null,
+    routines,
+    completions,
+    today,
+    timeZone,
+    /** Queued Daily writes, for per-row "syncing" and "couldn't save" states. */
+    pending,
+    refreshTask: { queryKey: keys.data(address), queryFn: () => load(true) },
+    saveRoutine: saveRoutineMutation.mutateAsync,
+    setDone: (routine: DailyRoutine, done: boolean) =>
+      setDoneMutation.mutateAsync({ routine, done }),
+    restoreCompletion: restoreCompletionMutation.mutateAsync,
+    /** Routine writes only; checkbox taps are instant and never disable the page. */
+    isSaving: saveRoutineMutation.isPending,
+  };
+}

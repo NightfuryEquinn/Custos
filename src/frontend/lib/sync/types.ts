@@ -14,6 +14,8 @@ export type EntityKind =
   | "capitalPlan"
   | "vehicle"
   | "vehicleFill"
+  | "dailyRoutine"
+  | "dailyCompletion"
   | "profile";
 
 export type OutboxOp = "create" | "update" | "delete";

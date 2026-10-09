@@ -1,3 +1,4 @@
+import type { DailyRoutine } from "@/lib/daily";
 import { E2EE_VERSION } from "@/schemas/encryption";
 import { getAddress } from "ethers";
 import { normalizeRecurring, type RecurringField } from "@/lib/recurring";
@@ -52,6 +53,15 @@ export type EventSecrets = {
   budgetHoldCategoryId?: string;
   budgetHoldReleasedDates?: string[];
 };
+
+/** A routine's whole definition is encrypted: title, notes, recurrence history and archive day. */
+export type DailyRoutineSecrets = Omit<DailyRoutine, "id">;
+
+/**
+ * Fixed-shape on purpose: `d` is 0 or 1, so the ciphertext is the same length
+ * either way and the stored length reveals nothing about the done state.
+ */
+export type DailyCompletionSecrets = { d: 0 | 1; at: string };
 
 export type TodoListSecrets = {
   name: string;

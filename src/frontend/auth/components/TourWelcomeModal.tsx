@@ -16,7 +16,7 @@ type TourWelcomeModalProps = {
 };
 
 /** Pages worth offering at first launch; the rest are one Navigation setting away. */
-const START_CHOICES: ViewId[] = ["overview", "schedule", "transactions"];
+const START_CHOICES: ViewId[] = ["overview", "daily", "schedule", "transactions"];
 
 /**
  * First-run prompt: guided tour or explore alone. Shown once per user — the

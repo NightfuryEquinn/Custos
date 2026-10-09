@@ -2,6 +2,8 @@ import type { Account, FinancialWallet, ViewId } from "./types";
 import type {
   CapitalPlanWire,
   CategoriesWire,
+  DailyCompletionWire,
+  DailyRoutineWire,
   EventWire,
   ExpenseWire,
   TodoListWire,
@@ -86,6 +88,7 @@ const CACHEABLE_GET_PREFIXES = [
   "/vehicles",
   "/users",
   "/capital-plans",
+  "/daily",
 ];
 
 /** Whether a GET path may fall back to the local ciphertext cache. */
@@ -452,6 +455,37 @@ export const api = {
     },
     remove(id: string) {
       return request<{ ok: boolean }>(`/todo-lists/${id}`, { method: "DELETE" });
+    },
+  },
+
+  daily: {
+    routines: {
+      list(options?: ReadOptions) {
+        return request<{ routines: DailyRoutineWire[] }>("/daily/routines", readOptions(options));
+      },
+      create(body: { id?: string; enc: 1; payload: string }) {
+        return request<{ routine: DailyRoutineWire }>("/daily/routines", { method: "POST", body });
+      },
+      update(id: string, body: { enc: 1; payload: string }) {
+        return request<{ routine: DailyRoutineWire }>(`/daily/routines/${id}`, {
+          method: "PATCH",
+          body,
+        });
+      },
+    },
+    completions: {
+      list(options?: ReadOptions) {
+        return request<{ completions: DailyCompletionWire[] }>(
+          "/daily/completions",
+          readOptions(options),
+        );
+      },
+      put(body: { routineId: string; period: string; enc: 1; payload: string }) {
+        return request<{ completion: DailyCompletionWire }>("/daily/completions", {
+          method: "PUT",
+          body,
+        });
+      },
     },
   },
 

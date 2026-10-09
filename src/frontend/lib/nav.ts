@@ -6,6 +6,7 @@ import { DEFAULT_TAB_IDS, TAB_SLOTS, type ViewId } from "@/lib/views";
  */
 export const NAV_ITEMS = [
   ["overview", "Home", "overview"],
+  ["daily", "Daily", "daily"],
   ["todos", "To-do", "checklist"],
   ["schedule", "Schedule", "calendar"],
   ["transactions", "Transactions", "list"],

@@ -19,6 +19,8 @@
 
 import {
   decodeCapitalPlan,
+  decodeDailyCompletion,
+  decodeDailyRoutine,
   decodeEvent,
   decodeExpense,
   decodeTodoList,
@@ -26,6 +28,8 @@ import {
   decodeVehicleFill,
   decodeWallet,
   type CapitalPlanWire,
+  type DailyCompletionWire,
+  type DailyRoutineWire,
   type EventWire,
   type ExpenseWire,
   type TodoListWire,
@@ -42,6 +46,7 @@ import type {
   TodoList,
   Vehicle,
 } from "@/frontend/lib/types";
+import type { DailyCompletion, DailyRoutine } from "@/lib/daily";
 import type { EntityKind, OutboxEntry } from "./types";
 
 /** Merge a patch's *present* keys onto a base wire; absent keys are untouched. */
@@ -70,6 +75,11 @@ type OverlaySpec<T extends { id: string }, W extends { id: string }> = {
   emptyWire: (id: string) => W;
   /** Reconstruct a base wire from an already-decoded row, for merging a partial update onto it. */
   wireFrom: (id: string, existing: T) => W;
+  /**
+   * The write is a set-state (PUT) that creates the row when absent, so an
+   * "update" with no existing row inserts it instead of being dropped.
+   */
+  upsert?: boolean;
 };
 
 /**
@@ -124,7 +134,7 @@ export async function applyOverlay<T extends { id: string }, W extends { id: str
 
     try {
       const decoded = await spec.decode(wire, key);
-      if (entry.op === "create") {
+      if (entry.op === "create" || spec.upsert) {
         result = result.some((item) => item.id === decoded.id)
           ? result.map((item) => (item.id === decoded.id ? decoded : item))
           : [decoded, ...result];
@@ -224,6 +234,22 @@ export const vehicleFillOverlay: OverlaySpec<FuelFill, VehicleFillWire> = {
     partial: existing.partial,
     expenseId: existing.expenseId,
   }),
+};
+
+export const dailyRoutineOverlay: OverlaySpec<DailyRoutine, DailyRoutineWire> = {
+  entity: "dailyRoutine",
+  decode: decodeDailyRoutine,
+  emptyWire: (id) => ({ id }),
+  wireFrom: (id) => ({ id }),
+};
+
+/** Completions are keyed `${routineId}:${period}`; the request body supplies both halves. */
+export const dailyCompletionOverlay: OverlaySpec<DailyCompletion, DailyCompletionWire> = {
+  entity: "dailyCompletion",
+  upsert: true,
+  decode: decodeDailyCompletion,
+  emptyWire: (id) => ({ id, routineId: "", period: "" }),
+  wireFrom: (id, existing) => ({ id, routineId: existing.routineId, period: existing.period }),
 };
 
 /**

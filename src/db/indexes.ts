@@ -159,6 +159,12 @@ export async function ensureIndexes(db: Db): Promise<void> {
     db.collection(COLLECTIONS.todoLists).createIndex({ accountId: 1, createdAt: 1 }),
     db.collection(COLLECTIONS.capitalPlans).createIndex({ accountId: 1, createdAt: 1 }),
     db.collection(COLLECTIONS.vehicles).createIndex({ accountId: 1, createdAt: 1 }),
+    db.collection(COLLECTIONS.dailyRoutines).createIndex({ accountId: 1, createdAt: 1 }),
+    /* One completion row per routine and period: this is what makes a replayed or
+       raced checkbox write idempotent, so a period can never be rewarded twice. */
+    db
+      .collection(COLLECTIONS.dailyCompletions)
+      .createIndex({ accountId: 1, routineId: 1, period: 1 }, { unique: true }),
     db.collection(COLLECTIONS.vehicleFills).createIndex({ accountId: 1, vehicleId: 1, date: -1 }),
     db.collection(COLLECTIONS.vehicleFills).createIndex({ accountId: 1, date: -1 }),
     /* Push subscriptions: one row per browser endpoint, fanned out per account. */

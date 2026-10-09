@@ -11,6 +11,9 @@ export function hasDailyCache(paths: readonly string[], month: string): boolean 
     "/capital-plans",
     "/vehicles",
     "/vehicles/fills",
+    "/daily/routines",
+    "/daily/completions",
+    "/users/me",
   ];
   return (
     required.every((prefix) =>

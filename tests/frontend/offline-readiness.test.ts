@@ -13,6 +13,9 @@ const paths = [
   "/vehicles",
   "/vehicles/fills?limit=2000",
   "/events?month=2026-10&limit=2000",
+  "/daily/routines",
+  "/daily/completions",
+  "/users/me",
 ];
 beforeEach(resetFakeIdb);
 test("readiness requires the selected month's events and every daily resource", () => {

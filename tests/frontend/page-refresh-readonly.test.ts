@@ -61,7 +61,11 @@ test("manual overview refresh reads legacy data without seeding or migration wri
                   ? { todoLists: [] }
                   : url.pathname === "/api/capital-plans"
                     ? { capitalPlans: [] }
-                    : { error: "unexpected request" };
+                    : url.pathname === "/api/daily/routines"
+                      ? { routines: [] }
+                      : url.pathname === "/api/daily/completions"
+                        ? { completions: [] }
+                        : { error: "unexpected request" };
     return new Response(JSON.stringify(body), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -74,7 +78,7 @@ test("manual overview refresh reads legacy data without seeding or migration wri
   }
   renderToString(createElement(QueryClientProvider, { client: queryClient }, createElement(Probe)));
   await refresh("overview");
-  expect(calls).toHaveLength(7);
+  expect(calls).toHaveLength(9);
   expect(calls.every((call) => call.method === "GET" && call.cache === "no-store")).toBe(true);
   expect(calls.some((call) => call.path === "/api/wallets?readOnly=true")).toBe(true);
   expect(calls.some((call) => call.path === "/api/profile")).toBe(false);

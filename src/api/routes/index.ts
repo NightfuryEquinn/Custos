@@ -8,6 +8,7 @@ import { capitalPlansRoutes } from "./capital-plans";
 import { categoriesRoutes } from "./categories";
 import { consentRoutes } from "./consent";
 import { cronRoutes } from "./cron";
+import { dailyRoutes } from "./daily";
 import { eventsRoutes } from "./events";
 import { expensesRoutes } from "./expenses";
 import { fxRoutes } from "./fx";
@@ -39,6 +40,7 @@ export function createApiRoutes() {
   api.route("/expenses", expensesRoutes);
   api.route("/events", eventsRoutes);
   api.route("/todo-lists", todoListsRoutes);
+  api.route("/daily", dailyRoutes);
   api.route("/capital-plans", capitalPlansRoutes);
   api.route("/vehicles", vehiclesRoutes);
   api.route("/consent", consentRoutes);

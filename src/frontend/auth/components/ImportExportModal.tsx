@@ -1,3 +1,4 @@
+import type { DailyCompletion, DailyRoutine } from "@/lib/daily";
 import { CsvImportPanel, type CsvImportPreview } from "@/frontend/auth/components/CsvImportPanel";
 import { Icon } from "@/frontend/components/ui";
 import { api } from "@/frontend/lib/api";
@@ -48,6 +49,8 @@ type ImportExportModalProps = {
   capitalPlans?: CapitalPlan[];
   vehicles?: Vehicle[];
   vehicleFills?: FuelFill[];
+  dailyRoutines?: DailyRoutine[];
+  dailyCompletions?: DailyCompletion[];
   onImportExpenses?: (
     rows: ExpenseImportRow[],
     categories?: Category[],
@@ -79,6 +82,8 @@ export function ImportExportModal({
   capitalPlans = [],
   vehicles = [],
   vehicleFills = [],
+  dailyRoutines = [],
+  dailyCompletions = [],
   onImportExpenses,
   onImportEvents,
   onImportTodos,
@@ -205,6 +210,8 @@ export function ImportExportModal({
         capitalPlans,
         vehicles,
         vehicleFills,
+        dailyRoutines,
+        dailyCompletions,
         settings: {
           codename: user.codename,
           notifyEmail: user.notifyEmail,
@@ -523,6 +530,7 @@ export function ImportExportModal({
                 {backupResult.capitalPlans ? ` · ${backupResult.capitalPlans} capital plans` : ""}
                 {backupResult.vehicles ? ` · ${backupResult.vehicles} vehicles` : ""}
                 {backupResult.vehicleFills ? ` · ${backupResult.vehicleFills} fills` : ""}
+                {backupResult.dailyRoutines ? ` · ${backupResult.dailyRoutines} routines` : ""}
                 {backupResult.wallets ? ` · ${backupResult.wallets} wallets` : ""}
                 {backupResult.categories ? " · categories" : ""}
                 {backupResult.failed ? ` · ${backupResult.failed} failed` : ""}.

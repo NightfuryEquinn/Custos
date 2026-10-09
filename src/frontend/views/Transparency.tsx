@@ -201,6 +201,39 @@ const COLLECTIONS: CollectionDoc[] = [
     ],
   },
   {
+    name: "daily_routines",
+    purpose: "Recurring checklist routines for the Daily page",
+    encrypted: true,
+    fields: [
+      { key: "accountId", value: '"64b6…"', note: "users._id hex (opaque)" },
+      { key: "enc", value: "1", note: "E2EE version" },
+      {
+        key: "payload",
+        value: "base64 AES-GCM",
+        note: "title, notes, recurrence history, archive day",
+      },
+      { key: "createdAt / updatedAt", value: "ISO dates" },
+    ],
+  },
+  {
+    name: "daily_completions",
+    purpose:
+      "One row per routine and period, so a checkbox can be set again without creating a second row; points and streaks are worked out on your device from these rows",
+    encrypted: true,
+    fields: [
+      { key: "accountId", value: '"64b6…"', note: "users._id hex (opaque)" },
+      {
+        key: "routineId",
+        value: '"64b6…"',
+        note: "which routine; plaintext so the row can be unique",
+      },
+      { key: "period", value: '"2026-10-09"', note: "day, or the Monday of the week; plaintext" },
+      { key: "enc", value: "1", note: "E2EE version" },
+      { key: "payload", value: "base64 AES-GCM", note: "done or not, and when" },
+      { key: "createdAt / updatedAt", value: "ISO dates" },
+    ],
+  },
+  {
     name: "capital_plans",
     purpose:
       "Future-expense planners (marriage, trips, loans, custom) with total budget, monthly save, and a pot of savings assigned via linked transactions; paying line items draws down that pot",
@@ -375,6 +408,8 @@ const RELATIONSHIP_CHART = `flowchart TB
     Caps["capital_plans<br/>enc + payload"]
     Vehicles["vehicles<br/>enc + payload"]
     Fills["vehicle_fills<br/>enc + payload"]
+    Routines["daily_routines<br/>enc + payload"]
+    Completions["daily_completions<br/>routineId · period · enc + payload"]
     Consent["consent"]
     Auth["auth_nonces · sessions"]
     Push["push_subscriptions"]
@@ -389,6 +424,8 @@ const RELATIONSHIP_CHART = `flowchart TB
     Users --> Caps
     Users --> Vehicles
     Users --> Fills
+    Users --> Routines
+    Routines --> Completions
     Users --> Consent
     Users --> Auth
     Users --> Push
@@ -407,6 +444,8 @@ const RELATIONSHIP_CHART = `flowchart TB
   Key -.->|"AES-256-GCM"| Caps
   Key -.->|"AES-256-GCM"| Vehicles
   Key -.->|"AES-256-GCM"| Fills
+  Key -.->|"AES-256-GCM"| Routines
+  Key -.->|"AES-256-GCM"| Completions
 `;
 
 const E2EE_CHART = `flowchart TB
@@ -667,8 +706,8 @@ export function Transparency() {
           <div data-tour="tour-transparency-e2ee">
             <h3 className="transparency-diagram-title">Encrypted Write Path</h3>
             <p className="panel-sub">
-              Categories, events, todos, expenses, capital plans, vehicles/fills, and wallet
-              names/budgets are AES-256-GCM encrypted client-side before save
+              Categories, events, todos, daily routines, expenses, capital plans, vehicles/fills,
+              and wallet names/budgets are AES-256-GCM encrypted client-side before save
             </p>
             <MermaidDiagram chart={E2EE_CHART} label="E2EE save flowchart" />
           </div>

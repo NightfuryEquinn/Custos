@@ -4,6 +4,8 @@ import {
   expenseSeriesKey,
   type CapitalPlanSecrets,
   type CategorySecrets,
+  type DailyCompletionSecrets,
+  type DailyRoutineSecrets,
   type EventSecrets,
   type ExpenseSecrets,
   type TodoListSecrets,
@@ -23,6 +25,7 @@ import type {
   Vehicle,
 } from "@/frontend/lib/types";
 import { normalizeRecurring } from "@/frontend/lib/stats";
+import type { DailyCompletion, DailyRoutine } from "@/lib/daily";
 import type { RecurringField } from "@/lib/recurring";
 import type { ReminderDetails } from "@/schemas/event";
 
@@ -737,5 +740,80 @@ export async function encodeVehicleFillUpdate(data: Omit<FuelFill, "id">, key: C
     expenseId: data.expenseId ?? null,
     enc: 1 as const,
     payload: await encryptJson(key, vehicleFillSecrets(data)),
+  };
+}
+
+export type DailyRoutineWire = {
+  id: string;
+  enc?: 1;
+  payload?: string;
+};
+
+/** Decrypt a routine wire. Daily is E2EE-only — no legacy plaintext branch. */
+export async function decodeDailyRoutine(
+  wire: DailyRoutineWire,
+  key: CryptoKey,
+): Promise<DailyRoutine> {
+  if (wire.enc !== 1 || !wire.payload) {
+    throw new Error("Routine is encrypted but no key is available");
+  }
+  const secrets = await decryptJson<DailyRoutineSecrets>(key, wire.payload);
+
+  return { id: wire.id, ...secrets };
+}
+
+/** Encrypt a routine; the same shape serves create and update. */
+export async function encodeDailyRoutine(data: Omit<DailyRoutine, "id">, key: CryptoKey) {
+  const secrets: DailyRoutineSecrets = {
+    title: data.title,
+    notes: data.notes,
+    schedule: data.schedule,
+    archivedOn: data.archivedOn,
+    createdAt: data.createdAt,
+  };
+
+  return { enc: 1 as const, payload: await encryptJson(key, secrets) };
+}
+
+export type DailyCompletionWire = {
+  /** Server row id; the decoded completion is keyed by routine and period instead. */
+  id: string;
+  routineId: string;
+  period: string;
+  enc?: 1;
+  payload?: string;
+};
+
+/** Decrypt a completion. Its id is `${routineId}:${period}` so offline overlays and server rows match. */
+export async function decodeDailyCompletion(
+  wire: DailyCompletionWire,
+  key: CryptoKey,
+): Promise<DailyCompletion> {
+  if (wire.enc !== 1 || !wire.payload) {
+    throw new Error("Completion is encrypted but no key is available");
+  }
+  const secrets = await decryptJson<DailyCompletionSecrets>(key, wire.payload);
+
+  return {
+    id: `${wire.routineId}:${wire.period}`,
+    routineId: wire.routineId,
+    period: wire.period,
+    done: secrets.d === 1,
+    at: secrets.at,
+  };
+}
+
+/** Encrypt a completion's state; routine and period stay plaintext for the unique index. */
+export async function encodeDailyCompletion(
+  data: Pick<DailyCompletion, "routineId" | "period" | "done" | "at">,
+  key: CryptoKey,
+) {
+  const secrets: DailyCompletionSecrets = { d: data.done ? 1 : 0, at: data.at };
+
+  return {
+    routineId: data.routineId,
+    period: data.period,
+    enc: 1 as const,
+    payload: await encryptJson(key, secrets),
   };
 }

@@ -38,6 +38,7 @@ import { connectivity } from "@/frontend/lib/net/connectivity";
 import { clientObjectId } from "@/frontend/lib/sync/object-id";
 import { discardOutbox, enqueueOutbox, listOutbox } from "@/frontend/lib/sync/outbox";
 import { drainOutbox } from "@/frontend/lib/sync/engine";
+import { useDaily } from "@/frontend/lib/hooks/useDaily";
 import {
   capitalPlanOverlay,
   eventOverlay,
@@ -218,6 +219,7 @@ export function useLedger(walletAddress: string) {
   const queryClient = useQueryClient();
   const wallet = walletAddress.toLowerCase();
   const cryptoReady = ledgerKeyStore.isUnlocked(wallet);
+  const daily = useDaily(wallet, cryptoReady);
   const [refreshingView, setRefreshingView] = useState<ViewId | null>(null);
   const [refreshError, setRefreshError] = useState<unknown>(null);
   const [refreshMessage, setRefreshMessage] = useState("");
@@ -1791,6 +1793,8 @@ export function useLedger(walletAddress: string) {
     vehiclesQuery,
     vehicleFillsQuery,
     allExpensesQuery,
+    daily.query,
+    daily.timezoneQuery,
   ];
   const shellQueries = [profileQuery, walletsQuery, categoriesQuery, expensesQuery];
   const isAuthError = (error: unknown) =>
@@ -1812,6 +1816,7 @@ export function useLedger(walletAddress: string) {
       capitalPlans: { queryKey: keys.capitalPlans(wallet), queryFn: () => loadCapitalPlans(true) },
       events: { queryKey: keys.events(wallet, month), queryFn: () => loadEvents(true) },
       todoLists: { queryKey: keys.todoLists(wallet), queryFn: () => loadTodoLists(true) },
+      daily: daily.refreshTask,
       vehicles: { queryKey: keys.vehicles(wallet), queryFn: () => loadVehicles(true) },
       vehicleFills: { queryKey: keys.vehicleFills(wallet), queryFn: () => loadVehicleFills(true) },
       fx: {
@@ -1975,6 +1980,7 @@ export function useLedger(walletAddress: string) {
       [
         ["schedule", eventsQuery],
         ["tasks", todoListsQuery],
+        ["daily routines", daily.query],
         ["savings history", allExpensesQuery],
         ["capital plans", capitalPlansQuery],
         ["vehicles", vehiclesQuery],
@@ -2006,6 +2012,7 @@ export function useLedger(walletAddress: string) {
     eventsLoading: eventsQuery.isLoading,
     todoLists: overlaidTodoListData,
     todoListsLoading: todoListsQuery.isLoading,
+    daily,
     capitalPlans: overlaidCapitalPlanData,
     capitalPlansLoading: capitalPlansQuery.isLoading,
     vehicles: overlaidVehicleData,
@@ -2057,6 +2064,7 @@ export function useLedger(walletAddress: string) {
       deleteWalletMutation.isPending ||
       saveCategoriesMutation.isPending ||
       saveTodoListMutation.isPending ||
+      daily.isSaving ||
       deleteTodoListMutation.isPending ||
       saveCapitalPlanMutation.isPending ||
       deleteCapitalPlanMutation.isPending ||

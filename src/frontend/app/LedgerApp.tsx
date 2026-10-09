@@ -11,6 +11,7 @@ import { LoadingBloom } from "@/frontend/components/LoadingBloom";
 import { OfflineBanner } from "@/frontend/components/OfflineBanner";
 import { toast } from "@/frontend/lib/feedback";
 import { BottomNav, SideNav } from "@/frontend/components/Navigation";
+import { DailyHomePanel } from "@/frontend/components/DailyHomePanel";
 import { PageSearch } from "@/frontend/components/PageSearch";
 import { resolveStartView, useJournalNavigation } from "@/frontend/lib/journal-navigation";
 import { ThemeToggle } from "@/frontend/components/ThemeToggle";
@@ -48,6 +49,7 @@ import type { Piggy, Piglet } from "@/frontend/lib/piggies";
 /* Type-only — lets the FAB call each view's imperative "open add" handle
    without pulling either module into the eager bundle. */
 import type { CapitalsHandle } from "@/frontend/views/Capitals";
+import type { DailyHandle } from "@/frontend/views/Daily";
 import type { CategoriesHandle } from "@/frontend/views/Categories";
 import type { TodoListViewHandle } from "@/frontend/views/TodoList";
 import { VIEW_IDS } from "@/lib/views";
@@ -77,6 +79,7 @@ const EventModal = lazy(() =>
 const CategoriesView = lazy(() =>
   import("@/frontend/views/Categories").then((m) => ({ default: m.Categories })),
 );
+const DailyView = lazy(() => import("@/frontend/views/Daily").then((m) => ({ default: m.Daily })));
 const TodoListView = lazy(() =>
   import("@/frontend/views/TodoList").then((m) => ({ default: m.TodoListView })),
 );
@@ -191,6 +194,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
   const vehiclesRef = useRef<VehiclesHandle>(null);
   const capitalsRef = useRef<CapitalsHandle>(null);
   const todoListRef = useRef<TodoListViewHandle>(null);
+  const dailyRef = useRef<DailyHandle>(null);
   const categoriesRef = useRef<CategoriesHandle>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   /** Latched once the start page has been applied, so views never flash the wrong page first. */
@@ -578,6 +582,8 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
         capitalPlans: ledger.capitalPlans,
         vehicles: ledger.vehicles,
         vehicleFills: ledger.vehicleFills,
+        dailyRoutines: ledger.daily.routines,
+        dailyCompletions: ledger.daily.completions,
       },
       {
         saveCategories: ledger.saveCategories,
@@ -598,6 +604,8 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
         saveVehicleFill: async (f) => {
           await ledger.saveVehicleFill(f);
         },
+        saveDailyRoutine: async (r) => ledger.daily.saveRoutine(r),
+        putDailyCompletion: async (c) => ledger.daily.restoreCompletion(c),
         updateUser: (settings) => api.users.updateMe(settings),
         updateProfile: (settings) => api.profile.update(settings),
         updateConsent: (optedIn) => api.consent.update(optedIn),
@@ -738,6 +746,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
         setEvModal({ add: true, date: TODAY_ISO });
       },
     },
+    daily: { label: "Add routine", run: () => dailyRef.current?.openAdd() },
     todos: { label: "Add list", run: () => todoListRef.current?.openAdd() },
     capitals: { label: "Add plan", run: () => capitalsRef.current?.openAdd() },
     categories: { label: "Add category", run: () => categoriesRef.current?.openAdd() },
@@ -823,6 +832,8 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
                 capitalPlans={ledger.capitalPlans}
                 vehicles={ledger.vehicles}
                 vehicleFills={ledger.vehicleFills}
+                dailyRoutines={ledger.daily.routines}
+                dailyCompletions={ledger.daily.completions}
                 onImportExpenses={importExpenses}
                 onImportEvents={importEvents}
                 onImportTodos={importTodos}
@@ -913,6 +924,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
               </div>
             }
           >
+            {landed && view === "daily" && <DailyView ref={dailyRef} daily={ledger.daily} />}
             {landed && view === "overview" && (
               <Overview
                 {...viewProps}
@@ -920,6 +932,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
                 balanceExpenses={ledger.balanceExpenses}
                 todoLists={ledger.todoLists}
                 events={events}
+                daily={<DailyHomePanel daily={ledger.daily} setView={setView} />}
                 setView={setView}
                 onEdit={setModal}
                 onEditEvent={(ev: LedgerEvent) => openEvent(ev, TODAY_ISO)}

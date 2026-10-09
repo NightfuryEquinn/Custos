@@ -7,6 +7,8 @@ import {
 } from "@/frontend/lib/crypto/e2ee";
 import {
   encodeCapitalPlanCreate,
+  encodeDailyCompletion,
+  encodeDailyRoutine,
   encodeEventCreate,
   encodeExpenseCreate,
   encodeExpenseUpdate,
@@ -16,6 +18,8 @@ import {
 import {
   applyOverlay,
   capitalPlanOverlay,
+  dailyCompletionOverlay,
+  dailyRoutineOverlay,
   eventOverlay,
   expenseOverlay,
   todoListOverlay,
@@ -301,5 +305,91 @@ describe("applyOverlay (todoList, capitalPlan — trivial-envelope entities)", (
     const result = await applyOverlay([], [entry], key, capitalPlanOverlay);
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ id, name: "Trip" });
+  });
+});
+
+describe("applyOverlay (daily)", () => {
+  const routineId = "aaaaaaaaaaaaaaaaaaaaaaaa";
+  const period = "2026-10-09";
+  const targetId = `${routineId}:${period}`;
+  const at = "2026-10-09T08:00:00.000Z";
+
+  const toggle = async (key: CryptoKey, done: boolean, seq: number) =>
+    outboxEntry({
+      entity: "dailyCompletion",
+      op: "update",
+      seq,
+      targetId,
+      request: {
+        method: "PUT",
+        path: "/daily/completions",
+        body: await encodeDailyCompletion({ routineId, period, done, at }, key),
+      },
+    });
+
+  test("a checkbox set offline shows even though the server has no row for it yet", async () => {
+    const { key } = await testKeys();
+
+    const result = await applyOverlay(
+      [],
+      [await toggle(key, true, 1)],
+      key,
+      dailyCompletionOverlay,
+    );
+
+    expect(result).toEqual([{ id: targetId, routineId, period, done: true, at }]);
+  });
+
+  test("a pending toggle replaces the server's row for the same period, not a second row", async () => {
+    const { key } = await testKeys();
+    const server = [{ id: targetId, routineId, period, done: true, at }];
+
+    const result = await applyOverlay(
+      server,
+      [await toggle(key, false, 1)],
+      key,
+      dailyCompletionOverlay,
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.done).toBe(false);
+  });
+
+  test("toggling twice before syncing ends on the last state, still one row", async () => {
+    const { key } = await testKeys();
+
+    const result = await applyOverlay(
+      [],
+      [await toggle(key, true, 1), await toggle(key, false, 2), await toggle(key, true, 3)],
+      key,
+      dailyCompletionOverlay,
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.done).toBe(true);
+  });
+
+  test("a routine created offline appears decoded", async () => {
+    const { key } = await testKeys();
+    const body = await encodeDailyRoutine(
+      {
+        title: "Stretch",
+        notes: "",
+        schedule: [{ from: "2026-10-09", kind: "daily" }],
+        createdAt: at,
+      },
+      key,
+    );
+    const entry = outboxEntry({
+      entity: "dailyRoutine",
+      op: "create",
+      targetId: routineId,
+      request: { method: "POST", path: "/daily/routines", body: { id: routineId, ...body } },
+    });
+
+    const result = await applyOverlay([], [entry], key, dailyRoutineOverlay);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ id: routineId, title: "Stretch" });
   });
 });

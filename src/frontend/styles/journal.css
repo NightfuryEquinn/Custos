@@ -480,6 +480,109 @@
 .journal-index button:hover {
   color: var(--accent);
 }
+/* Daily */
+.daily-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+.daily-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.daily-progress progress {
+  width: 96px;
+  height: 6px;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  appearance: none;
+  background: var(--surface-3);
+  accent-color: var(--accent);
+}
+.daily-progress progress::-webkit-progress-bar {
+  background: var(--surface-3);
+}
+.daily-progress progress::-webkit-progress-value {
+  background: var(--accent);
+}
+.daily-progress progress::-moz-progress-bar {
+  background: var(--accent);
+}
+.daily-count strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+.daily-points {
+  font: 11px var(--font-mono);
+  letter-spacing: 0.04em;
+}
+.daily-title {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+.daily-streak,
+.daily-sync {
+  flex: none;
+  font: 11px var(--font-mono);
+  color: var(--ink-soft);
+}
+.daily-sync.failed {
+  color: var(--danger);
+}
+.daily-plus {
+  flex: none;
+  font: 500 12px var(--font-mono);
+  color: var(--accent);
+  animation: daily-plus 1.2s ease-out forwards;
+}
+@keyframes daily-plus {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .daily-plus {
+    animation: none;
+  }
+}
+.daily-all-done {
+  margin: var(--sp-3) 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.daily-archive-list {
+  list-style: none;
+  margin: var(--sp-3) 0 0;
+  padding: 0;
+}
+.daily-archive-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-2) 0;
+  border-top: 1px solid var(--hair);
+}
+.daily-archived {
+  margin-top: var(--sp-5);
+}
 .journal-sync {
   display: flex;
   align-items: center;

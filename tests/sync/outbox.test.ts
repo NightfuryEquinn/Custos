@@ -41,6 +41,42 @@ describe("outbox: enqueue + drain order", () => {
   });
 });
 
+describe("outbox: daily completions", () => {
+  const put = (payload: string, dependsOn: string[] = []) =>
+    entry({
+      entity: "dailyCompletion",
+      op: "update",
+      targetId: "routine1:2026-10-09",
+      dependsOn,
+      request: { method: "PUT", path: "/daily/completions", body: { payload } },
+    });
+
+  test("rapid toggles of one period collapse into a single queued write with the last state", async () => {
+    const routine = await enqueueOutbox(
+      entry({
+        entity: "dailyRoutine",
+        targetId: "routine1",
+        request: { method: "POST", path: "/daily/routines", body: {} },
+      }),
+    );
+    await enqueueOutbox(put("on", [routine.opId]));
+    await enqueueOutbox(put("off", [routine.opId]));
+    await enqueueOutbox(put("on-again", [routine.opId]));
+
+    const queued = (await listOutbox(ADDRESS)).filter((e) => e.entity === "dailyCompletion");
+    expect(queued).toHaveLength(1);
+    expect(queued[0]!.request.body).toEqual({ payload: "on-again" });
+    expect(queued[0]!.dependsOn).toEqual([routine.opId]);
+  });
+
+  test("different periods of one routine queue separately", async () => {
+    await enqueueOutbox(put("a"));
+    await enqueueOutbox({ ...put("b"), targetId: "routine1:2026-10-10" });
+
+    expect(await listOutbox(ADDRESS)).toHaveLength(2);
+  });
+});
+
 describe("outbox: coalescing", () => {
   test("a new update over a pending update replaces it, keeping the same seq", async () => {
     const first = await enqueueOutbox(
