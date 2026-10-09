@@ -65,9 +65,9 @@
 .journal-app .view {
   max-width: calc(1328px + 2 * var(--pad));
 }
-/* One bottom clearance: the fixed dock (about 58px tall, 24px from the bottom) plus the home-indicator inset. */
+/* One bottom clearance: the fixed bottom bar below 1024px (none above) plus the home-indicator inset. */
 .journal-app .scroll {
-  padding-bottom: calc(var(--dock-clearance, 96px) + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--nav-clearance) + env(safe-area-inset-bottom));
 }
 .journal-app .panel {
   border: 0;
@@ -377,51 +377,135 @@
   border-left: 2px solid var(--accent);
   background: var(--surface-2);
 }
-.journal-dock {
-  position: fixed;
-  bottom: calc(24px + env(safe-area-inset-bottom));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 20;
-  display: flex;
-  padding: var(--sp-1);
-  gap: var(--sp-1);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-  box-shadow: 0 8px 30px #00000012;
-  max-width: calc(100% - 32px);
+/* Navigation: sidebar from 1024px, bottom bar plus More sheet below. */
+.journal-app {
+  --nav-clearance: 88px; /* 56px bar + padding + breathing room */
 }
-.journal-launcher,
-.journal-add {
+.journal-nav {
+  display: none;
+}
+.bottom-nav {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding: var(--sp-1) max(var(--sp-1), env(safe-area-inset-right))
+    calc(var(--sp-1) + env(safe-area-inset-bottom)) max(var(--sp-1), env(safe-area-inset-left));
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.bn-item {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--sp-3);
-  white-space: nowrap;
-  min-height: 48px;
+  gap: var(--sp-1);
+  min-width: 0;
+  min-height: 56px;
   border: 0;
-  border-radius: 999px;
-  padding: var(--sp-3) var(--sp-5);
-  cursor: pointer;
-  font: 500 13px var(--font-body);
-}
-.journal-launcher {
   background: transparent;
+  color: var(--ink-soft);
+  font: 500 11px var(--font-body);
+  text-decoration: none;
+  cursor: pointer;
+}
+.bn-item span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bn-item.active {
+  color: var(--accent);
+}
+.nav-more-scrim {
+  z-index: 60;
+}
+.nav-more-panel {
+  width: min(480px, 100%);
+}
+.nav-more-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+.nav-more-head h2 {
+  font: 400 24px/1.3 var(--font-display);
+}
+.nav-more-group + .nav-more-group {
+  margin-top: var(--sp-5);
+}
+.nav-more-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+.nav-more-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 72px;
+  padding: var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--ink);
+  font-size: 12px;
+  text-align: center;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.nav-more-item.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+@media (min-width: 1024px) {
+  .journal-app {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    --nav-clearance: var(--sp-6);
+  }
+  .bottom-nav {
+    display: none;
+  }
+  .journal-nav {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-5);
+    height: 100dvh;
+    overflow-y: auto;
+    padding: var(--sp-6) var(--sp-4);
+    border-right: 1px solid var(--border);
+  }
+}
+.journal-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.journal-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: 8px;
+  color: var(--ink-soft);
+  font-size: 14px;
+  text-decoration: none;
+}
+.journal-nav-item:hover {
   color: var(--ink);
 }
-.journal-launcher kbd {
-  font: 10px var(--font-mono);
-  color: var(--ink-soft);
-  margin-left: var(--sp-3);
-}
-.journal-add {
-  background: var(--accent);
-  color: var(--accent-contrast);
-}
-.journal-add:disabled {
-  opacity: 0.5;
-  cursor: wait;
+.journal-nav-item.active {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  box-shadow: inset 2px 0 var(--accent);
 }
 .journal-command-scrim {
   z-index: 60;
@@ -451,9 +535,6 @@
   margin: calc(-1 * var(--sp-2));
 }
 
-.journal-task-list-label {
-  margin-top: var(--sp-4);
-}
 .journal-search {
   display: flex;
   gap: var(--sp-3);
@@ -474,27 +555,7 @@
 .journal-search input:focus-visible {
   outline: none;
 }
-.journal-favorites {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  margin-bottom: var(--sp-6);
-}
-.journal-favorites button {
-  display: flex;
-  gap: var(--sp-2);
-  align-items: center;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--ink);
-  padding: var(--sp-3) var(--sp-4);
-  min-height: 44px;
-  cursor: pointer;
-  font-size: 12px;
-}
-.journal-index button,
-.journal-capture-actions button {
+.journal-index button {
   display: flex;
   align-items: center;
   gap: var(--sp-4);
@@ -508,18 +569,11 @@
   cursor: pointer;
   text-align: left;
 }
-.journal-index button > span:not(.journal-index-number),
-.journal-capture-actions button span {
+.journal-index button > span {
   flex: 1;
 }
-.journal-index-number {
-  width: 24px;
-  font: 10px var(--font-mono);
-  color: var(--ink-soft);
-}
 .journal-index button[aria-current],
-.journal-index button:hover,
-.journal-capture-actions button:hover {
+.journal-index button:hover {
   color: var(--accent);
 }
 .journal-sync {
@@ -748,12 +802,6 @@ input:focus-visible {
   }
   .journal-hero h2 {
     font-size: clamp(36px, 10vw, 58px);
-  }
-  .journal-launcher kbd {
-    display: none;
-  }
-  .journal-dock {
-    bottom: calc(12px + env(safe-area-inset-bottom));
   }
   .journal-sync {
     gap: var(--sp-1) var(--sp-3);
@@ -1090,10 +1138,7 @@ input:focus-visible {
     .link-btn,
     .fchip,
     .seg button,
-    .journal-favorites button,
-    .wallet-menu-item.manage,
-    .journal-add,
-    .journal-launcher
+    .wallet-menu-item.manage
   ) {
   display: inline-flex;
   align-items: center;
@@ -1203,14 +1248,6 @@ input:focus-visible {
   .journal-app .summary-card + .summary-card {
     border-top: 1px solid var(--hair);
   }
-  .journal-app .journal-dock {
-    gap: var(--sp-1);
-    max-width: calc(100% - 2 * var(--sp-3));
-  }
-  .journal-app :is(.journal-launcher, .journal-add) {
-    padding-inline: var(--sp-3);
-    gap: var(--sp-2);
-  }
   .journal-sync-panel {
     width: min(400px, calc(100vw - 2 * var(--pad)));
     padding: var(--sp-4);
@@ -1277,7 +1314,7 @@ input:focus-visible {
   text-overflow: clip;
   overflow-wrap: anywhere;
 }
-.journal-app :is(.todo-tab, .journal-favorites button, .seg button) {
+.journal-app :is(.todo-tab, .seg button) {
   height: auto;
 }
 :is(.journal-app, .modal) .seg {

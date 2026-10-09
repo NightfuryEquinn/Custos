@@ -1,4 +1,4 @@
-import { resolveNav } from "@/frontend/lib/nav";
+import { NAV_GROUPS, resolveNav } from "@/frontend/lib/nav";
 import { DEFAULT_TAB_IDS, VIEW_IDS } from "@/lib/views";
 import { describe, expect, test } from "bun:test";
 
@@ -8,12 +8,12 @@ function ids(items: { 0: string }[]): string[] {
 
 describe("resolveNav", () => {
   test("with no stored prefs, falls back to the built-in defaults", () => {
-    const { sidebarItems, tabItems, moreItems } = resolveNav(undefined, undefined);
-    const defaultTabSet = new Set<string>(DEFAULT_TAB_IDS);
+    const { sidebarItems, tabItems } = resolveNav(undefined, undefined);
 
-    expect(ids(sidebarItems)).toEqual([...VIEW_IDS]);
+    expect(ids(sidebarItems)).toEqual(
+      NAV_GROUPS.flatMap(([, groupIds]) => groupIds).filter((id) => VIEW_IDS.includes(id as never)),
+    );
     expect(ids(tabItems)).toEqual([...DEFAULT_TAB_IDS]);
-    expect(ids(moreItems)).toEqual(VIEW_IDS.filter((id) => !defaultTabSet.has(id)));
   });
 
   test("drops an id that is no longer a real view", () => {
@@ -50,11 +50,36 @@ describe("resolveNav", () => {
     expect(ids(tabItems)).toEqual(picks);
   });
 
-  test("moreItems is always sidebarItems minus tabItems", () => {
-    const picks = ["budgets", "piggies", "insights", "overview"];
-    const { sidebarItems, tabItems, moreItems } = resolveNav(undefined, picks);
+  test("every view belongs to exactly one group", () => {
+    const all = NAV_GROUPS.flatMap(([, groupIds]) => groupIds);
 
-    const tabIdSet = new Set(ids(tabItems));
-    expect(ids(moreItems)).toEqual(ids(sidebarItems).filter((id) => !tabIdSet.has(id)));
+    expect(new Set(all).size).toBe(all.length);
+    for (const id of VIEW_IDS) expect(all).toContain(id);
+  });
+
+  test("a saved order applies within its group", () => {
+    const { groups } = resolveNav(["insights", "transactions"], undefined);
+    const money = groups.find((g) => g.label === "Money")!;
+
+    expect(ids(money.items).slice(0, 2)).toEqual(["insights", "transactions"]);
+  });
+
+  test("a view the saved order never mentions keeps its group's default slot", () => {
+    const { groups } = resolveNav(["budgets"], undefined);
+    const money = groups.find((g) => g.label === "Money")!;
+
+    expect(ids(money.items)[0]).toBe("budgets");
+    expect(ids(money.items)).toContain("transactions");
+    expect(ids(money.items)).toHaveLength(NAV_GROUPS.find(([l]) => l === "Money")![1].length);
+  });
+
+  test("favorites plus the More groups cover every view exactly once", () => {
+    const picks = ["budgets", "piggies", "insights", "overview"];
+    const { tabItems, moreGroups } = resolveNav(undefined, picks);
+    const covered = [...ids(tabItems), ...moreGroups.flatMap((g) => ids(g.items))];
+
+    expect(new Set(covered).size).toBe(covered.length);
+    expect(covered.sort()).toEqual([...VIEW_IDS].sort());
+    for (const g of moreGroups) expect(g.items.length).toBeGreaterThan(0);
   });
 });

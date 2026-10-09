@@ -14,14 +14,7 @@ interface TourStepButton {
 type TourStep = Omit<StepOptions, "buttons"> & { id: string; buttons?: TourStepButton[] };
 
 function navTarget(view: ViewId): string {
-  return `[data-tour="tour-nav-${view}"], [data-tour="tour-launcher"]`;
-}
-
-/* Extra mobile hint for a view that isn't always on the tab bar. Nav is now
-   user-customizable (Account menu → Navigation), so this can no longer name
-   a fixed set of views or claim exactly where one lives. */
-function moreNavHint(): string {
-  return " Find it through Open Custos, on any device.";
+  return `[data-tour="tour-nav-${view}"], [data-tour="tour-nav-more"]`;
 }
 
 function btn(text: string, kind: TourButtonKind): TourStepButton {
@@ -66,8 +59,8 @@ export const SHELL_TOUR_STEPS: TourStep[] = [
   step(
     "shell-nav",
     "Navigation",
-    "Open Custos is your searchable index. Jump between your journal, tasks, schedule, and money. Use Ctrl or Command + K, and customize favorites from Account > Navigation.",
-    '[data-tour="tour-launcher"]',
+    "Your pages. Favorites come first; everything else is grouped below, or under More on smaller screens. Change favorites and your start page in Account > Navigation. Ctrl or Command + K searches pages.",
+    '[data-tour="tour-nav"]',
     "right",
   ),
   step(
@@ -85,11 +78,11 @@ export const SHELL_TOUR_STEPS: TourStep[] = [
     "bottom",
   ),
   step(
-    "shell-fab",
-    "Quick Add",
-    "Add an expense, event, to-do, list, plan, category, or fill-up from anywhere.",
-    '[data-tour="tour-fab"]',
-    "top",
+    "shell-action",
+    "Page action",
+    "Each page's main action sits beside its title.",
+    '[data-tour="tour-page-action"]',
+    "bottom",
   ),
   lastStep(
     "shell-account",
@@ -104,7 +97,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
   overview: [
     step(
       "overview-nav",
-      "Overview",
+      "Home",
       "Your monthly snapshot — income, spend, savings, and what's left.",
       navTarget("overview"),
       "right",
@@ -138,14 +131,13 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "overview-oldest-todo",
       "Pending To-Dos",
-      "Every list that still has an unchecked task — tap to open TO-DO List.",
+      "Every list that still has an unchecked task — tap to open To-do.",
       '[data-tour="tour-overview-oldest-todo"]',
     ),
     lastStep(
       "overview-capitals",
-      "Capitals",
-      "Planning something big — a marriage, a trip, a loan? Capitals tracks a total budget, paid progress, what is still unspent from the savings you assigned to it, and a monthly save amount toward your target date." +
-        moreNavHint(),
+      "Big expenses",
+      "Planning something big — a marriage, a trip, a loan? Big expenses tracks a total budget, paid progress, what is still unspent from the savings you assigned to it, and a monthly save amount toward your target date.",
       navTarget("capitals"),
       "right",
     ),
@@ -153,7 +145,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
   todos: [
     step(
       "todos-nav",
-      "TO-DO List",
+      "To-do",
       "Organize tasks into separate lists — groceries, work, travel, and more.",
       navTarget("todos"),
       "right",
@@ -230,7 +222,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "budgets-nav",
       "Budgets",
-      "Set how much you plan to spend in each category for the month." + moreNavHint(),
+      "Set how much you plan to spend in each category for the month.",
       navTarget("budgets"),
       "right",
     ),
@@ -251,7 +243,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "calculator-nav",
       "Calculator",
-      "Plan budgets from income after custom tax deductions." + moreNavHint(),
+      "Plan budgets from income after custom tax deductions.",
       navTarget("calculator"),
       "right",
     ),
@@ -291,7 +283,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "categories-nav",
       "Categories",
-      "Your expense and income taxonomy — categories and subcategories." + moreNavHint(),
+      "Your expense and income taxonomy — categories and subcategories.",
       navTarget("categories"),
       "right",
     ),
@@ -312,7 +304,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "recurring-nav",
       "Recurring",
-      "Fixed charges that repeat monthly, quarterly, or yearly." + moreNavHint(),
+      "Fixed charges that repeat monthly, quarterly, or yearly.",
       navTarget("recurring"),
       "right",
     ),
@@ -332,8 +324,8 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
   piggies: [
     step(
       "piggies-nav",
-      "Piggies",
-      "One glance at every savings category and its lifetime balance." + moreNavHint(),
+      "Savings",
+      "One glance at every savings category and its lifetime balance.",
       navTarget("piggies"),
       "right",
     ),
@@ -347,9 +339,8 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
   capitals: [
     step(
       "capitals-nav",
-      "Capitals",
-      "Plan for big future expenses — marriage, trips, loans, or anything custom. Start from a template or build a fully custom plan, set a total budget and a target date to see how much to save each month; assign savings deposits to a plan and paying an item spends them down." +
-        moreNavHint(),
+      "Big expenses",
+      "Plan for big future expenses — marriage, trips, loans, or anything custom. Start from a template or build a fully custom plan, set a total budget and a target date to see how much to save each month; assign savings deposits to a plan and paying an item spends them down.",
       navTarget("capitals"),
       "right",
     ),
@@ -364,8 +355,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "vehicles-nav",
       "Vehicles",
-      "Track fuel or charging costs per vehicle — cars, EVs, bikes, and vans each get their own history and Fuel Insights." +
-        moreNavHint(),
+      "Track fuel or charging costs per vehicle — cars, EVs, bikes, and vans each get their own history and Fuel Insights.",
       navTarget("vehicles"),
       "right",
     ),
@@ -392,7 +382,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "insights-nav",
       "Insights",
-      "Longer-range trends, comparisons, and currency views." + moreNavHint(),
+      "Longer-range trends, comparisons, and currency views.",
       navTarget("insights"),
       "right",
     ),
@@ -433,7 +423,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "transparency-nav",
       "Transparency",
-      "A read-only map of how Custos stores your data in MongoDB." + moreNavHint(),
+      "A read-only map of how Custos stores your data in MongoDB.",
       navTarget("transparency"),
       "right",
     ),

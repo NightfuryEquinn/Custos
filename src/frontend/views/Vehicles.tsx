@@ -44,10 +44,9 @@ type VehiclesProps = {
   linkedExpenseIds: Set<string>;
 };
 
-/** Imperative handle so the shell's quick-add FAB can switch the active vehicle. */
+/** Imperative handle so the shell's page action can add a fill-up for the selected vehicle. */
 export type VehiclesHandle = {
-  select: (id: string) => void;
-  openAddFillFor: (id: string) => void;
+  openAddFill: () => void;
 };
 
 type EditorMode =
@@ -647,10 +646,8 @@ export const Vehicles = forwardRef<VehiclesHandle, VehiclesProps>(function Vehic
   const openEditFill = (fill: FuelFill) => setEditor({ type: "edit-fill", fillId: fill.id });
 
   useImperativeHandle(ref, () => ({
-    select: setSelectedId,
-    openAddFillFor: (id: string) => {
-      setSelectedId(id);
-      openAddFill(id);
+    openAddFill: () => {
+      if (selectedVehicle) openAddFill(selectedVehicle.id);
     },
   }));
 
@@ -712,7 +709,7 @@ export const Vehicles = forwardRef<VehiclesHandle, VehiclesProps>(function Vehic
   return (
     <div ref={viewRef} className="view">
       <div className="todo-toolbar" data-tour="tour-vehicles-toolbar">
-        <button className="primary-btn" type="button" onClick={openAddVehicle}>
+        <button className="ghost-btn" type="button" onClick={openAddVehicle}>
           <Icon name="plus" size={15} /> Add Vehicle
         </button>
       </div>

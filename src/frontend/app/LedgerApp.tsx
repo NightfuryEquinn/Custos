@@ -5,13 +5,14 @@ import type { LedgerBackupPlain } from "@/frontend/auth/lib/encrypted-backup";
 import type { EventImportRow } from "@/frontend/auth/lib/import-events";
 import type { TodoImportList } from "@/frontend/auth/lib/import-todos";
 import { restoreBackupToLedger } from "@/frontend/auth/lib/restore-backup";
-import { useEnter, useModalMotion } from "@/frontend/lib/animate";
+import { useEnter } from "@/frontend/lib/animate";
 import { armSyncTriggers, drainOutbox } from "@/frontend/lib/sync/engine";
 import { LoadingBloom } from "@/frontend/components/LoadingBloom";
 import { OfflineBanner } from "@/frontend/components/OfflineBanner";
 import { toast } from "@/frontend/lib/feedback";
-import { JournalCommands } from "@/frontend/components/JournalCommands";
-import { useJournalNavigation } from "@/frontend/lib/journal-navigation";
+import { BottomNav, SideNav } from "@/frontend/components/Navigation";
+import { PageSearch } from "@/frontend/components/PageSearch";
+import { resolveStartView, useJournalNavigation } from "@/frontend/lib/journal-navigation";
 import { ThemeToggle } from "@/frontend/components/ThemeToggle";
 import { WalletManageModal, WalletSwitcher } from "@/frontend/components/Wallets";
 import { AddExpenseModal, Icon, MonthSwitcher } from "@/frontend/components/ui";
@@ -49,9 +50,18 @@ import type { Piggy, Piglet } from "@/frontend/lib/piggies";
 import type { CapitalsHandle } from "@/frontend/views/Capitals";
 import type { CategoriesHandle } from "@/frontend/views/Categories";
 import type { TodoListViewHandle } from "@/frontend/views/TodoList";
+import { VIEW_IDS } from "@/lib/views";
 import type { VehiclesHandle } from "@/frontend/views/Vehicles";
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 /* Schedule and its EventModal share one file — deferring both keeps the
    calendar/reminder logic out of the initial bundle for anyone who never
@@ -89,8 +99,9 @@ const Transparency = lazy(() =>
 /*
  * LedgerApp — authenticated app shell
  * ───────────────────────────────────
- * Journal shell on every screen size: topbar + scrollable view + a bottom dock
- * (Open Custos, Add). Hosts the global modals (expense, wallet management, event).
+ * Journal shell: persistent sidebar from 1024px, bottom bar with More below it,
+ * topbar + scrollable view, and each page's main action beside its title. Hosts
+ * the global modals (expense, wallet management, event).
  */
 
 type LedgerAppProps = {
@@ -99,20 +110,19 @@ type LedgerAppProps = {
   signingOut?: boolean;
 };
 
-const VIEW_TITLES: Record<ViewId, string> = {
-  overview: "Your journal",
-  todos: "TO-DO List",
-  schedule: "Schedule",
-  transactions: "Transactions",
-  budgets: "Budgets",
-  calculator: "Calculator",
-  categories: "Categories",
-  recurring: "Recurring",
-  piggies: "Piggies",
-  capitals: "Capitals",
-  vehicles: "Vehicles",
-  insights: "Insights",
-  transparency: "Transparency",
+/** One name per page, shared with navigation and search. */
+const viewTitle = (view: ViewId) => NAV_ITEM_BY_ID.get(view)![1];
+
+/** Which header controls change a page's content: w = wallet, m = month. Absent = neither. */
+const SWITCHERS: Partial<Record<ViewId, "w" | "m" | "wm">> = {
+  overview: "wm",
+  transactions: "wm",
+  budgets: "wm",
+  insights: "wm",
+  recurring: "wm",
+  schedule: "m",
+  piggies: "m",
+  calculator: "w",
 };
 
 /** Animated page title; remounts when `view` changes so enter motion replays. */
@@ -125,7 +135,7 @@ function PageTitle({ view }: { view: ViewId }) {
       <span className="page-title-icon" aria-hidden="true">
         <Icon name={NAV_ITEM_BY_ID.get(view)?.[2] ?? "overview"} size={23} />
       </span>
-      {VIEW_TITLES[view]}
+      {viewTitle(view)}
     </h1>
   );
 }
@@ -177,23 +187,15 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
   const [evModal, setEvModal] = useState<LedgerEvent | { add: true; date: string } | null>(null);
   const [evOccurrenceIso, setEvOccurrenceIso] = useState<string | undefined>(undefined);
   const [walletModal, setWalletModal] = useState(false);
-  /** Vehicles' own vehicle-switcher, opened from the FAB when there are 2+. */
-  const [vehiclePickerOpen, setVehiclePickerOpen] = useState(false);
-  const vehiclePickerScrimRef = useRef<HTMLDivElement>(null);
-  const vehiclePickerPanelRef = useRef<HTMLDivElement>(null);
-  const { requestClose: requestCloseVehiclePicker } = useModalMotion(
-    vehiclePickerScrimRef,
-    vehiclePickerPanelRef,
-    { variant: "picker", active: vehiclePickerOpen },
-  );
   const monthInitialized = useRef(false);
   const vehiclesRef = useRef<VehiclesHandle>(null);
   const capitalsRef = useRef<CapitalsHandle>(null);
   const todoListRef = useRef<TodoListViewHandle>(null);
   const categoriesRef = useRef<CategoriesHandle>(null);
-  /** An add action waiting for its lazily loaded view to mount; run returns false until it can. */
-  const [pendingAdd, setPendingAdd] = useState<{ view: ViewId; run: () => boolean } | null>(null);
-  const tourReady = !ledger.isLoading && !ledger.error && !!ledger.profile;
+  const [searchOpen, setSearchOpen] = useState(false);
+  /** Latched once the start page has been applied, so views never flash the wrong page first. */
+  const [landed, setLanded] = useState(false);
+  const tourReady = !ledger.isLoading && !ledger.error && !!ledger.profile && landed;
   const { setTourState, tourPreference, toursSeen } = ledger;
   const {
     isLoading: ledgerIsLoading,
@@ -236,50 +238,25 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
 
   /* Custom nav layout, also account-wide. Undefined fields (never customized)
      fall back to the built-in defaults inside resolveNav. */
-  const { sidebarItems, tabItems } = useMemo(
+  const { sidebarItems, tabItems, groups, moreGroups } = useMemo(
     () => resolveNav(ledgerProfile?.navOrder, ledgerProfile?.navTabs),
     [ledgerProfile?.navOrder, ledgerProfile?.navTabs],
   );
 
-  /* On mobile, land on the user's first tab-bar pick instead of always
-     Overview — once, per mount, once nav prefs have actually loaded. */
-  const landedRef = useRef(false);
-  useEffect(() => {
-    if (landedRef.current || ledgerIsLoading || ledgerError) return;
-    landedRef.current = true;
-    const first = tabItems[0]?.[0];
-    if (
-      first &&
-      first !== "overview" &&
-      !window.location.hash &&
-      window.matchMedia("(max-width: 639px)").matches
-    ) {
-      setView(first);
-    }
-  }, [ledgerIsLoading, ledgerError, tabItems, setView]);
-
-  useEffect(() => {
-    if (!pendingAdd) return;
-    if (pendingAdd.view !== view) {
-      setPendingAdd(null);
-      return;
-    }
-
-    /* The view's chunk may still be loading under Suspense, so retry until its ref attaches. */
-    const deadline = performance.now() + 2000;
-    let frame = 0;
-    const attempt = () => {
-      if (pendingAdd.run() || performance.now() > deadline) {
-        setPendingAdd(null);
-        return;
-      }
-      frame = requestAnimationFrame(attempt);
-    };
-
-    attempt();
-
-    return () => cancelAnimationFrame(frame);
-  }, [pendingAdd, view]);
+  /* Land on the start page once, before first paint, so the wrong page never
+     flashes. A URL hash (links, Back/Forward) always wins; later preference
+     changes apply on the next launch and never navigate away from here. */
+  useLayoutEffect(() => {
+    if (landed || ledgerIsLoading || ledgerError) return;
+    const target = resolveStartView(
+      window.location.hash,
+      ledgerProfile?.startView,
+      tabItems[0]![0],
+      window.matchMedia("(max-width: 639px)").matches,
+    );
+    if (target) setView(target, true);
+    setLanded(true);
+  }, [landed, ledgerIsLoading, ledgerError, ledgerProfile?.startView, tabItems, setView]);
 
   /* A 401/403 mid-session (expired cookie, revoked session) used to render
      the same "API is down" screen with no way out but a manual reload —
@@ -339,7 +316,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
     () =>
       setTourState({
         tourPreference: "explore",
-        toursSeen: ["shell", ...(Object.keys(VIEW_TITLES) as ViewId[])],
+        toursSeen: ["shell", ...VIEW_IDS],
       }),
     [setTourState],
   );
@@ -749,23 +726,55 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
     categoryIndex: ledger.categoryIndex,
   };
 
-  /** Switch to a view, then run its add action once the lazy view has mounted. */
-  const addInView = (target: ViewId, run: () => boolean) => {
-    setView(target);
-    setPendingAdd({ view: target, run });
+  const tools = SWITCHERS[view] ?? "";
+  const addTxn = { label: "Add transaction", run: () => setModal({ add: true }) };
+  const PAGE_ACTIONS: Partial<Record<ViewId, { label: string; run: () => void }>> = {
+    overview: addTxn,
+    transactions: addTxn,
+    schedule: {
+      label: "Add event",
+      run: () => {
+        setEvOccurrenceIso(undefined);
+        setEvModal({ add: true, date: TODAY_ISO });
+      },
+    },
+    todos: { label: "Add list", run: () => todoListRef.current?.openAdd() },
+    capitals: { label: "Add plan", run: () => capitalsRef.current?.openAdd() },
+    categories: { label: "Add category", run: () => categoriesRef.current?.openAdd() },
+    ...(ledger.vehicles.length
+      ? { vehicles: { label: "Add fill-up", run: () => vehiclesRef.current?.openAddFill() } }
+      : {}),
   };
+  const pageAction = PAGE_ACTIONS[view];
 
-  /** Open the fill-up editor for one vehicle, from any view. */
-  const addFillFor = (vehicleId: string) =>
-    addInView("vehicles", () => {
-      if (!vehiclesRef.current) return false;
-      vehiclesRef.current.openAddFillFor(vehicleId);
-
-      return true;
-    });
+  /* Built once; the phone layout shows it in the page, larger screens in the topbar. */
+  const titleRow = (
+    <div className="page-title-row" data-tour="tour-page-action">
+      <PageTitle key={view} view={view} />
+      <button
+        type="button"
+        className="tour-help-btn"
+        aria-label={`Tour ${viewTitle(view)}`}
+        onClick={() => startViewTour(view)}
+      >
+        <Icon name="info" size={17} />
+      </button>
+      {pageAction && (
+        <button
+          type="button"
+          className="primary-btn page-action"
+          disabled={isSaving}
+          onClick={pageAction.run}
+        >
+          <Icon name="plus" size={16} /> {pageAction.label}
+        </button>
+      )}
+    </div>
+  );
 
   return (
     <div className="app journal-app">
+      <SideNav view={view} favorites={tabItems} groups={moreGroups} />
       <main className="main">
         <header className="topbar">
           <div className="journal-masthead">
@@ -773,15 +782,24 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
               type="button"
               className="journal-brand"
               onClick={() => setView("overview")}
-              aria-label="Custos home"
+              aria-label="Home"
             >
-              custos<span>A little room for life.</span>
+              custos
             </button>
             <div className="tb-actions">
               <button
                 type="button"
+                className="icon-btn"
+                aria-label="Search pages"
+                aria-haspopup="dialog"
+                onClick={() => setSearchOpen(true)}
+              >
+                <Icon name="search" size={20} />
+              </button>
+              <button
+                type="button"
                 className="icon-btn page-refresh-btn page-refresh-btn--main"
-                aria-label={`Refresh ${VIEW_TITLES[view]}`}
+                aria-label={`Refresh ${viewTitle(view)}`}
                 aria-busy={ledger.refreshingView !== null}
                 disabled={ledger.refreshingView !== null || isSaving || isMonthPending}
                 onClick={() => void ledger.refreshPage(view)}
@@ -813,27 +831,16 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
                 onWhatsNew={openWhatsNew}
                 navSidebarItems={sidebarItems}
                 navTabItems={tabItems}
+                startView={ledgerProfile?.startView}
                 onSaveNavPrefs={ledger.setNavPrefs}
               />
             </div>
           </div>
           <div className="tb-row tb-row--context">
-            {!compactHeader && (
-              <div className="page-title-row">
-                <PageTitle key={view} view={view} />
-                <button
-                  type="button"
-                  className="tour-help-btn"
-                  aria-label={`Tour ${VIEW_TITLES[view]}`}
-                  onClick={() => startViewTour(view)}
-                >
-                  <Icon name="info" size={17} />
-                </button>
-              </div>
-            )}
-            {view !== "transparency" && (
+            {!compactHeader && titleRow}
+            {tools && (
               <div className="tb-context-tools">
-                {activeWallet && wallets.length ? (
+                {tools.includes("w") && activeWallet && wallets.length ? (
                   <WalletSwitcher
                     wallets={wallets}
                     activeId={activeWallet.id}
@@ -841,12 +848,14 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
                     onManage={() => setWalletModal(true)}
                   />
                 ) : null}
-                <MonthSwitcher
-                  months={MONTHS}
-                  current={month}
-                  onChange={setMonth}
-                  changing={isMonthPending}
-                />
+                {tools.includes("m") && (
+                  <MonthSwitcher
+                    months={MONTHS}
+                    current={month}
+                    onChange={setMonth}
+                    changing={isMonthPending}
+                  />
+                )}
               </div>
             )}
           </div>
@@ -855,18 +864,8 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
         <div className="scroll">
           {compactHeader && (
             <div className="journal-page-heading">
-              <div className="page-title-row">
-                <PageTitle key={view} view={view} />
-                <button
-                  type="button"
-                  className="tour-help-btn"
-                  aria-label={`Tour ${VIEW_TITLES[view]}`}
-                  onClick={() => startViewTour(view)}
-                >
-                  <Icon name="info" size={17} />
-                </button>
-              </div>
-              {activeWallet && view !== "transparency" && (
+              {titleRow}
+              {activeWallet && tools.includes("w") && (
                 <p className="journal-active-wallet">
                   {activeWallet.name} &middot; {activeWallet.currency}
                 </p>
@@ -874,7 +873,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
             </div>
           )}
           <div className="journal-status">
-            {!compactHeader && activeWallet && view !== "transparency" && (
+            {!compactHeader && activeWallet && tools.includes("w") && (
               <p className="journal-active-wallet">
                 {activeWallet.name} &middot; {activeWallet.currency}
               </p>
@@ -889,7 +888,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
               (ledger.refreshMessageView === view && ledger.refreshMessage)) && (
               <span className="page-refresh-status" role="status" aria-live="polite">
                 {ledger.refreshingView === view
-                  ? `Refreshing ${VIEW_TITLES[view]}...`
+                  ? `Refreshing ${viewTitle(view)}...`
                   : ledger.refreshMessage}
               </span>
             )}
@@ -914,7 +913,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
               </div>
             }
           >
-            {view === "overview" && (
+            {landed && view === "overview" && (
               <Overview
                 {...viewProps}
                 refreshedAt={ledger.refreshedAt}
@@ -1026,131 +1025,14 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
         </div>
       </main>
 
-      <JournalCommands
+      <BottomNav view={view} favorites={tabItems} moreGroups={moreGroups} />
+      <PageSearch
         view={view}
         navigate={setView}
-        items={sidebarItems}
-        favorites={tabItems}
-        disabled={isSaving}
-        todoLists={ledger.todoLists}
-        onTask={async (title, listId) => {
-          if (ledger.unavailableResources.includes("tasks"))
-            throw new Error("Your task lists have not downloaded yet. Connect and try again.");
-          const list = ledger.todoLists.find((l) => l.id === listId) ?? ledger.todoLists[0];
-          await ledger.saveTodoList({
-            ...(list ?? { name: "Everyday", tasks: [] }),
-            tasks: [...(list?.tasks ?? []), { id: crypto.randomUUID(), title, done: false }],
-          });
-        }}
-        actions={[
-          {
-            id: "expense",
-            label: "Expense or income",
-            icon: "wallet",
-            run: () => setModal({ add: true }),
-          },
-          {
-            id: "event",
-            label: "Event",
-            icon: "calendar",
-            run: () => {
-              setEvOccurrenceIso(undefined);
-              setEvModal({ add: true, date: TODAY_ISO });
-            },
-          },
-        ]}
-        moreActions={[
-          {
-            id: "list",
-            label: "New List",
-            icon: "list",
-            run: () =>
-              addInView("todos", () => {
-                if (!todoListRef.current) return false;
-                todoListRef.current.openAdd();
-
-                return true;
-              }),
-          },
-          {
-            id: "plan",
-            label: "New Plan",
-            icon: "capital",
-            run: () =>
-              addInView("capitals", () => {
-                if (!capitalsRef.current) return false;
-                capitalsRef.current.openAdd();
-
-                return true;
-              }),
-          },
-          {
-            id: "category",
-            label: "New Category",
-            icon: "tags",
-            run: () =>
-              addInView("categories", () => {
-                if (!categoriesRef.current) return false;
-                categoriesRef.current.openAdd();
-
-                return true;
-              }),
-          },
-          ...(ledger.vehicles.length
-            ? [
-                {
-                  id: "fill",
-                  label: "New Fill Up",
-                  icon: "car",
-                  run: () =>
-                    ledger.vehicles.length >= 2
-                      ? setVehiclePickerOpen(true)
-                      : addFillFor(ledger.vehicles[0]!.id),
-                },
-              ]
-            : []),
-        ]}
+        groups={groups}
+        open={searchOpen}
+        setOpen={setSearchOpen}
       />
-
-      {vehiclePickerOpen
-        ? createPortal(
-            <div
-              ref={vehiclePickerScrimRef}
-              className="picker-scrim"
-              onMouseDown={(e) => {
-                if (e.target === e.currentTarget) {
-                  requestCloseVehiclePicker(() => setVehiclePickerOpen(false));
-                }
-              }}
-            >
-              <div
-                ref={vehiclePickerPanelRef}
-                className="picker-menu picker-menu--category"
-                role="listbox"
-                aria-label="Add Fill Up For"
-              >
-                <div className="picker-category-list">
-                  {ledger.vehicles.map((v) => (
-                    <button
-                      key={v.id}
-                      type="button"
-                      role="option"
-                      className="picker-category-item"
-                      onClick={() => {
-                        requestCloseVehiclePicker(() => setVehiclePickerOpen(false));
-                        addFillFor(v.id);
-                      }}
-                    >
-                      <span className="pci-glyph">{v.glyph}</span>
-                      <span className="pci-label">{v.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
 
       {modal && activeWallet ? (
         <AddExpenseModal
@@ -1220,6 +1102,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
         <TourWelcomeModal
           onGuided={chooseGuidedTour}
           onExplore={chooseExploreAlone}
+          onStartView={(startView) => ledger.setNavPrefs({ startView })}
           onClosed={() => setWelcomeOpen(false)}
         />
       ) : null}

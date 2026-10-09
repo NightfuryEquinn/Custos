@@ -41,6 +41,7 @@ export type BackupSettings = {
   accent?: string;
   navTabs?: ViewId[];
   navOrder?: ViewId[];
+  startView?: ViewId;
   consentOptedIn?: boolean;
 };
 

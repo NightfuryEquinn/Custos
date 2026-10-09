@@ -30,8 +30,8 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - **Log payment** — open a prefilled expense from an event and link `eventId` ↔ `expenseId`, releasing that occurrence's hold.
 - **Email reminders** — optional Resend emails with per-event lead time and your timezone, plus a reminder at the event's own start; delivered to your account notify email.
 - **Push notifications** — opt-in Web Push per device under **Account → Preferences**, on the same 15-minute poll as email.
-- **TO-DO lists** — multiple named lists with inline task management; quick to-dos from the Add sheet go to the list you pick.
-- **Add sheet** — the dock's **Add** button creates a transaction, event, to-do, list, Capitals plan, category, or vehicle fill-up from any view, switching to the right view and opening its editor.
+- **To-do lists** — multiple named lists with inline task management.
+- **Page actions** — each page's main action (Add transaction, Add event, Add list, Add plan, Add category, Add fill-up) sits beside its title.
 
 ### Identity & privacy
 
@@ -47,7 +47,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - **Budget alerts** — email when a category nears/exceeds its monthly budget; the client evaluates and sends names/amounts, the server only delivers.
 - **Transparency** — in-app map of hosting roles, what the server can infer, collections, and E2EE vs plaintext fields.
 - **Guided tour** — Shepherd.js walkthrough per view; a first-sign-in modal offers guided or explore-alone, stored on your profile so it follows you across devices. Replay from the **?** beside any page title or **Account → Take a Tour**.
-- **Command navigation** — Open Custos replaces the sidebar and tab bar with a searchable index (Ctrl/Command + K), four customizable favorites, and URL-backed destinations with browser Back/Forward. Add an expense, event, or task from any view.
+- **Navigation** — a persistent sidebar from 1024px, a bottom bar with a More sheet below that, four customizable favorites, a start page you choose, Ctrl/Command + K to search pages, and URL-backed destinations with browser Back/Forward.
 - **Two-step deletes** — every delete asks twice: the first press arms the button ("Confirm Delete"), the second performs it, and a second click that lands within 400ms is ignored. Deleting a wallet, a vehicle with records, a Capitals plan with items, a to-do list with tasks, or clearing local data also asks you to type the name first. Archiving an in-use category, marking a paid Capitals item unpaid, restoring an encrypted backup, and discarding offline changes each confirm before they act.
 - **Consistent editors** — Escape closes and Enter saves in every dialog, closing one with unsaved edits asks "Discard changes?", a failed save or delete shows its reason inline instead of failing silently, invalid numbers are flagged rather than turned into 0, and a short notice confirms each save or delete (adding "syncs when online" while offline).
 - **One layout grid** — the app and the public site share four width tiers (phone ≤639px, tablet 640–1023px, laptop 1024–1279px, desktop ≥1280px) and a 4px spacing scale (`--sp-1`…`--sp-7`). Content, topbar, rows, and dialogs share one left edge, and hover highlights extend past the text rather than touching it. `tests/frontend/layout-tokens.test.ts` enforces the tiers and the scale.
@@ -108,7 +108,7 @@ src/
     ├── assets/           # logo
     ├── charts/           # SVG charts (donut, trend, MoM bars)
     ├── components/       # Brand, ThemeToggle, Wallets, pickers, shared UI (ConfirmDialog, AddExpenseModal),
-    │                     # Feedback (toasts + imperative confirm host), JournalCommands (Open Custos)
+    │                     # Feedback (toasts + imperative confirm host), Navigation (sidebar, bottom bar), PageSearch
     ├── lib/
     │   ├── budget/         # in-tab budget-alert notifications
     │   ├── crypto/         # E2EE codec, key derivation, unlock flow

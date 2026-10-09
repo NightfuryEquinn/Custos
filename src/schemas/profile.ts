@@ -56,6 +56,9 @@ const ledgerProfileSchema = z.object({
      back to the built-in defaults, so there's nothing to seed here. */
   navTabs: navTabsSchema.optional(),
   navOrder: navOrderSchema.optional(),
+  /* Page Custos opens on. New accounts seed "overview" (Home); undefined means
+     the account never chose, so the client keeps the older landing rule. */
+  startView: viewIdSchema.optional(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -72,6 +75,7 @@ export const updateProfileSchema = z
     surface: surfaceSchema.optional(),
     navTabs: navTabsSchema.optional(),
     navOrder: navOrderSchema.optional(),
+    startView: viewIdSchema.optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "At least one field is required",
@@ -94,5 +98,6 @@ export function defaultProfile(
     currentMonth: monthKeySchema.parse(month),
     tourPreference: "pending",
     toursSeen: [],
+    startView: "overview",
   };
 }

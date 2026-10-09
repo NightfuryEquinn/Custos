@@ -218,8 +218,8 @@ async function restoreSettings(settings: BackupSettings, api: BackupRestoreApi):
     await api.updateUser(userPatch);
   }
 
-  const { tourPreference, toursSeen, accent, navTabs, navOrder } = settings;
-  const profilePatch = { tourPreference, toursSeen, accent, navTabs, navOrder };
+  const { tourPreference, toursSeen, accent, navTabs, navOrder, startView } = settings;
+  const profilePatch = { tourPreference, toursSeen, accent, navTabs, navOrder, startView };
   if (api.updateProfile && Object.values(profilePatch).some((v) => v !== undefined)) {
     await api.updateProfile(profilePatch);
   }

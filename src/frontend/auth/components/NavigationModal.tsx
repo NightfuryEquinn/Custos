@@ -1,40 +1,61 @@
 import { Icon } from "@/frontend/components/ui";
 import { useModalMotion } from "@/frontend/lib/animate";
 import { toast } from "@/frontend/lib/feedback";
-import { NAV_ITEM_BY_ID, NAV_ITEMS, type NavItem } from "@/frontend/lib/nav";
+import {
+  NAV_GROUPS,
+  NAV_ITEM_BY_ID,
+  NAV_ITEMS,
+  resolveNav,
+  type NavItem,
+} from "@/frontend/lib/nav";
 import type { ViewId } from "@/frontend/lib/types";
-import { DEFAULT_TAB_IDS, TAB_SLOTS, VIEW_IDS } from "@/lib/views";
+import { DEFAULT_TAB_IDS, TAB_SLOTS } from "@/lib/views";
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 type NavigationModalProps = {
   /** Current sidebar order, resolved (all views, defaults already applied). */
   sidebarItems: readonly NavItem[];
-  /** Current mobile tab-bar picks, in order. */
+  /** Current favorites (bottom bar, top of the sidebar), in order. */
   tabItems: readonly NavItem[];
-  onSave: (prefs: { navOrder: ViewId[]; navTabs: ViewId[] }) => Promise<unknown>;
+  /** Saved start page; undefined until the account chooses one. */
+  startView?: ViewId;
+  onSave: (prefs: {
+    navOrder: ViewId[];
+    navTabs: ViewId[];
+    startView?: ViewId;
+  }) => Promise<unknown>;
   onClose: () => void;
 };
 
-/** Move an array element by ±1, no-op past either end. */
-function move<T>(list: T[], index: number, dir: -1 | 1): T[] {
-  const target = index + dir;
-  if (target < 0 || target >= list.length) return list;
+/** Swap two ids in the flat order, so a move never crosses a group. */
+function swap(list: ViewId[], a: ViewId, b: ViewId): ViewId[] {
   const next = [...list];
-  [next[index], next[target]] = [next[target]!, next[index]!];
+  const i = next.indexOf(a);
+  const j = next.indexOf(b);
+  [next[i], next[j]] = [next[j]!, next[i]!];
   return next;
 }
 
-/** Customize the mobile tab bar (pick four, in order) and the sidebar order. */
-export function NavigationModal({ sidebarItems, tabItems, onSave, onClose }: NavigationModalProps) {
+/** Choose the start page, four favorites, and the order within each group. */
+export function NavigationModal({
+  sidebarItems,
+  tabItems,
+  startView,
+  onSave,
+  onClose,
+}: NavigationModalProps) {
   const [order, setOrder] = useState<ViewId[]>(() => sidebarItems.map(([id]) => id));
   const [tabs, setTabs] = useState<ViewId[]>(() => tabItems.map(([id]) => id));
+  const [start, setStart] = useState<ViewId>(startView ?? "overview");
+  /* Only a deliberate pick is saved, so accounts that never chose keep the older landing rule. */
+  const [startTouched, setStartTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLFormElement>(null);
-  const fields = JSON.stringify([order, tabs]);
+  const fields = JSON.stringify([order, tabs, startTouched && start]);
   const [baseline] = useState(fields);
   const { requestClose, dismiss } = useModalMotion(scrimRef, panelRef, {
     variant: "center",
@@ -51,7 +72,7 @@ export function NavigationModal({ sidebarItems, tabItems, onSave, onClose }: Nav
   };
 
   const resetDefaults = () => {
-    setOrder([...VIEW_IDS]);
+    setOrder(resolveNav().sidebarItems.map(([id]) => id));
     setTabs([...DEFAULT_TAB_IDS]);
     setError("");
   };
@@ -63,7 +84,11 @@ export function NavigationModal({ sidebarItems, tabItems, onSave, onClose }: Nav
     setBusy(true);
     setError("");
     try {
-      await onSave({ navOrder: order, navTabs: tabs });
+      await onSave({
+        navOrder: order,
+        navTabs: tabs,
+        ...(startTouched ? { startView: start } : {}),
+      });
       toast("Navigation saved");
       requestClose(onClose);
     } catch (e) {
@@ -110,16 +135,38 @@ export function NavigationModal({ sidebarItems, tabItems, onSave, onClose }: Nav
 
         <div className="modal-body modal-scroll">
           <div className="dm-sec">
-            <span className="fld-label">Favorite destinations</span>
-            <p className="dm-lead">
-              Pick four for the command index, in the order they should appear. On mobile, the app
-              opens on the first one.
-            </p>
+            <span className="fld-label" id="nav-start-label">
+              Start page
+            </span>
+            <div className="sub-row" role="radiogroup" aria-labelledby="nav-start-label">
+              {sidebarItems.map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={start === id}
+                  className={"sub-chip" + (start === id ? " active" : "")}
+                  onClick={() => {
+                    setStart(id);
+                    setStartTouched(true);
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="dm-div" />
+
+          <div className="dm-sec">
+            <span className="fld-label">Favorites</span>
+            <p className="dm-lead">Four pages for the bottom bar and the top of the sidebar.</p>
             <div className="nav-tab-preview">
               {tabs.map((id) => (
                 <span key={id} className="nav-tab-preview-item">
                   <Icon name={NAV_ITEM_BY_ID.get(id)![2]} size={16} />
-                  {NAV_ITEM_BY_ID.get(id)![3] ?? NAV_ITEM_BY_ID.get(id)![1]}
+                  {NAV_ITEM_BY_ID.get(id)![1]}
                 </span>
               ))}
               {Array.from({ length: TAB_SLOTS - tabs.length }).map((_, i) => (
@@ -129,7 +176,7 @@ export function NavigationModal({ sidebarItems, tabItems, onSave, onClose }: Nav
               ))}
               <span className="nav-tab-preview-item nav-tab-preview-more">
                 <Icon name="more" size={16} />
-                Index
+                More
               </span>
             </div>
             <div className="sub-row">
@@ -154,37 +201,44 @@ export function NavigationModal({ sidebarItems, tabItems, onSave, onClose }: Nav
           <div className="dm-div" />
 
           <div className="dm-sec">
-            <span className="fld-label">Index order</span>
-            <p className="dm-lead">Open Custos shows every view in this order, on every device.</p>
-            <ul className="nav-order-list">
-              {order.map((id, i) => {
-                const [, label, icon] = NAV_ITEM_BY_ID.get(id)!;
-                return (
-                  <li key={id} className="nav-order-row">
-                    <Icon name={icon} size={18} />
-                    <span className="nav-order-label">{label}</span>
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      aria-label={`Move ${label} up`}
-                      disabled={i === 0}
-                      onClick={() => setOrder((prev) => move(prev, i, -1))}
-                    >
-                      <Icon name="chevU" size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      aria-label={`Move ${label} down`}
-                      disabled={i === order.length - 1}
-                      onClick={() => setOrder((prev) => move(prev, i, 1))}
-                    >
-                      <Icon name="chevD" size={16} />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+            <span className="fld-label">Order within each group</span>
+            {NAV_GROUPS.map(([groupLabel, groupIds]) => {
+              const ids = order.filter((id) => groupIds.includes(id));
+              return (
+                <div key={groupLabel}>
+                  <span className="journal-eyebrow">{groupLabel}</span>
+                  <ul className="nav-order-list">
+                    {ids.map((id, i) => {
+                      const [, label, icon] = NAV_ITEM_BY_ID.get(id)!;
+                      return (
+                        <li key={id} className="nav-order-row">
+                          <Icon name={icon} size={18} />
+                          <span className="nav-order-label">{label}</span>
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            aria-label={`Move ${label} up`}
+                            disabled={i === 0}
+                            onClick={() => setOrder((prev) => swap(prev, id, ids[i - 1]!))}
+                          >
+                            <Icon name="chevU" size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            aria-label={`Move ${label} down`}
+                            disabled={i === ids.length - 1}
+                            onClick={() => setOrder((prev) => swap(prev, id, ids[i + 1]!))}
+                          >
+                            <Icon name="chevD" size={16} />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              );
+            })}
           </div>
 
           {!canSave ? (

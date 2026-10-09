@@ -6,7 +6,7 @@ import { useMemoryDb } from "../helpers/memory-db";
 const app = createApiApp();
 
 type ProfileBody = {
-  profile: { currentMonth: string; navTabs?: string[]; navOrder?: string[] };
+  profile: { currentMonth: string; navTabs?: string[]; navOrder?: string[]; startView?: string };
 };
 
 const patchProfile = (cookie: string, body: unknown) =>
@@ -92,5 +92,43 @@ describe("profile carries custom nav layout", () => {
     });
 
     expect(status).toBe(400);
+  });
+
+  test("a new account starts on Home", async () => {
+    const cookie = await signIn(app);
+
+    const res = await app.request("/api/profile", { headers: { cookie } });
+    const { profile } = (await res.json()) as ProfileBody;
+
+    expect(profile.startView).toBe("overview");
+  });
+
+  test("PATCH persists startView and survives a re-read", async () => {
+    const cookie = await signIn(app);
+
+    const saved = await patchProfile(cookie, { startView: "schedule" });
+    expect(saved.status).toBe(200);
+    expect(saved.json.profile.startView).toBe("schedule");
+
+    const reread = await app.request("/api/profile", { headers: { cookie } });
+    const { profile } = (await reread.json()) as ProfileBody;
+    expect(profile.startView).toBe("schedule");
+  });
+
+  test("an unknown startView is rejected", async () => {
+    const cookie = await signIn(app);
+
+    const { status } = await patchProfile(cookie, { startView: "nonexistent" });
+
+    expect(status).toBe(400);
+  });
+
+  test("a currentMonth PATCH leaves startView alone", async () => {
+    const cookie = await signIn(app);
+    await patchProfile(cookie, { startView: "transactions" });
+
+    const { json } = await patchProfile(cookie, { currentMonth: "2026-07" });
+
+    expect(json.profile.startView).toBe("transactions");
   });
 });

@@ -875,9 +875,10 @@ export function useLedger(walletAddress: string) {
     },
   });
 
-  /* Custom nav layout, also account-wide via the profile. */
+  /* Custom nav layout and start page, also account-wide via the profile. */
   const setNavPrefsMutation = useMutation({
-    mutationFn: (state: { navTabs?: ViewId[]; navOrder?: ViewId[] }) => api.profile.update(state),
+    mutationFn: (state: { navTabs?: ViewId[]; navOrder?: ViewId[]; startView?: ViewId }) =>
+      api.profile.update(state),
     onSuccess: ({ profile }) => {
       queryClient.setQueryData(keys.profile(wallet), profile);
     },

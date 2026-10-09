@@ -53,6 +53,21 @@ describe("restoreBackupToLedger settings", () => {
     expect(result.settings).toBe(false);
   });
 
+  test("restores the start page from a backup that carries one", async () => {
+    const profileCalls: unknown[] = [];
+    await restoreBackupToLedger(
+      { ...BASE_PLAIN, settings: { startView: "schedule" } },
+      EMPTY_CURRENT,
+      {
+        ...noopApi(),
+        updateProfile: async (s) => {
+          profileCalls.push(s);
+        },
+      },
+    );
+    expect(profileCalls).toEqual([expect.objectContaining({ startView: "schedule" })]);
+  });
+
   test("applies user, profile, and consent settings when present", async () => {
     const userCalls: unknown[] = [];
     const profileCalls: unknown[] = [];
@@ -97,6 +112,7 @@ describe("restoreBackupToLedger settings", () => {
         accent: "moss",
         navTabs: undefined,
         navOrder: undefined,
+        startView: undefined,
       },
     ]);
     expect(consentCalls).toEqual([false]);

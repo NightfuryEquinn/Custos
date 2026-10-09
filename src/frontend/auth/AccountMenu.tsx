@@ -88,7 +88,12 @@ type AccountMenuProps = {
   onWhatsNew?: () => void;
   navSidebarItems: readonly NavItem[];
   navTabItems: readonly NavItem[];
-  onSaveNavPrefs: (prefs: { navOrder: ViewId[]; navTabs: ViewId[] }) => Promise<unknown>;
+  onSaveNavPrefs: (prefs: {
+    navOrder: ViewId[];
+    navTabs: ViewId[];
+    startView?: ViewId;
+  }) => Promise<unknown>;
+  startView?: ViewId;
 };
 
 export function AccountMenu({
@@ -114,6 +119,7 @@ export function AccountMenu({
   navSidebarItems,
   navTabItems,
   onSaveNavPrefs,
+  startView,
 }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const [reveal, setReveal] = useState(false);
@@ -416,6 +422,7 @@ export function AccountMenu({
         <NavigationModal
           sidebarItems={navSidebarItems}
           tabItems={navTabItems}
+          startView={startView}
           onSave={onSaveNavPrefs}
           onClose={() => setNavOpen(false)}
         />

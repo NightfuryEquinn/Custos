@@ -1,4 +1,5 @@
-import { Icon } from "@/frontend/components/ui";
+import { NAV_ITEM_BY_ID } from "@/frontend/lib/nav";
+import type { ViewId } from "@/lib/views";
 import { useModalMotion } from "@/frontend/lib/animate";
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -8,33 +9,30 @@ type TourWelcomeModalProps = {
   onGuided: () => Promise<unknown>;
   /** Skip every automatic tour; the help button and menu entry still work. */
   onExplore: () => Promise<unknown>;
+  /** Save a non-default start page; new accounts already open on Home. */
+  onStartView: (id: ViewId) => Promise<unknown>;
   /** Called after the exit animation, so the parent can unmount the modal. */
   onClosed: () => void;
 };
 
-/** What each choice actually does, spelled out before the user commits. */
-const CHOICES = [
-  {
-    icon: "info" as const,
-    title: "A guided walk-through",
-    body: "A short tour of the shell, then a few pointers the first time you open each view.",
-  },
-  {
-    icon: "sparkle" as const,
-    title: "Or find your own way",
-    body: "Nothing opens by itself. The ? beside any page title still replays that view's tour whenever you want it.",
-  },
-];
+/** Pages worth offering at first launch; the rest are one Navigation setting away. */
+const START_CHOICES: ViewId[] = ["overview", "schedule", "transactions"];
 
 /**
  * First-run prompt: guided tour or explore alone. Shown once per user — the
  * answer is stored on their profile, so it follows them to every device.
  */
-export function TourWelcomeModal({ onGuided, onExplore, onClosed }: TourWelcomeModalProps) {
+export function TourWelcomeModal({
+  onGuided,
+  onExplore,
+  onStartView,
+  onClosed,
+}: TourWelcomeModalProps) {
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
   const [choosing, setChoosing] = useState<"guided" | "explore" | null>(null);
+  const [start, setStart] = useState<ViewId>("overview");
 
   /** Persist the choice, then close. Guards against a double tap. */
   const choose = async (choice: "guided" | "explore", save: () => Promise<unknown>) => {
@@ -43,6 +41,7 @@ export function TourWelcomeModal({ onGuided, onExplore, onClosed }: TourWelcomeM
     setChoosing(choice);
     try {
       await save();
+      if (start !== "overview") await onStartView(start);
       requestClose(onClosed);
     } catch {
       /* Leave the modal open so the choice can be made again. */
@@ -66,24 +65,27 @@ export function TourWelcomeModal({ onGuided, onExplore, onClosed }: TourWelcomeM
         </div>
 
         <div className="modal-body">
-          <p className="dm-lead">
-            Would you like a quick tour of how everything fits together, or would you rather look
-            around on your own?
-          </p>
+          <p className="dm-lead">Take a short tour, or explore on your own.</p>
 
-          <div className="wn-list">
-            {CHOICES.map((choice) => (
-              <div className="wn-item" key={choice.title}>
-                <span className="wn-item-icon" aria-hidden>
-                  <Icon name={choice.icon} size={18} />
-                </span>
-                <div className="wn-item-text">
-                  <span className="wn-item-title">{choice.title}</span>
-                  <p className="legal-p">{choice.body}</p>
-                </div>
-              </div>
+          <span className="fld-label" id="tour-start-label">
+            Open Custos on
+          </span>
+          <div className="sub-row" role="radiogroup" aria-labelledby="tour-start-label">
+            {START_CHOICES.map((id) => (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={start === id}
+                className={"sub-chip" + (start === id ? " active" : "")}
+                disabled={!!choosing}
+                onClick={() => setStart(id)}
+              >
+                {NAV_ITEM_BY_ID.get(id)![1]}
+              </button>
             ))}
           </div>
+          <p className="fld-hint">The ? beside any page title replays that page's tour.</p>
         </div>
 
         <div className="modal-foot modal-foot-stacked">

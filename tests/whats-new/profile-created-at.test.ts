@@ -53,6 +53,7 @@ describe("profile route exposes createdAt", () => {
       "createdAt",
       "currentMonth",
       "id",
+      "startView",
       "tourPreference",
       "toursSeen",
     ]);

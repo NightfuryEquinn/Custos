@@ -403,12 +403,11 @@ const MONTH_SHORT = [
   "Dec",
 ];
 
-/** Space reserved at the bottom for the fixed journal dock (Open Custos / Add). */
-const DOCK_CLEARANCE_PX = 96;
-
-/** Viewport height left below a fixed dropdown, keeping the dock clear. */
+/** Viewport height left below a fixed dropdown, keeping the bottom bar (below 1024px) clear. */
 function dropdownMaxHeightPx(anchorBottom: number) {
-  return Math.max(140, Math.round(window.innerHeight - anchorBottom - DOCK_CLEARANCE_PX));
+  const bottomBar = window.matchMedia("(max-width: 1023px)").matches ? 88 : 16;
+
+  return Math.max(140, Math.round(window.innerHeight - anchorBottom - bottomBar));
 }
 
 /** True when a scroll started inside the open dropdown (do not dismiss). */

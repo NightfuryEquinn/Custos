@@ -31,6 +31,7 @@ function serializeProfile(doc: {
   surface?: string;
   navTabs?: string[];
   navOrder?: string[];
+  startView?: string;
   createdAt: Date;
 }) {
   const serialized = serializeDoc(doc);
@@ -52,6 +53,8 @@ function serializeProfile(doc: {
        built-in nav defaults. */
     navTabs: serialized.navTabs,
     navOrder: serialized.navOrder,
+    /* Undefined means "never chose" � the client keeps the older landing rule. */
+    startView: serialized.startView,
     /* Account age tells the client whether to announce release notes. */
     createdAt: serialized.createdAt.toISOString(),
   };

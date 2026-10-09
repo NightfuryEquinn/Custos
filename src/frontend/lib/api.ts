@@ -34,6 +34,8 @@ type ApiProfile = {
   /* Custom nav layout; undefined = never customized, use the built-in defaults. */
   navTabs?: ViewId[];
   navOrder?: ViewId[];
+  /* Page Custos opens on; undefined = never chose (phones: first favorite, else Home). */
+  startView?: ViewId;
   /* ISO timestamp of profile creation. */
   createdAt: string;
 };
@@ -285,6 +287,7 @@ export const api = {
           | "surface"
           | "navTabs"
           | "navOrder"
+          | "startView"
         >
       >,
     ) {

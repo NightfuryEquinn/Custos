@@ -216,6 +216,7 @@ export function ImportExportModal({
           accent: profile.accent,
           navTabs: profile.navTabs,
           navOrder: profile.navOrder,
+          startView: profile.startView,
           consentOptedIn: consent.optedIn,
         },
       });
