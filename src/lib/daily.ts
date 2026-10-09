@@ -198,6 +198,13 @@ export function dueRows(
   );
 }
 
+/**
+ * Active routines with nothing due today (a weekday routine on an off day, or one that
+ * starts later). Listing them keeps every routine reachable for editing and archiving.
+ */
+export const idleRoutines = (routines: DailyRoutine[], today: string) =>
+  routines.filter((r) => !r.archivedOn && currentPeriod(r, today) === null);
+
 /** How many of a tab's rows are done. */
 export const progressOf = (rows: DailyRow[]) => ({
   done: rows.filter((r) => r.done).length,

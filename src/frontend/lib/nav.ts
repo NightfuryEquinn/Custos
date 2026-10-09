@@ -38,6 +38,24 @@ function sanitize(ids: readonly string[]): ViewId[] {
 }
 
 /**
+ * Which header controls change a page's content: w = wallet, m = month. A page not listed
+ * shows neither, so Daily and To-do never inherit financial filters. Savings, Big expenses
+ * and Vehicles read the active wallet's data or currency, so they keep the wallet switcher.
+ */
+export const VIEW_CONTROLS: Partial<Record<ViewId, "w" | "m" | "wm">> = {
+  overview: "wm",
+  transactions: "wm",
+  budgets: "wm",
+  insights: "wm",
+  recurring: "wm",
+  piggies: "wm",
+  schedule: "m",
+  capitals: "w",
+  vehicles: "w",
+  calculator: "w",
+};
+
+/**
  * Destination groups for the sidebar and More sheet. Every view id appears in
  * exactly one group (tested); ids not yet in VIEW_IDS are skipped, so a group
  * can name a view before it ships.

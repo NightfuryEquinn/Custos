@@ -1,3 +1,4 @@
+import { LoadingBloom } from "@/frontend/components/LoadingBloom";
 import { EmptyState } from "@/frontend/components/ui";
 import type { DailyState } from "@/frontend/lib/hooks/useDaily";
 import type { ViewId } from "@/frontend/lib/types";
@@ -29,7 +30,9 @@ export function DailyHomePanel({
           View all
         </button>
       </div>
-      {!daily.ready ? (
+      {daily.loading ? (
+        <LoadingBloom size="sm" />
+      ) : !daily.ready ? (
         <EmptyState title="Daily isn't available yet" />
       ) : total ? (
         <>

@@ -127,13 +127,17 @@ export function useDaily(address: string, cryptoReady: boolean) {
       const encrypted = await encodeDailyRoutine(rest, cryptoKey);
 
       if (id) {
+        /* An edit or archive must not reach the server before the routine's own create. */
+        const create = (await listOutbox(address)).find(
+          (e) => e.entity === "dailyRoutine" && e.op === "create" && e.targetId === id,
+        );
         await enqueueOutbox({
           address,
           entity: "dailyRoutine",
           op: "update",
           targetId: id,
           request: { method: "PATCH", path: `/daily/routines/${id}`, body: encrypted },
-          dependsOn: [],
+          dependsOn: create ? [create.opId] : [],
           label: rest.title,
         });
         void drainOutbox(address);
@@ -227,6 +231,12 @@ export function useDaily(address: string, cryptoReady: boolean) {
   return {
     query,
     timezoneQuery,
+    /** Still fetching, or waiting a frame for the day key: not the same as unavailable. */
+    loading:
+      cryptoReady &&
+      (query.isLoading ||
+        timezoneQuery.isLoading ||
+        (query.data !== undefined && !!timeZone && today === null)),
     /** Everything Daily needs has loaded (from the network or the offline cache). */
     ready: query.data !== undefined && !!timeZone && today !== null,
     routines,

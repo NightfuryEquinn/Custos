@@ -18,7 +18,7 @@ import { ThemeToggle } from "@/frontend/components/ThemeToggle";
 import { WalletManageModal, WalletSwitcher } from "@/frontend/components/Wallets";
 import { AddExpenseModal, Icon, MonthSwitcher } from "@/frontend/components/ui";
 import { CURRENT_MONTH_KEY, MONTHS, TODAY_ISO } from "@/frontend/lib/data";
-import { NAV_ITEM_BY_ID, resolveNav } from "@/frontend/lib/nav";
+import { NAV_ITEM_BY_ID, VIEW_CONTROLS, resolveNav } from "@/frontend/lib/nav";
 import { releaseHoldForOccurrence, restoreHoldForOccurrence } from "@/frontend/lib/envelope-holds";
 import { api, ApiError } from "@/frontend/lib/api";
 import { useLedger } from "@/frontend/lib/hooks/useLedger";
@@ -115,18 +115,6 @@ type LedgerAppProps = {
 
 /** One name per page, shared with navigation and search. */
 const viewTitle = (view: ViewId) => NAV_ITEM_BY_ID.get(view)![1];
-
-/** Which header controls change a page's content: w = wallet, m = month. Absent = neither. */
-const SWITCHERS: Partial<Record<ViewId, "w" | "m" | "wm">> = {
-  overview: "wm",
-  transactions: "wm",
-  budgets: "wm",
-  insights: "wm",
-  recurring: "wm",
-  schedule: "m",
-  piggies: "m",
-  calculator: "w",
-};
 
 /** Animated page title; remounts when `view` changes so enter motion replays. */
 function PageTitle({ view }: { view: ViewId }) {
@@ -734,7 +722,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
     categoryIndex: ledger.categoryIndex,
   };
 
-  const tools = SWITCHERS[view] ?? "";
+  const tools = VIEW_CONTROLS[view] ?? "";
   const addTxn = { label: "Add transaction", run: () => setModal({ add: true }) };
   const PAGE_ACTIONS: Partial<Record<ViewId, { label: string; run: () => void }>> = {
     overview: addTxn,

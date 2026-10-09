@@ -4,6 +4,7 @@ import {
   currentPeriod,
   dueRows,
   editSchedule,
+  idleRoutines,
   msUntilNextDay,
   newRoutine,
   periodOf,
@@ -315,5 +316,25 @@ describe("progress", () => {
     );
 
     expect(progressOf(rows)).toEqual({ done: 1, total: 2 });
+  });
+});
+
+describe("routines not due today", () => {
+  const today = "2026-10-10"; // Saturday
+  const monOnly = routine([weekdays("2026-10-10", [0])], { id: "m", title: "Gym" });
+  const everyDay = routine([daily("2026-10-05")], { id: "d" });
+  const archivedDaily = routine([daily("2026-10-05")], { id: "x", archivedOn: "2026-10-08" });
+
+  test("an active weekday routine on an off day is listed so it can still be edited or archived", () => {
+    expect(idleRoutines([monOnly, everyDay, archivedDaily], today).map((r) => r.id)).toEqual(["m"]);
+  });
+
+  test("it leaves the list on a day it is due", () => {
+    expect(idleRoutines([monOnly], "2026-10-12")).toEqual([]);
+  });
+
+  test("a routine whose first period has not started yet is also listed", () => {
+    const later = routine([daily("2026-10-12")], { id: "l" });
+    expect(idleRoutines([later], today).map((r) => r.id)).toEqual(["l"]);
   });
 });

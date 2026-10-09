@@ -10,6 +10,7 @@ import {
   editSchedule,
   newRoutine,
   points,
+  idleRoutines,
   progressOf,
   type DailyKind,
   type DailyRow,
@@ -89,6 +90,7 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
   const { done, total } = progressOf(rows);
   const lifetime = useMemo(() => points(completions), [completions]);
   const active = routines.filter((r) => !r.archivedOn);
+  const idle = useMemo(() => (today ? idleRoutines(routines, today) : []), [routines, today]);
   const archived = routines.filter((r) => r.archivedOn);
 
   /** Per-row save state, from the queued writes for this routine and period. */
@@ -204,7 +206,7 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
     }
   };
 
-  if (daily.query.isLoading || (daily.timezoneQuery.isLoading && !daily.ready)) {
+  if (daily.loading) {
     return (
       <div ref={viewRef} className="view view-loading">
         <LoadingBloom />
@@ -300,6 +302,21 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
                 />
               )}
             </div>
+            {tab === "today" && idle.length ? (
+              <div className="daily-idle">
+                <span className="journal-eyebrow">Not due today</span>
+                {idle.map((routine) => (
+                  <button
+                    key={routine.id}
+                    type="button"
+                    className="daily-title daily-idle-row"
+                    onClick={() => openEditor(routine)}
+                  >
+                    {routine.title}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             {total > 0 && done === total ? (
               <p className="daily-all-done" role="status">
                 {tab === "today" ? "All done for today" : "All done this week"}

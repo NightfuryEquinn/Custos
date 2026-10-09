@@ -1,4 +1,4 @@
-import { NAV_GROUPS, resolveNav } from "@/frontend/lib/nav";
+import { NAV_GROUPS, VIEW_CONTROLS, resolveNav } from "@/frontend/lib/nav";
 import { DEFAULT_TAB_IDS, VIEW_IDS } from "@/lib/views";
 import { describe, expect, test } from "bun:test";
 
@@ -81,5 +81,23 @@ describe("resolveNav", () => {
     expect(new Set(covered).size).toBe(covered.length);
     expect(covered.sort()).toEqual([...VIEW_IDS].sort());
     for (const g of moreGroups) expect(g.items.length).toBeGreaterThan(0);
+  });
+});
+
+describe("header controls per page", () => {
+  test("Daily and To-do never inherit wallet or month filters", () => {
+    expect(VIEW_CONTROLS.daily).toBeUndefined();
+    expect(VIEW_CONTROLS.todos).toBeUndefined();
+  });
+
+  test("pages whose numbers depend on the active wallet keep the wallet switcher", () => {
+    // Savings and Big expenses read the active wallet's savings; Vehicles formats in its currency.
+    for (const id of ["piggies", "capitals", "vehicles", "overview", "transactions"] as const)
+      expect(VIEW_CONTROLS[id]).toContain("w");
+  });
+
+  test("month-scoped pages keep the month switcher", () => {
+    for (const id of ["overview", "schedule", "piggies", "insights"] as const)
+      expect(VIEW_CONTROLS[id]).toContain("m");
   });
 });

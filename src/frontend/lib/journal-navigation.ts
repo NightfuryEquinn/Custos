@@ -8,7 +8,7 @@ export function viewFromHash(hash: string): ViewId {
 }
 
 /**
- * Page to open on first load, or null when the URL already names one � links
+ * Page to open on first load, or null when the URL already names one — links
  * and Back/Forward always win. A saved start page applies on every width;
  * accounts that never chose one keep the older behavior (first favorite on
  * phones, Home elsewhere).
