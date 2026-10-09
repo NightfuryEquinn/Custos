@@ -143,9 +143,15 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
         if (e.target === e.currentTarget) dismiss();
       }}
     >
-      <div ref={panelRef} className="modal sm" role="dialog" aria-modal="true">
+      <div
+        ref={panelRef}
+        className="modal sm"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="preferences-title"
+      >
         <div className="modal-head">
-          <h3>Preferences</h3>
+          <h3 id="preferences-title">Preferences</h3>
           <button
             className="icon-btn"
             type="button"
@@ -159,16 +165,15 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
 
         <div className="modal-body modal-scroll">
           <div className="dm-sec">
-            <span className="fld-label">Push notifications</span>
-            <p className="dm-lead">Event reminders on this device, even when Custos is closed.</p>
             <div className="consent-card">
               <div className="consent-top">
                 <div>
                   <div className="consent-title">Notify Me On This Device</div>
                   <p className="consent-desc">
-                    Notifications show the event name, time, budget hold, and comments. Each device
-                    is enabled separately; turning this off does not change other devices or email
-                    reminders. Reminders are checked every 15 minutes.
+                    Event reminders arrive even when Custos is closed. They show the event name,
+                    time, budget hold, and comments. Each device is enabled separately; turning this
+                    off does not change other devices or email reminders. Reminders are checked
+                    every 15 minutes.
                   </p>
                 </div>
                 <label className="switch">
@@ -200,18 +205,15 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
             <>
               <div className="dm-div" />
               <div className="dm-sec">
-                <span className="fld-label">Face ID</span>
-                <p className="dm-lead">
-                  Unlock with Face ID or Touch ID. The prompt appears when you open Custos.
-                </p>
                 <div className="consent-card">
                   <div className="consent-top">
                     <div>
                       <div className="consent-title">Unlock With Face ID</div>
                       <p className="consent-desc">
-                        Your passphrase is encrypted with a key tied to your biometric check and
-                        stays on this device. Turning this off removes it from Custos; remove the
-                        saved entry from your device settings separately.
+                        The prompt appears when you open Custos. Your passphrase is encrypted with a
+                        key tied to your biometric check and stays on this device. Turning this off
+                        removes it from Custos; remove the saved entry from your device settings
+                        separately.
                       </p>
                     </div>
                     <label className="switch">

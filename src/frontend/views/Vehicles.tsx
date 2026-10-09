@@ -718,11 +718,6 @@ export const Vehicles = forwardRef<VehiclesHandle, VehiclesProps>(function Vehic
         <section className="panel vehicles-fuel-insights" data-tour="tour-vehicles-insights">
           <div className="panel-head">
             <h2>Fuel Insights</h2>
-            <p className="panel-sub">
-              {selectedMeta.mode === "power"
-                ? "Charging behaviour and cost, generated from this vehicle's history."
-                : "Fuel behaviour and cost, generated from this vehicle's history."}
-            </p>
           </div>
           {assessment.status === "insufficient" ? (
             <div className="profile-locked">

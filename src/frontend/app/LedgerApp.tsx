@@ -923,7 +923,6 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
                 setView={setView}
                 onEdit={setModal}
                 onEditEvent={(ev: LedgerEvent) => openEvent(ev, TODAY_ISO)}
-                onOpenEvent={openEvent}
               />
             )}
             {view === "schedule" && (
@@ -1018,7 +1017,12 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
               />
             )}
             {view === "insights" && (
-              <Insights {...viewProps} capitalPlans={ledger.capitalPlans} setMonth={setMonth} />
+              <Insights
+                {...viewProps}
+                capitalPlans={ledger.capitalPlans}
+                setMonth={setMonth}
+                balanceExpenses={ledger.balanceExpenses}
+              />
             )}
             {view === "transparency" && <Transparency />}
           </Suspense>

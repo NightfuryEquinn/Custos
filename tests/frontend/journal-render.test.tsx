@@ -4,7 +4,7 @@ import { ThemeProvider } from "@/frontend/lib/hooks/useTheme";
 import { buildCategoryIndex } from "@/frontend/lib/categories";
 import { DEFAULT_CATEGORIES } from "@/schemas/category";
 
-test("the journal renders real ledger data and keeps every analysis section reachable", async () => {
+test("Home renders real ledger data with plain section names and leaves the charts to Insights", async () => {
   // Other hook tests leave a partial window shim; SSR must run without it.
   const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   Reflect.deleteProperty(globalThis, "window");
@@ -54,12 +54,16 @@ test("the journal renders real ledger data and keeps every analysis section reac
       </ThemeProvider>,
     );
     expect(html).toContain("Morning coffee");
-    expect(html).toContain("Total (USD)");
-    expect(html).not.toContain("Total (RM)");
-    expect(html).toContain("Money in motion");
-    expect(html).toContain("Just ahead");
-    expect(html).toContain('data-tour="tour-overview-donut"');
-    expect(html).toContain('data-tour="tour-overview-trend"');
+    expect(html).toContain("Remaining");
+    expect(html).toContain("Spent");
+    expect(html).toContain("Recent transactions");
+    expect(html).toContain("Today&#x27;s schedule");
+    expect(html).toContain("To-do");
+    expect(html).toContain("View transactions");
+    for (const gone of ["Money in motion", "Just ahead", "A little room", "Explore"])
+      expect(html).not.toContain(gone);
+    expect(html).not.toContain('data-tour="tour-overview-donut"');
+    expect(html).not.toContain('data-tour="tour-overview-trend"');
   } finally {
     if (previousWindow) Object.defineProperty(globalThis, "window", previousWindow);
   }

@@ -90,7 +90,7 @@ import type {
 } from "@/frontend/lib/types";
 import { displayGlyph } from "@/lib/glyphs";
 import type { DeleteScope } from "@/lib/delete-scope";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 /*
@@ -159,13 +159,17 @@ type OverviewProps = {
   setView: (view: ViewId) => void;
   onEdit: (expense: Expense) => void;
   onEditEvent: (event: LedgerEvent) => void;
-  onOpenEvent?: (event: LedgerEvent, iso: string) => void;
   balanceExpenses?: Expense[];
   refreshedAt?: number;
+  /** Daily progress panel, supplied by the shell once Daily exists. */
+  daily?: ReactNode;
 };
 
+/** Rows each Home list previews; the full lists live on their own pages. */
+const HOME_ROWS = 5;
+
 // ── Overview ────────────────────────────────────────────────────────
-/** Home summary: trend, today's transactions and schedule, and pending to-do lists. */
+/** Home: this month at a glance, Daily progress, today's schedule, to-dos, and recent transactions. */
 export function Overview({
   expenses,
   budgets,
@@ -177,10 +181,10 @@ export function Overview({
   events = [],
   balanceExpenses,
   refreshedAt = 0,
+  daily,
   setView,
   onEdit,
   onEditEvent,
-  onOpenEvent,
 }: OverviewProps) {
   const loadedAt = useMemo(() => new Date(refreshedAt || Date.now()), [refreshedAt]);
   const st = useMemo(
@@ -190,133 +194,50 @@ export function Overview({
       }),
     [expenses, budgets, wallet, month, categoryIndex, balanceExpenses],
   );
-  const [hoverCat, setHoverCat] = useState<string | null>(null);
-  const [expandedCat, setExpandedCat] = useState<Record<string, boolean>>({});
-  const [catKind, setCatKind] = useState<"expense" | "income">("expense");
-  const isMobile = useIsMobile();
-  const donutSize = isMobile ? 168 : 188;
-  const donutThickness = isMobile ? 24 : 26;
   const pendingTodos = useMemo(() => pendingTodoLists(todoLists), [todoLists]);
   const todayEvents = useMemo(() => todaysEvents(events, loadedAt), [events, loadedAt]);
-
-  const catByCat = catKind === "income" ? st.incomeByCat : st.byCat;
-  const catBySub = catKind === "income" ? st.incomeBySub : st.bySub;
-  const catSourceCategories = useMemo(
-    () =>
-      catKind === "income"
-        ? [
-            ...categoryIndex.incomeCategories,
-            ...categoryIndex.archivedCategories.filter((c) => isIncomeCategory(c)),
-          ]
-        : spendingCategoriesFor(categoryIndex, (id) => (st.byCat[id] || 0) > 0),
-    [categoryIndex, catKind, st.byCat],
-  );
-  const donutData = useMemo(
-    () =>
-      catSourceCategories
-        .map((c) => ({
-          id: c.id,
-          label: c.name,
-          value: catByCat[c.id] || 0,
-          color: c.color,
-          glyph: displayGlyph(c.glyph, c.id),
-        }))
-        .filter((d) => d.value > 0)
-        .sort((a, b) => b.value - a.value),
-    [catSourceCategories, catByCat],
-  );
-  const totalAll = useMemo(() => donutData.reduce((s, d) => s + d.value, 0), [donutData]);
-
-  const [yy, mm] = month.split("-").map(Number);
-  const days = new Date(yy ?? 0, mm ?? 0, 0).getDate();
-  const todayCap = month === CURRENT_MONTH_KEY ? CURRENT_DAY : days;
-  /** Per-day spend / income split by source — powers the trend hover card. */
-  const dayFlows = useMemo(
-    () => dayFlowSeries(st.list, month, categoryIndex, todayCap),
-    [st.list, month, categoryIndex, todayCap],
-  );
-  const trendDetails = useMemo(
-    () => dayFlows.map((f) => ({ ...f, label: `${weekdayLabel(f.day)}, ${dayLabel(f.day)}` })),
-    [dayFlows],
-  );
-  /** Cumulative spend and earnings per day of the selected month. */
-  const { cum, earnCum } = useMemo(() => {
-    const spentPoints: Array<{ x: string; v: number }> = [];
-    const earnedPoints: Array<{ x: string; v: number }> = [];
-    let spentRun = 0;
-    let earnedRun = 0;
-    for (const flow of dayFlows) {
-      spentRun += flow.spent;
-      earnedRun += flow.earned;
-      spentPoints.push({ x: flow.label, v: Math.round(spentRun) });
-      earnedPoints.push({ x: flow.label, v: Math.round(earnedRun) });
-    }
-    return { cum: spentPoints, earnCum: earnedPoints };
-  }, [dayFlows]);
-  /** The trend line's own running total includes savings deposits (it
-   *  mirrors the chart's budget line, which counts the savings envelope) —
-   *  pull that back out so the Spending figure doesn't double up with the
-   *  Saved figure next to it. */
-  const trendSpent = (cum.length ? cum[cum.length - 1]!.v : 0) - st.saved;
-
-  const todayIso = isoDateOf(loadedAt);
-  const recent = sortExpensesByDateDesc(st.list).slice(0, 6);
-  const upcoming = useMemo(() => {
-    const seen = new Set<string>();
-    const entries: Array<{ ev: LedgerEvent; iso: string }> = [];
-    const start =
-      month === CURRENT_MONTH_KEY ? new Date(loadedAt) : new Date(`${month}-01T12:00:00`);
-    for (let day = 0; day < 14; day++) {
-      const date = new Date(start);
-      date.setDate(start.getDate() + day);
-      const iso = isoDateOf(date);
-      if (!iso.startsWith(month)) break;
-      for (const occurrence of eventDaysForDay(events, iso)) {
-        if (seen.has(occurrence.ev.id)) continue;
-        seen.add(occurrence.ev.id);
-        entries.push({ ev: occurrence.ev, iso });
-      }
-    }
-    return entries.slice(0, 5);
-  }, [events, month, loadedAt]);
-  const { accent } = useTheme();
-  const activeCat = hoverCat;
+  const recent = sortExpensesByDateDesc(st.list).slice(0, HOME_ROWS);
   const viewRef = useRef<HTMLDivElement>(null);
   useEnter(viewRef);
 
   return (
     <div ref={viewRef} className="view journal-view">
-      <section className="journal-hero">
-        <span className="journal-eyebrow">
-          {monthLabel(month)} · {wallet?.name ?? "Your wallet"}
-        </span>
-        <h2>
-          A little room
-          <br />
-          for <em>everyday life.</em>
-        </h2>
-        <p>Your money, your time, your next small step.</p>
-        <div className="journal-balance">
-          <span>Remaining this month</span>
-          <ReadableValue as="strong" className={st.remaining < 0 ? "danger" : ""}>
+      <section className="journal-summary" aria-label={`${monthLabel(month)} summary`}>
+        <div className="trend-total">
+          <span className="trend-key">Remaining</span>
+          <ReadableValue
+            as="strong"
+            className={"trend-now" + (st.remaining < 0 ? " trend-now--danger" : "")}
+          >
             {fmtMoney(st.remaining, { currency })}
           </ReadableValue>
-          <button type="button" className="link-btn" onClick={() => setView("budgets")}>
-            Shape your budget <Icon name="chevR" size={16} />
-          </button>
+        </div>
+        <div className="trend-total">
+          <span className="trend-key">Spent</span>
+          <ReadableValue as="strong" className="trend-now">
+            {fmtMoney(st.spent, { currency })}
+          </ReadableValue>
+        </div>
+        <div className="trend-total">
+          <span className="trend-key">Earned</span>
+          <ReadableValue as="strong" className="trend-now trend-now--earn">
+            {fmtMoney(st.earned, { currency })}
+          </ReadableValue>
+        </div>
+        <div className="trend-total">
+          <span className="trend-key">Saved</span>
+          <ReadableValue as="strong" className="trend-now trend-now--saved">
+            {fmtMoney(st.saved, { currency })}
+          </ReadableValue>
         </div>
       </section>
       <div className="journal-columns">
         <div className="journal-timeline">
-          <div className="journal-date">
-            <span>{dayLabel(todayIso)}</span>
-            <span>{weekdayLabel(todayIso)}</span>
-          </div>
           <section className="panel" data-tour="tour-overview-recent">
             <div className="panel-head panel-head--row">
-              <h2>Money in motion</h2>
+              <h2>Recent transactions</h2>
               <button type="button" className="link-btn" onClick={() => setView("transactions")}>
-                Explore
+                View transactions
               </button>
             </div>
             <div className="recent-list">
@@ -352,23 +273,23 @@ export function Overview({
                   );
                 })
               ) : (
-                <EmptyState
-                  title="A fresh page"
-                  sub="Your recent transactions for this month will appear here."
-                />
+                <EmptyState title="No transactions yet" />
               )}
             </div>
           </section>
+        </div>
+        <aside className="journal-margin" aria-label="Today">
+          {daily}
           <section className="panel" data-tour="tour-overview-today-schedule">
             <div className="panel-head panel-head--row">
-              <h2>On today's page</h2>
+              <h2>Today's schedule</h2>
               <button type="button" className="link-btn" onClick={() => setView("schedule")}>
-                Explore
+                View schedule
               </button>
             </div>
             <div className="recent-list">
               {todayEvents.length ? (
-                todayEvents.map((day) => {
+                todayEvents.slice(0, HOME_ROWS).map((day) => {
                   const ev = day.ev;
                   /* eventCatMeta always resolves to a real entry (EVENT_CAT_BY_ID.custom is
                    * always present) — noUncheckedIndexedAccess just can't see that, so fall
@@ -400,20 +321,20 @@ export function Overview({
                   );
                 })
               ) : (
-                <EmptyState title="Nothing Today" sub="No events scheduled for today." />
+                <EmptyState title="Nothing today" />
               )}
             </div>
           </section>
           <section className="panel" data-tour="tour-overview-oldest-todo">
             <div className="panel-head panel-head--row">
-              <h2>A little intention</h2>
+              <h2>To-do</h2>
               <button type="button" className="link-btn" onClick={() => setView("todos")}>
-                Explore
+                View all
               </button>
             </div>
             <div className="recent-list">
               {pendingTodos.length ? (
-                pendingTodos.map((list) => {
+                pendingTodos.slice(0, HOME_ROWS).map((list) => {
                   const done = list.tasks.filter((t) => t.done).length;
                   const total = list.tasks.length;
 
@@ -430,203 +351,16 @@ export function Overview({
                       <span className="rr-main">
                         <span className="rr-note">{list.name}</span>
                         <span className="rr-sub">
-                          {total ? `${done}/${total} done` : "No Tasks Yet"}
+                          {total ? `${done}/${total} done` : "No tasks yet"}
                         </span>
                       </span>
                     </button>
                   );
                 })
               ) : (
-                <EmptyState
-                  title="Nothing Pending"
-                  sub="Every list is done, or create a new one."
-                />
+                <EmptyState title="Nothing pending" />
               )}
             </div>
-          </section>
-        </div>
-        <aside className="journal-margin" aria-label="Monthly perspective">
-          <span className="journal-eyebrow">In the margins</span>
-          <section className="journal-upcoming">
-            <div className="panel-head panel-head--row">
-              <h2>Just ahead</h2>
-              <button type="button" className="link-btn" onClick={() => setView("schedule")}>
-                Plan something
-              </button>
-            </div>
-            <p className="journal-note">Next 14 days within {monthLabel(month)}.</p>
-            {upcoming.length ? (
-              upcoming.map(({ ev, iso }) => (
-                <button
-                  type="button"
-                  className="journal-upcoming-row"
-                  key={ev.id}
-                  onClick={() => (onOpenEvent ? onOpenEvent(ev, iso) : onEditEvent(ev))}
-                >
-                  <span className="journal-date-stamp">{dayLabel(iso)}</span>
-                  <span>{ev.title}</span>
-                  <Icon name="chevR" size={16} />
-                </button>
-              ))
-            ) : (
-              <p className="journal-note">
-                Nothing scheduled in this window. There's space to make a plan.
-              </p>
-            )}
-          </section>
-          <section className="panel donut-panel" data-tour="tour-overview-donut">
-            <div className="panel-head panel-head--row">
-              <h2>By Category</h2>
-              <Segmented
-                options={[
-                  { v: "expense", label: "Expense" },
-                  { v: "income", label: "Income" },
-                ]}
-                value={catKind}
-                onChange={setCatKind}
-              />
-            </div>
-            <div className="donut-wrap">
-              <div className="donut-stage">
-                <Donut
-                  data={donutData}
-                  size={donutSize}
-                  thickness={donutThickness}
-                  onHover={setHoverCat}
-                  activeId={activeCat}
-                />
-                <div className="donut-center">
-                  <div className="dc-label">
-                    {activeCat
-                      ? (categoryIndex.catById[activeCat]?.name ?? `Total (${currency})`)
-                      : `Total (${currency})`}
-                  </div>
-                  <ReadableValue as="div" className="dc-value">
-                    {activeCat ? (catByCat[activeCat]?.toFixed(2) ?? "0.00") : totalAll.toFixed(2)}
-                  </ReadableValue>
-                </div>
-              </div>
-              {donutData.length ? (
-                <ul className="legend">
-                  {donutData.map((d) => {
-                    const open = expandedCat[d.id] ?? false;
-                    const subs = categoryIndex.catById[d.id]?.subs ?? [];
-                    const subRows = subs
-                      .map((s) => ({ ...s, value: catBySub[s.id] || 0 }))
-                      .filter((s) => s.value > 0)
-                      .sort((a, b) => b.value - a.value);
-
-                    return (
-                      <li
-                        key={d.id}
-                        className={"legend-block" + (activeCat && activeCat !== d.id ? " dim" : "")}
-                      >
-                        <button
-                          type="button"
-                          className="legend-row"
-                          aria-expanded={subRows.length ? open : undefined}
-                          aria-label={
-                            subRows.length
-                              ? `${open ? "Collapse" : "Expand"} ${d.label} subcategories`
-                              : d.label
-                          }
-                          onClick={() => {
-                            if (!subRows.length) return;
-                            setExpandedCat((e) => ({ ...e, [d.id]: !open }));
-                          }}
-                          onMouseEnter={() => setHoverCat(d.id)}
-                          onMouseLeave={() => setHoverCat(null)}
-                          onTouchStart={() => setHoverCat(d.id)}
-                        >
-                          <span className="legend-expand">
-                            {subRows.length ? <Icon name="chevD" size={14} /> : null}
-                          </span>
-                          <span className="lg-swatch">{d.glyph}</span>
-                          <span className="lg-name">{d.label}</span>
-                          <ReadableValue as="span" className="lg-amt">
-                            {fmtMoney(d.value, { currency })}
-                          </ReadableValue>
-                        </button>
-                        {subRows.length ? (
-                          <div className={"legend-sub-reveal" + (open ? "" : " is-collapsed")}>
-                            <ul className="legend-sub-list">
-                              {subRows.map((s) => (
-                                <li key={s.id}>
-                                  <span className="lg-name">{s.name}</span>
-                                  <ReadableValue as="span" className="lg-amt lg-sub-amt">
-                                    {fmtMoney(s.value, { currency })}
-                                  </ReadableValue>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <EmptyState
-                  title={catKind === "income" ? "No Income Yet" : "No Spending Yet"}
-                  sub="Categories fill in as you log transactions."
-                />
-              )}
-            </div>
-          </section>
-
-          <section className="panel trend-panel" data-tour="tour-overview-trend">
-            <div className="trend-stats">
-              <div className="trend-total">
-                <span className="trend-key">
-                  <i className="trend-dot" style={{ background: accent }} /> Spending
-                </span>
-                <ReadableValue as="span" className="trend-now">
-                  {fmtMoney(trendSpent, { currency })}
-                </ReadableValue>
-              </div>
-              <div className="trend-total">
-                <span className="trend-key">
-                  <i className="trend-dot trend-dot--earn" /> Earning
-                </span>
-                <ReadableValue as="span" className="trend-now trend-now--earn">
-                  {fmtMoney(st.earned, { currency })}
-                </ReadableValue>
-              </div>
-              <div className="trend-total">
-                <span className="trend-key">
-                  <i className="trend-dot trend-dot--saved" /> Saved
-                </span>
-                <ReadableValue as="span" className="trend-now trend-now--saved">
-                  {fmtMoney(st.saved, { currency })}
-                </ReadableValue>
-              </div>
-              <div className="trend-total">
-                <span className="trend-key">
-                  <i
-                    className={
-                      "trend-dot" + (st.remaining < 0 ? " trend-dot--danger" : " trend-dot--ok")
-                    }
-                  />
-                  Remaining
-                </span>
-                <span
-                  className={
-                    "trend-now" + (st.remaining < 0 ? " trend-now--danger" : " trend-now--ok")
-                  }
-                >
-                  {fmtMoney(st.remaining, { currency })}
-                </span>
-              </div>
-            </div>
-            <AreaTrend
-              points={cum.length ? cum : [{ x: "1", v: 0 }]}
-              compare={earnCum.length ? earnCum : [{ x: "1", v: 0 }]}
-              accent={accent}
-              height={210}
-              budgetLine={st.totalBudget}
-              details={trendDetails.length ? trendDetails : null}
-              format={(n) => fmtMoney(n, { currency })}
-            />
           </section>
         </aside>
       </div>
@@ -1162,6 +896,261 @@ export function Budgets({
   );
 }
 
+type MonthBreakdownProps = {
+  expenses: Expense[];
+  budgets: Budgets;
+  wallet: FinancialWallet | null | undefined;
+  month: string;
+  currency: string;
+  categoryIndex: CategoryIndex;
+  balanceExpenses?: Expense[];
+};
+
+/** The month's category donut and spending/earning trend — the detailed view Home leaves to Insights. */
+function MonthBreakdown({
+  expenses,
+  budgets,
+  wallet,
+  month,
+  currency,
+  categoryIndex,
+  balanceExpenses,
+}: MonthBreakdownProps) {
+  const st = useMemo(
+    () =>
+      monthStats(expenses, budgets, wallet ?? EMPTY_WALLET, month, categoryIndex, undefined, {
+        balanceExpenses,
+      }),
+    [expenses, budgets, wallet, month, categoryIndex, balanceExpenses],
+  );
+  const [hoverCat, setHoverCat] = useState<string | null>(null);
+  const [expandedCat, setExpandedCat] = useState<Record<string, boolean>>({});
+  const [catKind, setCatKind] = useState<"expense" | "income">("expense");
+  const isMobile = useIsMobile();
+  const donutSize = isMobile ? 168 : 188;
+  const donutThickness = isMobile ? 24 : 26;
+  const catByCat = catKind === "income" ? st.incomeByCat : st.byCat;
+  const catBySub = catKind === "income" ? st.incomeBySub : st.bySub;
+  const catSourceCategories = useMemo(
+    () =>
+      catKind === "income"
+        ? [
+            ...categoryIndex.incomeCategories,
+            ...categoryIndex.archivedCategories.filter((c) => isIncomeCategory(c)),
+          ]
+        : spendingCategoriesFor(categoryIndex, (id) => (st.byCat[id] || 0) > 0),
+    [categoryIndex, catKind, st.byCat],
+  );
+  const donutData = useMemo(
+    () =>
+      catSourceCategories
+        .map((c) => ({
+          id: c.id,
+          label: c.name,
+          value: catByCat[c.id] || 0,
+          color: c.color,
+          glyph: displayGlyph(c.glyph, c.id),
+        }))
+        .filter((d) => d.value > 0)
+        .sort((a, b) => b.value - a.value),
+    [catSourceCategories, catByCat],
+  );
+  const totalAll = useMemo(() => donutData.reduce((s, d) => s + d.value, 0), [donutData]);
+
+  const [yy, mm] = month.split("-").map(Number);
+  const days = new Date(yy ?? 0, mm ?? 0, 0).getDate();
+  const todayCap = month === CURRENT_MONTH_KEY ? CURRENT_DAY : days;
+  /** Per-day spend / income split by source — powers the trend hover card. */
+  const dayFlows = useMemo(
+    () => dayFlowSeries(st.list, month, categoryIndex, todayCap),
+    [st.list, month, categoryIndex, todayCap],
+  );
+  const trendDetails = useMemo(
+    () => dayFlows.map((f) => ({ ...f, label: `${weekdayLabel(f.day)}, ${dayLabel(f.day)}` })),
+    [dayFlows],
+  );
+  /** Cumulative spend and earnings per day of the selected month. */
+  const { cum, earnCum } = useMemo(() => {
+    const spentPoints: Array<{ x: string; v: number }> = [];
+    const earnedPoints: Array<{ x: string; v: number }> = [];
+    let spentRun = 0;
+    let earnedRun = 0;
+    for (const flow of dayFlows) {
+      spentRun += flow.spent;
+      earnedRun += flow.earned;
+      spentPoints.push({ x: flow.label, v: Math.round(spentRun) });
+      earnedPoints.push({ x: flow.label, v: Math.round(earnedRun) });
+    }
+    return { cum: spentPoints, earnCum: earnedPoints };
+  }, [dayFlows]);
+  /** The trend line's own running total includes savings deposits (it
+   *  mirrors the chart's budget line, which counts the savings envelope) —
+   *  pull that back out so the Spending figure doesn't double up with the
+   *  Saved figure next to it. */
+  const trendSpent = (cum.length ? cum[cum.length - 1]!.v : 0) - st.saved;
+
+  const { accent } = useTheme();
+  const activeCat = hoverCat;
+
+  return (
+    <div className="ov-grid">
+      <section className="panel donut-panel" data-tour="tour-insights-donut">
+        <div className="panel-head panel-head--row">
+          <h2>By Category</h2>
+          <Segmented
+            options={[
+              { v: "expense", label: "Expense" },
+              { v: "income", label: "Income" },
+            ]}
+            value={catKind}
+            onChange={setCatKind}
+          />
+        </div>
+        <div className="donut-wrap">
+          <div className="donut-stage">
+            <Donut
+              data={donutData}
+              size={donutSize}
+              thickness={donutThickness}
+              onHover={setHoverCat}
+              activeId={activeCat}
+            />
+            <div className="donut-center">
+              <div className="dc-label">
+                {activeCat
+                  ? (categoryIndex.catById[activeCat]?.name ?? `Total (${currency})`)
+                  : `Total (${currency})`}
+              </div>
+              <ReadableValue as="div" className="dc-value">
+                {activeCat ? (catByCat[activeCat]?.toFixed(2) ?? "0.00") : totalAll.toFixed(2)}
+              </ReadableValue>
+            </div>
+          </div>
+          {donutData.length ? (
+            <ul className="legend">
+              {donutData.map((d) => {
+                const open = expandedCat[d.id] ?? false;
+                const subs = categoryIndex.catById[d.id]?.subs ?? [];
+                const subRows = subs
+                  .map((s) => ({ ...s, value: catBySub[s.id] || 0 }))
+                  .filter((s) => s.value > 0)
+                  .sort((a, b) => b.value - a.value);
+
+                return (
+                  <li
+                    key={d.id}
+                    className={"legend-block" + (activeCat && activeCat !== d.id ? " dim" : "")}
+                  >
+                    <button
+                      type="button"
+                      className="legend-row"
+                      aria-expanded={subRows.length ? open : undefined}
+                      aria-label={
+                        subRows.length
+                          ? `${open ? "Collapse" : "Expand"} ${d.label} subcategories`
+                          : d.label
+                      }
+                      onClick={() => {
+                        if (!subRows.length) return;
+                        setExpandedCat((e) => ({ ...e, [d.id]: !open }));
+                      }}
+                      onMouseEnter={() => setHoverCat(d.id)}
+                      onMouseLeave={() => setHoverCat(null)}
+                      onTouchStart={() => setHoverCat(d.id)}
+                    >
+                      <span className="legend-expand">
+                        {subRows.length ? <Icon name="chevD" size={14} /> : null}
+                      </span>
+                      <span className="lg-swatch">{d.glyph}</span>
+                      <span className="lg-name">{d.label}</span>
+                      <ReadableValue as="span" className="lg-amt">
+                        {fmtMoney(d.value, { currency })}
+                      </ReadableValue>
+                    </button>
+                    {subRows.length ? (
+                      <div className={"legend-sub-reveal" + (open ? "" : " is-collapsed")}>
+                        <ul className="legend-sub-list">
+                          {subRows.map((s) => (
+                            <li key={s.id}>
+                              <span className="lg-name">{s.name}</span>
+                              <ReadableValue as="span" className="lg-amt lg-sub-amt">
+                                {fmtMoney(s.value, { currency })}
+                              </ReadableValue>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <EmptyState
+              title={catKind === "income" ? "No Income Yet" : "No Spending Yet"}
+              sub="Categories fill in as you log transactions."
+            />
+          )}
+        </div>
+      </section>
+
+      <section className="panel trend-panel" data-tour="tour-insights-trend">
+        <div className="trend-stats">
+          <div className="trend-total">
+            <span className="trend-key">
+              <i className="trend-dot" style={{ background: accent }} /> Spending
+            </span>
+            <ReadableValue as="span" className="trend-now">
+              {fmtMoney(trendSpent, { currency })}
+            </ReadableValue>
+          </div>
+          <div className="trend-total">
+            <span className="trend-key">
+              <i className="trend-dot trend-dot--earn" /> Earning
+            </span>
+            <ReadableValue as="span" className="trend-now trend-now--earn">
+              {fmtMoney(st.earned, { currency })}
+            </ReadableValue>
+          </div>
+          <div className="trend-total">
+            <span className="trend-key">
+              <i className="trend-dot trend-dot--saved" /> Saved
+            </span>
+            <ReadableValue as="span" className="trend-now trend-now--saved">
+              {fmtMoney(st.saved, { currency })}
+            </ReadableValue>
+          </div>
+          <div className="trend-total">
+            <span className="trend-key">
+              <i
+                className={
+                  "trend-dot" + (st.remaining < 0 ? " trend-dot--danger" : " trend-dot--ok")
+                }
+              />
+              Remaining
+            </span>
+            <ReadableValue
+              as="span"
+              className={"trend-now" + (st.remaining < 0 ? " trend-now--danger" : " trend-now--ok")}
+            >
+              {fmtMoney(st.remaining, { currency })}
+            </ReadableValue>
+          </div>
+        </div>
+        <AreaTrend
+          points={cum.length ? cum : [{ x: "1", v: 0 }]}
+          compare={earnCum.length ? earnCum : [{ x: "1", v: 0 }]}
+          accent={accent}
+          height={210}
+          budgetLine={st.totalBudget}
+          details={trendDetails.length ? trendDetails : null}
+          format={(n) => fmtMoney(n, { currency })}
+        />
+      </section>
+    </div>
+  );
+}
+
 type InsightsProps = {
   expenses: Expense[];
   budgets: Budgets;
@@ -1171,6 +1160,7 @@ type InsightsProps = {
   categoryIndex: CategoryIndex;
   capitalPlans: CapitalPlan[];
   setMonth: (month: string) => void;
+  balanceExpenses?: Expense[];
 };
 
 // ── Insights ────────────────────────────────────────────────────────
@@ -1183,6 +1173,7 @@ export function Insights({
   categoryIndex,
   capitalPlans,
   setMonth,
+  balanceExpenses,
 }: InsightsProps) {
   const { accent } = useTheme();
   const [chartPeriod, setChartPeriod] = useState<ChartPeriod>("monthly");
@@ -1476,6 +1467,16 @@ export function Insights({
           />
         </div>
       </div>
+
+      <MonthBreakdown
+        expenses={expenses}
+        budgets={budgets}
+        wallet={wallet}
+        month={month}
+        currency={currency}
+        categoryIndex={categoryIndex}
+        balanceExpenses={balanceExpenses}
+      />
 
       <div className="ov-grid" data-tour="tour-insights-trends">
         <section className="panel">

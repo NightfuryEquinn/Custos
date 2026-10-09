@@ -8,7 +8,6 @@
 .journal-app {
   /* Hover/focus fill of interactive rows bleeds this far past the content edge; it must stay inside --pad (>=20px). */
   --row-bleed: var(--sp-3);
-  --journal-balance-w: 290px; /* hero balance column (>=1024); the hero reserves it plus a gutter */
 }
 .journal-app .main {
   margin-left: 0;
@@ -45,11 +44,6 @@
   font: 30px var(--font-display);
   cursor: pointer;
   min-height: 44px;
-}
-.journal-brand span {
-  font: 11px var(--font-body);
-  color: var(--ink-soft);
-  letter-spacing: 0.06em;
 }
 .journal-app .page-title {
   font: 400 clamp(24px, 2vw, 30px)/1.3 var(--font-display);
@@ -116,7 +110,7 @@
 }
 /* Interactive rows: content and dividers sit on the page edge; only the hover/focus fill bleeds
    outward by --row-bleed (always inside the page gutter). The fill is drawn by ::before. */
-.journal-app :is(.txn, .recent-row, .rec-row, .legend-row, .journal-upcoming-row) {
+.journal-app :is(.txn, .recent-row, .rec-row, .legend-row) {
   position: relative;
   isolation: isolate;
   margin-inline: 0;
@@ -125,7 +119,7 @@
   border-radius: 0;
   background: transparent;
 }
-.journal-app :is(.txn, .recent-row, .rec-row, .journal-upcoming-row) {
+.journal-app :is(.txn, .recent-row, .rec-row) {
   padding-block: var(--sp-4);
   border-bottom: 1px solid var(--hair);
 }
@@ -140,7 +134,7 @@
 .journal-app .legend-row {
   padding-block: var(--sp-2);
 }
-.journal-app :is(.txn, .recent-row, .rec-row, .legend-row, .journal-upcoming-row)::before {
+.journal-app :is(.txn, .recent-row, .rec-row, .legend-row)::before {
   content: "";
   position: absolute;
   inset: 0 calc(-1 * var(--row-bleed));
@@ -152,21 +146,21 @@
   pointer-events: none;
   transition: background 0.15s;
 }
-.journal-app :is(.recent-row, .rec-row, .legend-row, .journal-upcoming-row):focus-visible {
+.journal-app :is(.recent-row, .rec-row, .legend-row):focus-visible {
   outline: none;
 }
-.journal-app :is(.recent-row, .rec-row, .legend-row, .journal-upcoming-row):focus-visible::before {
+.journal-app :is(.recent-row, .rec-row, .legend-row):focus-visible::before {
   background: var(--surface-2);
   outline: 2px solid var(--accent);
 }
-.journal-app :is(.recent-row, .rec-row, .legend-row, .journal-upcoming-row):active::before {
+.journal-app :is(.recent-row, .rec-row, .legend-row):active::before {
   background: var(--surface-2);
 }
 @media (hover: hover) and (pointer: fine) {
-  .journal-app :is(.txn, .recent-row, .rec-row, .legend-row, .journal-upcoming-row):hover {
+  .journal-app :is(.txn, .recent-row, .rec-row, .legend-row):hover {
     background: transparent;
   }
-  .journal-app :is(.txn, .recent-row, .rec-row, .legend-row, .journal-upcoming-row):hover::before {
+  .journal-app :is(.txn, .recent-row, .rec-row, .legend-row):hover::before {
     background: var(--surface-2);
   }
   /* Row actions sit on the row's own fill, so their hover needs one step more contrast. */
@@ -230,11 +224,6 @@
 .journal-app .piggy-card-title h2 {
   font: 400 28px/1.4 var(--font-display);
 }
-.journal-hero {
-  position: relative;
-  padding: var(--sp-2) 0 40px;
-  border-bottom: 1px solid var(--border);
-}
 .journal-eyebrow {
   display: block;
   color: var(--ink-soft);
@@ -243,39 +232,20 @@
   letter-spacing: 0.13em;
   margin-bottom: var(--sp-5);
 }
-.journal-hero h2 {
-  font: 400 clamp(38px, 5.5vw, 76px)/1.15 var(--font-display);
-  letter-spacing: -0.055em;
-  margin: 0;
-  max-width: 780px;
-}
-.journal-hero h2 em {
-  color: var(--accent);
-  font-style: normal;
-}
-.journal-hero > p {
-  color: var(--ink-soft);
-  margin-top: var(--sp-5);
-  font-size: 14px;
-}
-.journal-balance {
-  display: flex;
-  flex-direction: column;
+.journal-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--sp-4);
-  margin-top: var(--sp-7);
+  padding: var(--sp-2) 0 var(--sp-6);
+  margin-bottom: var(--sp-6);
+  border-bottom: 1px solid var(--border);
 }
-.journal-balance > span {
-  font-size: 12px;
-  color: var(--ink-soft);
-}
-.journal-balance > strong {
-  font: 400 clamp(24px, 2.4vw, 32px) var(--font-num);
-  letter-spacing: -0.045em;
+.journal-summary .trend-total {
   min-width: 0;
 }
-
-.journal-balance .link-btn {
-  align-self: flex-start;
+.journal-summary .trend-now {
+  font: 400 clamp(20px, 2.2vw, 28px) var(--font-num);
+  letter-spacing: -0.045em;
 }
 .journal-columns {
   display: grid;
@@ -290,75 +260,9 @@
   display: flex;
   flex-direction: column;
 }
-.journal-date {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--sp-3);
-  padding-bottom: var(--sp-4);
-  font: 20px var(--font-display);
-}
-.journal-date span:last-child {
-  font: 11px var(--font-mono);
-  color: var(--ink-soft);
-}
-.journal-timeline [data-tour="tour-overview-today-schedule"] {
-  order: 1;
-}
-.journal-timeline [data-tour="tour-overview-oldest-todo"] {
-  order: 2;
-}
-.journal-timeline [data-tour="tour-overview-recent"] {
-  order: 3;
-}
 .journal-margin {
   padding-left: var(--sp-6);
   border-left: 1px solid var(--border);
-}
-.journal-margin .journal-eyebrow {
-  margin-top: var(--sp-2);
-}
-.journal-margin .donut-wrap {
-  flex-direction: column;
-  gap: var(--sp-5);
-  align-items: stretch;
-}
-.journal-margin .donut-stage {
-  align-self: center;
-}
-.journal-margin .trend-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--sp-4);
-}
-.journal-margin .trend-now {
-  font-size: 16px;
-}
-.journal-margin .trend-total {
-  min-width: 0;
-}
-.journal-upcoming {
-  padding-bottom: var(--sp-6);
-}
-.journal-upcoming-row {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  gap: var(--sp-4);
-  text-align: left;
-  color: var(--ink);
-  cursor: pointer;
-}
-.journal-upcoming-row > span:nth-child(2) {
-  flex: 1;
-  font-size: 13px;
-  overflow-wrap: anywhere;
-}
-.journal-date-stamp {
-  flex: none;
-  min-width: 3rem; /* keeps event titles in one column */
-  font: 10px var(--font-mono);
-  color: var(--ink-soft);
 }
 .journal-note {
   font-size: 12px;
@@ -721,18 +625,6 @@ input:focus-visible {
     border-radius: 0;
     border-left: 1px solid var(--border);
   }
-  .journal-hero {
-    padding-right: calc(var(--journal-balance-w) + var(--sp-7));
-  }
-  .journal-balance {
-    position: absolute;
-    top: 40px;
-    right: 0;
-    width: var(--journal-balance-w);
-    padding-left: var(--sp-6);
-    border-left: 1px solid var(--border);
-  }
-
   .journal-app .txn-group {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -774,14 +666,8 @@ input:focus-visible {
     border-left: 0;
     border-top: 1px solid var(--border);
   }
-  .journal-margin .journal-eyebrow {
-    margin-top: 0;
-  }
   .journal-command {
     padding: var(--sp-5);
-  }
-  .journal-hero h2 {
-    font-size: clamp(38px, 6vw, 64px);
   }
 }
 @media (max-width: 639px) {
@@ -797,11 +683,8 @@ input:focus-visible {
   .journal-app .view {
     padding-bottom: var(--sp-6);
   }
-  .journal-hero {
-    padding-bottom: var(--sp-6);
-  }
-  .journal-hero h2 {
-    font-size: clamp(36px, 10vw, 58px);
+  .journal-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .journal-sync {
     gap: var(--sp-1) var(--sp-3);
@@ -929,6 +812,13 @@ input:focus-visible {
 }
 .journal-app .page-title-row {
   min-width: 0;
+  flex-wrap: wrap;
+  row-gap: var(--sp-2);
+}
+/* One primary action per page, beside its title. */
+.journal-app .page-action {
+  margin-left: auto;
+  flex: none;
 }
 .tb-context-tools {
   display: flex;
@@ -1037,7 +927,6 @@ input:focus-visible {
 .journal-app
   :is(
     .panel,
-    .journal-hero,
     .capital-card,
     .piggy-card,
     .bedit,
@@ -1121,8 +1010,7 @@ input:focus-visible {
 .journal-app .cal-chip {
   height: auto;
 }
-.journal-app
-  :is(.panel-head, .txn-group-head, .journal-date, .be-top, .capital-card-head, .piggy-card-head),
+.journal-app :is(.panel-head, .txn-group-head, .be-top, .capital-card-head, .piggy-card-head),
 .modal :is(.modal-actions, .modal-foot, .modal-footer, .form-actions) {
   flex-wrap: wrap;
   gap: var(--sp-3);
@@ -1192,9 +1080,6 @@ input:focus-visible {
 }
 
 @media (max-width: 1279px) {
-  .journal-brand span {
-    display: none;
-  }
 }
 /* When the page title moves out of the topbar (compact header) the tools are the row's only child:
    span the row. Selector-based so it follows the JS breakpoint exactly. */
@@ -1284,8 +1169,7 @@ input:focus-visible {
     .ctrow,
     .capital-item-row,
     .piglet-row,
-    .capital-pace-head,
-    .journal-upcoming-row
+    .capital-pace-head
   ) {
   min-width: 0;
 }

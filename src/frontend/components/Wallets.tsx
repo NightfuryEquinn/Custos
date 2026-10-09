@@ -214,10 +214,6 @@ export function WalletManageModal({ wallets, onSave, onDelete, onClose }: Wallet
           {mode === "list" ? (
             <div className="dm-sec">
               <span className="fld-label">Your wallets</span>
-              <p className="dm-lead">
-                Track spending in separate purses — each wallet has its own currency, income, and
-                budgets.
-              </p>
               <div className="session-list">
                 {wallets.map((w) => {
                   const cur = getCurrency(w.currency);
@@ -253,12 +249,6 @@ export function WalletManageModal({ wallets, onSave, onDelete, onClose }: Wallet
           ) : (
             <div className="dm-sec">
               <span className="fld-label">Wallet details</span>
-              <p className="dm-lead">
-                {mode === "add"
-                  ? "Give this wallet a name, pick its currency, and choose how to fund it."
-                  : "Update the wallet name or funding settings."}
-              </p>
-
               <label className="fld-label" htmlFor="wallet-name">
                 Name
               </label>
