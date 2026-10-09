@@ -12,13 +12,13 @@ const root = path.join(import.meta.dir, "..", "..");
 
 const sites: SiteFixture[] = [
   {
-    name: "Vercel app",
+    name: "App (custos.nightfuryequinn.app)",
     sitemapPath: path.join(root, "public/sitemap.xml"),
     htmlPath: path.join(root, "src/index.html"),
     robotsPath: path.join(root, "public/robots.txt"),
   },
   {
-    name: "GitHub Pages site",
+    name: "Marketing (intro-custos.nightfuryequinn.app)",
     sitemapPath: path.join(root, "website/sitemap.xml"),
     htmlPath: path.join(root, "website/index.html"),
   },
