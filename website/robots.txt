@@ -6,4 +6,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://nightfuryequinn.github.io/Custos/sitemap.xml
+Sitemap: https://intro-custos.nightfuryequinn.app/sitemap.xml

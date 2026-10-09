@@ -1,6 +1,6 @@
 # Custos
 
-**[Website](https://nightfuryequinn.github.io/Custos/)** · **[Open the app](https://custos-kappa.vercel.app)**
+**[Website](https://intro-custos.nightfuryequinn.app/)** · **[Open the app](https://custos.nightfuryequinn.app)**
 
 Private expense ledger, schedule, and to-do app. Track spending across wallets and currencies, plan events with email/push reminders, and sign in with a Web3 wallet — no email or password required.
 
@@ -448,14 +448,14 @@ curl -sS -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/j
 The official hosted app is free with full features, and always will be — nothing below gates the ledger, encryption, exports, or backups. Theming (accent + base colors) is free for every account. **Account → Support Custos** links to:
 
 - **Tips** — Ko-fi or GitHub Sponsors, one-off or recurring. Supporters can be marked with `bun run db:grant-supporter`, which shows a gradient "Since MM/YY" chip beside their name in the account menu — cosmetic only, it unlocks nothing.
-- Disclosed, non-personalized affiliate offers and B2B services on the [website](https://nightfuryequinn.github.io/Custos/offers.html) — never inside the app, never near ledger content.
+- Disclosed, non-personalized affiliate offers and B2B services on the [website](https://intro-custos.nightfuryequinn.app/offers.html) — never inside the app, never near ledger content.
 
 ## License
 
 Custos is proprietary ([LICENSE](LICENSE)). The repository is public for **transparency and evaluation**.
 
 - **Free to use** on the Licensor's official hosted app (full features), under the in-app Terms. Custos does not share your data with anyone — the "data sharing" toggle under Data & privacy only records a preference for a possible future opt-in programme that does not exist yet.
-- **Not free to self-host, rebrand, claim as your product, or offer as a competing service.** Those uses need a written commercial agreement (monthly fee, collaboration, or copyright buyout) — see [Commercial and self-hosting](https://nightfuryequinn.github.io/Custos/services.html) for fixed-price options.
+- **Not free to self-host, rebrand, claim as your product, or offer as a competing service.** Those uses need a written commercial agreement (monthly fee, collaboration, or copyright buyout) — see [Commercial and self-hosting](https://intro-custos.nightfuryequinn.app/services.html) for fixed-price options.
 - Contact: [xianzyip8@gmail.com](mailto:xianzyip8@gmail.com)
 
 ### Public website development
