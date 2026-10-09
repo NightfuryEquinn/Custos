@@ -10,6 +10,7 @@ import {
 } from "@/frontend/lib/nav";
 import type { ViewId } from "@/frontend/lib/types";
 import { DEFAULT_TAB_IDS, TAB_SLOTS } from "@/lib/views";
+import { resolveStartView } from "@/frontend/lib/journal-navigation";
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -47,7 +48,17 @@ export function NavigationModal({
 }: NavigationModalProps) {
   const [order, setOrder] = useState<ViewId[]>(() => sidebarItems.map(([id]) => id));
   const [tabs, setTabs] = useState<ViewId[]>(() => tabItems.map(([id]) => id));
-  const [start, setStart] = useState<ViewId>(startView ?? "overview");
+  /* Show where Custos really opens: accounts that never chose land on their first favorite on
+     phones and on Home elsewhere, so that is what is selected until they pick something. */
+  const [start, setStart] = useState<ViewId>(
+    () =>
+      resolveStartView(
+        "",
+        startView,
+        tabItems[0]![0],
+        window.matchMedia("(max-width: 639px)").matches,
+      ) ?? "overview",
+  );
   /* Only a deliberate pick is saved, so accounts that never chose keep the older landing rule. */
   const [startTouched, setStartTouched] = useState(false);
   const [busy, setBusy] = useState(false);

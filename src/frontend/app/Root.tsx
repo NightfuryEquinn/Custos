@@ -122,7 +122,11 @@ export function Root() {
     if (signingOut) return;
 
     setSigningOut(true);
+    const leaving = account?.address;
     try {
+      /* The encrypted read cache holds ciphertext plus routine ids, periods and dates.
+         It is dropped on an explicit sign-out; queued writes stay so nothing is lost. */
+      if (leaving) void clearCipherCacheForAddress(leaving);
       ledgerKeyStore.clear();
       seriesKeyStore.clear();
       sessionSecrets.clearAll();

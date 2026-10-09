@@ -20,6 +20,7 @@ import {
   buildDerivationMessage,
   deriveKeyFromSignature,
   deriveSeriesHmacKeyFromSignature,
+  encryptJson,
 } from "@/frontend/lib/crypto/e2ee";
 import { createEventSchema, updateEventSchema } from "@/schemas/event";
 import { Wallet } from "ethers";
@@ -577,5 +578,47 @@ describe("daily codec", () => {
     await expect(
       decodeDailyCompletion({ id: "x", routineId: "r1", period: "2026-10-09" }, key),
     ).rejects.toThrow();
+  });
+});
+
+describe("daily routine padding", () => {
+  const base = {
+    title: "Stretch",
+    notes: "",
+    schedule: [{ from: "2026-10-05", kind: "daily" as const }],
+    createdAt: "2026-10-05T08:00:00.000Z",
+  };
+
+  test("archiving or editing the schedule does not change the ciphertext length", async () => {
+    const key = await testKey();
+    const plain = await encodeDailyRoutine(base, key);
+    const archived = await encodeDailyRoutine({ ...base, archivedOn: "2026-10-09" }, key);
+    const edited = await encodeDailyRoutine(
+      {
+        ...base,
+        schedule: [
+          { from: "2026-10-05", kind: "daily" },
+          { from: "2026-10-12", kind: "weekdays", weekdays: [0, 1, 2, 3, 4] },
+        ],
+      },
+      key,
+    );
+
+    expect(archived.payload.length).toBe(plain.payload.length);
+    expect(edited.payload.length).toBe(plain.payload.length);
+  });
+
+  test("padding never comes back out of a decode", async () => {
+    const key = await testKey();
+    const wire = await encodeDailyRoutine(base, key);
+
+    expect(await decodeDailyRoutine({ id: "r1", ...wire }, key)).toEqual({ id: "r1", ...base });
+  });
+
+  test("a routine saved before padding existed still decodes", async () => {
+    const key = await testKey();
+    const legacy = { enc: 1 as const, payload: await encryptJson(key, base) };
+
+    expect(await decodeDailyRoutine({ id: "r1", ...legacy }, key)).toEqual({ id: "r1", ...base });
   });
 });

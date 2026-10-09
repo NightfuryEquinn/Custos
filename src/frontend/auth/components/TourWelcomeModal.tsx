@@ -33,6 +33,9 @@ export function TourWelcomeModal({
   const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
   const [choosing, setChoosing] = useState<"guided" | "explore" | null>(null);
   const [start, setStart] = useState<ViewId>("overview");
+  /* Saved when the person picks one, Home included: an older account would otherwise keep
+     opening on its first favorite on phones even after choosing Home here. */
+  const [startTouched, setStartTouched] = useState(false);
 
   /** Persist the choice, then close. Guards against a double tap. */
   const choose = async (choice: "guided" | "explore", save: () => Promise<unknown>) => {
@@ -41,7 +44,7 @@ export function TourWelcomeModal({
     setChoosing(choice);
     try {
       await save();
-      if (start !== "overview") await onStartView(start);
+      if (startTouched) await onStartView(start);
       requestClose(onClosed);
     } catch {
       /* Leave the modal open so the choice can be made again. */
@@ -79,7 +82,10 @@ export function TourWelcomeModal({
                 aria-checked={start === id}
                 className={"sub-chip" + (start === id ? " active" : "")}
                 disabled={!!choosing}
-                onClick={() => setStart(id)}
+                onClick={() => {
+                  setStart(id);
+                  setStartTouched(true);
+                }}
               >
                 {NAV_ITEM_BY_ID.get(id)![1]}
               </button>

@@ -42,7 +42,7 @@ function requireKey(address: string): CryptoKey {
 }
 
 /** Today's calendar key in the account timezone, rolled over at local midnight and on app resume. */
-function useToday(timeZone: string | undefined): string | null {
+function useToday(timeZone: string | undefined, resync: number): string | null {
   const [today, setToday] = useState<string | null>(null);
 
   useEffect(() => {
@@ -62,12 +62,18 @@ function useToday(timeZone: string | undefined): string | null {
       if (document.visibilityState === "visible") sync();
     };
     sync();
+    /* A timer pauses while a laptop sleeps, and visibilitychange is not reliable on wake:
+       focus and pageshow catch the cases it misses. */
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", sync);
+    window.addEventListener("pageshow", sync);
     return () => {
       clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", sync);
+      window.removeEventListener("pageshow", sync);
     };
-  }, [timeZone]);
+  }, [timeZone, resync]);
 
   return today;
 }
@@ -104,7 +110,8 @@ export function useDaily(address: string, cryptoReady: boolean) {
     enabled: cryptoReady,
   });
   const timeZone = timezoneQuery.data;
-  const today = useToday(timeZone);
+  const [resync, setResync] = useState(0);
+  const today = useToday(timeZone, resync);
 
   const key = ledgerKeyStore.get(address);
   const routines = usePendingOverlay(address, query.data?.routines, key, dailyRoutineOverlay);
@@ -138,7 +145,7 @@ export function useDaily(address: string, cryptoReady: boolean) {
           targetId: id,
           request: { method: "PATCH", path: `/daily/routines/${id}`, body: encrypted },
           dependsOn: create ? [create.opId] : [],
-          label: rest.title,
+          label: "Routine",
         });
         void drainOutbox(address);
         return { id, ...rest };
@@ -152,7 +159,7 @@ export function useDaily(address: string, cryptoReady: boolean) {
         targetId: newId,
         request: { method: "POST", path: "/daily/routines", body: { id: newId, ...encrypted } },
         dependsOn: [],
-        label: rest.title,
+        label: "Routine",
       });
       void drainOutbox(address);
       return { id: newId, ...rest };
@@ -191,7 +198,7 @@ export function useDaily(address: string, cryptoReady: boolean) {
       targetId: id,
       request: { method: "PUT", path: "/daily/completions", body },
       dependsOn: create ? [create.opId] : [],
-      label: routine.title,
+      label: "Routine check-in",
     });
     void drainOutbox(address);
 
@@ -208,10 +215,26 @@ export function useDaily(address: string, cryptoReady: boolean) {
 
   /** Check or uncheck a routine for the period that is due right now. */
   const setDoneMutation = useMutation({
-    mutationFn: ({ routine, done }: { routine: DailyRoutine; done: boolean }) => {
-      if (!timeZone) throw new Error("Daily is not ready yet");
-      const period = currentPeriod(routine, zonedTodayIso(timeZone));
+    mutationFn: ({
+      routine,
+      done,
+      expectedPeriod,
+    }: {
+      routine: DailyRoutine;
+      done: boolean;
+      expectedPeriod?: string;
+    }) => {
+      /* Read the zone fresh: a tick must be judged against the clock now, not at last render. */
+      const zone = queryClient.getQueryData<string>(keys.timezone(address));
+      if (!zone) throw new Error("Daily is not ready yet");
+      const period = currentPeriod(routine, zonedTodayIso(zone));
       if (!period) throw new Error("This routine is not due today");
+      /* The row on screen was for another day (the app slept past midnight): refresh the day
+         instead of writing a different day's state than the one the person tapped. */
+      if (expectedPeriod !== undefined && expectedPeriod !== period) {
+        setResync((n) => n + 1);
+        throw new Error("The day changed — your list has been refreshed.");
+      }
 
       return queueCompletion(routine, { period, done, at: new Date().toISOString() });
     },
@@ -247,8 +270,9 @@ export function useDaily(address: string, cryptoReady: boolean) {
     pending,
     refreshTask: { queryKey: keys.data(address), queryFn: () => load(true) },
     saveRoutine: saveRoutineMutation.mutateAsync,
-    setDone: (routine: DailyRoutine, done: boolean) =>
-      setDoneMutation.mutateAsync({ routine, done }),
+    /** `expectedPeriod` is the period of the row the person tapped; a mismatch refuses the write. */
+    setDone: (routine: DailyRoutine, done: boolean, expectedPeriod?: string) =>
+      setDoneMutation.mutateAsync({ routine, done, expectedPeriod }),
     restoreCompletion: restoreCompletionMutation.mutateAsync,
     /** Routine writes only; checkbox taps are instant and never disable the page. */
     isSaving: saveRoutineMutation.isPending,

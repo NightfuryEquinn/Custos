@@ -633,7 +633,7 @@ export function useLedger(walletAddress: string) {
     return subs;
   }, [allExpensesQuery.data, overlaidAllExpenseData, overlaidExpenseData]);
 
-  const loadEvents = async (fresh = false) => {
+  const loadEvents = async (fresh = false, forMonth = month) => {
     /*
      * Load by viewed month so once-events on future days (and recurring
      * series that still occur this month) are included for holds/agenda.
@@ -645,7 +645,7 @@ export function useLedger(walletAddress: string) {
 
     for (;;) {
       const page = await api.events.list(
-        { month, limit: LIST_PAGE_LIMIT, before, beforeId },
+        { month: forMonth, limit: LIST_PAGE_LIMIT, before, beforeId },
         { fresh },
       );
       const decoded = await Promise.all(
@@ -815,6 +815,19 @@ export function useLedger(walletAddress: string) {
      a *different* month's cache should also show it, so an offline edit to
      an event outside the current month can surface here until it confirms
      and the query is invalidated. Cosmetic — self-corrects on drain. */
+  /* Home always shows today, whichever month the switcher is on. The selected-month query
+     already covers it when they match; otherwise this reads the current month on its own. */
+  const homeEventsQuery = useQuery({
+    queryKey: keys.events(wallet, CURRENT_MONTH_KEY),
+    queryFn: () => loadEvents(false, CURRENT_MONTH_KEY),
+    enabled: cryptoReady && !!profileQuery.data && month !== CURRENT_MONTH_KEY,
+  });
+  const overlaidHomeEventData = usePendingOverlay(
+    wallet,
+    homeEventsQuery.data,
+    ledgerKeyStore.get(wallet),
+    eventOverlay,
+  );
   const overlaidEventData = usePendingOverlay(
     wallet,
     eventsQuery.data,
@@ -1047,7 +1060,7 @@ export function useLedger(walletAddress: string) {
             targetId: data.id,
             request: { method: "PATCH", path: `/expenses/${data.id}`, body },
             dependsOn: [],
-            label: data.note || "Expense",
+            label: "Expense",
           });
           void drainOutbox(wallet);
           const expense = await decodeExpense({ id: data.id, ...body } as ExpenseWire, cryptoKey);
@@ -1075,7 +1088,7 @@ export function useLedger(walletAddress: string) {
         targetId: id,
         request: { method: "POST", path: "/expenses", body: { id, ...body } },
         dependsOn: [],
-        label: data.note || "Expense",
+        label: "Expense",
       });
       void drainOutbox(wallet);
       const expense = await decodeExpense({ id, ...body } as ExpenseWire, cryptoKey);
@@ -1213,7 +1226,7 @@ export function useLedger(walletAddress: string) {
           targetId: data.id,
           request: { method: "PATCH", path: `/events/${data.id}`, body },
           dependsOn: [],
-          label: data.title || "Event",
+          label: "Event",
         });
         void drainOutbox(wallet);
         return decodeEvent({ id: data.id, ...body } as EventWire, cryptoKey);
@@ -1227,7 +1240,7 @@ export function useLedger(walletAddress: string) {
         targetId: id,
         request: { method: "POST", path: "/events", body: { id, ...body } },
         dependsOn: [],
-        label: data.title || "Event",
+        label: "Event",
       });
       void drainOutbox(wallet);
       return decodeEvent({ id, ...body } as EventWire, cryptoKey);
@@ -1469,7 +1482,7 @@ export function useLedger(walletAddress: string) {
           targetId: data.id,
           request: { method: "PATCH", path: `/todo-lists/${data.id}`, body: encrypted },
           dependsOn: [],
-          label: data.name ?? current.name,
+          label: "List",
         });
         void drainOutbox(wallet);
         return decodeTodoList({ id: data.id, ...encrypted } as TodoListWire, cryptoKey);
@@ -1484,7 +1497,7 @@ export function useLedger(walletAddress: string) {
         targetId: id,
         request: { method: "POST", path: "/todo-lists", body: { id, ...encrypted } },
         dependsOn: [],
-        label: name,
+        label: "List",
       });
       void drainOutbox(wallet);
       return decodeTodoList({ id, ...encrypted } as TodoListWire, cryptoKey);
@@ -1553,7 +1566,7 @@ export function useLedger(walletAddress: string) {
           targetId: data.id,
           request: { method: "PATCH", path: `/capital-plans/${data.id}`, body: encrypted },
           dependsOn: [],
-          label: merged.name,
+          label: "Capital plan",
         });
         void drainOutbox(wallet);
         return decodeCapitalPlan({ id: data.id, ...encrypted } as CapitalPlanWire, cryptoKey);
@@ -1577,7 +1590,7 @@ export function useLedger(walletAddress: string) {
         targetId: id,
         request: { method: "POST", path: "/capital-plans", body: { id, ...encrypted } },
         dependsOn: [],
-        label: fresh.name,
+        label: "Capital plan",
       });
       void drainOutbox(wallet);
       return decodeCapitalPlan({ id, ...encrypted } as CapitalPlanWire, cryptoKey);
@@ -1625,7 +1638,7 @@ export function useLedger(walletAddress: string) {
           targetId: id,
           request: { method: "PATCH", path: `/vehicles/${id}`, body },
           dependsOn: [],
-          label: rest.name,
+          label: "Vehicle",
         });
         void drainOutbox(wallet);
         return decodeVehicle({ id, ...body } as VehicleWire, cryptoKey);
@@ -1644,7 +1657,7 @@ export function useLedger(walletAddress: string) {
         request: { method: "POST", path: "/vehicles", body: { id: newId, ...body } },
         dependsOn: [],
         overlayPatch: { createdAt },
-        label: rest.name,
+        label: "Vehicle",
       });
       void drainOutbox(wallet);
       return decodeVehicle({ id: newId, ...body, createdAt } as VehicleWire, cryptoKey);
@@ -1723,7 +1736,7 @@ export function useLedger(walletAddress: string) {
           targetId: id,
           request: { method: "PATCH", path: `/vehicles/fills/${id}`, body },
           dependsOn: [],
-          label: rest.station,
+          label: "Fill-up",
         });
         void drainOutbox(wallet);
         return decodeVehicleFill({ id, ...body } as VehicleFillWire, cryptoKey);
@@ -1737,7 +1750,7 @@ export function useLedger(walletAddress: string) {
         targetId: newId,
         request: { method: "POST", path: "/vehicles/fills", body: { id: newId, ...body } },
         dependsOn: pendingVehicle ? [pendingVehicle.opId] : [],
-        label: rest.station,
+        label: "Fill-up",
       });
       void drainOutbox(wallet);
       return decodeVehicleFill({ id: newId, ...body } as VehicleFillWire, cryptoKey);
@@ -2009,6 +2022,7 @@ export function useLedger(walletAddress: string) {
     usedSubIds,
     savingsLoading: allExpensesQuery.isLoading,
     events: overlaidEventData,
+    homeEvents: month === CURRENT_MONTH_KEY ? overlaidEventData : overlaidHomeEventData,
     eventsLoading: eventsQuery.isLoading,
     todoLists: overlaidTodoListData,
     todoListsLoading: todoListsQuery.isLoading,

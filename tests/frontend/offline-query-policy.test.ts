@@ -53,3 +53,22 @@ test("production mutation policy durably saves encrypted tasks while offline", a
     client.clear();
   }
 }, 2000);
+
+test("a failed query logs the error's kind, never text that could have been decrypted", () => {
+  const client = createLedgerQueryClient();
+  const logged: unknown[][] = [];
+  const original = console.error;
+  console.error = (...args: unknown[]) => void logged.push(args);
+  try {
+    client
+      .getQueryCache()
+      .config.onError?.(new SyntaxError("Unexpected token in: Take medication"), {
+        queryHash: "h",
+      } as never);
+  } finally {
+    console.error = original;
+  }
+
+  expect(JSON.stringify(logged)).not.toContain("Take medication");
+  expect(JSON.stringify(logged)).toContain("SyntaxError");
+});

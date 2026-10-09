@@ -639,6 +639,13 @@ export function Transparency() {
               names, category trees, notes, event titles, or to-do text.
             </p>
             <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
+              Daily routines work the same way: titles, notes, schedules and done states are
+              ciphertext, but a completion row exists only for a period that was ticked, so the
+              server can see which routines were active on which days (not what they are called) and
+              the day each row was last written. Routine ciphertext is padded to fixed sizes so its
+              length does not reveal archiving or schedule changes.
+            </p>
+            <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
               Budget alerts are a deliberate exception: the client sends cleartext{" "}
               <code>spent</code>, <code>budget</code>, <code>categoryName</code>, and optional{" "}
               <code>walletName</code> so the email or push can name the category and amounts.

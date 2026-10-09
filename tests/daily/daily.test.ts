@@ -338,3 +338,15 @@ describe("routines not due today", () => {
     expect(idleRoutines([later], today).map((r) => r.id)).toEqual(["l"]);
   });
 });
+
+describe("weekday order", () => {
+  test("a new weekday routine stores its days in order, whatever order they were picked", () => {
+    const r = newRoutine({ title: "a", kind: "weekdays", weekdays: [2, 0] }, "2026-10-10", NOW);
+    expect(r.schedule[0]!.weekdays).toEqual([0, 2]);
+  });
+
+  test("saving an unchanged weekday routine adds no schedule entry", () => {
+    const h = [weekdays("2026-10-05", [0, 2])];
+    expect(editSchedule(h, { kind: "weekdays", weekdays: [2, 0] }, "2026-10-07", true)).toEqual(h);
+  });
+});

@@ -7,6 +7,7 @@
 import { openCustosDb, STORES, reqAsPromise, txAsPromise } from "@/frontend/lib/pwa/idb";
 import { TRUST_WINDOW_MS } from "@/frontend/auth/lib/session-trust";
 import type { NewOutboxEntry, OutboxEntry } from "./types";
+import { genericLabel, isFixedLabel } from "./labels";
 
 const STORE = STORES.outbox;
 
@@ -342,10 +343,40 @@ export async function releaseOutboxEntry(opId: string): Promise<void> {
 }
 
 /**
+ * Replace readable labels on this account's queued entries with a fixed word. Entries
+ * written by earlier versions carried the title or note the user typed, in plain text,
+ * for as long as they stayed queued. Only `label` changes: the request, ids and order
+ * are untouched, so nothing waiting to sync is lost. Best-effort, run from the drain.
+ */
+export async function scrubOutboxLabels(address: string): Promise<void> {
+  if (typeof indexedDB === "undefined") return;
+  try {
+    const db = await openCustosDb();
+    const tx = db.transaction(STORE, "readwrite");
+    const store = tx.objectStore(STORE);
+    const range = IDBKeyRange.bound(
+      [address.toLowerCase(), -Infinity],
+      [address.toLowerCase(), Infinity],
+    );
+    const entries = (await reqAsPromise(store.index("address_seq").getAll(range))) as OutboxEntry[];
+    let changed = false;
+    for (const e of entries) {
+      if (e.label === undefined || isFixedLabel(e.label)) continue;
+      store.put({ ...e, label: genericLabel(e.entity) } satisfies OutboxEntry);
+      changed = true;
+    }
+    await txAsPromise(tx);
+    if (changed) notify();
+  } catch {
+    /* ignore: a later drain tries again */
+  }
+}
+
+/**
  * Drop `failed`/`blocked` entries older than the trust window — the same
  * bound `cipher-cache.ts` uses for its own entries, and for the same
- * reason: an entry's `label` is plaintext ledger content at rest (see
- * types.ts), and unlike the cache, the outbox had no TTL of its own. Never
+ * reason: an entry still holds the request (ciphertext plus ids and dates)
+ * at rest, and unlike the cache, the outbox had no TTL of its own. Never
  * touches `pending`/`inflight` (still actively queued to send) or anything
  * newer than the window (still visible in the retry/discard panel — see
  * OfflineBanner.tsx — for a user who might still act on it). Best-effort,

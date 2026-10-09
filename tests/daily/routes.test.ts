@@ -157,3 +157,52 @@ describe("daily completion routes", () => {
     expect(rows[0]!.routineId).toBe(a.id);
   });
 });
+
+describe("daily route hardening", () => {
+  useMemoryDb();
+
+  test("the same routine in upper and lower case is one completion row, not two", async () => {
+    const cookie = await signIn(app);
+    const { id } = await createRoutine(cookie);
+
+    expect((await putCompletion(cookie, id, "2026-10-09")).status).toBe(200);
+    expect((await putCompletion(cookie, id.toUpperCase(), "2026-10-09", "done-0")).status).toBe(
+      200,
+    );
+
+    const rows = await listCompletions(cookie);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.routineId).toBe(id);
+  });
+
+  test("an impossible calendar date is rejected as a period", async () => {
+    const cookie = await signIn(app);
+    const { id } = await createRoutine(cookie);
+
+    expect((await putCompletion(cookie, id, "2026-02-31")).status).toBe(400);
+    expect((await putCompletion(cookie, id, "2026-13-01")).status).toBe(400);
+    expect((await putCompletion(cookie, id, "2028-02-29")).status).toBe(200); // leap day is real
+  });
+
+  test("completion timestamps carry the day only, not the time of the tick", async () => {
+    const cookie = await signIn(app);
+    const { id } = await createRoutine(cookie);
+    await putCompletion(cookie, id, "2026-10-09");
+
+    const res = await app.request("/api/daily/completions", { headers: { cookie } });
+    const { completions } = (await res.json()) as {
+      completions: { createdAt: string; updatedAt: string }[];
+    };
+
+    expect(completions[0]!.createdAt).toEndWith("T00:00:00.000Z");
+    expect(completions[0]!.updatedAt).toEndWith("T00:00:00.000Z");
+  });
+
+  test("Daily reads are never stored by the browser or a shared cache", async () => {
+    const cookie = await signIn(app);
+    for (const path of ["/api/daily/routines", "/api/daily/completions"]) {
+      const res = await app.request(path, { headers: { cookie } });
+      expect(res.headers.get("cache-control")).toContain("no-store");
+    }
+  });
+});

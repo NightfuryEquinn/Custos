@@ -46,6 +46,9 @@ export const weekStart = (day: string) => shiftIso(day, -weekdayOf(day));
 export const periodOf = (kind: DailyKind, day: string) =>
   kind === "weekly" ? weekStart(day) : day;
 
+/** Weekdays in Monday-first order, so the same pick always compares equal. */
+const sortedDays = (days: number[] | undefined) => [...(days ?? [])].sort((a, b) => a - b);
+
 /** The rule in force on `day`, or null before the routine begins. */
 export function scheduleAt(history: DailySchedule[], day: string): DailySchedule | null {
   let hit: DailySchedule | null = null;
@@ -121,7 +124,7 @@ export function newRoutine(
   const rule: DailySchedule = {
     from: periodOf(input.kind, today),
     kind: input.kind,
-    ...(input.kind === "weekdays" ? { weekdays: input.weekdays } : {}),
+    ...(input.kind === "weekdays" ? { weekdays: sortedDays(input.weekdays) } : {}),
   };
   return { title: input.title, notes: input.notes ?? "", schedule: [rule], createdAt: nowIso };
 }
@@ -137,6 +140,7 @@ export function editSchedule(
   today: string,
   hasCompletions: boolean,
 ): DailySchedule[] {
+  if (next.kind === "weekdays") next = { ...next, weekdays: sortedDays(next.weekdays) };
   if (!hasCompletions) return [{ from: periodOf(next.kind, today), ...next }];
 
   const kept = history.filter((entry) => entry.from <= today); // drops a pending future change

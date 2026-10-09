@@ -214,10 +214,20 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
   const clearEverything = async () => {
     setClearBusy(true);
     try {
-      await api.auth.clearAll();
+      /* The wipe of this device must not depend on the network: offline, the server call
+         throws, and the keys, cache and queued writes would otherwise stay on disk. */
+      let serverReached = true;
+      try {
+        await api.auth.clearAll();
+      } catch {
+        serverReached = false;
+      }
       clearAllLocalData();
       onSignedOut?.();
       onClose();
+      if (!serverReached) {
+        toast("Cleared on this device. Other devices stay signed in until you're online.");
+      }
     } finally {
       setClearBusy(false);
     }

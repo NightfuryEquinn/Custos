@@ -68,11 +68,19 @@ export async function restoreBackupToLedger(
     vehicleFills: FuelFill[];
     dailyRoutines?: DailyRoutine[];
     dailyCompletions?: DailyCompletion[];
+    /** False while Daily has not loaded; restoring Daily rows then could duplicate routines and points. */
+    dailyLoaded?: boolean;
   },
   api: BackupRestoreApi,
 ): Promise<BackupRestoreResult> {
   if (plain.address.toLowerCase() !== current.address.toLowerCase()) {
     throw new Error("Backup belongs to a different wallet address.");
+  }
+  if (
+    current.dailyLoaded === false &&
+    (plain.dailyRoutines?.length || plain.dailyCompletions?.length)
+  ) {
+    throw new Error("Daily hasn't finished loading. Reconnect and try again.");
   }
 
   const result: BackupRestoreResult = {

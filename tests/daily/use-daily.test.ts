@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { afterEach, beforeEach, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
@@ -7,6 +7,8 @@ import { ledgerKeyStore } from "@/frontend/lib/crypto/key-store";
 import { useDaily } from "@/frontend/lib/hooks/useDaily";
 import { connectivity } from "@/frontend/lib/net/connectivity";
 import { enqueueOutbox, listOutbox } from "@/frontend/lib/sync/outbox";
+import { currentPeriod, type DailyRoutine } from "@/lib/daily";
+import { zonedTodayIso } from "@/lib/recurring";
 import { fakeLocalStorage } from "../helpers/fake-storage";
 
 const address = "0xabc0000000000000000000000000000000000002";
@@ -63,4 +65,59 @@ test("editing or archiving a routine whose create is still queued waits for that
   );
   expect(update?.dependsOn).toEqual([create.opId]);
   client.clear();
+});
+
+describe("setDone", () => {
+  const tz = "Asia/Kuala_Lumpur";
+  const routine: DailyRoutine = {
+    id: routineId,
+    title: "Take medication",
+    notes: "private note",
+    schedule: [{ from: "2000-01-03", kind: "daily" }],
+    createdAt: "2000-01-03T00:00:00.000Z",
+  };
+
+  /** Mount the hook with the account timezone already known, as it is once /users/me has loaded. */
+  function mount() {
+    const state = {} as { daily: ReturnType<typeof useDaily> };
+    function Probe() {
+      state.daily = useDaily(address, true);
+      return null;
+    }
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(["daily-timezone", address], tz);
+    renderToString(createElement(QueryClientProvider, { client }, createElement(Probe)));
+    return { state, client };
+  }
+
+  test("a tick for a day that is no longer today is refused and queues nothing", async () => {
+    const { state, client } = mount();
+
+    await expect(state.daily.setDone(routine, true, "2000-01-03")).rejects.toThrow(/day changed/i);
+
+    expect((await listOutbox(address)).filter((e) => e.entity === "dailyCompletion")).toEqual([]);
+    client.clear();
+  });
+
+  test("a tick for the period on screen is queued under that period", async () => {
+    const { state, client } = mount();
+    const period = currentPeriod(routine, zonedTodayIso(tz))!;
+
+    await state.daily.setDone(routine, true, period);
+
+    const queued = (await listOutbox(address)).filter((e) => e.entity === "dailyCompletion");
+    expect(queued.map((e) => e.targetId)).toEqual([`${routineId}:${period}`]);
+    client.clear();
+  });
+
+  test("nothing readable about a routine is left in the outbox", async () => {
+    const { state, client } = mount();
+    await state.daily.saveRoutine({ ...routine, id: undefined });
+    await state.daily.setDone(routine, true, currentPeriod(routine, zonedTodayIso(tz))!);
+
+    const everything = JSON.stringify(await listOutbox(address));
+    expect(everything).not.toContain("Take medication");
+    expect(everything).not.toContain("private note");
+    client.clear();
+  });
 });

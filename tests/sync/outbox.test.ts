@@ -11,6 +11,7 @@ import {
   listOutbox,
   purgeStaleFailures,
   retryOutbox,
+  scrubOutboxLabels,
 } from "@/frontend/lib/sync/outbox";
 
 beforeEach(() => {
@@ -258,5 +259,40 @@ describe("outbox: clearOutboxForAddress", () => {
 
     expect(await listOutbox(ADDRESS)).toHaveLength(0);
     expect(await listOutbox("0x0000000000000000000000000000000000000002")).toHaveLength(1);
+  });
+});
+
+describe("outbox: labels at rest", () => {
+  test("scrubbing replaces readable labels with a generic noun and leaves the request alone", async () => {
+    const stored = await enqueueOutbox(
+      entry({
+        entity: "todoList",
+        label: "Groceries",
+        request: { method: "POST", path: "/todo-lists", body: { payload: "cipher" } },
+      }),
+    );
+    const other = await enqueueOutbox(
+      entry({
+        address: "0x0000000000000000000000000000000000000002",
+        entity: "event",
+        label: "Dentist appointment",
+      }),
+    );
+
+    await scrubOutboxLabels(ADDRESS);
+
+    const [mine] = await listOutbox(ADDRESS);
+    expect(mine!.opId).toBe(stored.opId);
+    expect(mine!.label).toBe("List");
+    expect(mine!.request.body).toEqual({ payload: "cipher" });
+    const [theirs] = await listOutbox("0x0000000000000000000000000000000000000002");
+    expect(theirs!.opId).toBe(other.opId);
+    expect(theirs!.label).toBe("Dentist appointment"); // only the draining account is touched
+  });
+
+  test("an already generic label is left as it is", async () => {
+    await enqueueOutbox(entry({ entity: "dailyRoutine", label: "Routine" }));
+    await scrubOutboxLabels(ADDRESS);
+    expect((await listOutbox(ADDRESS))[0]!.label).toBe("Routine");
   });
 });

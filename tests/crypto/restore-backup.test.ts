@@ -225,3 +225,50 @@ describe("restoreBackupToLedger daily", () => {
     expect(result).toMatchObject({ dailyRoutines: 0, dailyCompletions: 0 });
   });
 });
+
+describe("restoreBackupToLedger while Daily is not loaded", () => {
+  const withDaily: LedgerBackupPlain = {
+    ...BASE_PLAIN,
+    dailyRoutines: [
+      {
+        id: "old-r1",
+        title: "Stretch",
+        notes: "",
+        schedule: [{ from: "2026-10-05", kind: "daily" }],
+        createdAt: "2026-10-05T08:00:00.000Z",
+      },
+    ],
+  };
+
+  test("refuses before writing anything, so a later restore cannot duplicate routines or points", async () => {
+    const writes: string[] = [];
+    const api = {
+      ...noopApi(),
+      saveCategories: async () => {
+        writes.push("categories");
+      },
+      saveDailyRoutine: async (r: object) => {
+        writes.push("routine");
+        return { ...r, id: "new-r1" } as never;
+      },
+    };
+
+    await expect(
+      restoreBackupToLedger(
+        { ...withDaily, categories: [{ id: "c" } as never] },
+        { ...EMPTY_CURRENT, dailyLoaded: false },
+        api,
+      ),
+    ).rejects.toThrow(/Daily/);
+    expect(writes).toEqual([]);
+  });
+
+  test("a backup with no Daily rows restores normally even when Daily is not loaded", async () => {
+    const result = await restoreBackupToLedger(
+      BASE_PLAIN,
+      { ...EMPTY_CURRENT, dailyLoaded: false },
+      noopApi(),
+    );
+    expect(result.failed).toBe(0);
+  });
+});

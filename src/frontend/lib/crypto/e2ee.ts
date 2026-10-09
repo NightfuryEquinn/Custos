@@ -55,11 +55,17 @@ export type EventSecrets = {
 };
 
 /** A routine's whole definition is encrypted: title, notes, recurrence history and archive day. */
-export type DailyRoutineSecrets = Omit<DailyRoutine, "id">;
+export type DailyRoutineSecrets = Omit<DailyRoutine, "id"> & {
+  /** Filler that rounds the plaintext up to a fixed size, so archiving or editing a routine does not change its length. Ignored on read. */
+  pad?: string;
+};
 
 /**
  * Fixed-shape on purpose: `d` is 0 or 1, so the ciphertext is the same length
- * either way and the stored length reveals nothing about the done state.
+ * either way and the stored length reveals nothing about the done state. The
+ * server can still see that a row exists for a routine and period, which in
+ * practice means it was ticked, and the day it was last written. That is
+ * documented in Transparency, not hidden.
  */
 export type DailyCompletionSecrets = { d: 0 | 1; at: string };
 

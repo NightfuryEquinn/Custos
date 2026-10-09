@@ -9,7 +9,8 @@
  * budget hold, comments) while an event's reminder is turned on, and
  * `/users` includes the account's notify email — and this cache stores
  * whatever the response body was, so those fields land here too. Cleared for
- * an address on sign-out / rekey (clearCipherCacheForAddress) and bounded by
+ * an address on explicit sign-out, rekey and the trust-window expiry
+ * (clearCipherCacheForAddress), not on a lock, and bounded by
  * ENTRY_TTL_MS / MAX_ENTRIES below.
  */
 

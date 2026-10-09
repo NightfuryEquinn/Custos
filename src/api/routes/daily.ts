@@ -18,6 +18,15 @@ import { ObjectId } from "mongodb";
 export const dailyRoutes = new Hono<{ Variables: SessionVariables }>();
 
 dailyRoutes.use("*", sessionAuth);
+/* Ciphertext plus routine ids and dates: keep it out of the browser's HTTP cache and any shared cache. */
+dailyRoutes.use("*", async (c, next) => {
+  await next();
+  c.header("Cache-Control", "no-store");
+});
+
+/** Midnight UTC of a moment: completion timestamps keep the day, not the time of the tick. */
+const dayOf = (at: Date) =>
+  new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
 
 dailyRoutes.get("/routines", async (c) => {
   const accountId = c.get("accountId");
@@ -84,7 +93,8 @@ dailyRoutes.put("/completions", zValidator("json", putDailyCompletionSchema), as
   if (!routine) notFound("Routine not found");
 
   const filter = { accountId, routineId: body.routineId, period: body.period };
-  const now = new Date();
+  /* The server can see when a row was written; day granularity is all it needs to. */
+  const now = dayOf(new Date());
   const set = { enc: body.enc, payload: body.payload, updatedAt: now };
 
   let doc;

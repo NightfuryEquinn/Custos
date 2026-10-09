@@ -757,7 +757,8 @@ export async function decodeDailyRoutine(
   if (wire.enc !== 1 || !wire.payload) {
     throw new Error("Routine is encrypted but no key is available");
   }
-  const secrets = await decryptJson<DailyRoutineSecrets>(key, wire.payload);
+  /* `pad` is absent on routines saved before padding existed; either way it is dropped. */
+  const { pad: _pad, ...secrets } = await decryptJson<DailyRoutineSecrets>(key, wire.payload);
 
   return { id: wire.id, ...secrets };
 }
@@ -771,8 +772,13 @@ export async function encodeDailyRoutine(data: Omit<DailyRoutine, "id">, key: Cr
     archivedOn: data.archivedOn,
     createdAt: data.createdAt,
   };
+  /* Round the plaintext up to a multiple of 256 bytes. Without this the stored size
+     tells the server when a routine was archived (+26 bytes) or its schedule changed. */
+  const size = (value: object) => new TextEncoder().encode(JSON.stringify(value)).length;
+  const base = size({ ...secrets, pad: "" });
+  const pad = "x".repeat(Math.ceil(base / 256) * 256 - base);
 
-  return { enc: 1 as const, payload: await encryptJson(key, secrets) };
+  return { enc: 1 as const, payload: await encryptJson(key, { ...secrets, pad }) };
 }
 
 export type DailyCompletionWire = {

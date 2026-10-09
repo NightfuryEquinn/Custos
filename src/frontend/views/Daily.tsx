@@ -127,7 +127,7 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
   const toggle = async (row: DailyRow) => {
     setError("");
     try {
-      await daily.setDone(row.routine, !row.done);
+      await daily.setDone(row.routine, !row.done, row.period);
       if (!row.done) setEarned(row.routine.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update routine");

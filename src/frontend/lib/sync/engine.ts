@@ -13,6 +13,7 @@ import {
   confirmOutbox,
   failOutboxPermanently,
   purgeStaleFailures,
+  scrubOutboxLabels,
   rescheduleOutbox,
   releaseOutboxEntry,
 } from "./outbox";
@@ -75,6 +76,7 @@ export async function drainOutbox(address: string): Promise<void> {
   draining = true;
   try {
     void purgeStaleFailures(address);
+    void scrubOutboxLabels(address);
     for (;;) {
       const entry = await claimNextOutboxEntry(address);
       if (!entry) break;

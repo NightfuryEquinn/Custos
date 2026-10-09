@@ -1,3 +1,4 @@
+import { withoutFragment } from "@/frontend/lib/analytics";
 import { Root } from "@/frontend/app/Root";
 import logoUrl from "@/frontend/assets/logo.png";
 import {
@@ -45,8 +46,8 @@ const tree = (
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <Root />
-      <Analytics />
-      <SpeedInsights />
+      <Analytics beforeSend={withoutFragment} />
+      <SpeedInsights beforeSend={withoutFragment} />
     </QueryClientProvider>
   </StrictMode>
 );

@@ -9,7 +9,10 @@ export function createLedgerQueryClient() {
        place any query error surfaces before a screen swallows it. */
       onError: (err, query) => {
         const status = err instanceof ApiError ? err.status : undefined;
-        console.error(`[query:${query.queryHash}]`, status ?? "network", err.message);
+        /* Only an API error's message is server text. Anything else may be a parse error that
+           quotes the decrypted data it choked on, so log just its kind. */
+        const detail = err instanceof ApiError ? err.message : err.name;
+        console.error(`[query:${query.queryHash}]`, status ?? "network", detail);
       },
     }),
     defaultOptions: {

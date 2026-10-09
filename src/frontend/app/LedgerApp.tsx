@@ -572,6 +572,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
         vehicleFills: ledger.vehicleFills,
         dailyRoutines: ledger.daily.routines,
         dailyCompletions: ledger.daily.completions,
+        dailyLoaded: ledger.daily.query.data !== undefined,
       },
       {
         saveCategories: ledger.saveCategories,
@@ -724,7 +725,9 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
 
   const tools = VIEW_CONTROLS[view] ?? "";
   const addTxn = { label: "Add transaction", run: () => setModal({ add: true }) };
-  const PAGE_ACTIONS: Partial<Record<ViewId, { label: string; run: () => void }>> = {
+  const PAGE_ACTIONS: Partial<
+    Record<ViewId, { label: string; run: () => void; disabled?: boolean }>
+  > = {
     overview: addTxn,
     transactions: addTxn,
     schedule: {
@@ -734,7 +737,11 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
         setEvModal({ add: true, date: TODAY_ISO });
       },
     },
-    daily: { label: "Add routine", run: () => dailyRef.current?.openAdd() },
+    daily: {
+      label: "Add routine",
+      run: () => dailyRef.current?.openAdd(),
+      disabled: !ledger.daily.ready,
+    },
     todos: { label: "Add list", run: () => todoListRef.current?.openAdd() },
     capitals: { label: "Add plan", run: () => capitalsRef.current?.openAdd() },
     categories: { label: "Add category", run: () => categoriesRef.current?.openAdd() },
@@ -760,7 +767,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
         <button
           type="button"
           className="primary-btn page-action"
-          disabled={isSaving}
+          disabled={isSaving || pageAction.disabled}
           onClick={pageAction.run}
         >
           <Icon name="plus" size={16} /> {pageAction.label}
@@ -919,7 +926,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
                 refreshedAt={ledger.refreshedAt}
                 balanceExpenses={ledger.balanceExpenses}
                 todoLists={ledger.todoLists}
-                events={events}
+                events={ledger.homeEvents}
                 daily={<DailyHomePanel daily={ledger.daily} setView={setView} />}
                 setView={setView}
                 onEdit={setModal}

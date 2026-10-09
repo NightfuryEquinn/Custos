@@ -71,9 +71,9 @@ export type OutboxEntry = {
   /** The opId of the create/update that permanently failed and blocked this
    *  entry via the dependsOn cascade — set only when status is "blocked". */
   blockedBy?: string;
-  /** Plain-language label for the sync-status UI, e.g. "Coffee — RM12.50".
-   *  Derived from plaintext the user already typed; stored locally only,
-   *  same trust boundary as the rest of this database (see cipher-cache.ts). */
+  /** Short label for the sync-status UI. A fixed word about the kind of change
+   *  ("Expense", "Routine check-in"), never text the user typed: it is stored as
+   *  plain text in IndexedDB. See ./labels.ts. */
   label?: string;
   createdAt: number;
   updatedAt: number;
