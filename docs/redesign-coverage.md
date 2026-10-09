@@ -38,14 +38,25 @@ A short notice confirms each save, delete, archive, and restore, and adds "syncs
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Promotional   | Home hero, features, schedule, goals, privacy, stats, FAQ, stack, final CTA, footer; Offers; Services                                                                                                              |
 | Shell         | Topbar, account menu, wallet and month controls, sidebar, bottom bar and More sheet, Search pages, page actions (incl. list, plan, category, fill-up), theme toggle                                                |
-| Views         | Overview, Transactions, Budgets, Recurring, Schedule, To-do, Vehicles, Categories, Piggies, Capitals, Calculator, Insights, Transparency                                                                           |
-| Editors       | Transaction, event, wallet, category, subcategory, to-do list, vehicle, fuel/charge record, capital plan and item                                                                                                  |
+| Views         | Home, Daily, Transactions, Budgets, Recurring, Schedule, To-do, Vehicles, Categories, Savings, Big expenses, Calculator, Insights, Transparency                                                                    |
+| Editors       | Transaction, event, wallet, category, subcategory, to-do list, routine, vehicle, fuel/charge record, capital plan and item                                                                                         |
 | Confirmations | Generic delete, recurring scope, typed confirmation, discard changes, transfer and progress, calculator apply, backup restore, session revoke and local data clear                                                 |
 | Account       | Authentication, identity creation, phrase reveal and quiz, passphrase, unlock, biometric offer, Terms gate, Preferences, Support, Navigation, Data & Privacy, Import & Export, recovery, What’s New, legal dialogs |
 | Pickers       | Account, wallet, month/year, transaction filters, category, currency, timezone, reminder lead time, date, time, color, glyph and theme swatches                                                                    |
 | Feedback      | Notices, offline and sync errors, loading, empty, success, disabled and validation states; tour overlays and chart tooltips                                                                                        |
 
 For each row, check light and dark appearance, 390px, 768px, 1280px, and 1440px widths, keyboard focus, long content, popup clipping, nested overlays, and unchanged submission or dismissal behavior. Check the eight accents and four surfaces in both themes.
+
+## Browser review, v6.5.0
+
+Checked in Chrome against the real app on an in-memory database (not a hosted one), using same-origin frames at 320, 390, 768, 1024, and 1440px. Dark theme throughout, light theme at 1024px.
+
+- **Navigation:** sidebar at 1024 and 1440px, bottom bar with More below 1024px; every destination appears once, grouped, with favorites first. More sheet is a dialog, traps focus, closes on Escape and returns focus to More. Search pages (Ctrl/Cmd + K) finds Savings from "piggies". Bottom-bar labels and header icons are at least 44px tall; "Transactions" fits at 320px. No horizontal overflow at any width.
+- **Start page:** a saved start page opens on a phone width and a desktop width; a `#budgets` link still wins.
+- **Daily:** add a routine, tick, untick, re-tick (still 10 points, one row on the server); state survives a reload and unlock. Create a routine and tick it offline, then Retry: both sync once. Server rows hold only ciphertext plus routine id and period.
+- **Fixed during review:** clipped bottom-bar label at 320px, page action wrapping under the title at 1024px, summary figures right-aligned on phones, misleading "Syncing…" on a row whose routine had failed, and a second primary button on the empty Daily page.
+
+Not reviewed in a browser: the eight accents and four surfaces beyond the default pair, guided-tour overlays on the new anchors, midnight rollover with the app left open, 1280px, and the public marketing site.
 
 ## Browser review, v6.4.0
 

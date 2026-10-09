@@ -31,6 +31,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - **Email reminders** — optional Resend emails with per-event lead time and your timezone, plus a reminder at the event's own start; delivered to your account notify email.
 - **Push notifications** — opt-in Web Push per device under **Account → Preferences**, on the same 15-minute poll as email.
 - **To-do lists** — multiple named lists with inline task management.
+- **Daily** — recurring routines (every day, selected weekdays, or once a week) with a Today / This week checklist. Each completed occurrence earns 10 points; every routine keeps its own streak. Points and streaks are derived from encrypted completion history (one row per routine and period), checkbox taps queue offline against the period they were made in, and routines are archived rather than deleted so history and points stay.
 - **Page actions** — each page's main action (Add transaction, Add event, Add list, Add plan, Add category, Add fill-up) sits beside its title.
 
 ### Identity & privacy
@@ -133,7 +134,7 @@ src/
     │   ├── capitalTemplates.ts # built-in Capitals templates (marriage, trip, car/house loan)
     │   └── envelope-holds.ts  # schedule ↔ budget hold math
     ├── styles/           # ledger.css (theme tokens + layout), journal.css (shell, rows, dialogs)
-    ├── views/            # Calculator, Capitals, Categories, Piggies, Schedule, TodoList,
+    ├── views/            # Calculator, Capitals, Categories, Daily, Piggies, Schedule, TodoList,
     │                     # Transparency, Vehicles, index.tsx (Overview, Transactions,
     │                     # Budgets, Recurring, Insights)
     └── main.tsx
@@ -205,6 +206,8 @@ Schemas are defined in `src/schemas/` and wired in `src/db/collections.ts`. Inde
 | `expenses`            | `expenses`           | Transactions (E2EE amount/sub/note; plaintext metadata)                                                                                 |
 | `events`              | `events`             | Schedule events (E2EE title/comments/holds; plaintext schedule + email for reminders, plus `notifyDetails` while notify is on)          |
 | `todo_lists`          | `todoLists`          | Named to-do lists (E2EE name/icon/tasks)                                                                                                |
+| `daily_routines`      | `dailyRoutines`      | Daily routines (E2EE title/notes/recurrence history/archive day)                                                                        |
+| `daily_completions`   | `dailyCompletions`   | One row per routine and period (E2EE done state; plaintext `routineId` + `period`, unique together)                                     |
 | `capital_plans`       | `capitalPlans`       | Future-expense planners (E2EE name/template/budget/items)                                                                               |
 | `vehicles`            | `vehicles`           | Tracked vehicles — car/EV/bike/van (E2EE name/model/plate/odometer/tank)                                                                |
 | `vehicle_fills`       | `vehicleFills`       | Fuel fills or charges per vehicle (E2EE price/quantity/odometer/station)                                                                |
@@ -225,6 +228,8 @@ Schemas are defined in `src/schemas/` and wired in `src/db/collections.ts`. Inde
 | `category_taxonomies` | `payload` (full `categories[]` tree, incl. optional piggy `target`/`deadline`) via `enc` | `accountId`                                                                                                                                                                              |
 | `events`              | `payload` (title, comments, customLabel/Glyph, budget hold fields) via `enc`             | `accountId`, `catId`, schedule fields, `notify`, `lead`, optional `expenseId`, and `notifyDetails` (title, hold, comments) only while `notify` is on                                     |
 | `todo_lists`          | `payload` (name, icon, tasks) via `enc`                                                  | `accountId`                                                                                                                                                                              |
+| `daily_routines`      | `payload` (title, notes, recurrence history, archive day) via `enc`                      | `accountId`                                                                                                                                                                              |
+| `daily_completions`   | `payload` (done state, time) via `enc`                                                   | `accountId`, `routineId`, `period` (a day, or a week's Monday)                                                                                                                           |
 | `capital_plans`       | `payload` (name, templateId, glyph, targetDate, initialBudget, items) via `enc`          | `accountId`                                                                                                                                                                              |
 | `vehicles`            | `payload` (name, model, plate, glyph, odometerStart, tankCapacity, notes) via `enc`      | `accountId`, `type`                                                                                                                                                                      |
 | `vehicle_fills`       | `payload` (price, quantity, odometer, station) via `enc`                                 | `accountId`, `vehicleId`, `date`, `partial`, optional `expenseId`                                                                                                                        |

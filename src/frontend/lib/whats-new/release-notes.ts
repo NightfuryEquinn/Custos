@@ -14,6 +14,7 @@ type HighlightIcon =
   | "capital"
   | "car"
   | "list"
+  | "daily"
   | "tags"
   | "wifi-on";
 
@@ -36,6 +37,38 @@ export type ReleaseNotes = {
  * re-announces the popup to every device that has not seen that version.
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
+  {
+    version: "6.5.0",
+    date: "October 2026",
+    lead: "Every page is one tap away, Home is calmer, and Daily keeps your routines, points and streaks.",
+    highlights: [
+      {
+        icon: "list",
+        title: "Pages always in view",
+        body: "A sidebar on larger screens and a bottom bar on phones and tablets put every page one tap away. Favorites come first; the rest sit under More. Ctrl or Command + K searches pages.",
+      },
+      {
+        icon: "daily",
+        title: "Daily",
+        body: "Add routines that repeat every day, on chosen weekdays, or once a week. Each completed one earns 10 points, and every routine keeps its own streak.",
+      },
+      {
+        icon: "sparkle",
+        title: "Choose where Custos opens",
+        body: "Pick a start page in Account > Navigation. It applies on every screen, and a link you open still goes where it points.",
+      },
+      {
+        icon: "insights",
+        title: "A calmer Home",
+        body: "Home shows this month at a glance, Daily progress, today's schedule, to-dos and your latest transactions. The category donut and spending trend now live in Insights.",
+      },
+      {
+        icon: "capital",
+        title: "Plainer names",
+        body: "Overview is now Home, Piggies is Savings, and Capitals is Big expenses. Each page puts its main action, like Add transaction or Add event, beside its title.",
+      },
+    ],
+  },
   {
     version: "6.4.2",
     date: "October 2026",

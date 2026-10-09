@@ -93,8 +93,11 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
 
   /** Per-row save state, from the queued writes for this routine and period. */
   const syncOf = (row: DailyRow): "syncing" | "failed" | null => {
+    /* The routine's own queued write counts too: a tick can't sync while its routine hasn't. */
     const entries = pending.filter(
-      (e) => e.entity === "dailyCompletion" && e.targetId === `${row.routine.id}:${row.period}`,
+      (e) =>
+        (e.entity === "dailyCompletion" && e.targetId === `${row.routine.id}:${row.period}`) ||
+        (e.entity === "dailyRoutine" && e.targetId === row.routine.id),
     );
     if (entries.some((e) => e.status === "failed" || e.status === "blocked")) return "failed";
     return entries.length ? "syncing" : null;
@@ -336,7 +339,7 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
           <div data-tour="tour-daily-progress">
             <EmptyState title="No routines yet" />
             <div className="todo-empty-action" data-tour="tour-daily-add">
-              <button className="primary-btn" type="button" onClick={() => openEditor()}>
+              <button className="ghost-btn" type="button" onClick={() => openEditor()}>
                 <Icon name="plus" size={15} /> Add routine
               </button>
             </div>

@@ -242,6 +242,7 @@
 }
 .journal-summary .trend-total {
   min-width: 0;
+  align-items: flex-start;
 }
 .journal-summary .trend-now {
   font: 400 clamp(20px, 2.2vw, 28px) var(--font-num);
@@ -322,6 +323,16 @@
 }
 .bn-item.active {
   color: var(--accent);
+}
+@media (max-width: 379px) {
+  /* Narrowest phones: keep full labels (Transactions) instead of clipping them. */
+  .bottom-nav {
+    padding-inline: 0;
+  }
+  .bn-item {
+    font-size: 10px;
+    letter-spacing: -0.02em;
+  }
 }
 .nav-more-scrim {
   z-index: 60;
@@ -911,7 +922,16 @@ input:focus-visible {
 }
 .journal-app .tb-row--context {
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--sp-4);
+}
+/* In the topbar the title and its action stay together; the wallet/month tools wrap below instead. */
+.journal-app .tb-row--context .page-title-row {
+  flex-wrap: nowrap;
+  min-width: max-content;
+}
+.journal-app .tb-row--context .tb-context-tools {
+  margin-left: auto;
 }
 .journal-app .page-title-row {
   min-width: 0;
