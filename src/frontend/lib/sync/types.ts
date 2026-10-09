@@ -75,6 +75,8 @@ export type OutboxEntry = {
    *  ("Expense", "Routine check-in"), never text the user typed: it is stored as
    *  plain text in IndexedDB. See ./labels.ts. */
   label?: string;
+  /** The readable name for the banner ("Coffee"), encrypted with the ledger key. */
+  labelEnc?: string;
   createdAt: number;
   updatedAt: number;
 };

@@ -3,7 +3,7 @@ import { openConfirm } from "@/frontend/lib/feedback";
 import { useNetworkStatus } from "@/frontend/lib/hooks/useNetworkStatus";
 import { discardOutbox, retryOutbox } from "@/frontend/lib/sync/outbox";
 import type { OutboxEntry } from "@/frontend/lib/sync/types";
-import { useOutboxEntries } from "@/frontend/lib/sync/useOutbox";
+import { useOutboxEntries, useReadableLabels } from "@/frontend/lib/sync/useOutbox";
 import { useOfflineReadiness } from "@/frontend/lib/pwa/readiness";
 import { drainOutbox } from "@/frontend/lib/sync/engine";
 import { useEffect, useRef, useState } from "react";
@@ -72,6 +72,9 @@ export function OfflineBanner({
 }) {
   const { status } = useNetworkStatus();
   const entries = useOutboxEntries(address);
+  const names = useReadableLabels(address, entries);
+  /** The name to show: decrypted when the ledger is unlocked, otherwise the fixed word. */
+  const nameOf = (entry: OutboxEntry) => names.get(entry.opId) || entry.label || entry.entity;
   const ready = useOfflineReadiness(address, month, dataReady);
   const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
   const [error, setError] = useState("");
@@ -142,7 +145,7 @@ export function OfflineBanner({
     setError("");
     openConfirm({
       title: "Discard Offline Changes",
-      message: `"${entry.label || entry.entity}" has not synced to the server. Discarding it loses this change for good.${
+      message: `"${nameOf(entry)}" has not synced to the server. Discarding it loses this change for good.${
         dependents
           ? ` ${dependents} other change${dependents === 1 ? " that depends" : "s that depend"} on it will then need attention too.`
           : ""
@@ -180,7 +183,7 @@ export function OfflineBanner({
               {entries.map((entry) => (
                 <li key={entry.opId}>
                   <span>
-                    {entry.label || entry.entity}
+                    {nameOf(entry)}
                     <small>
                       {entry.status === "inflight"
                         ? "Syncing"

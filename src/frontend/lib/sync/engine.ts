@@ -1,3 +1,4 @@
+import { ledgerKeyStore } from "@/frontend/lib/crypto/key-store";
 /**
  * Drains the offline write queue: sends each pending entry in strict `seq`
  * order (oldest first), one at a time, confirming or rescheduling per the
@@ -76,7 +77,7 @@ export async function drainOutbox(address: string): Promise<void> {
   draining = true;
   try {
     void purgeStaleFailures(address);
-    void scrubOutboxLabels(address);
+    void scrubOutboxLabels(address, ledgerKeyStore.get(address));
     for (;;) {
       const entry = await claimNextOutboxEntry(address);
       if (!entry) break;

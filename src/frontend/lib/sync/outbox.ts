@@ -7,7 +7,7 @@
 import { openCustosDb, STORES, reqAsPromise, txAsPromise } from "@/frontend/lib/pwa/idb";
 import { TRUST_WINDOW_MS } from "@/frontend/auth/lib/session-trust";
 import type { NewOutboxEntry, OutboxEntry } from "./types";
-import { genericLabel, isFixedLabel } from "./labels";
+import { genericLabel, isFixedLabel, sealWith } from "./labels";
 
 const STORE = STORES.outbox;
 
@@ -113,6 +113,7 @@ export async function enqueueOutbox(entry: NewOutboxEntry): Promise<OutboxEntry>
         request: entry.request,
         dependsOn: entry.dependsOn,
         label: entry.label ?? pendingUpdate.label,
+        labelEnc: entry.labelEnc ?? pendingUpdate.labelEnc,
         updatedAt: Date.now(),
       };
       store.put(merged);
@@ -345,28 +346,47 @@ export async function releaseOutboxEntry(opId: string): Promise<void> {
 /**
  * Replace readable labels on this account's queued entries with a fixed word. Entries
  * written by earlier versions carried the title or note the user typed, in plain text,
- * for as long as they stayed queued. Only `label` changes: the request, ids and order
- * are untouched, so nothing waiting to sync is lost. Best-effort, run from the drain.
+ * for as long as they stayed queued. The old text is kept as an encrypted `labelEnc` when
+ * the ledger key is at hand (so the banner can still name the change) and dropped when it
+ * is not. Only the label fields change: the request, ids and order are untouched, so
+ * nothing waiting to sync is lost. Best-effort, run from the drain.
  */
-export async function scrubOutboxLabels(address: string): Promise<void> {
+export async function scrubOutboxLabels(
+  address: string,
+  key: CryptoKey | null = null,
+): Promise<void> {
   if (typeof indexedDB === "undefined") return;
   try {
     const db = await openCustosDb();
-    const tx = db.transaction(STORE, "readwrite");
-    const store = tx.objectStore(STORE);
     const range = IDBKeyRange.bound(
       [address.toLowerCase(), -Infinity],
       [address.toLowerCase(), Infinity],
     );
-    const entries = (await reqAsPromise(store.index("address_seq").getAll(range))) as OutboxEntry[];
-    let changed = false;
-    for (const e of entries) {
-      if (e.label === undefined || isFixedLabel(e.label)) continue;
-      store.put({ ...e, label: genericLabel(e.entity) } satisfies OutboxEntry);
-      changed = true;
+    const readable = (
+      (await reqAsPromise(
+        db.transaction(STORE).objectStore(STORE).index("address_seq").getAll(range),
+      )) as OutboxEntry[]
+    ).filter((e) => e.label !== undefined && !isFixedLabel(e.label));
+    if (!readable.length) return;
+
+    /* Encrypt before opening the write transaction: it would close while awaiting this. */
+    const sealed = new Map<string, string | undefined>();
+    for (const e of readable) sealed.set(e.opId, key ? await sealWith(key, e.label!) : undefined);
+
+    const tx = db.transaction(STORE, "readwrite");
+    const store = tx.objectStore(STORE);
+    for (const old of readable) {
+      /* Re-read: the entry may have been confirmed or changed while encrypting. */
+      const current = (await reqAsPromise(store.get(old.opId))) as OutboxEntry | undefined;
+      if (!current || current.label === undefined || isFixedLabel(current.label)) continue;
+      store.put({
+        ...current,
+        label: genericLabel(current.entity),
+        labelEnc: current.labelEnc ?? sealed.get(old.opId),
+      } satisfies OutboxEntry);
     }
     await txAsPromise(tx);
-    if (changed) notify();
+    notify();
   } catch {
     /* ignore: a later drain tries again */
   }

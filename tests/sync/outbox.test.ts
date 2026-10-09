@@ -13,6 +13,7 @@ import {
   retryOutbox,
   scrubOutboxLabels,
 } from "@/frontend/lib/sync/outbox";
+import { openLabel } from "@/frontend/lib/sync/labels";
 
 beforeEach(() => {
   resetFakeIdb();
@@ -263,7 +264,11 @@ describe("outbox: clearOutboxForAddress", () => {
 });
 
 describe("outbox: labels at rest", () => {
-  test("scrubbing replaces readable labels with a generic noun and leaves the request alone", async () => {
+  const aesKey = () =>
+    crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+
+  test("scrubbing keeps an old readable name, but only encrypted, and leaves the request alone", async () => {
+    const key = await aesKey();
     const stored = await enqueueOutbox(
       entry({
         entity: "todoList",
@@ -279,20 +284,50 @@ describe("outbox: labels at rest", () => {
       }),
     );
 
-    await scrubOutboxLabels(ADDRESS);
+    await scrubOutboxLabels(ADDRESS, key);
 
     const [mine] = await listOutbox(ADDRESS);
     expect(mine!.opId).toBe(stored.opId);
     expect(mine!.label).toBe("List");
+    expect(JSON.stringify(mine)).not.toContain("Groceries");
+    expect(await openLabel(mine!, key)).toBe("Groceries");
     expect(mine!.request.body).toEqual({ payload: "cipher" });
     const [theirs] = await listOutbox("0x0000000000000000000000000000000000000002");
     expect(theirs!.opId).toBe(other.opId);
     expect(theirs!.label).toBe("Dentist appointment"); // only the draining account is touched
   });
 
-  test("an already generic label is left as it is", async () => {
-    await enqueueOutbox(entry({ entity: "dailyRoutine", label: "Routine" }));
-    await scrubOutboxLabels(ADDRESS);
-    expect((await listOutbox(ADDRESS))[0]!.label).toBe("Routine");
+  test("with no key to hand, the readable text is dropped rather than left on disk", async () => {
+    await enqueueOutbox(entry({ entity: "event", label: "Dentist appointment" }));
+
+    await scrubOutboxLabels(ADDRESS, null);
+
+    const [mine] = await listOutbox(ADDRESS);
+    expect(mine!.label).toBe("Event");
+    expect(mine!.labelEnc).toBeUndefined();
+  });
+
+  test("an already fixed label is left as it is", async () => {
+    await enqueueOutbox(entry({ entity: "dailyRoutine", label: "Routine", labelEnc: "sealed" }));
+    await scrubOutboxLabels(ADDRESS, await aesKey());
+    const [mine] = await listOutbox(ADDRESS);
+    expect(mine!.label).toBe("Routine");
+    expect(mine!.labelEnc).toBe("sealed");
+  });
+
+  test("a later edit of a queued write keeps the name, and a newer name replaces it", async () => {
+    const put = (labelEnc?: string) =>
+      entry({
+        op: "update",
+        label: "Expense",
+        labelEnc,
+        request: { method: "PATCH", path: "/expenses/x", body: {} },
+      });
+    await enqueueOutbox(put("first"));
+    await enqueueOutbox(put(undefined));
+    expect((await listOutbox(ADDRESS))[0]!.labelEnc).toBe("first");
+
+    await enqueueOutbox(put("second"));
+    expect((await listOutbox(ADDRESS))[0]!.labelEnc).toBe("second");
   });
 });

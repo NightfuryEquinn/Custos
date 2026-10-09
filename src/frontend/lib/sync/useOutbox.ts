@@ -1,4 +1,6 @@
+import { ledgerKeyStore } from "@/frontend/lib/crypto/key-store";
 import { useEffect, useState } from "react";
+import { openLabel } from "./labels";
 import { applyOverlay, applySingletonOverlay } from "./overlay";
 import { listOutbox, subscribeOutbox } from "./outbox";
 import type { EntityKind, OutboxEntry } from "./types";
@@ -42,6 +44,34 @@ export function useOutboxEntries(address: string): OutboxEntry[] {
   }, [address]);
 
   return entries;
+}
+
+/**
+ * Readable names for queued writes (opId -> name), decrypted for display only while the
+ * ledger is unlocked. Entries without one simply keep their fixed label.
+ */
+export function useReadableLabels(address: string, entries: OutboxEntry[]): Map<string, string> {
+  const [names, setNames] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    const key = ledgerKeyStore.get(address);
+    const sealed = entries.filter((e) => e.labelEnc);
+    if (!key || !sealed.length) {
+      setNames(new Map());
+      return;
+    }
+    let cancelled = false;
+    void Promise.all(sealed.map(async (e) => [e.opId, await openLabel(e, key)] as const)).then(
+      (pairs) => {
+        if (!cancelled) setNames(new Map(pairs));
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [address, entries]);
+
+  return names;
 }
 
 export function useSyncStatus(address: string) {

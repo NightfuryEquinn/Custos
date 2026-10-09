@@ -6,6 +6,7 @@ import { renderToString } from "react-dom/server";
 import { ledgerKeyStore } from "@/frontend/lib/crypto/key-store";
 import { useDaily } from "@/frontend/lib/hooks/useDaily";
 import { connectivity } from "@/frontend/lib/net/connectivity";
+import { openLabel } from "@/frontend/lib/sync/labels";
 import { enqueueOutbox, listOutbox } from "@/frontend/lib/sync/outbox";
 import { currentPeriod, type DailyRoutine } from "@/lib/daily";
 import { zonedTodayIso } from "@/lib/recurring";
@@ -115,9 +116,14 @@ describe("setDone", () => {
     await state.daily.saveRoutine({ ...routine, id: undefined });
     await state.daily.setDone(routine, true, currentPeriod(routine, zonedTodayIso(tz))!);
 
-    const everything = JSON.stringify(await listOutbox(address));
+    const queued = await listOutbox(address);
+    const everything = JSON.stringify(queued);
     expect(everything).not.toContain("Take medication");
     expect(everything).not.toContain("private note");
+    /* ...yet the sync banner can still name the routine, from the encrypted copy. */
+    const key = ledgerKeyStore.get(address)!;
+    const names = await Promise.all(queued.map((e) => openLabel(e, key)));
+    expect(names).toContain("Take medication");
     client.clear();
   });
 });

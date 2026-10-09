@@ -1,3 +1,4 @@
+import { sealLabel } from "@/frontend/lib/sync/labels";
 import { api } from "@/frontend/lib/api";
 import {
   decodeDailyCompletion,
@@ -146,6 +147,7 @@ export function useDaily(address: string, cryptoReady: boolean) {
           request: { method: "PATCH", path: `/daily/routines/${id}`, body: encrypted },
           dependsOn: create ? [create.opId] : [],
           label: "Routine",
+          labelEnc: await sealLabel(address, rest.title),
         });
         void drainOutbox(address);
         return { id, ...rest };
@@ -160,6 +162,7 @@ export function useDaily(address: string, cryptoReady: boolean) {
         request: { method: "POST", path: "/daily/routines", body: { id: newId, ...encrypted } },
         dependsOn: [],
         label: "Routine",
+        labelEnc: await sealLabel(address, rest.title),
       });
       void drainOutbox(address);
       return { id: newId, ...rest };
@@ -199,6 +202,7 @@ export function useDaily(address: string, cryptoReady: boolean) {
       request: { method: "PUT", path: "/daily/completions", body },
       dependsOn: create ? [create.opId] : [],
       label: "Routine check-in",
+      labelEnc: await sealLabel(address, routine.title),
     });
     void drainOutbox(address);
 

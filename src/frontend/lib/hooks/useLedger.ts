@@ -1,3 +1,4 @@
+import { sealLabel } from "@/frontend/lib/sync/labels";
 import { api, ApiError } from "@/frontend/lib/api";
 import { maybeNotifyBudgetAlerts } from "@/frontend/lib/budget/notify";
 import {
@@ -1061,6 +1062,7 @@ export function useLedger(walletAddress: string) {
             request: { method: "PATCH", path: `/expenses/${data.id}`, body },
             dependsOn: [],
             label: "Expense",
+            labelEnc: await sealLabel(wallet, data.note),
           });
           void drainOutbox(wallet);
           const expense = await decodeExpense({ id: data.id, ...body } as ExpenseWire, cryptoKey);
@@ -1089,6 +1091,7 @@ export function useLedger(walletAddress: string) {
         request: { method: "POST", path: "/expenses", body: { id, ...body } },
         dependsOn: [],
         label: "Expense",
+        labelEnc: await sealLabel(wallet, data.note),
       });
       void drainOutbox(wallet);
       const expense = await decodeExpense({ id, ...body } as ExpenseWire, cryptoKey);
@@ -1227,6 +1230,7 @@ export function useLedger(walletAddress: string) {
           request: { method: "PATCH", path: `/events/${data.id}`, body },
           dependsOn: [],
           label: "Event",
+          labelEnc: await sealLabel(wallet, data.title),
         });
         void drainOutbox(wallet);
         return decodeEvent({ id: data.id, ...body } as EventWire, cryptoKey);
@@ -1241,6 +1245,7 @@ export function useLedger(walletAddress: string) {
         request: { method: "POST", path: "/events", body: { id, ...body } },
         dependsOn: [],
         label: "Event",
+        labelEnc: await sealLabel(wallet, data.title),
       });
       void drainOutbox(wallet);
       return decodeEvent({ id, ...body } as EventWire, cryptoKey);
@@ -1483,6 +1488,7 @@ export function useLedger(walletAddress: string) {
           request: { method: "PATCH", path: `/todo-lists/${data.id}`, body: encrypted },
           dependsOn: [],
           label: "List",
+          labelEnc: await sealLabel(wallet, data.name ?? current.name),
         });
         void drainOutbox(wallet);
         return decodeTodoList({ id: data.id, ...encrypted } as TodoListWire, cryptoKey);
@@ -1498,6 +1504,7 @@ export function useLedger(walletAddress: string) {
         request: { method: "POST", path: "/todo-lists", body: { id, ...encrypted } },
         dependsOn: [],
         label: "List",
+        labelEnc: await sealLabel(wallet, name),
       });
       void drainOutbox(wallet);
       return decodeTodoList({ id, ...encrypted } as TodoListWire, cryptoKey);
@@ -1567,6 +1574,7 @@ export function useLedger(walletAddress: string) {
           request: { method: "PATCH", path: `/capital-plans/${data.id}`, body: encrypted },
           dependsOn: [],
           label: "Capital plan",
+          labelEnc: await sealLabel(wallet, merged.name),
         });
         void drainOutbox(wallet);
         return decodeCapitalPlan({ id: data.id, ...encrypted } as CapitalPlanWire, cryptoKey);
@@ -1591,6 +1599,7 @@ export function useLedger(walletAddress: string) {
         request: { method: "POST", path: "/capital-plans", body: { id, ...encrypted } },
         dependsOn: [],
         label: "Capital plan",
+        labelEnc: await sealLabel(wallet, fresh.name),
       });
       void drainOutbox(wallet);
       return decodeCapitalPlan({ id, ...encrypted } as CapitalPlanWire, cryptoKey);
@@ -1639,6 +1648,7 @@ export function useLedger(walletAddress: string) {
           request: { method: "PATCH", path: `/vehicles/${id}`, body },
           dependsOn: [],
           label: "Vehicle",
+          labelEnc: await sealLabel(wallet, rest.name),
         });
         void drainOutbox(wallet);
         return decodeVehicle({ id, ...body } as VehicleWire, cryptoKey);
@@ -1658,6 +1668,7 @@ export function useLedger(walletAddress: string) {
         dependsOn: [],
         overlayPatch: { createdAt },
         label: "Vehicle",
+        labelEnc: await sealLabel(wallet, rest.name),
       });
       void drainOutbox(wallet);
       return decodeVehicle({ id: newId, ...body, createdAt } as VehicleWire, cryptoKey);
@@ -1737,6 +1748,7 @@ export function useLedger(walletAddress: string) {
           request: { method: "PATCH", path: `/vehicles/fills/${id}`, body },
           dependsOn: [],
           label: "Fill-up",
+          labelEnc: await sealLabel(wallet, rest.station),
         });
         void drainOutbox(wallet);
         return decodeVehicleFill({ id, ...body } as VehicleFillWire, cryptoKey);
@@ -1751,6 +1763,7 @@ export function useLedger(walletAddress: string) {
         request: { method: "POST", path: "/vehicles/fills", body: { id: newId, ...body } },
         dependsOn: pendingVehicle ? [pendingVehicle.opId] : [],
         label: "Fill-up",
+        labelEnc: await sealLabel(wallet, rest.station),
       });
       void drainOutbox(wallet);
       return decodeVehicleFill({ id: newId, ...body } as VehicleFillWire, cryptoKey);
