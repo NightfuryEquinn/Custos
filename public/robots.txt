@@ -3,4 +3,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://custos-kappa.vercel.app/sitemap.xml
+Sitemap: https://custos.nightfuryequinn.app/sitemap.xml
