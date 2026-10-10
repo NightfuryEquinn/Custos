@@ -7685,7 +7685,16 @@ textarea::placeholder {
 .txn-actions button[aria-label],
 .picker-nav-btn[aria-label],
 .tour-help-btn[aria-label],
-.shepherd-cancel-icon[aria-label] {
+.shepherd-cancel-icon[aria-label],
+.msbtn[aria-label],
+.agenda-nav-btn[aria-label],
+.txn-filter-clear[aria-label],
+.capital-item-remove[aria-label],
+.capital-card-actions button[aria-label],
+.cmt-remove[aria-label],
+.cat-block-actions button[aria-label],
+.cat-sub-actions button[aria-label],
+.todo-panel-actions button[aria-label] {
   position: relative;
   flex: none;
 }
@@ -7695,12 +7704,21 @@ textarea::placeholder {
       .txn-actions button,
       .picker-nav-btn,
       .tour-help-btn,
-      .shepherd-cancel-icon
+      .shepherd-cancel-icon,
+      .msbtn,
+      .agenda-nav-btn,
+      .txn-filter-clear,
+      .capital-item-remove,
+      .capital-card-actions button,
+      .cmt-remove,
+      .cat-block-actions button,
+      .cat-sub-actions button,
+      .todo-panel-actions button
     )[aria-label]:is(:hover, :focus-visible)::after {
     content: attr(aria-label);
     position: absolute;
     left: 50%;
-    bottom: calc(100% + 8px);
+    top: calc(100% + 8px);
     transform: translateX(-50%);
     z-index: 100;
     padding: var(--sp-1) var(--sp-2);
@@ -7714,19 +7732,18 @@ textarea::placeholder {
     pointer-events: none;
   }
 
-  /* Buttons that sit at a clipping edge — the viewport top, or a modal's own
-     overflow:hidden — drop the label below and right-aligned instead, same
-     as the dark-mode toggle, so it's never cut off. */
+  /* Every hint sits below its button. Buttons at a clipping edge — the right of
+     the viewport, or a modal's own overflow:hidden — right-align it instead of
+     centring, same as the dark-mode toggle, so it's never cut off. */
   :is(
       .theme-toggle,
       .tour-help-btn,
       .page-refresh-btn,
+      .tb-actions .icon-btn,
       .modal .icon-btn,
       .shepherd-cancel-icon
     )[aria-label]:is(:hover, :focus-visible)::after {
-    top: calc(100% + 8px);
     right: 0;
-    bottom: auto;
     left: auto;
     transform: none;
   }

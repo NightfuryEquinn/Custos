@@ -9,7 +9,7 @@ import {
 import { ledgerKeyStore } from "@/frontend/lib/crypto/key-store";
 import { drainOutbox } from "@/frontend/lib/sync/engine";
 import { clientObjectId } from "@/frontend/lib/sync/object-id";
-import { enqueueOutbox, listOutbox } from "@/frontend/lib/sync/outbox";
+import { discardOutbox, enqueueOutbox, listOutbox } from "@/frontend/lib/sync/outbox";
 import { dailyCompletionOverlay, dailyRoutineOverlay } from "@/frontend/lib/sync/overlay";
 import { useOutboxEntries, usePendingOverlay } from "@/frontend/lib/sync/useOutbox";
 import {
@@ -176,6 +176,37 @@ export function useDaily(address: string, cryptoReady: boolean) {
       })),
   });
 
+  /** Delete a routine and, server-side, every completion (its points) with it. */
+  const deleteRoutineMutation = useMutation({
+    mutationFn: async (id: string) => {
+      /* Queued check-ins that haven't been sent would 404 once the routine is gone. */
+      for (const entry of await listOutbox(address)) {
+        if (
+          entry.entity === "dailyCompletion" &&
+          entry.status !== "inflight" &&
+          entry.targetId.startsWith(`${id}:`)
+        ) {
+          await discardOutbox(entry.opId);
+        }
+      }
+      await enqueueOutbox({
+        address,
+        entity: "dailyRoutine",
+        op: "delete",
+        targetId: id,
+        request: { method: "DELETE", path: `/daily/routines/${id}` },
+        dependsOn: [],
+        label: "Delete routine",
+      });
+      void drainOutbox(address);
+    },
+    onSuccess: (_res, id) =>
+      patchCache((data) => ({
+        routines: data.routines.filter((r) => r.id !== id),
+        completions: data.completions.filter((c) => c.routineId !== id),
+      })),
+  });
+
   /**
    * Queue one checkbox state for one period. The period is fixed by the caller
    * and travels in the request, so a write that syncs after midnight still lands
@@ -274,6 +305,7 @@ export function useDaily(address: string, cryptoReady: boolean) {
     pending,
     refreshTask: { queryKey: keys.data(address), queryFn: () => load(true) },
     saveRoutine: saveRoutineMutation.mutateAsync,
+    deleteRoutine: deleteRoutineMutation.mutateAsync,
     /** `expectedPeriod` is the period of the row the person tapped; a mismatch refuses the write. */
     setDone: (routine: DailyRoutine, done: boolean, expectedPeriod?: string) =>
       setDoneMutation.mutateAsync({ routine, done, expectedPeriod }),

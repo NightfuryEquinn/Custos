@@ -122,8 +122,8 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     ),
     lastStep(
       "overview-capitals",
-      "Big expenses",
-      "Planning something big — a marriage, a trip, a loan? Big expenses tracks a total budget, paid progress, what is still unspent from the savings you assigned to it, and a monthly save amount toward your target date.",
+      "Big Expenses",
+      "Planning something big — a marriage, a trip, a loan? Big Expenses tracks a total budget, paid progress, what is still unspent from the savings you assigned to it, and a monthly save amount toward your target date.",
       navTarget("capitals"),
       "right",
     ),
@@ -132,7 +132,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "daily-nav",
       "Daily",
-      "Routines you repeat every day, on chosen weekdays, or once a week. Each completed one earns 10 points.",
+      "Routines you repeat everyday, on specific weekdays, or once a week. Each completed one earns 10 points.",
       navTarget("daily"),
       "right",
     ),
@@ -145,13 +145,13 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "daily-list",
       "Routines",
-      "Tick a routine to complete it. The number beside it is its streak. Tap a title to rename it, change when it repeats, or archive it.",
+      "Tick a routine to complete it. The number beside it is its streak. Tap a title to rename it, change when it repeats, or archive it. Archived routines can be deleted for good.",
       '[data-tour="tour-daily-list"]',
     ),
     lastStep(
       "daily-add",
       "Add a routine",
-      "Type a title for a daily routine, or open Add routine to pick weekdays or once a week.",
+      "Type a title for a daily routine, or open Add routine to pick specific weekdays or once a week.",
       '[data-tour="tour-daily-add"]',
     ),
   ],
@@ -352,7 +352,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
   capitals: [
     step(
       "capitals-nav",
-      "Big expenses",
+      "Big Expenses",
       "Plan for big future expenses — marriage, trips, loans, or anything custom. Start from a template or build a fully custom plan, set a total budget and a target date to see how much to save each month; assign savings deposits to a plan and paying an item spends them down.",
       navTarget("capitals"),
       "right",

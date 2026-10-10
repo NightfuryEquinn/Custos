@@ -243,14 +243,23 @@ export function Schedule({
   currency,
   onAddEvent,
   onEditEvent,
+  onSelectedDayChange,
 }: {
   events: LedgerEvent[];
   month: string;
   currency: string;
   onAddEvent: (iso: string) => void;
   onEditEvent: (ev: LedgerEvent, occurrenceIso: string) => void;
+  /** Reports the clicked day so the page's Add event action can default to it. */
+  onSelectedDayChange?: (iso: string | null) => void;
 }) {
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+
+  useEffect(() => {
+    onSelectedDayChange?.(selectedDay);
+    return () => onSelectedDayChange?.(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- report changes of the day only, not a new callback
+  }, [selectedDay]);
   const [y, m] = month.split("-").map(Number);
   const days = new Date(y!, m!, 0).getDate();
   const monthStart = `${month}-01`;

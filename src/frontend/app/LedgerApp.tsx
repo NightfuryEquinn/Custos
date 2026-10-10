@@ -183,6 +183,8 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
   const capitalsRef = useRef<CapitalsHandle>(null);
   const todoListRef = useRef<TodoListViewHandle>(null);
   const dailyRef = useRef<DailyHandle>(null);
+  /** The day clicked in Schedule, so the page's Add event action opens on it instead of today. */
+  const scheduleDayRef = useRef<string | null>(null);
   const categoriesRef = useRef<CategoriesHandle>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   /** Latched once the start page has been applied, so views never flash the wrong page first. */
@@ -734,7 +736,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
       label: "Add event",
       run: () => {
         setEvOccurrenceIso(undefined);
-        setEvModal({ add: true, date: TODAY_ISO });
+        setEvModal({ add: true, date: scheduleDayRef.current ?? TODAY_ISO });
       },
     },
     daily: {
@@ -943,6 +945,9 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
                   setEvModal({ add: true, date: iso });
                 }}
                 onEditEvent={openEvent}
+                onSelectedDayChange={(iso) => {
+                  scheduleDayRef.current = iso;
+                }}
               />
             )}
             {view === "todos" && (

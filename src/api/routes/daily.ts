@@ -53,7 +53,6 @@ dailyRoutes.post("/routines", zValidator("json", createDailyRoutineSchema), asyn
   return c.json({ routine: serializeDoc(doc) }, created ? 201 : 200);
 });
 
-/* No DELETE: a routine is archived (inside its payload) so its history and points stay. */
 dailyRoutes.patch("/routines/:id", zValidator("json", updateDailyRoutineSchema), async (c) => {
   const accountId = c.get("accountId");
   const id = objectIdSchema.safeParse(c.req.param("id"));
@@ -69,6 +68,22 @@ dailyRoutes.patch("/routines/:id", zValidator("json", updateDailyRoutineSchema),
 
   if (!updated) notFound("Routine not found");
   return c.json({ routine: serializeDoc(updated) });
+});
+
+/* Archiving keeps history and points; deleting an archived routine removes both, so its completions go with it. */
+dailyRoutes.delete("/routines/:id", async (c) => {
+  const accountId = c.get("accountId");
+  const id = objectIdSchema.safeParse(c.req.param("id"));
+  if (!id.success) notFound("Routine not found");
+
+  const { dailyRoutines, dailyCompletions } = getCollections(getDb());
+  const result = await dailyRoutines.deleteOne({ _id: new ObjectId(id.data), accountId });
+  if (result.deletedCount === 0) notFound("Routine not found");
+
+  /* Completions store the routine id lower-cased (see putDailyCompletionSchema). */
+  await dailyCompletions.deleteMany({ accountId, routineId: id.data.toLowerCase() });
+
+  return c.json({ ok: true });
 });
 
 dailyRoutes.get("/completions", async (c) => {

@@ -426,6 +426,8 @@
   z-index: 60;
 }
 .journal-command {
+  display: flex;
+  flex-direction: column;
   width: min(600px, 100%);
   max-height: min(80dvh, 820px);
   border-radius: 16px;
@@ -445,6 +447,8 @@
 }
 /* The inset gives the 2px + 4px-offset focus ring room inside the scroll box. */
 .journal-command-body {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: var(--sp-2);
   margin: calc(-1 * var(--sp-2));
@@ -543,6 +547,19 @@
   cursor: pointer;
   padding: 0;
 }
+/* A routine's note, one line under its title. */
+.daily-note {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.text-in.daily-notes-in {
+  resize: none;
+}
 .daily-streak,
 .daily-sync {
   flex: none;
@@ -585,11 +602,14 @@
 }
 .daily-archive-list li {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--sp-4);
   padding: var(--sp-2) 0;
   border-top: 1px solid var(--hair);
+}
+.daily-archive-list .todo-task-title {
+  overflow: hidden;
 }
 .daily-idle {
   display: flex;
@@ -600,6 +620,7 @@
   color: var(--ink-soft);
 }
 .daily-idle-row {
+  max-width: 100%;
   min-height: 44px;
   font-size: 14px;
 }
@@ -829,13 +850,6 @@ input:focus-visible {
     padding-bottom: max(var(--sp-4), env(safe-area-inset-bottom));
     border-radius: 0;
   }
-  .journal-command {
-    display: flex;
-    flex-direction: column;
-  }
-  .journal-command-body {
-    flex: 1;
-  }
   .journal-command-scrim,
   .journal-detail-scrim.center {
     align-items: flex-start;
@@ -954,6 +968,8 @@ input:focus-visible {
 .journal-app .page-action {
   margin-left: auto;
   flex: none;
+  min-height: 44px;
+  padding-block: 0;
 }
 .tb-context-tools {
   display: flex;
@@ -1002,8 +1018,9 @@ input:focus-visible {
 .journal-app .tb-context-tools .wallet-chip-compact {
   display: inline;
 }
+/* 34px inside the 4px padding + 1px border puts both switchers at 44px, the page action's height. */
 .journal-app .tb-context-tools .wallet-chip {
-  min-height: 44px;
+  min-height: 34px;
   flex: none;
 }
 .journal-app .tb-context-tools .month-switch {
@@ -1011,7 +1028,7 @@ input:focus-visible {
 }
 .journal-app .tb-context-tools .msbtn,
 .journal-app .tb-context-tools .ms-label-btn {
-  height: 44px;
+  height: 34px;
 }
 .journal-app .journal-active-wallet {
   white-space: normal;

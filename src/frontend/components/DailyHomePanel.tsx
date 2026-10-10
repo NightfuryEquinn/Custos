@@ -56,6 +56,9 @@ export function DailyHomePanel({
                 >
                   <span className="rr-main">
                     <span className="rr-note">{row.routine.title}</span>
+                    {row.routine.notes ? (
+                      <span className="daily-note">{row.routine.notes}</span>
+                    ) : null}
                   </span>
                 </button>
               ))

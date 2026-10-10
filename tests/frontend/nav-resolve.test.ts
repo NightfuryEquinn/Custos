@@ -91,7 +91,7 @@ describe("header controls per page", () => {
   });
 
   test("pages whose numbers depend on the active wallet keep the wallet switcher", () => {
-    // Savings and Big expenses read the active wallet's savings; Vehicles formats in its currency.
+    // Savings and Big Expenses read the active wallet's savings; Vehicles formats in its currency.
     for (const id of ["piggies", "capitals", "vehicles", "overview", "transactions"] as const)
       expect(VIEW_CONTROLS[id]).toContain("w");
   });

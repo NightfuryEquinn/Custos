@@ -34,9 +34,9 @@ type Tab = "today" | "week";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const KIND_OPTIONS: { v: DailyKind; label: string }[] = [
-  { v: "daily", label: "Every day" },
-  { v: "weekdays", label: "Selected weekdays" },
-  { v: "weekly", label: "Once a week" },
+  { v: "daily", label: "Everyday" },
+  { v: "weekdays", label: "Specific" },
+  { v: "weekly", label: "Once a Week" },
 ];
 
 type Editor = { routineId: string | null } | null;
@@ -57,6 +57,7 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
   const [editorError, setEditorError] = useState("");
   const [saving, setSaving] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [deleting, setDeleting] = useState<DailyRoutine | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [earned, setEarned] = useState<string | null>(null);
   const viewRef = useRef<HTMLDivElement>(null);
@@ -274,7 +275,7 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
                         className="daily-title todo-task-title"
                         onClick={() => openEditor(row.routine)}
                       >
-                        {row.routine.title}
+                        <RoutineName routine={row.routine} />
                       </button>
                       {earned === row.routine.id ? (
                         <span className="daily-plus" aria-hidden="true">
@@ -298,7 +299,7 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
               ) : (
                 <EmptyState
                   title={tab === "today" ? "Nothing due today" : "No weekly routines"}
-                  sub={tab === "week" ? "Add one with Once a week." : undefined}
+                  sub={tab === "week" ? "Add one with Once a Week." : undefined}
                 />
               )}
             </div>
@@ -312,7 +313,7 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
                     className="daily-title daily-idle-row"
                     onClick={() => openEditor(routine)}
                   >
-                    {routine.title}
+                    <RoutineName routine={routine} />
                   </button>
                 ))}
               </div>
@@ -384,17 +385,42 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
                 );
                 return (
                   <li key={routine.id}>
-                    <span className="todo-task-title">{routine.title}</span>
+                    <span className="todo-task-title">
+                      <RoutineName routine={routine} />
+                    </span>
                     <span className="daily-streak">
                       Best {computeStreak(routine, doneSet, today).best} ·{" "}
                       {doneSet.size * DAILY_POINTS} points
                     </span>
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      aria-label={`Delete ${routine.title}`}
+                      onClick={() => setDeleting(routine)}
+                    >
+                      <Icon name="trash" size={16} />
+                    </button>
                   </li>
                 );
               })}
             </ul>
           ) : null}
         </section>
+      ) : null}
+
+      {deleting ? (
+        <ConfirmDialog
+          title="Delete routine"
+          message={`Delete "${deleting.title}" and its ${
+            completions.filter((c) => c.routineId === deleting.id && c.done).length * DAILY_POINTS
+          } points? This cannot be undone.`}
+          onCancel={() => setDeleting(null)}
+          onConfirm={async () => {
+            await daily.deleteRoutine(deleting.id);
+            setDeleting(null);
+            toast("Routine deleted");
+          }}
+        />
       ) : null}
 
       {editor
@@ -477,7 +503,7 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
                     </label>
                     <textarea
                       id="daily-notes"
-                      className="text-in"
+                      className="text-in daily-notes-in"
                       rows={3}
                       maxLength={1000}
                       value={notes}
@@ -527,6 +553,16 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
     </div>
   );
 });
+
+/** A routine's title with its note as a one-line subtitle. */
+function RoutineName({ routine }: { routine: DailyRoutine }) {
+  return (
+    <>
+      {routine.title}
+      {routine.notes ? <span className="daily-note">{routine.notes}</span> : null}
+    </>
+  );
+}
 
 /** A schedule entry without its start date, for comparing recurrence only. */
 function stripFrom(rule: DailyRoutine["schedule"][number] | undefined) {

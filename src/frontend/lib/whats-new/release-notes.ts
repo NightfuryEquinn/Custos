@@ -38,6 +38,38 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "6.5.1",
+    date: "October 2026",
+    lead: "Steadier controls, a search that scrolls, and more control over your Daily routines.",
+    highlights: [
+      {
+        icon: "info",
+        title: "Hints below the button",
+        body: "Button hints now always appear underneath, including the ones in the top bar, and more icon buttons have them.",
+      },
+      {
+        icon: "list",
+        title: "Search that scrolls",
+        body: "Search pages now scrolls when there are more results than fit, while the search box stays in place.",
+      },
+      {
+        icon: "calendar",
+        title: "Add event on the day you picked",
+        body: "Open a day in Schedule, tap Add event, and it starts on that day instead of today.",
+      },
+      {
+        icon: "daily",
+        title: "Daily notes and clean-up",
+        body: "A routine's note now shows under its title. Repeats reads Everyday, Specific or Once a Week, and archived routines can be deleted along with their points.",
+      },
+      {
+        icon: "capital",
+        title: "Big Expenses",
+        body: "The page name is now capitalised, and the wallet and month switchers line up with the page action button.",
+      },
+    ],
+  },
+  {
     version: "6.5.0",
     date: "October 2026",
     lead: "Every page is one tap away, Home is calmer, and Daily keeps your routines, points and streaks.",

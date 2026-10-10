@@ -32,6 +32,7 @@ const FIXED_LABELS = new Set<string>([
   "Delete list",
   "Delete vehicle",
   "Delete fill",
+  "Delete routine",
 ]);
 
 export const genericLabel = (entity: EntityKind) => ENTITY_LABEL[entity];

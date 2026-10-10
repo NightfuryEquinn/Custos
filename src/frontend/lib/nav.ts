@@ -15,7 +15,7 @@ export const NAV_ITEMS = [
   ["vehicles", "Vehicles", "car"],
   ["categories", "Categories", "tags"],
   ["piggies", "Savings", "piggy"],
-  ["capitals", "Big expenses", "capital"],
+  ["capitals", "Big Expenses", "capital"],
   ["calculator", "Calculator", "calculator"],
   ["insights", "Insights", "insights"],
   ["transparency", "Transparency", "database"],
@@ -39,7 +39,7 @@ function sanitize(ids: readonly string[]): ViewId[] {
 
 /**
  * Which header controls change a page's content: w = wallet, m = month. A page not listed
- * shows neither, so Daily and To-do never inherit financial filters. Savings, Big expenses
+ * shows neither, so Daily and To-do never inherit financial filters. Savings, Big Expenses
  * and Vehicles read the active wallet's data or currency, so they keep the wallet switcher.
  */
 export const VIEW_CONTROLS: Partial<Record<ViewId, "w" | "m" | "wm">> = {

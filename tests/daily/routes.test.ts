@@ -198,6 +198,30 @@ describe("daily route hardening", () => {
     expect(completions[0]!.updatedAt).toEndWith("T00:00:00.000Z");
   });
 
+  test("deleting a routine removes its completions and nothing else", async () => {
+    const cookie = await signIn(app);
+    const other = await signIn(app);
+    const gone = await createRoutine(cookie);
+    const kept = await createRoutine(cookie);
+    await putCompletion(cookie, gone.id, "2026-10-08");
+    await putCompletion(cookie, gone.id, "2026-10-09");
+    await putCompletion(cookie, kept.id, "2026-10-09");
+
+    expect(
+      (await app.request(`/api/daily/routines/${gone.id}`, json(other, "DELETE"))).status,
+    ).toBe(404);
+    expect((await listCompletions(cookie)).length).toBe(3);
+
+    expect(
+      (await app.request(`/api/daily/routines/${gone.id}`, json(cookie, "DELETE"))).status,
+    ).toBe(200);
+    expect((await listCompletions(cookie)).map((c) => c.routineId)).toEqual([kept.id]);
+    expect(
+      (await app.request(`/api/daily/routines/${gone.id}`, json(cookie, "DELETE"))).status,
+    ).toBe(404);
+    expect((await putCompletion(cookie, gone.id, "2026-10-10")).status).toBe(404);
+  });
+
   test("Daily reads are never stored by the browser or a shared cache", async () => {
     const cookie = await signIn(app);
     for (const path of ["/api/daily/routines", "/api/daily/completions"]) {
