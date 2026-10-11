@@ -13,6 +13,7 @@ import {
 import { getKeyGeneration, setKeyGeneration, type KeyGeneration } from "./key-generation";
 import { ledgerKeyStore, seriesKeyStore } from "./key-store";
 import { rekeyLedgerToCustos } from "./rekey";
+import { rememberUnlock } from "./unlock-persist";
 import { listOutbox } from "@/frontend/lib/sync/outbox";
 
 export type UnlockResult = {
@@ -84,6 +85,13 @@ async function keyDecryptsLedger(key: CryptoKey): Promise<boolean> {
  * and re-encrypts all server ciphertext when legacy unlock succeeds.
  */
 export async function unlockLedgerKey(idn: IdentityRecord): Promise<UnlockResult> {
+  const result = await unlockLedgerKeyOnce(idn);
+  await rememberUnlock(idn.address);
+
+  return result;
+}
+
+async function unlockLedgerKeyOnce(idn: IdentityRecord): Promise<UnlockResult> {
   const remembered = getKeyGeneration(idn.address);
 
   if (remembered === "custos") {

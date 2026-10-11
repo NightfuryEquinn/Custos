@@ -50,6 +50,17 @@ describe("nudge codec", () => {
     expect(body.notifyDetails).toBeNull();
   });
 
+  test("a custom step round-trips inside the ciphertext", async () => {
+    const k = await key();
+    const {
+      notifyDetails: _copy,
+      metOn: _met,
+      ...wire
+    } = await encodeNudge({ ...base, step: 250 }, k, TODAY);
+
+    expect((await decodeNudge({ id: "n1", ...wire }, k)).step).toBe(250);
+  });
+
   test("the goal marker names today only once the count reaches the target", async () => {
     const k = await key();
     const at = (count: number, day = TODAY) =>

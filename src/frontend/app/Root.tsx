@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/frontend/components/ThemeToggle";
 import { api, ApiError } from "@/frontend/lib/api";
 import { ledgerKeyStore, seriesKeyStore } from "@/frontend/lib/crypto/key-store";
 import { unlockLedgerKey } from "@/frontend/lib/crypto/unlock";
+import { forgetUnlock, restoreUnlock } from "@/frontend/lib/crypto/unlock-persist";
 import { identityStorage } from "@/frontend/auth/lib/identity-storage";
 import { sessionSecrets } from "@/frontend/auth/lib/session-secrets";
 import { isSessionTrustFresh, markSessionVerified } from "@/frontend/auth/lib/session-trust";
@@ -65,8 +66,12 @@ export function Root() {
     if (saved) {
       // Local-first boot: render UnlockScreen immediately from localStorage —
       // zero network needed — rather than waiting on auth.me() to resolve.
-      setAccount(saved);
-      setBooting(false);
+      // Keys remembered from the last 6 hours are restored first (a local IndexedDB
+      // read), so a still-valid unlock skips the passphrase screen.
+      void restoreUnlock(saved.address).then(() => {
+        setAccount(saved);
+        setBooting(false);
+      });
     }
 
     checkTerms(); // fired alongside auth.me() below — same session cookie, no added latency
@@ -99,6 +104,7 @@ export function Root() {
       .catch((err) => {
         if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
           // A definite, server-answered rejection — sign out, online or not.
+          void forgetUnlock();
           setAccount(null);
           return;
         }
@@ -107,6 +113,7 @@ export function Root() {
         // session may be trusted with no server confirmation at all.
         if (saved && !isSessionTrustFresh(saved.address)) {
           setAccount(null);
+          void forgetUnlock(saved.address);
           void clearCipherCacheForAddress(saved.address);
           /* Also drop any offline writes still queued for this address —
              the whole point of the trust window (session-trust.ts) is that
@@ -130,6 +137,7 @@ export function Root() {
       ledgerKeyStore.clear();
       seriesKeyStore.clear();
       sessionSecrets.clearAll();
+      await forgetUnlock();
       await logoutSession();
       setAccount(null);
       setCryptoReady(false);

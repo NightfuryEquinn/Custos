@@ -65,6 +65,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState }>(function Nu
   const [description, setDescription] = useState("");
   const [target, setTarget] = useState(DEFAULT_TARGET);
   const [unit, setUnit] = useState("");
+  const [stepBy, setStepBy] = useState("1");
   const [everyMin, setEveryMin] = useState(DEFAULT_EVERY);
   const [windowStart, setWindowStart] = useState<string>(NUDGE_DEFAULT_WINDOW.start);
   const [windowEnd, setWindowEnd] = useState<string>(NUDGE_DEFAULT_WINDOW.end);
@@ -89,6 +90,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState }>(function Nu
     description,
     target,
     unit,
+    stepBy,
     everyMin,
     windowStart,
     windowEnd,
@@ -136,6 +138,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState }>(function Nu
       description: row?.description ?? "",
       target: String(row?.target ?? DEFAULT_TARGET),
       unit: row?.unit ?? "",
+      stepBy: String(row?.step ?? 1),
       everyMin: row?.everyMin ?? DEFAULT_EVERY,
       windowStart: row?.windowStart ?? NUDGE_DEFAULT_WINDOW.start,
       windowEnd: row?.windowEnd ?? NUDGE_DEFAULT_WINDOW.end,
@@ -146,6 +149,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState }>(function Nu
     setDescription(next.description);
     setTarget(next.target);
     setUnit(next.unit);
+    setStepBy(next.stepBy);
     setEveryMin(next.everyMin);
     setWindowStart(next.windowStart);
     setWindowEnd(next.windowEnd);
@@ -174,13 +178,16 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState }>(function Nu
     }
   };
 
-  /** Move today's count by one and say so when that reaches the goal. */
-  const step = (row: NudgeRow, delta: 1 | -1) =>
+  /** Move today's count by the nudge's step and say so when that reaches the goal. */
+  const step = (row: NudgeRow, direction: 1 | -1) =>
     withBusy(row.id, async () => {
       if (!today) return;
-      const count = Math.max(0, countToday(row, today) + delta);
+      const before = countToday(row, today);
+      const count = Math.max(0, before + direction * (row.step ?? 1));
       await nudge.saveNudge({ ...row, progress: { day: today, count } });
-      if (delta === 1 && count === row.target) toast("Goal reached. Nudge paused until tomorrow");
+      if (before < row.target && count >= row.target) {
+        toast("Goal reached. Nudge paused until tomorrow");
+      }
     });
 
   const setOn = (row: NudgeRow, on: boolean) =>
@@ -207,6 +214,10 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState }>(function Nu
     if (!Number.isInteger(goal) || goal < 1 || goal > 9999) {
       return setEditorError("The goal must be a whole number from 1 to 9999");
     }
+    const stepGoal = Number(stepBy);
+    if (!Number.isInteger(stepGoal) || stepGoal < 1 || stepGoal > 9999) {
+      return setEditorError("Each tap must be a whole number from 1 to 9999");
+    }
     if (toMinutes(windowStart) >= toMinutes(windowEnd)) {
       return setEditorError("The hours must end after they start");
     }
@@ -220,6 +231,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState }>(function Nu
         description: description.trim(),
         target: goal,
         unit: unit.trim(),
+        step: stepGoal,
         everyMin,
         windowStart,
         windowEnd,
@@ -352,19 +364,19 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState }>(function Nu
                       className="ghost-btn"
                       type="button"
                       disabled={count === 0 || busy.has(row.id)}
-                      aria-label={`${row.title}: remove one`}
+                      aria-label={`${row.title}: remove ${row.step ?? 1}`}
                       onClick={() => void step(row, -1)}
                     >
-                      <span aria-hidden="true">−</span> 1
+                      <span aria-hidden="true">−</span> {row.step ?? 1}
                     </button>
                     <button
                       className="primary-btn"
                       type="button"
                       disabled={busy.has(row.id)}
-                      aria-label={`${row.title}: add one`}
+                      aria-label={`${row.title}: add ${row.step ?? 1}`}
                       onClick={() => void step(row, 1)}
                     >
-                      <span aria-hidden="true">+</span> 1
+                      <span aria-hidden="true">+</span> {row.step ?? 1}
                     </button>
                   </div>
 
@@ -473,10 +485,9 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState }>(function Nu
                       <label className="fld-label" htmlFor="nudge-desc">
                         Description
                       </label>
-                      <textarea
+                      <input
                         id="nudge-desc"
-                        className="text-in daily-notes-in"
-                        rows={2}
+                        className="text-in wallet-field"
                         maxLength={160}
                         value={description}
                         placeholder="A glass of water, room temperature"
@@ -512,6 +523,22 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState }>(function Nu
                           onChange={(e) => setUnit(e.target.value)}
                         />
                       </div>
+                    </div>
+
+                    <div className="editor-field">
+                      <label className="fld-label" htmlFor="nudge-step">
+                        Each tap counts
+                      </label>
+                      <input
+                        id="nudge-step"
+                        className="text-in"
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={9999}
+                        value={stepBy}
+                        onChange={(e) => setStepBy(e.target.value)}
+                      />
                     </div>
 
                     <div className="editor-field">

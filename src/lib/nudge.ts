@@ -28,6 +28,8 @@ export type Nudge = NudgeRule & {
   /** Daily goal as a count, with a free-text unit such as "glasses". */
   target: number;
   unit: string;
+  /** How much each + / − tap moves the count; absent on older nudges, which read as 1. */
+  step?: number;
   /** Count logged on `day`; a different day means nothing has been logged yet today. */
   progress: { day: string; count: number };
   enabled: boolean;

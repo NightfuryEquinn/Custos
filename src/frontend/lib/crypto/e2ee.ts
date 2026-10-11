@@ -77,7 +77,7 @@ export type DailyCompletionSecrets = { d: 0 | 1; at: string };
  */
 export type NudgeSecrets = Pick<
   Nudge,
-  "title" | "description" | "target" | "unit" | "progress" | "createdAt"
+  "title" | "description" | "target" | "unit" | "step" | "progress" | "createdAt"
 >;
 
 export type TodoListSecrets = {

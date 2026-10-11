@@ -870,6 +870,7 @@ export async function encodeNudge(data: Omit<Nudge, "id">, key: CryptoKey, today
     description: data.description,
     target: data.target,
     unit: data.unit,
+    step: data.step,
     progress: data.progress,
     createdAt: data.createdAt,
   };

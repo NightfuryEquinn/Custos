@@ -8,12 +8,13 @@
  */
 
 export const DB_NAME = "custos-cache";
-/* v2 added the api-gets `updatedAt` index; v3 adds the `outbox` store. */
-export const DB_VERSION = 3;
+/* v2 added the api-gets `updatedAt` index; v3 added the `outbox` store; v4 adds `unlock`. */
+export const DB_VERSION = 4;
 
 export const STORES = {
   apiGets: "api-gets",
   outbox: "outbox",
+  unlock: "unlock",
 } as const;
 
 let sharedDb: Promise<IDBDatabase> | null = null;
@@ -40,6 +41,10 @@ function upgrade(db: IDBDatabase, tx: IDBTransaction): void {
   }
   if (!outbox.indexNames.contains("status")) {
     outbox.createIndex("status", "status", { unique: false });
+  }
+
+  if (!db.objectStoreNames.contains(STORES.unlock)) {
+    db.createObjectStore(STORES.unlock, { keyPath: "address" });
   }
 }
 

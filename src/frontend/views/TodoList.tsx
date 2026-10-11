@@ -50,9 +50,12 @@ export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(fu
   const [deletingList, setDeletingList] = useState(false);
   /* Which task action is in flight, so only that button shows its busy label. */
   const [taskPending, setTaskPending] = useState<{
-    kind: "add" | "remove" | "toggle";
+    kind: "add" | "remove" | "toggle" | "rename";
     id?: string;
   } | null>(null);
+  const [editingTask, setEditingTask] = useState<{ id: string; draft: string } | null>(null);
+  /* Set by Escape so the blur that follows the input unmounting does not save. */
+  const cancelRename = useRef(false);
   const busy = savingList || deletingList || !!taskPending;
   const [error, setError] = useState("");
   const [editorError, setEditorError] = useState("");
@@ -196,6 +199,24 @@ export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(fu
     }
   };
 
+  /** Save an edited title; an empty or unchanged one just leaves edit mode. */
+  const renameTask = async (listId: string, taskId: string, draft: string) => {
+    const list = lists.find((l) => l.id === listId);
+    const title = draft.trim();
+    setEditingTask(null);
+    if (cancelRename.current) {
+      cancelRename.current = false;
+      return;
+    }
+    if (!list || !title || list.tasks.find((t) => t.id === taskId)?.title === title) return;
+    const tasks = list.tasks.map((t) => (t.id === taskId ? { ...t, title } : t));
+    try {
+      await updateTasks(listId, tasks, { kind: "rename", id: taskId });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update task");
+    }
+  };
+
   /** Errors propagate to the ConfirmDialog, which shows them inline. */
   const removeTask = async (listId: string, taskId: string) => {
     const list = lists.find((l) => l.id === listId);
@@ -285,7 +306,34 @@ export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(fu
                         >
                           {task.done ? <Icon name="check" size={14} /> : null}
                         </button>
-                        <span className="todo-task-title">{task.title}</span>
+                        {editingTask?.id === task.id ? (
+                          <input
+                            className="text-in"
+                            value={editingTask.draft}
+                            autoFocus
+                            aria-label="Task title"
+                            onChange={(e) => setEditingTask({ id: task.id, draft: e.target.value })}
+                            onBlur={() => void renameTask(active.id, task.id, editingTask.draft)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") e.currentTarget.blur();
+                              if (e.key === "Escape") {
+                                cancelRename.current = true;
+                                e.currentTarget.blur();
+                              }
+                            }}
+                          />
+                        ) : (
+                          <span className="todo-task-title">{task.title}</span>
+                        )}
+                        <button
+                          type="button"
+                          className="ghost-btn sm"
+                          disabled={busy}
+                          onClick={() => setEditingTask({ id: task.id, draft: task.title })}
+                          aria-label={`Edit ${task.title}`}
+                        >
+                          <Icon name="edit" size={14} />
+                        </button>
                         <button
                           type="button"
                           className="ghost-btn sm danger"

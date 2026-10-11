@@ -1,6 +1,7 @@
 import type { IdentityRecord, LegacyIdentitySecrets } from "@/frontend/lib/types";
 import { ledgerKeyStore, seriesKeyStore } from "@/frontend/lib/crypto/key-store";
 import { sessionSecrets } from "@/frontend/auth/lib/session-secrets";
+import { forgetUnlock } from "@/frontend/lib/crypto/unlock-persist";
 import { clearCipherCacheForAddress } from "@/frontend/lib/pwa/cipher-cache";
 import { clearOutboxForAddress } from "@/frontend/lib/sync/outbox";
 
@@ -122,6 +123,7 @@ export function clearAllLocalData(): void {
   ledgerKeyStore.clear();
   seriesKeyStore.clear();
   sessionSecrets.clearAll();
+  void forgetUnlock();
   const keys: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
