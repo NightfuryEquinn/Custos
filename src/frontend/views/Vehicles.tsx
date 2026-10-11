@@ -1,7 +1,7 @@
 import { ReadableValue } from "@/frontend/components/ReadableValue";
 import { DatePicker } from "@/frontend/components/DateTimePicker";
 import { ConfirmDialog, EmptyState, Icon, InsightFeed } from "@/frontend/components/ui";
-import { dayLabel, fmtMoney, TODAY_ISO } from "@/frontend/lib/data";
+import { dayLabel, fmtMoney, monthLabel, TODAY_ISO } from "@/frontend/lib/data";
 import { useEnter, useModalMotion } from "@/frontend/lib/animate";
 import { toast } from "@/frontend/lib/feedback";
 import {
@@ -34,6 +34,8 @@ import { createPortal } from "react-dom";
 type VehiclesProps = {
   vehicles: Vehicle[];
   fills: FuelFill[];
+  /** Month shown in the fill-up log (YYYY-MM), from the shell's month switcher. */
+  month: string;
   currency: string;
   onSaveVehicle: (data: Omit<Vehicle, "id" | "createdAt"> & { id?: string }) => Promise<Vehicle>;
   onDeleteVehicle: (id: string) => Promise<unknown>;
@@ -526,6 +528,7 @@ export const Vehicles = forwardRef<VehiclesHandle, VehiclesProps>(function Vehic
   {
     vehicles,
     fills,
+    month,
     currency,
     onSaveVehicle,
     onDeleteVehicle,
@@ -570,6 +573,13 @@ export const Vehicles = forwardRef<VehiclesHandle, VehiclesProps>(function Vehic
         : [],
     [selectedVehicle, fillList],
   );
+  /* The log follows the month switcher; insights below still read the full history. */
+  const monthFills = useMemo(
+    () => selectedFills.filter((f) => f.date.startsWith(month)),
+    [selectedFills, month],
+  );
+  const monthSpent = monthFills.reduce((sum, f) => sum + f.price, 0);
+  const monthQty = monthFills.reduce((sum, f) => sum + f.quantity, 0);
   const assessment = useMemo(() => assessVehicleFuel(selectedFills), [selectedFills]);
   const insights = useMemo(() => {
     if (assessment.status !== "ready" || !selectedVehicle) return [];
@@ -827,12 +837,18 @@ export const Vehicles = forwardRef<VehiclesHandle, VehiclesProps>(function Vehic
         <section className="panel" data-tour="tour-vehicles-log">
           <div className="panel-head">
             <h2>
-              {selectedVehicle.name} — {sentenceCase(selectedMeta.fillNoun)} Log
+              {selectedVehicle.name} — {sentenceCase(selectedMeta.fillNoun)} Log ·{" "}
+              {monthLabel(month, true)}
             </h2>
+            {monthFills.length ? (
+              <span className="panel-sub num">
+                {money(monthSpent)} · {monthQty.toFixed(1)} {selectedMeta.unit}
+              </span>
+            ) : null}
           </div>
-          {selectedFills.length ? (
+          {monthFills.length ? (
             <div className="capital-item-list">
-              {selectedFills.map((fill) => (
+              {monthFills.map((fill) => (
                 <div key={fill.id} className="capital-item-row">
                   <span className="capital-item-name">
                     {dayLabel(fill.date)} — {fill.quantity.toFixed(1)} {selectedMeta.unit}
@@ -872,7 +888,9 @@ export const Vehicles = forwardRef<VehiclesHandle, VehiclesProps>(function Vehic
               ))}
             </div>
           ) : (
-            <p className="panel-sub">No {selectedMeta.fillNoun}s logged yet.</p>
+            <p className="panel-sub">
+              No {selectedMeta.fillNoun}s in {monthLabel(month, true)}.
+            </p>
           )}
         </section>
       ) : null}

@@ -32,6 +32,9 @@ export type Nudge = NudgeRule & {
   step?: number;
   /** Count logged on `day`; a different day means nothing has been logged yet today. */
   progress: { day: string; count: number };
+  /** Final count per past day (ISO day → count); only days logged since this field shipped. */
+  // ponytail: unbounded map (~16 bytes/day inside the E2EE payload); prune old months if it nears the 64 KB cap.
+  history?: Record<string, number>;
   enabled: boolean;
   createdAt: string;
 };
@@ -92,6 +95,18 @@ export const countToday = (nudge: Pick<Nudge, "progress">, today: string) =>
 /** Whether today's goal has been reached. */
 export const goalMet = (nudge: Pick<Nudge, "progress" | "target">, today: string) =>
   countToday(nudge, today) >= nudge.target;
+
+/** Logged days in `monthKey` (YYYY-MM), newest first; today's `progress` overrides `history`. */
+export function monthLog(
+  nudge: Pick<Nudge, "progress" | "history">,
+  monthKey: string,
+): Array<[day: string, count: number]> {
+  const days = { ...nudge.history, [nudge.progress.day]: nudge.progress.count };
+
+  return Object.entries(days)
+    .filter(([day, count]) => day.startsWith(monthKey) && count > 0)
+    .sort(([a], [b]) => (a < b ? 1 : -1));
+}
 
 /** "Every 30 min", "Every 2 h", "Every 1 h 30 min". */
 export function everyLabel(everyMin: number): string {

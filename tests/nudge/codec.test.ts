@@ -31,6 +31,17 @@ describe("nudge codec", () => {
     expect(body).toMatchObject({ enabled: true, everyMin: 90, windowStart: "08:00" });
   });
 
+  test("per-day history round-trips inside the ciphertext", async () => {
+    const k = await key();
+    const withHistory = { ...base, history: { "2026-10-09": 8, [TODAY]: 3 } };
+    const body = await encodeNudge(withHistory, k, TODAY);
+    const { notifyDetails: _copy, metOn: _met, ...wire } = body;
+    const back = await decodeNudge({ id: "n1", ...wire }, k);
+
+    expect(back.history).toEqual(withHistory.history);
+    expect(JSON.stringify(body)).not.toContain("2026-10-09");
+  });
+
   test("the count and creation time stay in the ciphertext; the readable copy is the title, goal and description", async () => {
     const body = await encodeNudge(base, await key(), TODAY);
     const { payload, ...clear } = body;

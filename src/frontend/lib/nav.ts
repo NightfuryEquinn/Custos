@@ -52,7 +52,8 @@ export const VIEW_CONTROLS: Partial<Record<ViewId, "w" | "m" | "wm">> = {
   piggies: "wm",
   schedule: "m",
   capitals: "w",
-  vehicles: "w",
+  vehicles: "wm",
+  nudge: "m",
   calculator: "w",
 };
 

@@ -2,7 +2,7 @@ import { TimePicker } from "@/frontend/components/DateTimePicker";
 import { LoadingBloom } from "@/frontend/components/LoadingBloom";
 import { ConfirmDialog, EmptyState, Icon } from "@/frontend/components/ui";
 import { useEnter, useModalMotion } from "@/frontend/lib/animate";
-import { fmtTime } from "@/frontend/lib/data";
+import { dayLabel, fmtTime, monthLabel } from "@/frontend/lib/data";
 import { toast } from "@/frontend/lib/feedback";
 import type { NudgesState } from "@/frontend/lib/hooks/useNudges";
 import {
@@ -19,6 +19,7 @@ import {
   countToday,
   everyLabel,
   goalMet,
+  monthLog,
   nextNudgeAt,
   toMinutes,
   type Nudge as NudgeRow,
@@ -55,8 +56,8 @@ function nextLabel(at: Date, timeZone: string, today: string): string {
   return zonedTodayIso(timeZone, at) === today ? time : `tomorrow ${time}`;
 }
 
-export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState }>(function Nudge(
-  { nudge },
+export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string }>(function Nudge(
+  { nudge, month },
   ref,
 ) {
   const { nudges, today, timeZone, pending } = nudge;
@@ -184,7 +185,13 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState }>(function Nu
       if (!today) return;
       const before = countToday(row, today);
       const count = Math.max(0, before + direction * (row.step ?? 1));
-      await nudge.saveNudge({ ...row, progress: { day: today, count } });
+      /* Bank the previous progress day too: it is about to be overwritten. */
+      const history = {
+        ...row.history,
+        [row.progress.day]: row.progress.count,
+        [today]: count,
+      };
+      await nudge.saveNudge({ ...row, history, progress: { day: today, count } });
       if (before < row.target && count >= row.target) {
         toast("Goal reached. Nudge paused until tomorrow");
       }
@@ -317,6 +324,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState }>(function Nu
               const count = countToday(row, today);
               const met = goalMet(row, today);
               const sync = syncOf(row.id);
+              const log = monthLog(row, month);
               const next = row.enabled && !met ? nextNudgeAt(row, Date.now(), timeZone) : null;
 
               return (
@@ -396,6 +404,25 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState }>(function Nu
                       </span>
                     ) : null}
                   </p>
+
+                  <details className="nudge-log">
+                    <summary>{monthLabel(month, true)} log</summary>
+                    {log.length ? (
+                      <div className="capital-item-list">
+                        {log.map(([day, n]) => (
+                          <div key={day} className="capital-item-row">
+                            <span className="capital-item-name">{dayLabel(day)}</span>
+                            <span className="num">
+                              {n} / {row.target} {row.unit}
+                              {n >= row.target ? " ✓" : ""}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="panel-sub">Nothing logged</p>
+                    )}
+                  </details>
                 </article>
               );
             })}

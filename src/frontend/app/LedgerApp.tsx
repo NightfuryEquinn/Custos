@@ -930,7 +930,9 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
             }
           >
             {landed && view === "daily" && <DailyView ref={dailyRef} daily={ledger.daily} />}
-            {landed && view === "nudge" && <NudgeView ref={nudgeRef} nudge={ledger.nudges} />}
+            {landed && view === "nudge" && (
+              <NudgeView ref={nudgeRef} nudge={ledger.nudges} month={month} />
+            )}
             {landed && view === "overview" && (
               <Overview
                 {...viewProps}
@@ -1029,6 +1031,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
                 ref={vehiclesRef}
                 vehicles={ledger.vehicles}
                 fills={ledger.vehicleFills}
+                month={month}
                 currency={currency}
                 onSaveVehicle={ledger.saveVehicle}
                 onDeleteVehicle={ledger.deleteVehicle}

@@ -97,7 +97,7 @@ describe("header controls per page", () => {
   });
 
   test("month-scoped pages keep the month switcher", () => {
-    for (const id of ["overview", "schedule", "piggies", "insights"] as const)
+    for (const id of ["overview", "schedule", "piggies", "insights", "vehicles", "nudge"] as const)
       expect(VIEW_CONTROLS[id]).toContain("m");
   });
 });
