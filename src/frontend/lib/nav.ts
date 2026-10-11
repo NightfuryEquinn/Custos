@@ -7,6 +7,7 @@ import { DEFAULT_TAB_IDS, TAB_SLOTS, type ViewId } from "@/lib/views";
 export const NAV_ITEMS = [
   ["overview", "Home", "overview"],
   ["daily", "Daily", "daily"],
+  ["nudge", "Nudge", "bell"],
   ["todos", "To-do", "checklist"],
   ["schedule", "Schedule", "calendar"],
   ["transactions", "Transactions", "list"],
@@ -61,7 +62,7 @@ export const VIEW_CONTROLS: Partial<Record<ViewId, "w" | "m" | "wm">> = {
  * can name a view before it ships.
  */
 export const NAV_GROUPS: ReadonlyArray<readonly [label: string, ids: readonly string[]]> = [
-  ["Everyday", ["overview", "daily", "todos", "schedule"]],
+  ["Everyday", ["overview", "daily", "nudge", "todos", "schedule"]],
   ["Money", ["transactions", "budgets", "recurring", "piggies", "capitals", "insights"]],
   ["Tools", ["vehicles", "calculator", "categories", "transparency"]],
 ];

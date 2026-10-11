@@ -98,3 +98,14 @@ export async function disablePush(): Promise<boolean> {
 
   return true;
 }
+
+/* Unlike the other preference toggles, a failure here is not silently reverted:
+   a denied permission can only be undone in the browser's site settings. */
+export const PUSH_FAILURE_NOTE: Record<string, string> = {
+  unsupported:
+    "This browser cannot receive push notifications. On iPhone or iPad, add Custos to your Home Screen first.",
+  denied:
+    "Notifications are blocked for this site. Allow them in your browser's site settings, then try again.",
+  unconfigured: "Push notifications are not configured on this server yet.",
+  failed: "Could not enable notifications. Please try again.",
+};

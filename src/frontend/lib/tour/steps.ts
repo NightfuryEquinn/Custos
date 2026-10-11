@@ -145,7 +145,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "daily-list",
       "Routines",
-      "Tick a routine to complete it. The number beside it is its streak. Tap a title to rename it, change when it repeats, or archive it. Archived routines can be deleted for good.",
+      "Tick a routine to complete it. The number beside it is its streak. Tap a title to rename it, change when it repeats, or archive it. Archived routines can be restored with their streak and points, or deleted for good.",
       '[data-tour="tour-daily-list"]',
     ),
     lastStep(
@@ -153,6 +153,27 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
       "Add a routine",
       "Type a title for a daily routine, or open Add routine to pick specific weekdays or once a week.",
       '[data-tour="tour-daily-add"]',
+    ),
+  ],
+  nudge: [
+    step(
+      "nudge-nav",
+      "Nudge",
+      "Repeating reminders for habits like drinking water. Pick how often, from every 30 minutes to every 12 hours, and a goal for the day.",
+      navTarget("nudge"),
+      "right",
+    ),
+    step(
+      "nudge-list",
+      "Your nudges",
+      "Tap +1 to log one toward today's goal. A nudge stays quiet once the goal is met and starts again tomorrow. The switch turns it on or off.",
+      '[data-tour="tour-nudge-list"]',
+    ),
+    lastStep(
+      "nudge-add",
+      "Add a nudge",
+      "Set the goal, how often it repeats, and the hours it may notify you. Notifications arrive on the devices where you turned them on.",
+      '[data-tour="tour-nudge-add"]',
     ),
   ],
   todos: [

@@ -1,4 +1,5 @@
 import { randomObjectId } from "@/api/lib/ids";
+import { accountTimezone } from "@/api/lib/nudges";
 import { createHash } from "node:crypto";
 import { COLLECTIONS, getCollections, getDb } from "@/db";
 import type { ExpenseDocument, RateLimitDocument } from "@/db/collections";
@@ -12,8 +13,6 @@ import {
   zonedTodayIso,
   type RecurringInterval,
 } from "@/lib/recurring";
-import { DEFAULT_TIMEZONE } from "@/lib/timezone";
-import { ObjectId } from "mongodb";
 
 /** Only materialize dues in the last ~5 weeks (missed cron days), not years of history. */
 const LOOKBACK_DAYS = 35;
@@ -94,12 +93,7 @@ function addDaysIso(iso: string, delta: number): string {
 async function userTimezone(accountId: string, cache: Map<string, string>): Promise<string> {
   const hit = cache.get(accountId);
   if (hit) return hit;
-  const { users } = getCollections(getDb());
-  const user = await users.findOne(
-    { _id: new ObjectId(accountId) },
-    { projection: { timezone: 1 } },
-  );
-  const tz = user?.timezone ?? DEFAULT_TIMEZONE;
+  const tz = await accountTimezone(accountId);
   cache.set(accountId, tz);
 
   return tz;

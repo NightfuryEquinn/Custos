@@ -49,15 +49,17 @@ export function SideNav({
       {[{ label: "Favorites", items: favorites }, ...groups].map((group) => (
         <div className="journal-nav-group" key={group.label}>
           <span className="journal-eyebrow">{group.label}</span>
-          {group.items.map((item) => (
-            <PageLink
-              key={item[0]}
-              item={item}
-              active={view === item[0]}
-              className="journal-nav-item"
-              size={20}
-            />
-          ))}
+          <div className="journal-nav-links">
+            {group.items.map((item) => (
+              <PageLink
+                key={item[0]}
+                item={item}
+                active={view === item[0]}
+                className="journal-nav-item"
+                size={20}
+              />
+            ))}
+          </div>
         </div>
       ))}
     </nav>

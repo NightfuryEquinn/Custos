@@ -38,6 +38,28 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "6.6.0",
+    date: "October 2026",
+    lead: "Nudge keeps your small habits on schedule, and archived Daily routines can come back.",
+    highlights: [
+      {
+        icon: "bell",
+        title: "Nudge",
+        body: "Add a repeating reminder such as drinking water: a title, a daily goal with your own unit, and how often, from every 30 minutes to every 12 hours. Count each one with +1, and it stays quiet once the day's goal is met.",
+      },
+      {
+        icon: "bell",
+        title: "Push only, inside your hours",
+        body: "Nudges arrive as notifications on the devices where you turned them on, only between the hours you pick, and never by email. While a nudge is on, its title, goal and description are readable on the server so the notification can show them; Transparency lists exactly what.",
+      },
+      {
+        icon: "daily",
+        title: "Restore archived routines",
+        body: "An archived Daily routine now has a Restore button. It comes back with its points and its streak, and the days it was archived don't count as misses.",
+      },
+    ],
+  },
+  {
     version: "6.5.1",
     date: "October 2026",
     lead: "Steadier controls, a search that scrolls, and more control over your Daily routines.",

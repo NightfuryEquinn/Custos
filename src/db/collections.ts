@@ -27,6 +27,7 @@ export const COLLECTIONS = {
   vehicleFills: "vehicle_fills",
   dailyRoutines: "daily_routines",
   dailyCompletions: "daily_completions",
+  nudges: "nudges",
   rateLimits: "rate_limits",
 } as const;
 
@@ -237,6 +238,27 @@ type DailyCompletionDocument = {
   updatedAt: Date;
 };
 
+/**
+ * Timing and the readable push copy sit in the clear so the cron can fire a nudge
+ * without the key; `nextAt` is the next slot, null while the nudge is off.
+ */
+type NudgeDocument = {
+  _id: ObjectId;
+  accountId: string;
+  enc: 1;
+  payload: string;
+  enabled: boolean;
+  everyMin: number;
+  windowStart: string;
+  windowEnd: string;
+  notifyDetails?: { title: string; body: string };
+  /** Local date the goal was reached; the nudge stays quiet for the rest of that day. */
+  metOn?: string;
+  nextAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 type Collections = {
   users: Collection<UserDocument>;
   ledgerProfiles: Collection<LedgerProfileDocument>;
@@ -256,6 +278,7 @@ type Collections = {
   vehicleFills: Collection<VehicleFillDocument>;
   dailyRoutines: Collection<DailyRoutineDocument>;
   dailyCompletions: Collection<DailyCompletionDocument>;
+  nudges: Collection<NudgeDocument>;
 };
 
 /** Get typed collection handles for the connected database. */
@@ -279,5 +302,6 @@ export function getCollections(db: Db): Collections {
     vehicleFills: db.collection<VehicleFillDocument>(COLLECTIONS.vehicleFills),
     dailyRoutines: db.collection<DailyRoutineDocument>(COLLECTIONS.dailyRoutines),
     dailyCompletions: db.collection<DailyCompletionDocument>(COLLECTIONS.dailyCompletions),
+    nudges: db.collection<NudgeDocument>(COLLECTIONS.nudges),
   };
 }

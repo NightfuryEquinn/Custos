@@ -1,4 +1,5 @@
 import type { DailyRoutine } from "@/lib/daily";
+import type { Nudge } from "@/lib/nudge";
 import { E2EE_VERSION } from "@/schemas/encryption";
 import { getAddress } from "ethers";
 import { normalizeRecurring, type RecurringField } from "@/lib/recurring";
@@ -68,6 +69,16 @@ export type DailyRoutineSecrets = Omit<DailyRoutine, "id"> & {
  * documented in Transparency, not hidden.
  */
 export type DailyCompletionSecrets = { d: 0 | 1; at: string };
+
+/**
+ * A nudge's content: title, description, goal, unit and today's count. Timing (on/off,
+ * interval, window) is not here: the server needs it in the clear to fire the push, so
+ * it travels beside the ciphertext rather than being stored twice.
+ */
+export type NudgeSecrets = Pick<
+  Nudge,
+  "title" | "description" | "target" | "unit" | "progress" | "createdAt"
+>;
 
 export type TodoListSecrets = {
   name: string;

@@ -19,6 +19,7 @@ export const OWNED_BY_ACCOUNT_ID = [
   COLLECTIONS.vehicleFills,
   COLLECTIONS.dailyRoutines,
   COLLECTIONS.dailyCompletions,
+  COLLECTIONS.nudges,
   COLLECTIONS.consent,
   COLLECTIONS.budgetAlertLogs,
   COLLECTIONS.reminderLogs,

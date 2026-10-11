@@ -160,6 +160,11 @@ function matches(doc: Doc, filter: Record<string, unknown>): boolean {
       if (!(doc[key] instanceof ObjectId) || !(doc[key] as ObjectId).equals(value)) return false;
       continue;
     }
+    /* Mongo compares dates by value, not by object identity. */
+    if (value instanceof Date) {
+      if (!(doc[key] instanceof Date) || doc[key].getTime() !== value.getTime()) return false;
+      continue;
+    }
     if (doc[key] !== value) return false;
   }
   return true;

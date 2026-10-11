@@ -6,6 +6,8 @@ import type {
   DailyRoutineWire,
   EventWire,
   ExpenseWire,
+  NudgeBody,
+  NudgeWire,
   TodoListWire,
   VehicleFillWire,
   VehicleWire,
@@ -89,6 +91,7 @@ const CACHEABLE_GET_PREFIXES = [
   "/users",
   "/capital-plans",
   "/daily",
+  "/nudges",
 ];
 
 /** Whether a GET path may fall back to the local ciphertext cache. */
@@ -486,6 +489,15 @@ export const api = {
           body,
         });
       },
+    },
+  },
+
+  nudges: {
+    list(options?: ReadOptions) {
+      return request<{ nudges: NudgeWire[] }>("/nudges", readOptions(options));
+    },
+    update(id: string, body: NudgeBody) {
+      return request<{ nudge: NudgeWire }>(`/nudges/${id}`, { method: "PATCH", body });
     },
   },
 

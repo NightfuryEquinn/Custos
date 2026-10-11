@@ -36,12 +36,6 @@ const keys = {
 /** Query key to invalidate when the account timezone changes, so Daily re-reads the day. */
 export const dailyTimezoneKey = keys.timezone;
 
-function requireKey(address: string): CryptoKey {
-  const key = ledgerKeyStore.get(address);
-  if (!key) throw new Error("Encryption key is locked");
-  return key;
-}
-
 /** Today's calendar key in the account timezone, rolled over at local midnight and on app resume. */
 function useToday(timeZone: string | undefined, resync: number): string | null {
   const [today, setToday] = useState<string | null>(null);
@@ -92,7 +86,7 @@ export function useDaily(address: string, cryptoReady: boolean) {
       api.daily.routines.list({ fresh }),
       api.daily.completions.list({ fresh }),
     ]);
-    const key = requireKey(address);
+    const key = ledgerKeyStore.require(address);
 
     return {
       routines: await Promise.all(routines.map((wire) => decodeDailyRoutine(wire, key))),
@@ -130,7 +124,7 @@ export function useDaily(address: string, cryptoReady: boolean) {
 
   const saveRoutineMutation = useMutation({
     mutationFn: async (data: Omit<DailyRoutine, "id"> & { id?: string }) => {
-      const cryptoKey = requireKey(address);
+      const cryptoKey = ledgerKeyStore.require(address);
       const { id, ...rest } = data;
       const encrypted = await encodeDailyRoutine(rest, cryptoKey);
 
@@ -218,7 +212,7 @@ export function useDaily(address: string, cryptoReady: boolean) {
   ): Promise<DailyCompletion> => {
     const body = await encodeDailyCompletion(
       { routineId: routine.id, ...completion },
-      requireKey(address),
+      ledgerKeyStore.require(address),
     );
     /* A routine still waiting to be created must reach the server first. */
     const create = (await listOutbox(address)).find(

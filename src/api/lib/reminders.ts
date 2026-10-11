@@ -134,7 +134,7 @@ function loggedChannels(log: ReminderLogDocument): ReminderChannel[] {
 }
 
 /** Run async tasks with a fixed concurrency cap. */
-async function mapPool<T, R>(
+export async function mapPool<T, R>(
   items: T[],
   concurrency: number,
   worker: (item: T) => Promise<R>,

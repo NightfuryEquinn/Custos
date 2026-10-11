@@ -20,6 +20,7 @@ const ENTITY_LABEL: Record<EntityKind, string> = {
   vehicleFill: "Fill-up",
   dailyRoutine: "Routine",
   dailyCompletion: "Routine check-in",
+  nudge: "Nudge",
   profile: "Profile",
 };
 
@@ -33,6 +34,7 @@ const FIXED_LABELS = new Set<string>([
   "Delete vehicle",
   "Delete fill",
   "Delete routine",
+  "Delete nudge",
 ]);
 
 export const genericLabel = (entity: EntityKind) => ENTITY_LABEL[entity];

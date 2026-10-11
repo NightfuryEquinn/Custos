@@ -234,6 +234,34 @@ const COLLECTIONS: CollectionDoc[] = [
     ],
   },
   {
+    name: "nudges",
+    purpose:
+      "Repeating push reminders with a daily goal; the schedule and the notification text sit in the clear so the server can send one while Custos is closed",
+    encrypted: true,
+    fields: [
+      { key: "accountId", value: '"64b6…"', note: "users._id hex (opaque)" },
+      { key: "enc", value: "1", note: "E2EE version" },
+      {
+        key: "payload",
+        value: "base64 AES-GCM",
+        note: "title, description, goal, unit, today's count",
+      },
+      {
+        key: "enabled · everyMin · windowStart · windowEnd",
+        value: 'true · 90 · "08:00" · "22:00"',
+        note: "on or off, how often, and the hours it may notify; plaintext",
+      },
+      { key: "nextAt", value: "ISO date", note: "next send time; null while off; plaintext" },
+      {
+        key: "notifyDetails",
+        value: "{ title, body }",
+        note: "the notification text: title, goal and description; plaintext, only while on",
+      },
+      { key: "metOn", value: '"2026-10-09"', note: "the day the goal was reached; plaintext" },
+      { key: "createdAt / updatedAt", value: "ISO dates" },
+    ],
+  },
+  {
     name: "capital_plans",
     purpose:
       "Future-expense planners (marriage, trips, loans, custom) with total budget, monthly save, and a pot of savings assigned via linked transactions; paying line items draws down that pot",
@@ -410,6 +438,7 @@ const RELATIONSHIP_CHART = `flowchart TB
     Fills["vehicle_fills<br/>enc + payload"]
     Routines["daily_routines<br/>enc + payload"]
     Completions["daily_completions<br/>routineId · period · enc + payload"]
+    Nudges["nudges<br/>enc + payload · timing and push text in the clear"]
     Consent["consent"]
     Auth["auth_nonces · sessions"]
     Push["push_subscriptions"]
@@ -426,6 +455,7 @@ const RELATIONSHIP_CHART = `flowchart TB
     Users --> Fills
     Users --> Routines
     Routines --> Completions
+    Users --> Nudges
     Users --> Consent
     Users --> Auth
     Users --> Push
@@ -446,6 +476,7 @@ const RELATIONSHIP_CHART = `flowchart TB
   Key -.->|"AES-256-GCM"| Fills
   Key -.->|"AES-256-GCM"| Routines
   Key -.->|"AES-256-GCM"| Completions
+  Key -.->|"AES-256-GCM"| Nudges
 `;
 
 const E2EE_CHART = `flowchart TB
@@ -581,7 +612,7 @@ export function Transparency() {
               Custos is private by design: your browser derives a ledger key from your wallet
               signature, encrypts secrets with AES-256-GCM, and syncs ciphertext to MongoDB Atlas.
             </p>
-            <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
+            <p className="panel-sub panel-sub--spaced">
               Free-tier hosting: Vercel serves the app and API (Analytics + Speed Insights) but runs
               no cron — cron-job.org is the only scheduler, polling{" "}
               <code>GET /api/cron/reminders</code> about every fifteen minutes for email reminders,
@@ -590,7 +621,7 @@ export function Transparency() {
               typefaces (Schibsted Grotesk, Azeret Mono from <code>fonts.css</code>) ship with the
               app as self-hosted SIL OFL files — no third-party font CDN.
             </p>
-            <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
+            <p className="panel-sub panel-sub--spaced">
               You navigate with a sidebar (or a bottom bar on smaller screens) with four
               customizable favorites, and Ctrl or Command + K searches pages. A device passphrase
               wraps your in-app recovery key on this browser; encrypted backups download to your
@@ -598,7 +629,7 @@ export function Transparency() {
               WebAuthn — it can prompt on its own when you open the app, but the server never
               receives the credential, the assertion, or any signal that a biometric check happened.
             </p>
-            <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
+            <p className="panel-sub panel-sub--spaced">
               The installable PWA caches ciphertext locally so the app opens, unlocks, and reads
               your last-synced data with no connection at all — a session with no server
               confirmation is trusted offline for 30 days before it&apos;s dropped. Creating or
@@ -608,7 +639,7 @@ export function Transparency() {
               exposure — and sent automatically once you reconnect, never needing the ledger key
               again to do so.
             </p>
-            <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
+            <p className="panel-sub panel-sub--spaced">
               A handful of operations still need a connection because the server, not the client,
               decides their outcome: editing an already-recurring expense, a scoped
               (this/future/all) expense delete, wallet create/rename/set-default/delete, deleting a
@@ -638,14 +669,22 @@ export function Transparency() {
               a budget-alert or reminder delivery occurred — but not transaction amounts, wallet
               names, category trees, notes, event titles, or to-do text.
             </p>
-            <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
+            <p className="panel-sub panel-sub--spaced">
               Daily routines work the same way: titles, notes, schedules and done states are
               ciphertext, but a completion row exists only for a period that was ticked, so the
               server can see which routines were active on which days (not what they are called) and
               the day each row was last written. Routine ciphertext is padded to fixed sizes so its
               length does not reveal archiving or schedule changes.
             </p>
-            <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
+            <p className="panel-sub panel-sub--spaced">
+              Nudges are a deliberate exception, like reminders: a push has to be sent while Custos
+              is closed, so while a nudge is on the server holds its on/off state, interval, hours,
+              next send time, the day its goal was reached, and a readable copy of the notification
+              (title, goal and description). Switching a nudge off deletes the readable copy and the
+              next send time. Today&apos;s count and everything else about it stay ciphertext.
+              Nudges are delivered as web push only, never by email.
+            </p>
+            <p className="panel-sub panel-sub--spaced">
               Budget alerts are a deliberate exception: the client sends cleartext{" "}
               <code>spent</code>, <code>budget</code>, <code>categoryName</code>, and optional{" "}
               <code>walletName</code> so the email or push can name the category and amounts.
@@ -658,7 +697,7 @@ export function Transparency() {
               switch, and logging a fill to the ledger stores a plaintext <code>expenseId</code> on
               the fill — again a link id only, never amounts.
             </p>
-            <p className="panel-sub" style={{ marginTop: "0.75rem" }}>
+            <p className="panel-sub panel-sub--spaced">
               If the same auth key is ever used on-chain, chain analysis can correlate it with this
               account. Prefer a <strong>ledger-only</strong> identity created in-app (not a funded
               exchange or hot wallet). Optional notification email plus timing metadata still form
@@ -713,8 +752,9 @@ export function Transparency() {
           <div data-tour="tour-transparency-e2ee">
             <h3 className="transparency-diagram-title">Encrypted Write Path</h3>
             <p className="panel-sub">
-              Categories, events, todos, daily routines, expenses, capital plans, vehicles/fills,
-              and wallet names/budgets are AES-256-GCM encrypted client-side before save
+              Categories, events, todos, daily routines, nudges, expenses, capital plans,
+              vehicles/fills, and wallet names/budgets are AES-256-GCM encrypted client-side before
+              save
             </p>
             <MermaidDiagram chart={E2EE_CHART} label="E2EE save flowchart" />
           </div>

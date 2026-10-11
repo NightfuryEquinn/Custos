@@ -3,7 +3,7 @@
 :root {
   --font-display: "Young Serif", Georgia, serif;
   --pad: clamp(20px, 4vw, 56px);
-  --vgap: 32px;
+  --vgap: var(--sp-7);
 }
 .journal-app {
   /* Hover/focus fill of interactive rows bleeds this far past the content edge; it must stay inside --pad (>=20px). */
@@ -48,7 +48,8 @@
 .journal-app .page-title {
   font: 400 clamp(24px, 2vw, 30px)/1.3 var(--font-display);
   letter-spacing: -0.035em;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .journal-app .page-title:focus {
   outline: none;
@@ -230,7 +231,7 @@
   text-transform: uppercase;
   font: 10px var(--font-mono);
   letter-spacing: 0.13em;
-  margin-bottom: var(--sp-5);
+  margin: var(--sp-5) 0;
 }
 .journal-summary {
   display: grid;
@@ -351,7 +352,12 @@
   font: 400 24px/1.3 var(--font-display);
 }
 .nav-more-group + .nav-more-group {
-  margin-top: var(--sp-5);
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border);
+}
+.nav-more-group > .journal-eyebrow {
+  margin: 0;
 }
 .nav-more-grid {
   display: grid;
@@ -391,7 +397,7 @@
   .journal-nav {
     display: flex;
     flex-direction: column;
-    gap: var(--sp-5);
+    gap: 0;
     height: 100dvh;
     overflow-y: auto;
     padding: var(--sp-6) var(--sp-4);
@@ -399,6 +405,21 @@
   }
 }
 .journal-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  flex: none;
+}
+.journal-nav-group + .journal-nav-group {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border);
+}
+.journal-nav-group > .journal-eyebrow {
+  margin: 0;
+  padding-inline: var(--sp-3);
+}
+.journal-nav-links {
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
@@ -413,6 +434,14 @@
   color: var(--ink-soft);
   font-size: 14px;
   text-decoration: none;
+  min-width: 0;
+}
+.journal-nav-item > svg {
+  flex: none;
+}
+.journal-nav-item > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .journal-nav-item:hover {
   color: var(--ink);
@@ -502,12 +531,13 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-4);
-  margin-bottom: var(--sp-4);
+  margin-bottom: 0;
 }
 .daily-progress {
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
   min-width: 0;
   font-size: 13px;
   color: var(--ink-soft);
@@ -546,19 +576,25 @@
   text-align: left;
   cursor: pointer;
   padding: 0;
+  min-height: 44px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
-/* A routine's note, one line under its title. */
+/* Notes stay readable beneath the title, including on Home. */
 .daily-note {
   display: block;
   font-size: 12px;
   font-weight: 400;
-  color: var(--ink-faint);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  margin-top: var(--sp-1);
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .text-in.daily-notes-in {
-  resize: none;
+  display: block;
+  min-height: 88px;
+  resize: vertical;
 }
 .daily-streak,
 .daily-sync {
@@ -591,7 +627,7 @@
   }
 }
 .daily-all-done {
-  margin: var(--sp-3) 0 0;
+  margin: var(--sp-3) 0;
   font-size: 13px;
   color: var(--ink-soft);
 }
@@ -604,28 +640,362 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-4);
-  padding: var(--sp-2) 0;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  padding: var(--sp-4) 0;
   border-top: 1px solid var(--hair);
 }
 .daily-archive-list .todo-task-title {
-  overflow: hidden;
+  flex-basis: 200px;
+}
+
+.daily-archive-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
 }
 .daily-idle {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--sp-1);
-  margin-top: var(--sp-4);
+  gap: var(--sp-2);
+  margin: var(--sp-6) 0;
   color: var(--ink-soft);
+}
+.daily-idle > .journal-eyebrow {
+  margin: 0;
 }
 .daily-idle-row {
   max-width: 100%;
   min-height: 44px;
   font-size: 14px;
 }
+.daily-task-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: var(--sp-2) var(--sp-3);
+}
+.daily-task-row > .todo-check {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+}
+.daily-task-row > .daily-title {
+  grid-column: 2;
+}
+.daily-task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-1) var(--sp-2);
+  min-width: 0;
+}
+.daily-task-meta :is(.daily-sync, .daily-streak) {
+  overflow-wrap: anywhere;
+}
 .daily-archived {
-  margin-top: var(--sp-5);
+  margin-top: 0;
+}
+
+/* Nudge */
+.nudge-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.nudge-notice-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  color: var(--accent);
+}
+
+.nudge-notice-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.nudge-notice-copy h2 {
+  margin: 0;
+  font: 16px var(--font-display);
+  color: var(--ink);
+}
+
+.nudge-notice-copy p {
+  margin: var(--sp-1) 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.nudge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: var(--sp-6);
+}
+
+.nudge-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+  padding: var(--card-pad);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: transparent;
+  transition: border-color 0.2s ease;
+}
+
+.nudge-card:hover {
+  border-color: var(--border-strong);
+}
+
+.nudge-card.off .nudge-name,
+.nudge-card.off .nudge-count strong {
+  color: var(--ink-soft);
+}
+
+.nudge-card.met .nudge-count strong {
+  color: var(--ok);
+}
+
+.nudge-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.nudge-title {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+  min-height: 44px;
+}
+
+.nudge-name {
+  font: 18px/1.25 var(--font-display);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.nudge-desc {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.nudge-count {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.nudge-count strong {
+  font: 500 clamp(34px, 4vw, 44px) / 1 var(--font-mono);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.nudge-count span {
+  font-size: 13px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.nudge-card progress {
+  width: 100%;
+  height: 6px;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  appearance: none;
+  background: var(--surface-3);
+  accent-color: var(--accent);
+}
+
+.nudge-card progress::-webkit-progress-bar {
+  background: var(--surface-3);
+}
+
+.nudge-card progress::-webkit-progress-value {
+  background: var(--accent);
+}
+
+.nudge-card progress::-moz-progress-bar {
+  background: var(--accent);
+}
+
+.nudge-actions {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: var(--sp-2);
+}
+
+.nudge-actions button {
+  justify-content: center;
+  min-height: 44px;
+}
+
+.nudge-meta {
+  margin: 0;
+  font: 11px/1.8 var(--font-mono);
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.nudge-add {
+  margin-top: var(--sp-6);
+}
+
+.nudge-goal-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: var(--sp-3);
+}
+
+.nudge-every {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.nudge-every input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+
+.nudge-every output {
+  flex: none;
+  min-width: 112px;
+  text-align: right;
+  font: 12px var(--font-mono);
+  color: var(--ink-soft);
+}
+
+.nudge-hours {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.nudge-hours > :not(span) {
+  flex: 1;
+  min-width: 0;
+}
+
+.nudge-hours > span {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.nudge-on-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.nudge-on-row .fld-label {
+  margin: 0;
+}
+
+/* Editors own the field rhythm; inputs and helper text do not add competing margins. */
+.editor-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+.editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.modal .editor-field > :is(.fld-label, .fld-hint, .text-in, .sub-row, .seg) {
+  margin: 0;
+}
+.editor-fields > .auth-error {
+  margin: 0;
+}
+.editor-field :is(input, textarea, .picker-wrap) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 639px) {
+  .daily-task-row {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+  .daily-task-row > .todo-check {
+    grid-row: 1 / span 2;
+  }
+  .daily-task-meta {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+  .daily-progress {
+    width: 100%;
+  }
+  .daily-archive-list li {
+    align-items: flex-start;
+  }
+  .daily-archive-list :is(.todo-task-title, .daily-streak, .daily-archive-actions) {
+    flex-basis: 100%;
+  }
+  .nudge-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .nudge-hours {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-2);
+  }
+  .nudge-hours > span {
+    text-align: center;
+  }
+  .nudge-notice {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .nudge-notice .primary-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .nudge-every {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-2);
+  }
+
+  .nudge-every output {
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nudge-card {
+    transition: none;
+  }
 }
 .journal-sync {
   display: flex;
@@ -692,6 +1062,9 @@
   margin-top: var(--sp-2);
   color: var(--ink-soft);
 }
+.auth-wrap {
+  padding-inline: var(--pad);
+}
 .auth-wrap .auth-h1,
 .auth-wrap .auth-h2 {
   font-family: var(--font-display);
@@ -703,6 +1076,8 @@
   font-size: clamp(40px, 6vw, 60px);
 }
 .auth-wrap .auth-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
   max-width: 32rem;
   padding: var(--sp-6);
   border-top: 1px solid var(--border);
@@ -951,10 +1326,10 @@ input:focus-visible {
   flex-wrap: wrap;
   gap: var(--sp-4);
 }
-/* In the topbar the title and its action stay together; the wallet/month tools wrap below instead. */
+/* Titles and tools can each wrap when enlarged text needs more room. */
 .journal-app .tb-row--context .page-title-row {
-  flex-wrap: nowrap;
-  min-width: max-content;
+  flex: 1 1 240px;
+  min-width: 0;
 }
 .journal-app .tb-row--context .tb-context-tools {
   margin-left: auto;
@@ -965,11 +1340,13 @@ input:focus-visible {
   row-gap: var(--sp-2);
 }
 /* One primary action per page, beside its title. */
-.journal-app .page-action {
+.journal-app .page-title-row .page-action {
   margin-left: auto;
   flex: none;
   min-height: 44px;
-  padding-block: 0;
+  max-width: 100%;
+  white-space: normal;
+  padding-block: var(--sp-2);
 }
 .tb-context-tools {
   display: flex;
@@ -1186,9 +1563,12 @@ input:focus-visible {
   flex-wrap: nowrap;
   gap: var(--sp-2);
 }
-:is(.journal-app, .modal, .picker-menu, .wallet-menu, .acct-menu)
-  :is(.primary-btn, .ghost-btn, .link-btn) {
+:is(.journal-app, .picker-menu, .wallet-menu, .acct-menu) :is(.primary-btn, .ghost-btn, .link-btn) {
   white-space: nowrap;
+}
+.modal :is(.primary-btn, .ghost-btn, .link-btn) {
+  max-width: 100%;
+  white-space: normal;
 }
 :is(.journal-app, .modal, .picker-menu, .wallet-menu, .acct-menu) button > svg {
   flex: none;
@@ -1231,8 +1611,6 @@ input:focus-visible {
   flex-wrap: wrap;
 }
 
-@media (max-width: 1279px) {
-}
 /* When the page title moves out of the topbar (compact header) the tools are the row's only child:
    span the row. Selector-based so it follows the JS breakpoint exactly. */
 .journal-app .tb-context-tools:only-child {
@@ -1372,7 +1750,7 @@ input:focus-visible {
   /* Capital item: the name line carries check, name, Log and remove; the cost sits under the name. */
   .journal-app .capital-item-row {
     display: grid;
-    grid-template-columns: 24px minmax(0, 1fr) auto auto;
+    grid-template-columns: 44px minmax(0, 1fr) auto auto;
     grid-template-areas:
       "check name log remove"
       ". cost cost cost";
@@ -1398,7 +1776,7 @@ input:focus-visible {
   }
   .journal-app .capital-item-row > .ghost-btn {
     grid-area: log;
-    min-height: 32px;
+    min-height: 44px;
   }
   .journal-app .capital-item-row > .capital-item-remove {
     grid-area: remove;

@@ -23,8 +23,9 @@ describe("page refresh", () => {
     expect(PAGE_REFRESH_RESOURCES.budgets).toContain("events");
     expect(PAGE_REFRESH_RESOURCES.transparency).toEqual([]);
     expect(PAGE_REFRESH_RESOURCES.daily).toEqual(["daily"]);
+    expect(PAGE_REFRESH_RESOURCES.nudge).toEqual(["daily", "nudges"]);
     expect(PAGE_REFRESH_RESOURCES.overview).toContain("daily");
-    expect(Object.values(PAGE_REFRESH_RESOURCES)).toHaveLength(14);
+    expect(Object.values(PAGE_REFRESH_RESOURCES)).toHaveLength(15);
   });
 
   test("rapid clicks share the same operation and keep old content until it resolves", async () => {

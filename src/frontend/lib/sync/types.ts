@@ -16,6 +16,7 @@ export type EntityKind =
   | "vehicleFill"
   | "dailyRoutine"
   | "dailyCompletion"
+  | "nudge"
   | "profile";
 
 export type OutboxOp = "create" | "update" | "delete";
@@ -31,7 +32,9 @@ export type OutboxRequest = {
    *  `notifyDetails` (title, hold amount/category, comments) by design:
    *  the server already stores that copy in the clear to render reminder
    *  emails, so this is the same trust boundary as the read cache, not a
-   *  new one. See cipher-cache.ts's header comment. */
+   *  new one. A nudge body likewise carries its plaintext `notifyDetails`
+   *  (title and goal line) while the nudge is on, for the push text.
+   *  See cipher-cache.ts's header comment. */
   body?: unknown;
 };
 

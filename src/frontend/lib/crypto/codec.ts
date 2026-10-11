@@ -8,6 +8,7 @@ import {
   type DailyRoutineSecrets,
   type EventSecrets,
   type ExpenseSecrets,
+  type NudgeSecrets,
   type TodoListSecrets,
   type VehicleFillSecrets,
   type VehicleSecrets,
@@ -26,6 +27,7 @@ import type {
 } from "@/frontend/lib/types";
 import { normalizeRecurring } from "@/frontend/lib/stats";
 import type { DailyCompletion, DailyRoutine } from "@/lib/daily";
+import { goalMet, nudgeBody, type Nudge } from "@/lib/nudge";
 import type { RecurringField } from "@/lib/recurring";
 import type { ReminderDetails } from "@/schemas/event";
 
@@ -821,5 +823,65 @@ export async function encodeDailyCompletion(
     period: data.period,
     enc: 1 as const,
     payload: await encryptJson(key, secrets),
+  };
+}
+
+export type NudgeWire = {
+  id: string;
+  enc?: 1;
+  payload?: string;
+  enabled: boolean;
+  everyMin: number;
+  windowStart: string;
+  windowEnd: string;
+  /** Plaintext the server holds for the push; carried through when a key change rewrites the row. */
+  notifyDetails?: { title: string; body: string };
+  metOn?: string;
+};
+
+/** What a nudge write sends: the ciphertext plus the plaintext timing and push copy. */
+export type NudgeBody = Awaited<ReturnType<typeof encodeNudge>>;
+
+/** Decrypt a nudge and join it with the timing the server keeps in the clear. */
+export async function decodeNudge(wire: NudgeWire, key: CryptoKey): Promise<Nudge> {
+  if (wire.enc !== 1 || !wire.payload) {
+    throw new Error("Nudge is encrypted but no key is available");
+  }
+  const secrets = await decryptJson<NudgeSecrets>(key, wire.payload);
+
+  return {
+    id: wire.id,
+    ...secrets,
+    enabled: wire.enabled,
+    everyMin: wire.everyMin,
+    windowStart: wire.windowStart,
+    windowEnd: wire.windowEnd,
+  };
+}
+
+/**
+ * Encrypt a nudge and build the plaintext the server needs to fire it. The readable push
+ * copy and `metOn` (the day its goal was reached, so a finished nudge stays quiet) are sent
+ * only while the nudge is on; `metOn` is null again as soon as the count drops below target.
+ */
+export async function encodeNudge(data: Omit<Nudge, "id">, key: CryptoKey, today: string) {
+  const secrets: NudgeSecrets = {
+    title: data.title,
+    description: data.description,
+    target: data.target,
+    unit: data.unit,
+    progress: data.progress,
+    createdAt: data.createdAt,
+  };
+
+  return {
+    enc: 1 as const,
+    payload: await encryptJson(key, secrets),
+    enabled: data.enabled,
+    everyMin: data.everyMin,
+    windowStart: data.windowStart,
+    windowEnd: data.windowEnd,
+    notifyDetails: data.enabled ? { title: data.title, body: nudgeBody(data) } : null,
+    metOn: data.enabled && goalMet(data, today) ? today : null,
   };
 }

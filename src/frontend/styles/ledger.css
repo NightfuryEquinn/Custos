@@ -69,7 +69,7 @@
   --sp-7: 32px;
   --pad: var(--sp-7); /* view / topbar padding — journal.css owns the live fluid value */
   --card-pad: var(--sp-6); /* card & panel padding    */
-  --gap: var(--sp-5); /* grid gap                */
+  --gap: var(--sp-6); /* grid gap                */
   --vgap: var(--sp-7); /* vertical stack gap — journal.css pins the live value */
 
   /* Motion */
@@ -876,13 +876,39 @@ textarea::placeholder {
 }
 
 .switch {
+  position: relative;
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
   cursor: pointer;
   flex: none;
 }
 
+/* Keep the native checkbox focusable while the visual toggle supplies its appearance. */
 .switch input {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.switch input:focus-visible {
+  outline: none;
+}
+
+.switch input:focus-visible + .toggle-ui {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.switch input:disabled + .toggle-ui {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .switch input:checked + .toggle-ui {
@@ -2673,6 +2699,10 @@ textarea::placeholder {
   color: var(--ink-faint);
 }
 
+.panel-sub.panel-sub--spaced {
+  margin-top: var(--sp-3);
+}
+
 .ov-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -4297,12 +4327,13 @@ textarea::placeholder {
 }
 
 .todo-check {
-  width: 24px;
-  height: 24px;
+  position: relative;
+  width: 44px;
+  height: 44px;
   padding: 0;
-  border-radius: var(--r-xs);
-  border: 1.5px solid var(--border-strong);
-  background: var(--surface);
+  border-radius: var(--r-sm);
+  border: 0;
+  background: transparent;
   display: grid;
   place-items: center;
   color: var(--accent);
@@ -4310,7 +4341,21 @@ textarea::placeholder {
   align-self: center;
 }
 
-.todo-check.checked {
+.todo-check::before {
+  content: "";
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-xs);
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+}
+
+.todo-check > svg {
+  position: relative;
+}
+
+.todo-check.checked::before {
   background: color-mix(in srgb, var(--accent) 14%, var(--surface));
   border-color: var(--accent);
 }
@@ -4325,12 +4370,13 @@ textarea::placeholder {
 
 .todo-add-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-3);
 }
 
 .todo-add-row .text-in {
-  flex: 1;
+  flex: 1 1 160px;
   min-width: 0;
 }
 
@@ -4418,7 +4464,8 @@ textarea::placeholder {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-3);
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
 }
 
 .transparency-card-head h3 {
@@ -4509,15 +4556,9 @@ textarea::placeholder {
 /* ── 9c. Views: calculator ────────────────────────────────────────── */
 .calculator-setup-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
   gap: var(--gap);
-}
-
-@media (min-width: 1024px) {
-  .calculator-setup-grid {
-    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-    align-items: start;
-  }
+  align-items: start;
 }
 
 .calculator-tax-list {
@@ -4540,7 +4581,7 @@ textarea::placeholder {
 
 @media (min-width: 640px) {
   .calculator-alloc-list {
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
   }
 }
 
@@ -4639,7 +4680,10 @@ textarea::placeholder {
 
 .calculator-tax-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(110px, 140px) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "title remove"
+    "value mode";
   gap: var(--sp-3);
   align-items: end;
 }
@@ -4654,8 +4698,22 @@ textarea::placeholder {
   height: 44px;
 }
 
+.calculator-tax-title {
+  grid-area: title;
+}
+
+.calculator-tax-value {
+  grid-area: value;
+}
+
+.calculator-tax-mode {
+  grid-area: mode;
+}
+
 .calculator-tax-remove {
-  margin-bottom: 2px;
+  grid-area: remove;
+  align-self: center;
+  margin-bottom: 0;
 }
 
 .calculator-tax-remove:disabled {
@@ -4767,6 +4825,7 @@ textarea::placeholder {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--sp-3);
   width: 100%;
 }
@@ -4842,31 +4901,6 @@ textarea::placeholder {
 }
 
 @media (max-width: 639px) {
-  .calculator-tax-row {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "title remove"
-      "value mode";
-  }
-
-  .calculator-tax-title {
-    grid-area: title;
-  }
-
-  .calculator-tax-value {
-    grid-area: value;
-  }
-
-  .calculator-tax-mode {
-    grid-area: mode;
-  }
-
-  .calculator-tax-remove {
-    grid-area: remove;
-    align-self: center;
-    margin-bottom: 0;
-  }
-
   .calculator-alloc-controls .calculator-field {
     width: 96px;
   }
@@ -7188,6 +7222,18 @@ textarea::placeholder {
 }
 
 /* ── 13. Data & privacy / legal modals ────────────────────────────── */
+.settings-inline-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.settings-inline-row > .text-in {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
 .dm-sec {
   margin-bottom: 0;
 }

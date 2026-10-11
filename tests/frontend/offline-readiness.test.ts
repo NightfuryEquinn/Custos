@@ -15,6 +15,7 @@ const paths = [
   "/events?month=2026-10&limit=2000",
   "/daily/routines",
   "/daily/completions",
+  "/nudges",
   "/users/me",
 ];
 beforeEach(resetFakeIdb);

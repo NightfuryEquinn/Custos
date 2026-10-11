@@ -31,7 +31,8 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - **Email reminders** — optional Resend emails with per-event lead time and your timezone, plus a reminder at the event's own start; delivered to your account notify email.
 - **Push notifications** — opt-in Web Push per device under **Account → Preferences**, on the same 15-minute poll as email.
 - **To-do lists** — multiple named lists with inline task management.
-- **Daily** — recurring routines (Everyday, Specific weekdays, or Once a Week) with a Today / This week checklist. Each completed occurrence earns 10 points; every routine keeps its own streak. Points and streaks are derived from encrypted completion history (one row per routine and period), checkbox taps queue offline against the period they were made in, and a routine's note shows under its title. Routines are archived first so history and points stay; an archived routine can then be deleted, which removes its points with it.
+- **Daily** — recurring routines (Everyday, Specific weekdays, or Once a Week) with a Today / This week checklist. Each completed occurrence earns 10 points; every routine keeps its own streak. Points and streaks are derived from encrypted completion history (one row per routine and period), checkbox taps queue offline against the period they were made in, and a routine's note shows under its title. Routines are archived first so history and points stay; an archived routine can be restored with its points and streak (the days it was archived are not counted as misses) or deleted, which removes its points with it.
+- **Nudge** — repeating reminders for small habits (drink water, stretch): a title, a daily goal with your own unit, and an interval from 30 minutes to 12 hours inside hours you choose. Count each one with +1; a nudge stays quiet once the day's goal is met and starts again the next day. Delivered as Web Push only, never email, on the same 15-minute poll as event reminders. While a nudge is on, the server keeps its timing and a readable copy of the notification (title, goal, description) so the push can be sent while the app is closed; the count and everything else stay encrypted.
 - **Page actions** — each page's main action (Add transaction, Add event, Add list, Add plan, Add category, Add fill-up) sits beside its title.
 
 ### Identity & privacy
@@ -92,16 +93,16 @@ src/
 ├── api/
 │   ├── app.ts            # Hono app + error handler
 │   ├── lib/              # auth, cache, email, push, reminders, reminder-details, pagination,
-│   │                     # recurring-expenses, budget-alerts, expense-delete-scope,
+│   │                     # recurring-expenses, nudges, budget-alerts, expense-delete-scope,
 │   │                     # expense-update, money, ids, serialize, errors
 │   ├── middleware/       # session, rate-limit (Mongo + memory fallback), security, db
 │   └── routes/           # auth, users, profile, wallets, categories,
-│                         # expenses, events, todo-lists, capital-plans, vehicles,
+│                         # expenses, events, todo-lists, nudges, capital-plans, vehicles,
 │                         # consent, budget-alerts, push, fx, cron
 ├── db/                   # MongoDB client, collections, indexes, URI resolver
 ├── schemas/              # Zod schemas (shared API validation)
 ├── lib/                  # glyphs, recurring, schedule, timezone, budget-alerts, security-headers,
-│                         # delete-scope, account-retention, version, accents, surfaces,
+│                         # delete-scope, account-retention, nudge, version, accents, surfaces,
 │                         # auth-message, legal, support-links (shared)
 └── frontend/
     ├── app/              # Root, LedgerApp
@@ -134,7 +135,7 @@ src/
     │   ├── capitalTemplates.ts # built-in Capitals templates (marriage, trip, car/house loan)
     │   └── envelope-holds.ts  # schedule ↔ budget hold math
     ├── styles/           # ledger.css (theme tokens + layout), journal.css (shell, rows, dialogs)
-    ├── views/            # Calculator, Capitals, Categories, Daily, Piggies, Schedule, TodoList,
+    ├── views/            # Calculator, Capitals, Categories, Daily, Nudge, Piggies, Schedule, TodoList,
     │                     # Transparency, Vehicles, index.tsx (Overview, Transactions,
     │                     # Budgets, Recurring, Insights)
     └── main.tsx
@@ -208,6 +209,7 @@ Schemas are defined in `src/schemas/` and wired in `src/db/collections.ts`. Inde
 | `todo_lists`          | `todoLists`          | Named to-do lists (E2EE name/icon/tasks)                                                                                                |
 | `daily_routines`      | `dailyRoutines`      | Daily routines (E2EE title/notes/recurrence history/archive day)                                                                        |
 | `daily_completions`   | `dailyCompletions`   | One row per routine and period (E2EE done state; plaintext `routineId` + `period`, unique together)                                     |
+| `nudges`              | `nudges`             | Repeating push reminders (E2EE title/description/goal/count; plaintext timing, `nextAt` and `notifyDetails` while on)                   |
 | `capital_plans`       | `capitalPlans`       | Future-expense planners (E2EE name/template/budget/items)                                                                               |
 | `vehicles`            | `vehicles`           | Tracked vehicles — car/EV/bike/van (E2EE name/model/plate/odometer/tank)                                                                |
 | `vehicle_fills`       | `vehicleFills`       | Fuel fills or charges per vehicle (E2EE price/quantity/odometer/station)                                                                |
@@ -230,6 +232,7 @@ Schemas are defined in `src/schemas/` and wired in `src/db/collections.ts`. Inde
 | `todo_lists`          | `payload` (name, icon, tasks) via `enc`                                                  | `accountId`                                                                                                                                                                              |
 | `daily_routines`      | `payload` (title, notes, recurrence history, archive day) via `enc`                      | `accountId`                                                                                                                                                                              |
 | `daily_completions`   | `payload` (done state, time) via `enc`                                                   | `accountId`, `routineId`, `period` (a day, or a week's Monday); a row exists only for a ticked period, and its timestamps are day-level                                                  |
+| `nudges`              | `payload` (title, description, goal, unit, today's count) via `enc`                      | `accountId`, `enabled`, `everyMin`, `windowStart`, `windowEnd`, `nextAt`, `metOn` (the day the goal was reached), and `notifyDetails` (title, goal line) only while on                   |
 | `capital_plans`       | `payload` (name, templateId, glyph, targetDate, initialBudget, items) via `enc`          | `accountId`                                                                                                                                                                              |
 | `vehicles`            | `payload` (name, model, plate, glyph, odometerStart, tankCapacity, notes) via `enc`      | `accountId`, `type`                                                                                                                                                                      |
 | `vehicle_fills`       | `payload` (price, quantity, odometer, station) via `enc`                                 | `accountId`, `vehicleId`, `date`, `partial`, optional `expenseId`                                                                                                                        |
@@ -263,7 +266,7 @@ bun run knip       # unused files/exports/deps
 
 Open [http://localhost:3000](http://localhost:3000). The SPA and API share the same origin (`/api/*`).
 
-When `CRON_SECRET` is set in development, the server also polls every 15 minutes for due reminders and recurring expense rows. Email needs `RESEND_API_KEY`, push needs the `VAPID_*` keys — each channel is independent, and recurring materialization runs regardless.
+When `CRON_SECRET` is set in development, the server also polls every 15 minutes for due reminders, due nudges and recurring expense rows. Email needs `RESEND_API_KEY`, push (reminders and nudges) needs the `VAPID_*` keys — each channel is independent, and recurring materialization runs regardless.
 
 ### Liveness check
 
@@ -304,35 +307,36 @@ You may be prompted to **unlock** on each visit (device passphrase and/or wallet
 
 ## API overview
 
-| Route                             | Description                                                                                                                                          |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /api/auth/challenge`        | Start sign-in                                                                                                                                        |
-| `POST /api/auth/verify`           | Complete sign-in                                                                                                                                     |
-| `GET /api/auth/me`                | Current session                                                                                                                                      |
-| `GET /api/auth/sessions`          | List active sessions                                                                                                                                 |
-| `DELETE /api/auth/sessions/:id`   | Revoke a session                                                                                                                                     |
-| `DELETE /api/auth/sessions`       | Revoke all other sessions                                                                                                                            |
-| `POST /api/auth/logout`           | End current session                                                                                                                                  |
-| `POST /api/auth/clear`            | Revoke all sessions and clear cookie                                                                                                                 |
-| `GET/PATCH /api/users/me`         | Codename, notify email, timezone, reminder/alert prefs                                                                                               |
-| `POST /api/users`                 | Create or upsert user profile on first sign-in                                                                                                       |
-| `GET/PATCH /api/profile`          | Per-user UI state — month, tour progress, theme (accent/surface), nav layout; returns `id`/`createdAt` too                                           |
-| `CRUD /api/wallets`               | Financial wallets (metadata + E2EE `enc`/`payload` via PATCH)                                                                                        |
-| `PUT /api/wallets/:id/budgets`    | Update encrypted wallet financials (`enc`/`payload`)                                                                                                 |
-| `GET/PUT /api/categories`         | Category taxonomy                                                                                                                                    |
-| `CRUD /api/expenses`              | Transactions (scoped by wallet; cursor list via `limit`/`before`; optional series delete scopes)                                                     |
-| `CRUD /api/events`                | Schedule events (comments + budget holds live in the E2EE payload; cursor list via `limit`/`before`)                                                 |
-| `CRUD /api/todo-lists`            | TO-DO lists and tasks                                                                                                                                |
-| `CRUD /api/capital-plans`         | Capitals planners and their line items                                                                                                               |
-| `CRUD /api/vehicles`              | Tracked vehicles (car/EV/bike/van)                                                                                                                   |
-| `CRUD /api/vehicles/fills`        | Fuel fills or charges (cursor list via `limit`/`before`, filterable by `vehicleId`)                                                                  |
-| `GET/PATCH /api/consent`          | Data-sharing consent                                                                                                                                 |
-| `POST /api/budget-alerts`         | Deliver client-evaluated budget alerts (email; deduped)                                                                                              |
-| `GET /api/fx/latest/:base`        | Cached FX rates (requires `EXCHANGE_RATE_API_KEY`)                                                                                                   |
-| `GET /api/push/public-key`        | VAPID application server key for browser subscription                                                                                                |
-| `POST/DELETE /api/push/subscribe` | Register or remove this device's Web Push endpoint                                                                                                   |
-| `GET /api/cron/reminders`         | Auth: `Authorization: Bearer $CRON_SECRET`. Sends due reminders (email + push) and materializes recurring expenses                                   |
-| `POST /api/cron/notify-release`   | Auth: `Authorization: Bearer $CRON_SECRET`. Body `{ "version": "3.0.0" }`. Broadcasts an "app updated" push — called by CI after a successful deploy |
+| Route                                                  | Description                                                                                                                                          |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/auth/challenge`                             | Start sign-in                                                                                                                                        |
+| `POST /api/auth/verify`                                | Complete sign-in                                                                                                                                     |
+| `GET /api/auth/me`                                     | Current session                                                                                                                                      |
+| `GET /api/auth/sessions`                               | List active sessions                                                                                                                                 |
+| `DELETE /api/auth/sessions/:id`                        | Revoke a session                                                                                                                                     |
+| `DELETE /api/auth/sessions`                            | Revoke all other sessions                                                                                                                            |
+| `POST /api/auth/logout`                                | End current session                                                                                                                                  |
+| `POST /api/auth/clear`                                 | Revoke all sessions and clear cookie                                                                                                                 |
+| `GET/PATCH /api/users/me`                              | Codename, notify email, timezone, reminder/alert prefs                                                                                               |
+| `POST /api/users`                                      | Create or upsert user profile on first sign-in                                                                                                       |
+| `GET/PATCH /api/profile`                               | Per-user UI state — month, tour progress, theme (accent/surface), nav layout; returns `id`/`createdAt` too                                           |
+| `CRUD /api/wallets`                                    | Financial wallets (metadata + E2EE `enc`/`payload` via PATCH)                                                                                        |
+| `PUT /api/wallets/:id/budgets`                         | Update encrypted wallet financials (`enc`/`payload`)                                                                                                 |
+| `GET/PUT /api/categories`                              | Category taxonomy                                                                                                                                    |
+| `CRUD /api/expenses`                                   | Transactions (scoped by wallet; cursor list via `limit`/`before`; optional series delete scopes)                                                     |
+| `CRUD /api/events`                                     | Schedule events (comments + budget holds live in the E2EE payload; cursor list via `limit`/`before`)                                                 |
+| `CRUD /api/todo-lists`                                 | TO-DO lists and tasks                                                                                                                                |
+| `CRUD /api/capital-plans`                              | Capitals planners and their line items                                                                                                               |
+| `CRUD /api/vehicles`                                   | Tracked vehicles (car/EV/bike/van)                                                                                                                   |
+| `CRUD /api/vehicles/fills`                             | Fuel fills or charges (cursor list via `limit`/`before`, filterable by `vehicleId`)                                                                  |
+| `GET/PATCH /api/consent`                               | Data-sharing consent                                                                                                                                 |
+| `POST /api/budget-alerts`                              | Deliver client-evaluated budget alerts (email; deduped)                                                                                              |
+| `GET /api/fx/latest/:base`                             | Cached FX rates (requires `EXCHANGE_RATE_API_KEY`)                                                                                                   |
+| `GET /api/push/public-key`                             | VAPID application server key for browser subscription                                                                                                |
+| `POST/DELETE /api/push/subscribe`                      | Register or remove this device's Web Push endpoint                                                                                                   |
+| `GET /api/cron/reminders`                              | Auth: `Authorization: Bearer $CRON_SECRET`. Sends due reminders (email + push) and due nudges (push only), and materializes recurring expenses       |
+| `GET/POST /api/nudges`, `PATCH/DELETE /api/nudges/:id` | Session. Nudges: ciphertext plus plaintext timing and push copy; the server computes `nextAt` in the account timezone                                |
+| `POST /api/cron/notify-release`                        | Auth: `Authorization: Bearer $CRON_SECRET`. Body `{ "version": "3.0.0" }`. Broadcasts an "app updated" push — called by CI after a successful deploy |
 
 All mutating routes require a valid session cookie. Auth endpoints have stricter rate limits.
 

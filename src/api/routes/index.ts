@@ -13,6 +13,7 @@ import { eventsRoutes } from "./events";
 import { expensesRoutes } from "./expenses";
 import { fxRoutes } from "./fx";
 import { healthRoutes } from "./health";
+import { nudgesRoutes } from "./nudges";
 import { profileRoutes } from "./profile";
 import { pushRoutes } from "./push";
 import { todoListsRoutes } from "./todo-lists";
@@ -41,6 +42,7 @@ export function createApiRoutes() {
   api.route("/events", eventsRoutes);
   api.route("/todo-lists", todoListsRoutes);
   api.route("/daily", dailyRoutes);
+  api.route("/nudges", nudgesRoutes);
   api.route("/capital-plans", capitalPlansRoutes);
   api.route("/vehicles", vehiclesRoutes);
   api.route("/consent", consentRoutes);

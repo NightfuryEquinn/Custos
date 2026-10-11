@@ -153,6 +153,46 @@ export function editSchedule(
   return [...kept, { from, ...next }];
 }
 
+/**
+ * Bring an archived routine back. Completions were never touched, so points are
+ * intact; the streak is kept by pausing the schedule over the archived gap (a
+ * rule that emits nothing, so those days are unscheduled rather than missed) and
+ * resuming the latest recurrence in the current period. An occurrence still open
+ * and unchecked on the archive day sits inside the pause, so it is no miss either.
+ */
+export function restoreRoutine(
+  routine: DailyRoutine,
+  done: Set<string>,
+  today: string,
+): DailyRoutine {
+  const { archivedOn, ...active } = routine;
+  const last = routine.schedule.at(-1);
+  if (!archivedOn || !last) return active;
+
+  const rule = scheduleAt(routine.schedule, archivedOn);
+  const openKey = !rule
+    ? null
+    : rule.kind === "weekly"
+      ? weekStart(archivedOn)
+      : emits(rule, archivedOn)
+        ? archivedOn
+        : null;
+  const pauseFrom = openKey && !done.has(openKey) ? openKey : shiftIso(archivedOn, 1);
+  const resumeFrom = periodOf(last.kind, today);
+  // Restored within the period it was archived in: nothing was skipped, so no gap to bridge.
+  if (resumeFrom <= pauseFrom) return active;
+
+  const resume: DailySchedule = {
+    from: resumeFrom,
+    kind: last.kind,
+    ...(last.kind === "weekdays" ? { weekdays: sortedDays(last.weekdays) } : {}),
+  };
+  const pause: DailySchedule = { from: pauseFrom, kind: "weekdays", weekdays: [] };
+  const kept = routine.schedule.filter((entry) => entry.from < pauseFrom);
+
+  return { ...active, schedule: [...kept, pause, resume] };
+}
+
 /** Milliseconds from `nowMs` until the first instant of the day after `today` in `timeZone`. */
 export const msUntilNextDay = (today: string, timeZone: string, nowMs: number) =>
   zonedLocalToUtcMs(shiftIso(today, 1), "00:00", timeZone) - nowMs;

@@ -179,6 +179,26 @@ export async function rekeyLedgerToCustos(oldKey: CryptoKey, newKey: CryptoKey):
     await api.daily.routines.update(wire.id, { enc: 1, payload });
   }
 
+  /* A nudge's timing and push copy are plaintext columns the PATCH replaces as a whole,
+     so they are sent back exactly as stored beside the rewritten ciphertext. */
+  const { nudges } = await api.nudges.list();
+
+  for (const wire of nudges) {
+    if (wire.enc !== 1 || !wire.payload) continue;
+
+    const payload = await rewritePayload(oldKey, newKey, wire.payload);
+    await api.nudges.update(wire.id, {
+      enc: 1,
+      payload,
+      enabled: wire.enabled,
+      everyMin: wire.everyMin,
+      windowStart: wire.windowStart,
+      windowEnd: wire.windowEnd,
+      notifyDetails: wire.notifyDetails ?? null,
+      metOn: wire.metOn ?? null,
+    });
+  }
+
   /* Completions are rewritten through the same idempotent set-state the app uses,
      so each stays on its routine and period. */
   const { completions } = await api.daily.completions.list();

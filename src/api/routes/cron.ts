@@ -1,3 +1,4 @@
+import { processDueNudges } from "@/api/lib/nudges";
 import { broadcastPush, pushConfigured } from "@/api/lib/push";
 import { processDueRecurringExpenses } from "@/api/lib/recurring-expenses";
 import { processDueReminders } from "@/api/lib/reminders";
@@ -30,16 +31,18 @@ function assertCronAuth(authHeader: string | undefined): void {
 
 /**
  * External cron (cron-job.org every ~15 min, or manual curl) — scans the database
- * for due event reminder emails and materializes recurring expense rows.
+ * for due event reminder emails, sends due nudge pushes, and materializes recurring
+ * expense rows.
  */
 cronRoutes.get("/reminders", async (c) => {
   assertCronAuth(c.req.header("Authorization"));
-  const [reminders, recurring] = await Promise.all([
+  const [reminders, nudges, recurring] = await Promise.all([
     processDueReminders(),
+    processDueNudges(),
     processDueRecurringExpenses(),
   ]);
 
-  return c.json({ ok: true, reminders, recurring });
+  return c.json({ ok: true, reminders, nudges, recurring });
 });
 
 const notifyReleaseSchema = z.object({

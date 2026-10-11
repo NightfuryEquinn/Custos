@@ -12,6 +12,7 @@ import {
   points,
   idleRoutines,
   progressOf,
+  restoreRoutine,
   type DailyKind,
   type DailyRow,
   type DailyRoutine,
@@ -58,6 +59,8 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
   const [saving, setSaving] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [deleting, setDeleting] = useState<DailyRoutine | null>(null);
+  /* Which archived row's Restore is running, so only that button says Restoring…. */
+  const [restoring, setRestoring] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [earned, setEarned] = useState<string | null>(null);
   const viewRef = useRef<HTMLDivElement>(null);
@@ -207,6 +210,20 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
     }
   };
 
+  /** Bring an archived routine back with its history, points and streak. */
+  const restore = async (routine: DailyRoutine, doneSet: Set<string>) => {
+    if (!today || restoring) return;
+    setRestoring(routine.id);
+    try {
+      await daily.saveRoutine(restoreRoutine(routine, doneSet, today));
+      toast("Routine restored");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Could not restore routine");
+    } finally {
+      setRestoring(null);
+    }
+  };
+
   if (daily.loading) {
     return (
       <div ref={viewRef} className="view view-loading">
@@ -260,7 +277,10 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
                 rows.map((row) => {
                   const sync = syncOf(row);
                   return (
-                    <div key={row.routine.id} className={"todo-task" + (row.done ? " done" : "")}>
+                    <div
+                      key={row.routine.id}
+                      className={"todo-task daily-task-row" + (row.done ? " done" : "")}
+                    >
                       <button
                         type="button"
                         className={"todo-check" + (row.done ? " checked" : "")}
@@ -277,22 +297,24 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
                       >
                         <RoutineName routine={row.routine} />
                       </button>
-                      {earned === row.routine.id ? (
-                        <span className="daily-plus" aria-hidden="true">
-                          +{DAILY_POINTS}
+                      <div className="daily-task-meta">
+                        {earned === row.routine.id ? (
+                          <span className="daily-plus" aria-hidden="true">
+                            +{DAILY_POINTS}
+                          </span>
+                        ) : null}
+                        {sync ? (
+                          <span className={"daily-sync" + (sync === "failed" ? " failed" : "")}>
+                            {sync === "failed" ? "Couldn't save" : "Syncing…"}
+                          </span>
+                        ) : null}
+                        <span
+                          className="daily-streak"
+                          title={`Best: ${streakLabel(row.streak.best, row.unit)}`}
+                        >
+                          {streakLabel(row.streak.current, row.unit)}
                         </span>
-                      ) : null}
-                      {sync ? (
-                        <span className={"daily-sync" + (sync === "failed" ? " failed" : "")}>
-                          {sync === "failed" ? "Couldn't save" : "Syncing…"}
-                        </span>
-                      ) : null}
-                      <span
-                        className="daily-streak"
-                        title={`Best: ${streakLabel(row.streak.best, row.unit)}`}
-                      >
-                        {streakLabel(row.streak.current, row.unit)}
-                      </span>
+                      </div>
                     </div>
                   );
                 })
@@ -392,14 +414,25 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
                       Best {computeStreak(routine, doneSet, today).best} ·{" "}
                       {doneSet.size * DAILY_POINTS} points
                     </span>
-                    <button
-                      type="button"
-                      className="icon-btn"
-                      aria-label={`Delete ${routine.title}`}
-                      onClick={() => setDeleting(routine)}
-                    >
-                      <Icon name="trash" size={16} />
-                    </button>
+                    <div className="daily-archive-actions">
+                      <button
+                        type="button"
+                        className="ghost-btn"
+                        disabled={restoring !== null}
+                        aria-label={`Restore ${routine.title}`}
+                        onClick={() => void restore(routine, doneSet)}
+                      >
+                        {restoring === routine.id ? "Restoring…" : "Restore"}
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        aria-label={`Delete ${routine.title}`}
+                        onClick={() => setDeleting(routine)}
+                      >
+                        <Icon name="trash" size={16} />
+                      </button>
+                    </div>
                   </li>
                 );
               })}
@@ -457,59 +490,64 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
                   </button>
                 </div>
                 <div className="modal-body modal-scroll">
-                  <div className="dm-sec">
-                    <label className="fld-label" htmlFor="daily-title">
-                      Title
-                    </label>
-                    <input
-                      id="daily-title"
-                      className="text-in wallet-field"
-                      value={title}
-                      maxLength={120}
-                      autoFocus
-                      onChange={(e) => setTitle(e.target.value)}
-                    />
+                  <div className="editor-fields">
+                    <div className="editor-field">
+                      <label className="fld-label" htmlFor="daily-title">
+                        Title
+                      </label>
+                      <input
+                        id="daily-title"
+                        className="text-in wallet-field"
+                        value={title}
+                        maxLength={120}
+                        autoFocus
+                        onChange={(e) => setTitle(e.target.value)}
+                      />
+                    </div>
 
-                    <span className="fld-label">Repeats</span>
-                    <Segmented options={KIND_OPTIONS} value={kind} onChange={setKind} />
-                    {kind === "weekdays" ? (
-                      <div className="sub-row" role="group" aria-label="Weekdays">
-                        {WEEKDAYS.map((label, i) => (
-                          <button
-                            key={label}
-                            type="button"
-                            role="checkbox"
-                            aria-checked={weekdays.includes(i)}
-                            className={"sub-chip" + (weekdays.includes(i) ? " active" : "")}
-                            onClick={() =>
-                              setWeekdays((prev) =>
-                                prev.includes(i) ? prev.filter((d) => d !== i) : [...prev, i],
-                              )
-                            }
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                    {futureChange ? (
-                      <p className="fld-hint">Changes from {futureChange}.</p>
-                    ) : editing ? (
-                      <p className="fld-hint">Changes to how it repeats start after today.</p>
-                    ) : null}
+                    <div className="editor-field">
+                      <span className="fld-label">Repeats</span>
+                      <Segmented options={KIND_OPTIONS} value={kind} onChange={setKind} />
+                      {kind === "weekdays" ? (
+                        <div className="sub-row" role="group" aria-label="Weekdays">
+                          {WEEKDAYS.map((label, i) => (
+                            <button
+                              key={label}
+                              type="button"
+                              role="checkbox"
+                              aria-checked={weekdays.includes(i)}
+                              className={"sub-chip" + (weekdays.includes(i) ? " active" : "")}
+                              onClick={() =>
+                                setWeekdays((prev) =>
+                                  prev.includes(i) ? prev.filter((d) => d !== i) : [...prev, i],
+                                )
+                              }
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                      {futureChange ? (
+                        <p className="fld-hint">Changes from {futureChange}.</p>
+                      ) : editing ? (
+                        <p className="fld-hint">Changes to how it repeats start after today.</p>
+                      ) : null}
+                    </div>
 
-                    <label className="fld-label" htmlFor="daily-notes">
-                      Notes
-                    </label>
-                    <textarea
-                      id="daily-notes"
-                      className="text-in daily-notes-in"
-                      rows={3}
-                      maxLength={1000}
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                    />
-
+                    <div className="editor-field">
+                      <label className="fld-label" htmlFor="daily-notes">
+                        Notes
+                      </label>
+                      <textarea
+                        id="daily-notes"
+                        className="text-in daily-notes-in"
+                        rows={3}
+                        maxLength={1000}
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                      />
+                    </div>
                     {editorError ? (
                       <p className="auth-error auth-error--gap" role="alert">
                         {editorError}
@@ -554,7 +592,7 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
   );
 });
 
-/** A routine's title with its note as a one-line subtitle. */
+/** A routine's title with its full note beneath it. */
 function RoutineName({ routine }: { routine: DailyRoutine }) {
   return (
     <>

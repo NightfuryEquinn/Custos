@@ -10,6 +10,7 @@ import {
   periodOf,
   points,
   progressOf,
+  restoreRoutine,
   scheduleAt,
   streakUnit,
   weekStart,
@@ -348,5 +349,69 @@ describe("weekday order", () => {
   test("saving an unchanged weekday routine adds no schedule entry", () => {
     const h = [weekdays("2026-10-05", [0, 2])];
     expect(editSchedule(h, { kind: "weekdays", weekdays: [2, 0] }, "2026-10-07", true)).toEqual(h);
+  });
+});
+
+describe("restoring an archived routine", () => {
+  test("a restored routine keeps its streak across the archived gap and keeps growing", () => {
+    const keys = done("2026-10-01", "2026-10-02", "2026-10-03");
+    const r = routine([daily("2026-10-01")], { archivedOn: "2026-10-03" });
+    const back = restoreRoutine(r, keys, "2026-10-08");
+
+    expect(back.archivedOn).toBeUndefined();
+    expect(computeStreak(back, keys, "2026-10-08")).toEqual({ current: 3, best: 3 });
+    expect(computeStreak(back, done(...keys, "2026-10-08"), "2026-10-08")).toEqual({
+      current: 4,
+      best: 4,
+    });
+    // Without the pause, clearing archivedOn alone would count 10-04..10-07 as misses.
+    expect(computeStreak({ ...r, archivedOn: undefined }, keys, "2026-10-08").current).toBe(0);
+  });
+
+  test("an occurrence left open and unchecked on the archive day is not a miss", () => {
+    const keys = done("2026-10-01", "2026-10-02");
+    const r = routine([daily("2026-10-01")], { archivedOn: "2026-10-03" });
+
+    expect(computeStreak(restoreRoutine(r, keys, "2026-10-08"), keys, "2026-10-08")).toEqual({
+      current: 2,
+      best: 2,
+    });
+  });
+
+  test("a weekly routine resumes in the current week and keeps its weeks", () => {
+    const keys = done("2026-09-21", "2026-09-28");
+    const r = routine([weekly("2026-09-21")], { archivedOn: "2026-10-07" });
+    const back = restoreRoutine(r, keys, "2026-10-21");
+
+    expect(computeStreak(back, keys, "2026-10-21")).toEqual({ current: 2, best: 2 });
+    expect(currentPeriod(back, "2026-10-21")).toBe("2026-10-19");
+    expect(streakUnit(back, "2026-10-21")).toBe("week");
+  });
+
+  test("a weekday routine returns on its chosen days only", () => {
+    const keys = done("2026-10-05", "2026-10-07");
+    const r = routine([weekdays("2026-10-05", [0, 2])], { archivedOn: "2026-10-09" });
+    const back = restoreRoutine(r, keys, "2026-10-21"); // a Wednesday
+
+    expect(back.schedule.at(-1)).toEqual({
+      from: "2026-10-21",
+      kind: "weekdays",
+      weekdays: [0, 2],
+    });
+    expect(currentPeriod(back, "2026-10-21")).toBe("2026-10-21");
+    expect(currentPeriod(back, "2026-10-22")).toBeNull();
+    expect(computeStreak(back, keys, "2026-10-21")).toEqual({ current: 2, best: 2 });
+  });
+
+  test("restoring within the archive period leaves the schedule as it was", () => {
+    const r = routine([daily("2026-10-01")], { archivedOn: "2026-10-03" });
+
+    expect(restoreRoutine(r, done("2026-10-03"), "2026-10-03").schedule).toEqual(r.schedule);
+    expect(restoreRoutine(r, done("2026-10-03"), "2026-10-04").schedule).toEqual(r.schedule);
+  });
+
+  test("a routine that is not archived comes back unchanged", () => {
+    const r = routine([daily("2026-10-01")]);
+    expect(restoreRoutine(r, done(), "2026-10-08")).toEqual(r);
   });
 });

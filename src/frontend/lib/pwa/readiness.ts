@@ -13,6 +13,7 @@ export function hasDailyCache(paths: readonly string[], month: string): boolean 
     "/vehicles/fills",
     "/daily/routines",
     "/daily/completions",
+    "/nudges",
     "/users/me",
   ];
   return (

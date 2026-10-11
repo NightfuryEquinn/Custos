@@ -40,6 +40,7 @@ import { clientObjectId } from "@/frontend/lib/sync/object-id";
 import { discardOutbox, enqueueOutbox, listOutbox } from "@/frontend/lib/sync/outbox";
 import { drainOutbox } from "@/frontend/lib/sync/engine";
 import { useDaily } from "@/frontend/lib/hooks/useDaily";
+import { useNudges } from "@/frontend/lib/hooks/useNudges";
 import {
   capitalPlanOverlay,
   eventOverlay,
@@ -105,11 +106,7 @@ function activeWalletStorageKey(wallet: string) {
 }
 
 /** Require an unlocked ledger crypto key for the given address. */
-function requireKey(address: string): CryptoKey {
-  const key = ledgerKeyStore.get(address);
-  if (!key) throw new Error("Encryption key is locked");
-  return key;
-}
+const requireKey = ledgerKeyStore.require;
 
 /** Require the unlocked series-HMAC key for the given address. */
 function requireSeriesKey(address: string): CryptoKey {
@@ -221,6 +218,7 @@ export function useLedger(walletAddress: string) {
   const wallet = walletAddress.toLowerCase();
   const cryptoReady = ledgerKeyStore.isUnlocked(wallet);
   const daily = useDaily(wallet, cryptoReady);
+  const nudges = useNudges(wallet, cryptoReady, daily.timeZone, daily.today);
   const [refreshingView, setRefreshingView] = useState<ViewId | null>(null);
   const [refreshError, setRefreshError] = useState<unknown>(null);
   const [refreshMessage, setRefreshMessage] = useState("");
@@ -1821,6 +1819,7 @@ export function useLedger(walletAddress: string) {
     allExpensesQuery,
     daily.query,
     daily.timezoneQuery,
+    nudges.query,
   ];
   const shellQueries = [profileQuery, walletsQuery, categoriesQuery, expensesQuery];
   const isAuthError = (error: unknown) =>
@@ -1843,6 +1842,7 @@ export function useLedger(walletAddress: string) {
       events: { queryKey: keys.events(wallet, month), queryFn: () => loadEvents(true) },
       todoLists: { queryKey: keys.todoLists(wallet), queryFn: () => loadTodoLists(true) },
       daily: daily.refreshTask,
+      nudges: nudges.refreshTask,
       vehicles: { queryKey: keys.vehicles(wallet), queryFn: () => loadVehicles(true) },
       vehicleFills: { queryKey: keys.vehicleFills(wallet), queryFn: () => loadVehicleFills(true) },
       fx: {
@@ -2007,6 +2007,7 @@ export function useLedger(walletAddress: string) {
         ["schedule", eventsQuery],
         ["tasks", todoListsQuery],
         ["daily routines", daily.query],
+        ["nudges", nudges.query],
         ["savings history", allExpensesQuery],
         ["capital plans", capitalPlansQuery],
         ["vehicles", vehiclesQuery],
@@ -2040,6 +2041,7 @@ export function useLedger(walletAddress: string) {
     todoLists: overlaidTodoListData,
     todoListsLoading: todoListsQuery.isLoading,
     daily,
+    nudges,
     capitalPlans: overlaidCapitalPlanData,
     capitalPlansLoading: capitalPlansQuery.isLoading,
     vehicles: overlaidVehicleData,
@@ -2092,6 +2094,7 @@ export function useLedger(walletAddress: string) {
       saveCategoriesMutation.isPending ||
       saveTodoListMutation.isPending ||
       daily.isSaving ||
+      nudges.isSaving ||
       deleteTodoListMutation.isPending ||
       saveCapitalPlanMutation.isPending ||
       deleteCapitalPlanMutation.isPending ||

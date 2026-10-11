@@ -165,6 +165,14 @@ export async function ensureIndexes(db: Db): Promise<void> {
     db
       .collection(COLLECTIONS.dailyCompletions)
       .createIndex({ accountId: 1, routineId: 1, period: 1 }, { unique: true }),
+    db.collection(COLLECTIONS.nudges).createIndex({ accountId: 1, createdAt: 1 }),
+    /* Cron scan: only nudges that are on carry a next slot, so the index stays small. */
+    db
+      .collection(COLLECTIONS.nudges)
+      .createIndex(
+        { nextAt: 1 },
+        { partialFilterExpression: { nextAt: { $type: "date" } }, name: "nudges_next_at" },
+      ),
     db.collection(COLLECTIONS.vehicleFills).createIndex({ accountId: 1, vehicleId: 1, date: -1 }),
     db.collection(COLLECTIONS.vehicleFills).createIndex({ accountId: 1, date: -1 }),
     /* Push subscriptions: one row per browser endpoint, fanned out per account. */

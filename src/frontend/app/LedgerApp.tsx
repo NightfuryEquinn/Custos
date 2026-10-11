@@ -50,6 +50,7 @@ import type { Piggy, Piglet } from "@/frontend/lib/piggies";
    without pulling either module into the eager bundle. */
 import type { CapitalsHandle } from "@/frontend/views/Capitals";
 import type { DailyHandle } from "@/frontend/views/Daily";
+import type { NudgeHandle } from "@/frontend/views/Nudge";
 import type { CategoriesHandle } from "@/frontend/views/Categories";
 import type { TodoListViewHandle } from "@/frontend/views/TodoList";
 import { VIEW_IDS } from "@/lib/views";
@@ -80,6 +81,7 @@ const CategoriesView = lazy(() =>
   import("@/frontend/views/Categories").then((m) => ({ default: m.Categories })),
 );
 const DailyView = lazy(() => import("@/frontend/views/Daily").then((m) => ({ default: m.Daily })));
+const NudgeView = lazy(() => import("@/frontend/views/Nudge").then((m) => ({ default: m.Nudge })));
 const TodoListView = lazy(() =>
   import("@/frontend/views/TodoList").then((m) => ({ default: m.TodoListView })),
 );
@@ -183,6 +185,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
   const capitalsRef = useRef<CapitalsHandle>(null);
   const todoListRef = useRef<TodoListViewHandle>(null);
   const dailyRef = useRef<DailyHandle>(null);
+  const nudgeRef = useRef<NudgeHandle>(null);
   /** The day clicked in Schedule, so the page's Add event action opens on it instead of today. */
   const scheduleDayRef = useRef<string | null>(null);
   const categoriesRef = useRef<CategoriesHandle>(null);
@@ -744,6 +747,11 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
       run: () => dailyRef.current?.openAdd(),
       disabled: !ledger.daily.ready,
     },
+    nudge: {
+      label: "Add nudge",
+      run: () => nudgeRef.current?.openAdd(),
+      disabled: !ledger.nudges.ready,
+    },
     todos: { label: "Add list", run: () => todoListRef.current?.openAdd() },
     capitals: { label: "Add plan", run: () => capitalsRef.current?.openAdd() },
     categories: { label: "Add category", run: () => categoriesRef.current?.openAdd() },
@@ -922,6 +930,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
             }
           >
             {landed && view === "daily" && <DailyView ref={dailyRef} daily={ledger.daily} />}
+            {landed && view === "nudge" && <NudgeView ref={nudgeRef} nudge={ledger.nudges} />}
             {landed && view === "overview" && (
               <Overview
                 {...viewProps}

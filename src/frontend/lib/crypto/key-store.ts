@@ -10,6 +10,14 @@ export const ledgerKeyStore = {
     return keys.get(normalizeAddress(address)) ?? null;
   },
 
+  /** The unlocked key, or a throw when the ledger is locked. */
+  require(address: string): CryptoKey {
+    const key = keys.get(normalizeAddress(address));
+    if (!key) throw new Error("Encryption key is locked");
+
+    return key;
+  },
+
   set(address: string, key: CryptoKey): void {
     keys.set(normalizeAddress(address), key);
   },

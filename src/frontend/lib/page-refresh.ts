@@ -9,6 +9,7 @@ export type RefreshResource =
   | "allExpenses"
   | "capitalPlans"
   | "daily"
+  | "nudges"
   | "events"
   | "todoLists"
   | "vehicles"
@@ -27,6 +28,7 @@ export const PAGE_REFRESH_RESOURCES: Record<ViewId, readonly RefreshResource[]> 
     "daily",
   ],
   daily: ["daily"],
+  nudge: ["daily", "nudges"],
   transactions: ["wallets", "categories", "expenses", "capitalPlans"],
   recurring: ["wallets", "categories", "expenses", "capitalPlans"],
   budgets: ["wallets", "categories", "expenses", "capitalPlans", "events"],

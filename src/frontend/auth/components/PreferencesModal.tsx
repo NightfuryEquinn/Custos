@@ -3,6 +3,7 @@ import { useModalMotion } from "@/frontend/lib/animate";
 import {
   disablePush,
   enablePush,
+  PUSH_FAILURE_NOTE,
   pushStatus,
   type PushStatus,
 } from "@/frontend/lib/push/subscribe";
@@ -30,17 +31,6 @@ import { codenameFor } from "../lib/codename";
 type PreferencesModalProps = {
   account: Account;
   onClose: () => void;
-};
-
-/* Unlike the other preference toggles, a failure here is not silently
-   reverted — a denied permission can only be undone in browser settings. */
-const FAILURE_NOTE: Record<string, string> = {
-  unsupported:
-    "This browser cannot receive push notifications. On iPhone or iPad, add Custos to your Home Screen first.",
-  denied:
-    "Notifications are blocked for this site. Allow them in your browser's site settings, then try again.",
-  unconfigured: "Push notifications are not configured on this server yet.",
-  failed: "Could not enable notifications. Please try again.",
 };
 
 export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
@@ -73,11 +63,11 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
         await disablePush();
       } else {
         const result = await enablePush();
-        if (!result.ok) setNote(FAILURE_NOTE[result.reason] ?? FAILURE_NOTE.failed!);
+        if (!result.ok) setNote(PUSH_FAILURE_NOTE[result.reason] ?? PUSH_FAILURE_NOTE.failed!);
       }
       setStatus(await pushStatus());
     } catch {
-      setNote(FAILURE_NOTE.failed!);
+      setNote(PUSH_FAILURE_NOTE.failed!);
     } finally {
       setBusy(false);
     }
@@ -170,9 +160,10 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
                 <div>
                   <div className="consent-title">Notify Me On This Device</div>
                   <p className="consent-desc">
-                    Event reminders arrive even when Custos is closed. They show the event name,
-                    time, budget hold, and comments. Each device is enabled separately; turning this
-                    off does not change other devices or email reminders. Reminders are checked
+                    Event reminders and Nudges arrive even when Custos is closed. Event reminders
+                    show the event name, time, budget hold, and comments; a Nudge shows its title,
+                    goal and description. Each device is enabled separately; turning this off does
+                    not change other devices or email reminders. Reminders and Nudges are checked
                     every 15 minutes.
                   </p>
                 </div>
@@ -198,7 +189,7 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
               </div>
             </div>
             {note ? <p className="dm-note">{note}</p> : null}
-            {unsupported ? <p className="dm-note">{FAILURE_NOTE.unsupported}</p> : null}
+            {unsupported ? <p className="dm-note">{PUSH_FAILURE_NOTE.unsupported}</p> : null}
           </div>
 
           {hasVault ? (
@@ -238,7 +229,7 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
                 {bioConfirming ? (
                   <label className="fld u-gap-top">
                     <p className="dm-subhead">Confirm your device passphrase</p>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <div className="settings-inline-row">
                       <input
                         className="text-in"
                         type="password"
@@ -246,7 +237,6 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
                         value={bioConfirmPass}
                         onChange={(e) => setBioConfirmPass(e.target.value)}
                         disabled={bioBusy}
-                        style={{ flex: 1 }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") void confirmBioEnroll();
                         }}

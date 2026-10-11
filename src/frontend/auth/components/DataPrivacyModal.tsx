@@ -382,7 +382,7 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
 
             <label className="fld u-gap-top">
               <p className="dm-subhead">Notification Email</p>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div className="settings-inline-row">
                 <input
                   className="text-in"
                   type="email"
@@ -405,7 +405,6 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
                   }}
                   disabled={emailLoading || emailBusy}
                   readOnly={emailLoading}
-                  style={{ flex: 1 }}
                 />
                 <button
                   className="ghost-btn"

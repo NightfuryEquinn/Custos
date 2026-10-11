@@ -1,4 +1,5 @@
 import { createApiApp } from "@/api";
+import { processDueNudges } from "@/api/lib/nudges";
 import { processDueRecurringExpenses } from "@/api/lib/recurring-expenses";
 import { processDueReminders } from "@/api/lib/reminders";
 import { connectDb, isDbConnected } from "@/db/client";
@@ -55,12 +56,16 @@ if (process.env.NODE_ENV !== "production" && process.env.CRON_SECRET?.trim()) {
         process.env.RESEND_API_KEY?.trim() ||
         (process.env.VAPID_PUBLIC_KEY?.trim() && process.env.VAPID_PRIVATE_KEY?.trim()),
       );
-      const [reminders, recurring] = await Promise.all([
+      const [reminders, nudges, recurring] = await Promise.all([
         canRemind ? processDueReminders() : Promise.resolve(null),
+        processDueNudges(),
         processDueRecurringExpenses(),
       ]);
       if (reminders && reminders.sent > 0) {
         console.log(`[reminders] sent ${reminders.sent} reminder(s)`);
+      }
+      if (nudges.sent > 0) {
+        console.log(`[nudges] sent ${nudges.sent} nudge(s)`);
       }
       if (recurring.created > 0) {
         console.log(`[recurring] created ${recurring.created} expense row(s)`);
