@@ -1,5 +1,5 @@
 import { beforeEach, expect, test } from "bun:test";
-import { hasDailyCache } from "@/frontend/lib/pwa/readiness";
+import { hasDailyCache, offlinePrep } from "@/frontend/lib/pwa/readiness";
 import { cachedPathsForAddress, putCipherCache } from "@/frontend/lib/pwa/cipher-cache";
 import { resetFakeIdb } from "../helpers/fake-idb";
 
@@ -19,6 +19,13 @@ const paths = [
   "/users/me",
 ];
 beforeEach(resetFakeIdb);
+test("offline prep follows the record cache, then a controlling worker's shell", () => {
+  expect(offlinePrep(true, true, "none")).toBe("ready");
+  expect(offlinePrep(true, true, "ready")).toBe("ready");
+  expect(offlinePrep(true, true, "missing")).toBe("shell");
+  expect(offlinePrep(false, true, "none")).toBe("records");
+  expect(offlinePrep(true, false, "ready")).toBe("records");
+});
 test("readiness requires the selected month's events and every daily resource", () => {
   expect(hasDailyCache(paths, "2026-10")).toBe(true);
   expect(hasDailyCache(paths, "2026-11")).toBe(false);

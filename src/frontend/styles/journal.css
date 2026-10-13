@@ -864,6 +864,74 @@
   margin-top: var(--sp-6);
 }
 
+.nudge-log > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.nudge-log > summary::-webkit-details-marker {
+  display: none;
+}
+
+.nudge-log > summary::marker {
+  content: "";
+}
+
+.nudge-log > summary > span {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.nudge-log > summary > svg {
+  flex: none;
+}
+
+.nudge-log > summary > svg:last-child {
+  transition: transform 0.15s ease;
+}
+
+.nudge-log[open] > summary > svg:last-child {
+  transform: rotate(180deg);
+}
+
+.nudge-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border);
+}
+
+.nudge-log-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-width: 0;
+  font-size: 13px;
+}
+
+.nudge-log-day {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.nudge-log-count {
+  flex: 0 1 auto;
+  max-width: 60%;
+  margin-left: auto;
+  text-align: right;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
 .nudge-goal-row {
   display: grid;
   grid-template-columns: 96px minmax(0, 1fr);
@@ -993,7 +1061,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nudge-card {
+  .nudge-card,
+  .nudge-log > summary > svg:last-child {
     transition: none;
   }
 }

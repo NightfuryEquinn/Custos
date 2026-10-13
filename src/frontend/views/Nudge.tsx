@@ -406,13 +406,17 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
                   </p>
 
                   <details className="nudge-log">
-                    <summary>{monthLabel(month, true)} log</summary>
+                    <summary>
+                      <Icon name="list" size={15} />
+                      <span>{monthLabel(month, true)} log</span>
+                      <Icon name="chevD" size={14} />
+                    </summary>
                     {log.length ? (
-                      <div className="capital-item-list">
+                      <div className="nudge-log-list">
                         {log.map(([day, n]) => (
-                          <div key={day} className="capital-item-row">
-                            <span className="capital-item-name">{dayLabel(day)}</span>
-                            <span className="num">
+                          <div key={day} className="nudge-log-row">
+                            <span className="nudge-log-day">{dayLabel(day)}</span>
+                            <span className="nudge-log-count num">
                               {n} / {row.target} {row.unit}
                               {n >= row.target ? " ✓" : ""}
                             </span>

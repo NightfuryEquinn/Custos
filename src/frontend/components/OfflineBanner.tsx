@@ -4,12 +4,22 @@ import { useNetworkStatus } from "@/frontend/lib/hooks/useNetworkStatus";
 import { discardOutbox, retryOutbox } from "@/frontend/lib/sync/outbox";
 import type { OutboxEntry } from "@/frontend/lib/sync/types";
 import { useOutboxEntries, useReadableLabels } from "@/frontend/lib/sync/useOutbox";
-import { useOfflineReadiness } from "@/frontend/lib/pwa/readiness";
+import { useOfflineReadiness, type OfflinePrep } from "@/frontend/lib/pwa/readiness";
 import { drainOutbox } from "@/frontend/lib/sync/engine";
 import { useEffect, useRef, useState } from "react";
 
 /** How long to wait for a waiting worker to become the page controller. */
 const UPDATE_TAKEOVER_MS = 4000;
+
+/** Panel sentence for the offline-preparation state. */
+function prepNote(prep: OfflinePrep) {
+  if (prep === "ready") return "This month and daily tools are ready offline.";
+  if (prep === "shell") {
+    return "Your records are saved on this device. Stay online until Custos finishes saving the app for offline use.";
+  }
+
+  return "Offline preparation is incomplete. Connect and wait for your records to finish loading.";
+}
 
 /** True while an update click is waiting to see if that worker takes control. */
 let updateRequested = false;
@@ -75,7 +85,7 @@ export function OfflineBanner({
   const names = useReadableLabels(address, entries);
   /** The name to show: decrypted when the ledger is unlocked, otherwise the fixed word. */
   const nameOf = (entry: OutboxEntry) => names.get(entry.opId) || entry.label || entry.entity;
-  const ready = useOfflineReadiness(address, month, dataReady);
+  const prep = useOfflineReadiness(address, month, dataReady);
   const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
   const [error, setError] = useState("");
   const changesRef = useRef<HTMLDetailsElement>(null);
@@ -168,11 +178,7 @@ export function OfflineBanner({
         </summary>
         <div className="journal-sync-panel">
           <h3>Your changes</h3>
-          <p className="journal-note">
-            {ready
-              ? "This month and daily tools are ready offline."
-              : "Offline preparation is incomplete. Connect and wait for your records to finish loading."}
-          </p>
+          <p className="journal-note">{prepNote(prep)}</p>
           <p className="journal-note">
             {status === "offline"
               ? "Keep going. Changes sync when you reconnect and open Custos."
@@ -223,7 +229,7 @@ export function OfflineBanner({
         </div>
       </details>
       <span className="journal-readiness" role="status">
-        {ready ? "Ready offline" : "Offline preparation incomplete"}
+        {prep === "ready" ? "Ready offline" : "Offline preparation incomplete"}
       </span>
       {waiting && (
         <button
