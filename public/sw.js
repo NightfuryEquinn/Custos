@@ -8,6 +8,8 @@ async function pruneUnusedShells() {
   const clients = await self.clients.matchAll({ includeUncontrolled: true });
   // An old tab that has not identified its release still needs its cache.
   if (clients.some((client) => !clientEntries.has(client.id))) return;
+  // A waiting or installing release owns a cache no tab uses yet.
+  if (self.registration.installing || self.registration.waiting) return;
   const names = (await caches.keys()).filter((name) => name.startsWith("custos-shell-"));
   const keep = new Set([SHELL_CACHE]);
   const current = await caches.open(SHELL_CACHE);
@@ -57,6 +59,8 @@ self.addEventListener("message", (event) => {
           SHELL_URLS.length > 2 &&
           (await Promise.all(SHELL_URLS.map((url) => cache.match(url)))).every(Boolean);
         event.ports[0]?.postMessage({ ready });
+        // Self-heal a shell missing assets; atomic, and offline just retries next check.
+        if (!ready) await cache.addAll(SHELL_URLS).catch(() => {});
         if (
           event.source?.id &&
           typeof event.data.entry === "string" &&

@@ -11,7 +11,7 @@ type WorkerEvent = {
   respondWith?: (promise: Promise<Response>) => void;
 };
 
-function worker(failDownload = false, openTabs = 1) {
+function worker(failDownload = false, openTabs = 1, registration: object = {}) {
   const handlers = new Map<string, (event: WorkerEvent) => void>();
   const stored = new Map<string, Response>();
   const deleted: string[] = [];
@@ -31,6 +31,7 @@ function worker(failDownload = false, openTabs = 1) {
   runInNewContext(source, {
     self: {
       location: { origin: "http://localhost" },
+      registration,
       addEventListener: (name: string, listener: (event: WorkerEvent) => void) =>
         handlers.set(name, listener),
       skipWaiting: async () => {
@@ -132,6 +133,28 @@ describe("complete offline shell", () => {
       ports: [],
     });
     expect(unknown.deleted).toEqual([]);
+  });
+  test("does not prune while a newer release is waiting", async () => {
+    const sw = worker(false, 1, { waiting: {} });
+    await sw.fire("install");
+    await sw.fire("message", {
+      source: { id: "tab-0" },
+      data: { type: "CHECK_OFFLINE_READY", entry: "/chunk-unvisited.js" },
+      ports: [],
+    });
+    expect(sw.deleted).toEqual([]);
+  });
+  test("re-downloads a shell that lost assets", async () => {
+    const sw = worker();
+    await sw.fire("install");
+    sw.stored.delete("/");
+    let ready = true;
+    await sw.fire("message", {
+      data: { type: "CHECK_OFFLINE_READY" },
+      ports: [{ postMessage: (message) => (ready = message.ready) }],
+    });
+    expect(ready).toBe(false);
+    expect(sw.stored.has("/")).toBe(true);
   });
   test("serves a coherent cached navigation shell and leaves API reads alone", async () => {
     const sw = worker();
