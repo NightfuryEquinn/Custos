@@ -1,2 +1,2 @@
-export { getDb, isDbConnected, setDbForTests } from "./client";
+export { getDb, isDbConnected } from "./client";
 export { COLLECTIONS, getCollections } from "./collections";

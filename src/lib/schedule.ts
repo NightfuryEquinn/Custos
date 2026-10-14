@@ -163,11 +163,6 @@ export function occurrenceStartFor(ev: SpanningEvent, iso: string): string | nul
   return null;
 }
 
-/** Whether any occurrence of `ev` covers `iso` (start, middle or end day). */
-export function coversOn(ev: SpanningEvent, iso: string): boolean {
-  return occurrenceStartFor(ev, iso) !== null;
-}
-
 /** Inclusive last covered day of the occurrence starting on `startIso`. */
 function occurrenceEndIso(ev: { date: string; endDate?: string | null }, startIso: string): string {
   const span = spanDays(ev);

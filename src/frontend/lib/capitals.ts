@@ -1,8 +1,7 @@
-import { CAPITAL_TEMPLATES, type CapitalTemplate } from "@/frontend/lib/capitalTemplates";
 import { slugId, type CategoryIndex } from "@/frontend/lib/categories";
 import { roundMoney } from "@/frontend/lib/data";
 import { classifyTx } from "@/frontend/lib/stats";
-import type { CapitalItem, CapitalPlan, CapitalTemplateId, Expense } from "@/frontend/lib/types";
+import type { CapitalItem, CapitalPlan, Expense } from "@/frontend/lib/types";
 
 /*
  * Capitals money math — every figure is derived, nothing is persisted.
@@ -42,11 +41,6 @@ export function planPaidTotal(plan: CapitalPlan): number {
   return plan.items
     .filter((i) => i.paid)
     .reduce((s, i) => s + (i.actualCost ?? i.estimatedCost), 0);
-}
-
-/** Sum of estimated cost for items not yet paid. */
-export function planUnpaidTotal(plan: CapitalPlan): number {
-  return plan.items.filter((i) => !i.paid).reduce((s, i) => s + i.estimatedCost, 0);
 }
 
 /** Budget as the user typed it, treating missing as 0. Prefer `planEffectiveBudget`. */
@@ -170,40 +164,6 @@ export function planMoney(
 }
 
 /**
- * What is left in the plan's pot: max(0, saved − paid). Paying a line item draws
- * this down, because money you set aside and then spent cannot also be sitting
- * there waiting for the rest of the budget.
- */
-export function planUnspentTotal(
-  plan: CapitalPlan,
-  txns: Expense[],
-  index?: CategoryIndex,
-): number {
-  return planMoney(plan, txns, index).unspent;
-}
-
-/** Payments the plan's pot did not cover: max(0, paid − saved). */
-export function planOutOfPocket(plan: CapitalPlan, txns: Expense[], index?: CategoryIndex): number {
-  return planMoney(plan, txns, index).outOfPocket;
-}
-
-/**
- * Money still to set aside: what is left of the budget after payments, minus
- * whatever is still in the pot — max(0, max(0, B − P) − max(0, S − P)).
- *
- * It collapses to (budget − saved) while the pot still covers every payment, and
- * to (budget − paid) once payments have emptied it, so money that was set aside
- * and then spent on an item is only ever counted once.
- */
-export function planRemainingNeed(
-  plan: CapitalPlan,
-  txns: Expense[] = [],
-  index?: CategoryIndex,
-): number {
-  return planMoney(plan, txns, index).remainingNeed;
-}
-
-/**
  * Paid ÷ budget for the card's "% paid" tag.
  * Null when there is no budget yet.
  */
@@ -241,11 +201,6 @@ export function planMonthsUntilTarget(plan: CapitalPlan, today: Date = new Date(
   if (diff < 0) return null;
 
   return Math.max(1, diff);
-}
-
-/** True when the plan has a target date in the current month or later. */
-export function planIsUpcoming(plan: CapitalPlan, today: Date = new Date()): boolean {
-  return planMonthsUntilTarget(plan, today) !== null;
 }
 
 /**
@@ -289,36 +244,6 @@ export function planMonthlyPlan(
   return { perMonth, leftThisMonth: Math.max(0, perMonth - contributed) };
 }
 
-/** Monthly amount to set aside — see `planMonthlyPlan`. */
-export function planMonthlySave(
-  plan: CapitalPlan,
-  today: Date = new Date(),
-  txns: Expense[] = [],
-  index?: CategoryIndex,
-): number | null {
-  return planMonthlyPlan(plan, today, txns, index)?.perMonth ?? null;
-}
-
-/** Sum of monthly save across plans (overbudget plans contribute 0). */
-export function plansTotalMonthlySave(
-  plans: CapitalPlan[],
-  today: Date = new Date(),
-  txns: Expense[] = [],
-  index?: CategoryIndex,
-): number {
-  return plans.reduce((sum, p) => {
-    const monthly = planMonthlySave(p, today, txns, index);
-
-    return sum + (monthly ?? 0);
-  }, 0);
-}
-
-/** Fraction of items marked paid, or null when the plan has no items yet. */
-export function planProgress(plan: CapitalPlan): number | null {
-  if (!plan.items.length) return null;
-  return plan.items.filter((i) => i.paid).length / plan.items.length;
-}
-
 function itemId(name: string, existing: CapitalItem[]) {
   const base = slugId("item", name);
   if (!existing.some((i) => i.id === base)) return base;
@@ -333,16 +258,4 @@ export function newCapitalItem(name: string, existing: CapitalItem[]): CapitalIt
     estimatedCost: 0,
     paid: false,
   };
-}
-
-/** Prefill a fresh plan's items from a built-in template. Names only — fully editable after. */
-export function instantiateFromTemplate(templateId: CapitalTemplateId): CapitalItem[] {
-  const template: CapitalTemplate | undefined = CAPITAL_TEMPLATES.find((t) => t.id === templateId);
-  if (!template) return [];
-
-  const items: CapitalItem[] = [];
-  for (const name of template.items) {
-    items.push(newCapitalItem(name, items));
-  }
-  return items;
 }

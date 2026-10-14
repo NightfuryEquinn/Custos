@@ -90,8 +90,3 @@ export function txAsPromise(tx: IDBTransaction): Promise<void> {
     tx.onabort = () => reject(tx.error ?? new Error("IndexedDB transaction aborted"));
   });
 }
-
-/** Test helper: forget the cached connection so the next call reopens fresh. */
-export function resetCustosDbConnectionForTests(): void {
-  sharedDb = null;
-}

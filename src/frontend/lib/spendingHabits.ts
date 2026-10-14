@@ -371,21 +371,11 @@ export function computeHabitMetrics(expenses: Expense[]): {
   return { metrics, scores };
 }
 
-/** Score each habit style from a period's transaction list. */
-export function scoreHabitStyles(expenses: Expense[]): Record<HabitStyleId, number> {
-  return computeHabitMetrics(expenses).scores;
-}
-
 /** Style ids ranked by score, highest first, ties broken alphabetically by id. */
 export function rankStyles(scores: Record<HabitStyleId, number>): [HabitStyleId, number][] {
   const entries = Object.entries(scores) as [HabitStyleId, number][];
   entries.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   return entries;
-}
-
-/** Pick the winning habit style from a ranked score list. */
-export function pickHabitStyle(scores: Record<HabitStyleId, number>): HabitStyleId {
-  return pickFromRanked(rankStyles(scores));
 }
 
 function pickFromRanked(ranked: [HabitStyleId, number][]): HabitStyleId {

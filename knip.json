@@ -6,8 +6,7 @@
     "src/frontend/main.tsx",
     "scripts/*.ts",
     "website/motion.ts",
-    "website/theme.ts",
-    "tests/**"
+    "website/theme.ts"
   ],
   "project": ["src/**", "scripts/**"],
   "exclude": ["duplicates"],

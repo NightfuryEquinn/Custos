@@ -85,7 +85,7 @@ function createConnectivityStore() {
   }
 
   /* `window` without `document` happens in workers and in bun tests that stub
-     `window = globalThis` (see tests/crypto/biometric.test.ts). */
+     `window = globalThis`. */
   if (typeof window !== "undefined" && typeof document !== "undefined") {
     window.addEventListener("offline", () => setStatus("offline"));
     window.addEventListener("online", () => {

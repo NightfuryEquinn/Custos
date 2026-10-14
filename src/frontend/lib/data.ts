@@ -303,11 +303,6 @@ export function eventDaysForDay<T extends DayEvent>(events: T[], iso: string): A
     );
 }
 
-/** Events running on `iso`, sorted earliest-first within the day. */
-export function eventsForDay<T extends DayEvent>(events: T[], iso: string): T[] {
-  return eventDaysForDay(events, iso).map((d) => d.ev);
-}
-
 /**
  * Occurrence *starts* within a month, sorted by date then earliest time.
  *

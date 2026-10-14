@@ -331,11 +331,6 @@ export function rankIncomeStyles(scores: Record<IncomeStyleId, number>): [Income
   return entries.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 }
 
-/** Winning archetype, falling back to `emerging` when nothing scores clearly. */
-export function pickIncomeStyle(scores: Record<IncomeStyleId, number>): IncomeStyleId {
-  return pickFromRanked(rankIncomeStyles(scores));
-}
-
 function pickFromRanked(ranked: [IncomeStyleId, number][]): IncomeStyleId {
   const [topId, topScore] = ranked[0] ?? ["emerging", 0];
   if (topScore < 0.22) return "emerging";

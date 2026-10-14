@@ -83,15 +83,3 @@ export function getDb(): Db {
   }
   return db;
 }
-
-/**
- * Test helper: point the module singleton at an in-memory (or other) Db.
- * Pass `null` to clear. Production code should use connectDb() instead.
- */
-export function setDbForTests(next: Db | null): void {
-  db = next;
-  if (!next) {
-    client = null;
-    connecting = null;
-  }
-}

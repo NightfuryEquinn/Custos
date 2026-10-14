@@ -25,19 +25,3 @@ export function isOfflineFailure(err: unknown): boolean {
     (!!status && status >= 500)
   );
 }
-
-/**
- * Whether `err` is a definite, server-answered rejection that must sign the
- * user out / drop a queued write, never retried and never masked by a cache.
- */
-export function isPermanentFailure(err: unknown): boolean {
-  if (!(err instanceof ApiError)) return false;
-  return (
-    err.status === 400 ||
-    err.status === 401 ||
-    err.status === 403 ||
-    err.status === 404 ||
-    err.status === 409 ||
-    err.status === 422
-  );
-}

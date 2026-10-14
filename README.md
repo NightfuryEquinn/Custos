@@ -52,7 +52,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - **Navigation** — a persistent sidebar from 1024px, a bottom bar with a More sheet below that, four customizable favorites, a start page you choose, Ctrl/Command + K to search pages, and URL-backed destinations with browser Back/Forward.
 - **Two-step deletes** — every delete asks twice: the first press arms the button ("Confirm Delete"), the second performs it, and a second click that lands within 400ms is ignored. Deleting a wallet, a vehicle with records, a Capitals plan with items, a to-do list with tasks, or clearing local data also asks you to type the name first. Archiving an in-use category, marking a paid Capitals item unpaid, restoring an encrypted backup, and discarding offline changes each confirm before they act.
 - **Consistent editors** — Escape closes and Enter saves in every dialog, closing one with unsaved edits asks "Discard changes?", a failed save or delete shows its reason inline instead of failing silently, invalid numbers are flagged rather than turned into 0, and a short notice confirms each save or delete (adding "syncs when online" while offline).
-- **One layout grid** — the app and the public site share four width tiers (phone ≤639px, tablet 640–1023px, laptop 1024–1279px, desktop ≥1280px) and a 4px spacing scale (`--sp-1`…`--sp-7`). Content, topbar, rows, and dialogs share one left edge, and hover highlights extend past the text rather than touching it. `tests/frontend/layout-tokens.test.ts` enforces the tiers and the scale.
+- **One layout grid** — the app and the public site share four width tiers (phone ≤639px, tablet 640–1023px, laptop 1024–1279px, desktop ≥1280px) and a 4px spacing scale (`--sp-1`…`--sp-7`). Content, topbar, rows, and dialogs share one left edge, and hover highlights extend past the text rather than touching it.
 - **What's New** — release notes open once per device per app version (see [Versioning](#versioning)); reachable anytime from **Account → What's New**.
 
 ### Security
@@ -63,7 +63,6 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - The sign-in challenge is validated against the exact SIWE message shape, blocking a malicious server from substituting the key-derivation message as a login prompt.
 - Ownership uses opaque `accountId`; the SIWE address stays on `users` for login only. New document ids are random ObjectIds.
 - Signature verification, Mongo-backed rate limiting (in-memory fallback), security headers (CSP allow-lists the inline boot script by hash), and a swept in-memory profile cache.
-- Automated tests cover crypto/vault, encrypted backup, biometric selection, sign-in validation, reminder privacy, calculator, habit/income models, session auth, budget alerts, envelope holds, schedule math, push dedupe, pagination, cron cursors, header parity, insights, fuel insights, vehicle routes, and the release-notes gate (`bun test`).
 
 ## Tech stack
 
@@ -142,10 +141,6 @@ src/
 public/                   # PWA manifest + service worker (copied into dist/ on build)
 scripts/                  # MongoDB maintenance (account wipe, stale-user prune, index sync,
                           # supporter grant) and the public-site bundle (build-website.ts)
-tests/                    # auth, crypto, calculator, spending, income, schedule, budget/holds,
-                          # pagination, cron scans, push routes, security headers, whats-new,
-                          # insights, piggies, capitals, vehicles, sync, net, stats, seo, tour,
-                          # categories, events, expenses, fx, and more
 build.ts                  # Production build (dist/ + api/handler.js)
 ```
 
@@ -255,11 +250,8 @@ The in-app **Transparency** view documents hosting roles, what the server can in
 
 ```bash
 bun dev
-bun test           # crypto, reminders, calculator, spending habits, income profile, session auth,
-                    # budget alerts, envelope holds, schedule recurrence/multi-day, push dedupe,
-                    # ranked insights, fuel insights, vehicle routes, release-notes gate
 bun run typecheck  # tsc --noEmit
-bun run check      # lint + format check + tests + typecheck + knip (the same steps CI runs)
+bun run check      # lint + format check + typecheck + knip (the same steps CI runs)
 bun run knip       # unused files/exports/deps
 ```
 
@@ -279,7 +271,7 @@ The user-facing version lives in [`src/lib/version.ts`](src/lib/version.ts) as `
 
 Release notes are a newest-first list in [`src/frontend/lib/whats-new/release-notes.ts`](src/frontend/lib/whats-new/release-notes.ts). Prepend an entry and bump `APP_VERSION` to re-announce: seen-state is stored per version in `localStorage`, so any device that hasn't seen the new version gets the modal on next load.
 
-A version bump also needs three strings in [`website/index.html`](website/index.html) (`"softwareVersion"` in the JSON-LD, the `<span class="ver">` badge, and the footer line) — `tests/whats-new/release-notes.test.ts` enforces all stay in sync with `APP_VERSION`. Set `<lastmod>` to the release date in [`public/sitemap.xml`](public/sitemap.xml) and, for `website/index.html`, in [`website/sitemap.xml`](website/sitemap.xml) (leave the other pages' dates alone unless they changed). `public/sw.js`'s cache-bust string is derived automatically by `build.ts` at build time.
+A version bump also needs three strings in [`website/index.html`](website/index.html) (`"softwareVersion"` in the JSON-LD, the `<span class="ver">` badge, and the footer line), all kept in sync with `APP_VERSION`. Set `<lastmod>` to the release date in [`public/sitemap.xml`](public/sitemap.xml) and, for `website/index.html`, in [`website/sitemap.xml`](website/sitemap.xml) (leave the other pages' dates alone unless they changed). `public/sw.js`'s cache-bust string is derived automatically by `build.ts` at build time.
 
 New accounts get the notes too, after the welcome modal and any guided tour finish (welcome → tour → What's New), so they never overlap. To preview during development, delete `ledger:whatsnew:v1` in DevTools → Application → Local Storage and reload, or open **Account → What's New**.
 

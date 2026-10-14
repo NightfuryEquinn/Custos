@@ -8,12 +8,6 @@ type Bucket = { count: number; resetAt: number };
 
 const memoryBuckets = new Map<string, Bucket>();
 
-/** Test helper: clear in-memory rate-limit state between cases. */
-export function resetRateLimitsForTests(): void {
-  memoryBuckets.clear();
-  lastPruneAt = Date.now();
-}
-
 /* Periodically evict expired buckets so the map cannot grow without bound. */
 const PRUNE_INTERVAL_MS = 60_000;
 let lastPruneAt = Date.now();

@@ -438,11 +438,6 @@ export function isSavings(e: Expense, index?: CategoryIndex) {
   return classifyTx(e, index) === "savings";
 }
 
-/** True when the transaction counts toward spending (not savings, not income). */
-export function isSpend(e: Expense, index?: CategoryIndex) {
-  return classifyTx(e, index) === "spend";
-}
-
 export type WalletFunding = Pick<FinancialWallet, "fundingMode" | "income" | "startingBalance">;
 
 export function walletBalance(expenses: Expense[], wallet: WalletFunding, index?: CategoryIndex) {
