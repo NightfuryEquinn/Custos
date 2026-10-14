@@ -141,8 +141,7 @@ src/
     └── main.tsx
 public/                   # PWA manifest + service worker (copied into dist/ on build)
 scripts/                  # MongoDB maintenance (account wipe, stale-user prune, index sync,
-                          # supporter grant),
-                          # marketing icon export (export-marketing-icons.ts)
+                          # supporter grant) and the public-site bundle (build-website.ts)
 tests/                    # auth, crypto, calculator, spending, income, schedule, budget/holds,
                           # pagination, cron scans, push routes, security headers, whats-new,
                           # insights, piggies, capitals, vehicles, sync, net, stats, seo, tour,

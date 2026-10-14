@@ -11,10 +11,10 @@
  * Requires MONGODB_URI (and optional MONGODB_DB) from the environment / .env.
  */
 
-import { MongoClient, type Db } from "mongodb";
+import type { Db } from "mongodb";
 import { ACCOUNT_STALE_DAYS, ACCOUNT_STALE_MS } from "../src/lib/account-retention";
 import { COLLECTIONS } from "../src/db/collections";
-import { resolveMongoUri } from "../src/db/resolve-uri";
+import { fail, withDb } from "./lib/mongo";
 import { addressMatch, formatCounts, purgeAccount } from "./lib/purge-account";
 
 /** Print CLI help. */
@@ -104,24 +104,9 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const rawUri = process.env.MONGODB_URI;
-
-  if (!rawUri) {
-    throw new Error("MONGODB_URI is not set. Add it to your .env file.");
-  }
-
-  const uri = await resolveMongoUri(rawUri);
-  const dbName = process.env.MONGODB_DB?.trim() || "ledger";
-  const client = new MongoClient(uri, {
-    serverSelectionTimeoutMS: 15_000,
-    connectTimeoutMS: 15_000,
-  });
-
   const cutoff = new Date(Date.now() - ACCOUNT_STALE_MS);
 
-  try {
-    await client.connect();
-    const db = client.db(dbName);
+  await withDb(async (db, dbName) => {
     const users = db.collection(COLLECTIONS.users);
     const cursor = users.find({}, { projection: { address: 1, createdAt: 1, lastSeenAt: 1 } });
 
@@ -179,18 +164,7 @@ async function main(): Promise<void> {
     }
 
     console.log(`Done. accounts=${purged}${dryRun ? " (dry-run)" : ""}`);
-  } finally {
-    await client.close();
-  }
+  });
 }
 
-main().catch((err) => {
-  const message = err instanceof Error ? err.message : String(err);
-  console.error("Failed:", message);
-
-  if (err instanceof Error && err.cause) {
-    console.error("Cause:", err.cause instanceof Error ? err.cause.message : err.cause);
-  }
-
-  process.exit(1);
-});
+main().catch(fail);

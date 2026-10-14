@@ -9,9 +9,9 @@
  * Requires MONGODB_URI (and optional MONGODB_DB) from the environment / .env.
  */
 
-import { ObjectId, MongoClient } from "mongodb";
+import { ObjectId } from "mongodb";
 import { COLLECTIONS } from "../src/db/collections";
-import { resolveMongoUri } from "../src/db/resolve-uri";
+import { fail, withDb } from "./lib/mongo";
 import { formatCounts, purgeAccount } from "./lib/purge-account";
 
 /** Print CLI help. */
@@ -26,23 +26,10 @@ Usage:
 Options:
   --account-id <hex>   users._id as 24-char hex (required)
   --dry-run            Print per-collection counts; do not delete
-  --yes, -y            Skip the confirmation prompt
-  --force              Allow wipe when the users row is already missing
+  --yes, -y            Required to delete (without it, only --dry-run runs)
+  --force             Allow wipe when the users row is already missing
   --help, -h           Show this help
 `);
-}
-
-/** Confirm a destructive action via stdin. */
-async function confirm(message: string): Promise<boolean> {
-  process.stdout.write(`${message} [y/N] `);
-
-  for await (const line of console) {
-    const answer = String(line).trim().toLowerCase();
-
-    return answer === "y" || answer === "yes";
-  }
-
-  return false;
 }
 
 /** Read a required --flag value from argv. */
@@ -83,22 +70,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const rawUri = process.env.MONGODB_URI;
-
-  if (!rawUri) {
-    throw new Error("MONGODB_URI is not set. Add it to your .env file.");
-  }
-
-  const uri = await resolveMongoUri(rawUri);
-  const dbName = process.env.MONGODB_DB?.trim() || "ledger";
-  const client = new MongoClient(uri, {
-    serverSelectionTimeoutMS: 15_000,
-    connectTimeoutMS: 15_000,
-  });
-
-  try {
-    await client.connect();
-    const db = client.db(dbName);
+  await withDb(async (db, dbName) => {
     const user = await db
       .collection(COLLECTIONS.users)
       .findOne({ _id: new ObjectId(accountId) }, { projection: { address: 1 } });
@@ -117,31 +89,11 @@ async function main(): Promise<void> {
     console.log(`Address:   ${address ?? "(none)"}`);
     console.log(`Mode:      ${dryRun ? "dry-run" : "DELETE"}`);
 
-    if (!dryRun && !yes) {
-      const ok = await confirm(`Permanently delete all Mongo data for ${accountId}?`);
-
-      if (!ok) {
-        console.log("Aborted.");
-        process.exit(1);
-      }
-    }
-
     const counts = await purgeAccount(db, { accountId, address, dryRun });
     const prefix = dryRun ? "[dry-run]" : "wiped";
     console.log(`${prefix} ${formatCounts(counts)}`);
     console.log("Done.");
-  } finally {
-    await client.close();
-  }
+  });
 }
 
-main().catch((err) => {
-  const message = err instanceof Error ? err.message : String(err);
-  console.error("Failed:", message);
-
-  if (err instanceof Error && err.cause) {
-    console.error("Cause:", err.cause instanceof Error ? err.cause.message : err.cause);
-  }
-
-  process.exit(1);
-});
+main().catch(fail);

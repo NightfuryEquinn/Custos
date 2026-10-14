@@ -16,9 +16,8 @@
  * supporters outgrow doing this by hand.
  */
 
-import { MongoClient } from "mongodb";
 import { COLLECTIONS } from "../src/db/collections";
-import { resolveMongoUri } from "../src/db/resolve-uri";
+import { fail, withDb } from "./lib/mongo";
 
 function printHelp(): void {
   console.log(`Grant or revoke the Supporter chip for one wallet address.
@@ -48,19 +47,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const rawUri = process.env.MONGODB_URI;
-  if (!rawUri) throw new Error("MONGODB_URI is not set. Add it to your .env file.");
-
-  const uri = await resolveMongoUri(rawUri);
-  const dbName = process.env.MONGODB_DB?.trim() || "ledger";
-  const client = new MongoClient(uri, {
-    serverSelectionTimeoutMS: 15_000,
-    connectTimeoutMS: 15_000,
-  });
-
-  try {
-    await client.connect();
-    const db = client.db(dbName);
+  await withDb(async (db) => {
     const users = db.collection(COLLECTIONS.users);
     const lower = address.toLowerCase();
 
@@ -85,13 +72,7 @@ async function main(): Promise<void> {
         ? `Revoked Supporter for ${address}.`
         : `Granted Supporter to ${address} (since ${(updated.supporterSince as Date).toISOString()}).`,
     );
-  } finally {
-    await client.close();
-  }
+  });
 }
 
-main().catch((err) => {
-  const message = err instanceof Error ? err.message : String(err);
-  console.error("Failed:", message);
-  process.exit(1);
-});
+main().catch(fail);

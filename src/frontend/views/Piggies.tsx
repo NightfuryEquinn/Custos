@@ -18,7 +18,7 @@ type PiggiesProps = {
   currency: string;
   month: string;
   onAddDeposit: (piggy: Piggy, sub: Piglet) => void;
-  onWithdraw: (piggy: Piggy, sub: Piglet) => void;
+  onWithdraw: (piggy: Piggy) => void;
 };
 
 /**
@@ -168,20 +168,22 @@ export function Piggies({
                 </div>
               ) : null}
 
-              {primarySub && !primarySub.archived ? (
+              {primarySub ? (
                 <div className="piggy-card-actions">
+                  {!primarySub.archived ? (
+                    <button
+                      type="button"
+                      className="ghost-btn"
+                      onClick={() => onAddDeposit(piggy, primarySub)}
+                    >
+                      <Icon name="plus" size={15} /> Add
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="ghost-btn"
-                    onClick={() => onAddDeposit(piggy, primarySub)}
-                  >
-                    <Icon name="plus" size={15} /> Add
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost-btn"
-                    disabled={piggy.balance <= 0}
-                    onClick={() => onWithdraw(piggy, primarySub)}
+                    disabled={!piggy.piglets.some((p) => p.balance > 0)}
+                    onClick={() => onWithdraw(piggy)}
                   >
                     Withdraw
                   </button>

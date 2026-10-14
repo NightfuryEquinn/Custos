@@ -65,10 +65,10 @@ import {
 import { buildCategoryIndex, isIncomeCategory, type CategoryType } from "@/frontend/lib/categories";
 import { CURRENT_MONTH_KEY, clampMonthKey } from "@/frontend/lib/data";
 import {
+  applySavedExpense,
   classifyTx,
   normalizeRecurring,
   recurringScheduleKey,
-  sortExpensesByDateDesc,
 } from "@/frontend/lib/stats";
 import type {
   Budgets,
@@ -409,21 +409,8 @@ export function useLedger(walletAddress: string) {
     [wallet],
   );
 
-  /* A save's onSuccess invalidates the caches as soon as the write is *queued*,
-     so that refetch can be served before the queued POST lands. Once the drain
-     confirms it the pending overlay drops the row, and the stale base has no
-     copy — the deposit vanishes from Piggies/Capitals until the next refetch.
-     Refetch again whenever an outbox entry leaves the queue. */
   const outboxTotal = useSyncStatus(wallet).total;
   const prevOutboxTotal = useRef<number | null>(null);
-  useEffect(() => {
-    const prev = prevOutboxTotal.current;
-    prevOutboxTotal.current = outboxTotal;
-    if (prev === null || outboxTotal >= prev) return;
-    void queryClient.invalidateQueries({ queryKey: keys.allExpenses(wallet) });
-    void queryClient.invalidateQueries({ queryKey: keys.expenses(wallet) });
-    void queryClient.invalidateQueries({ queryKey: keys.capitalPlans(wallet) });
-  }, [outboxTotal, queryClient, wallet]);
 
   const loadCapitalPlans = async (fresh = false) => {
     const { capitalPlans } = await api.capitalPlans.list({ fresh });
@@ -570,6 +557,27 @@ export function useLedger(walletAddress: string) {
     enabled: cryptoReady,
     staleTime: 5 * 60 * 1000,
   });
+
+  /* A queued save is refetched before its POST lands, so that read can return
+     the old rows. Once the drain confirms the entry the pending overlay drops
+     the row; refetch whenever an outbox entry leaves the queue. The history is
+     read with `fresh` so a 429/5xx can't be answered from the stale offline
+     cache — if that read still fails, the row patched in by the save stays. */
+  useEffect(() => {
+    const prev = prevOutboxTotal.current;
+    prevOutboxTotal.current = outboxTotal;
+    if (prev === null || outboxTotal >= prev) return;
+    void queryClient
+      .fetchQuery({
+        queryKey: keys.allExpenses(wallet),
+        queryFn: () => loadAllExpenses(true),
+        staleTime: 0,
+      })
+      .catch(() => {});
+    void queryClient.invalidateQueries({ queryKey: keys.expenses(wallet) });
+    void queryClient.invalidateQueries({ queryKey: keys.capitalPlans(wallet) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadAllExpenses is recreated each render; only the queue size should retrigger
+  }, [outboxTotal, queryClient, wallet]);
 
   /* Same overlay as expensesQuery above — without it, an expense created or
      edited offline would show in the windowed ledger list but silently miss
@@ -1064,7 +1072,7 @@ export function useLedger(walletAddress: string) {
           });
           void drainOutbox(wallet);
           const expense = await decodeExpense({ id: data.id, ...body } as ExpenseWire, cryptoKey);
-          return { expense, deletedIds: [] as string[], endedIds: [] as string[] };
+          return { expense, deletedIds: [] as string[], endedIds: [] as string[], queued: true };
         }
 
         const res = await api.expenses.update(data.id, body);
@@ -1073,6 +1081,7 @@ export function useLedger(walletAddress: string) {
           expense,
           deletedIds: res.deletedIds ?? [],
           endedIds: res.endedIds ?? [],
+          queued: false,
         };
       }
 
@@ -1097,30 +1106,19 @@ export function useLedger(walletAddress: string) {
         expense,
         deletedIds: [] as string[],
         endedIds: [] as string[],
+        queued: true,
       };
     },
-    onSuccess: ({ expense, deletedIds, endedIds }, variables) => {
-      const gone = new Set(deletedIds);
-      const ended = new Set(endedIds);
-      const nextExpenses = (() => {
-        const prev = queryClient.getQueryData<Expense[]>(keys.expenses(wallet)) ?? [];
-        let next = prev.filter((e) => !gone.has(e.id));
-        next = next.map((e) => {
-          if (ended.has(e.id)) return { ...e, recurring: false as const };
-          if (variables.id && e.id === expense.id) return expense;
-          return e;
-        });
-        if (!variables.id) {
-          next = sortExpensesByDateDesc([expense, ...next]);
-        } else if (!next.some((e) => e.id === expense.id)) {
-          next = sortExpensesByDateDesc([expense, ...next]);
-        } else {
-          next = sortExpensesByDateDesc(next);
-        }
-        return next;
-      })();
+    onSuccess: ({ expense, deletedIds, endedIds, queued }, variables) => {
+      const fold = (prev: Expense[] = []) => applySavedExpense(prev, expense, deletedIds, endedIds);
+      const nextExpenses = fold(queryClient.getQueryData<Expense[]>(keys.expenses(wallet)));
       queryClient.setQueryData<Expense[]>(keys.expenses(wallet), nextExpenses);
-      void queryClient.invalidateQueries({ queryKey: keys.allExpenses(wallet) });
+      /* Piggies and balances read this list, so the saved row must live here too:
+         a queued write refetches before its POST lands and would otherwise
+         bring back the old rows once the outbox overlay drops the entry. */
+      queryClient.setQueryData<Expense[]>(keys.allExpenses(wallet), (prev) => prev && fold(prev));
+      /* A queued write is refetched by the outbox-drain effect once it lands. */
+      if (!queued) void queryClient.invalidateQueries({ queryKey: keys.allExpenses(wallet) });
       if (!variables.id) {
         setMonthMutation.mutate(expense.date.slice(0, 7));
       }
@@ -1166,7 +1164,7 @@ export function useLedger(walletAddress: string) {
       return api.expenses.remove(id, opts);
     },
     onSuccess: (res, { id, opts }) => {
-      queryClient.setQueryData<Expense[]>(keys.expenses(wallet), (prev = []) => {
+      const drop = (prev: Expense[] = []) => {
         if (res.skippedId) {
           return prev.filter((e) => e.id !== res.skippedId);
         }
@@ -1195,8 +1193,11 @@ export function useLedger(walletAddress: string) {
           return next;
         }
         return prev.filter((e) => e.id !== id);
-      });
-      void queryClient.invalidateQueries({ queryKey: keys.allExpenses(wallet) });
+      };
+      queryClient.setQueryData<Expense[]>(keys.expenses(wallet), drop);
+      queryClient.setQueryData<Expense[]>(keys.allExpenses(wallet), (prev) => prev && drop(prev));
+      /* A queued (scopeless) delete is refetched by the outbox-drain effect once it lands. */
+      if (opts?.scope) void queryClient.invalidateQueries({ queryKey: keys.allExpenses(wallet) });
     },
   });
 

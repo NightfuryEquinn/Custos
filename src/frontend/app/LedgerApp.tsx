@@ -161,9 +161,8 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
         sub?: string;
         kind?: "expense" | "income";
         amount?: number;
-        /** Piggy-withdraw mode: locks kind/category/sub and caps the amount. */
-        lockedSub?: string;
-        maxAmount?: number;
+        /** Piggy-withdraw mode: subId → balance, locks the form to withdrawing from these. */
+        withdrawFrom?: Record<string, number>;
         title?: string;
       }
     | null
@@ -707,14 +706,15 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
     setModal({ add: true, kind: "expense", sub: sub.subId });
   };
 
-  /** Open the transaction modal locked to withdraw from a piggy's subcategory. */
-  const withdrawFromPiggy = (piggy: Piggy, sub: Piglet) => {
+  /** Open the transaction modal locked to withdraw from one of a piggy's funded subcategories. */
+  const withdrawFromPiggy = (piggy: Piggy) => {
+    const funded = piggy.piglets.filter((p) => p.balance > 0);
+    if (!funded.length) return;
     setModal({
       add: true,
       kind: "income",
-      sub: sub.subId,
-      lockedSub: sub.subId,
-      maxAmount: piggy.balance,
+      sub: funded[0]!.subId,
+      withdrawFrom: Object.fromEntries(funded.map((p) => [p.subId, p.balance])),
       title: `Withdraw from ${piggy.name}`,
     });
   };
@@ -1091,8 +1091,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
           }}
           onDelete={deleteExpense}
           title={"add" in modal ? modal.title : undefined}
-          lockedSub={"add" in modal ? modal.lockedSub : undefined}
-          maxAmount={"add" in modal ? modal.maxAmount : undefined}
+          withdrawFrom={"add" in modal ? modal.withdrawFrom : undefined}
         />
       ) : null}
       {walletModal ? (

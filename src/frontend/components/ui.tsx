@@ -944,11 +944,12 @@ function WalletPicker({ wallets, value, onChange, onManage, className }: WalletP
 
 // ── Add / edit expense modal ────────────────────────────────────────
 /**
- * `lockedSub` + `maxAmount` put the modal into piggy-withdraw mode: kind,
- * wallet, category, subcategory and recurrence all stay fixed to what the
- * caller prefilled in `initial`, and the amount cannot exceed the piggy's
- * balance. Used by the Piggies view's "Withdraw" action so a withdrawal can
- * only ever land back in the envelope it came from.
+ * `withdrawFrom` (subId → available balance) puts the modal into piggy-withdraw
+ * mode: kind, wallet, category and recurrence stay fixed to what the caller
+ * prefilled in `initial`. With several subcategories the user picks which one
+ * to withdraw from, and the amount cannot exceed that subcategory's balance.
+ * Used by the Piggies view's "Withdraw" action so a withdrawal can only ever
+ * land back in the envelope it came from.
  *
  * On savings deposits (`kind === "expense"` + savings category), an optional
  * Capital picker adds the amount to a plan's pot; default is Piggies.
@@ -966,8 +967,7 @@ function AddExpenseModal({
   onClose,
   onDelete,
   title,
-  lockedSub,
-  maxAmount,
+  withdrawFrom,
 }: {
   initial?: Partial<Expense> | null;
   wallets: FinancialWallet[];
@@ -978,13 +978,12 @@ function AddExpenseModal({
   onClose: () => void;
   onDelete: (id: string, opts?: DeleteExpenseOpts) => void | Promise<void>;
   title?: string;
-  lockedSub?: string;
-  maxAmount?: number;
+  withdrawFrom?: Record<string, number>;
 }) {
   const editing = !!(initial && initial.id);
   const initialId = initial?.id;
   const initialDate = initial?.date;
-  const locked = !!lockedSub;
+  const locked = !!withdrawFrom;
   const initKind = initial?.kind ?? "expense";
   const { expenseCategories, incomeCategories, subById, catById } = categoryIndex;
   const firstSub = (id: string) => pickerSubs(catById[id])[0]?.id ?? id;
@@ -1074,6 +1073,7 @@ function AddExpenseModal({
     setSub(firstSub(id));
     if (!isSavingsCategory(catById[id])) setCapitalPlanId("");
   };
+  const maxAmount = withdrawFrom?.[sub];
   const overMax = maxAmount != null && amountEvaluated != null && amountEvaluated > maxAmount;
   const valid = amountEvaluated != null && amountEvaluated > 0 && date && !overMax;
   const submit = async () => {
@@ -1175,6 +1175,25 @@ function AddExpenseModal({
                 className="wallet-switch--block"
               />
             </div>
+          ) : null}
+
+          {withdrawFrom && Object.keys(withdrawFrom).length > 1 ? (
+            <>
+              <label className="fld-label">Withdraw from</label>
+              <div className="sub-row">
+                {Object.keys(withdrawFrom).map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={"sub-chip" + (sub === id ? " active" : "")}
+                    onClick={() => setSub(id)}
+                  >
+                    {subById[id]?.name ?? id}
+                  </button>
+                ))}
+              </div>
+              <div className="event-div" />
+            </>
           ) : null}
 
           {amountIsExpression ? (

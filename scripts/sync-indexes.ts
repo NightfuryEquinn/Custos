@@ -11,35 +11,10 @@
  * Requires MONGODB_URI (and optional MONGODB_DB) from the environment.
  */
 
-import { MongoClient } from "mongodb";
 import { ensureIndexes } from "../src/db/indexes";
-import { resolveMongoUri } from "../src/db/resolve-uri";
+import { fail, withDb } from "./lib/mongo";
 
-async function main(): Promise<void> {
-  const rawUri = process.env.MONGODB_URI;
-
-  if (!rawUri) {
-    throw new Error("MONGODB_URI is not set.");
-  }
-
-  const uri = await resolveMongoUri(rawUri);
-  const dbName = process.env.MONGODB_DB?.trim() || "ledger";
-  const client = new MongoClient(uri, {
-    serverSelectionTimeoutMS: 15_000,
-    connectTimeoutMS: 15_000,
-  });
-
-  try {
-    await client.connect();
-    await ensureIndexes(client.db(dbName));
-    console.log(`Indexes synced. database=${dbName}`);
-  } finally {
-    await client.close();
-  }
-}
-
-main().catch((err) => {
-  const message = err instanceof Error ? err.message : String(err);
-  console.error("Failed:", message);
-  process.exit(1);
-});
+withDb(async (db, dbName) => {
+  await ensureIndexes(db);
+  console.log(`Indexes synced. database=${dbName}`);
+}).catch(fail);

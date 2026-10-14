@@ -350,6 +350,27 @@ export function sortExpensesByDateDesc(expenses: Expense[]): Expense[] {
   });
 }
 
+/**
+ * Fold a saved expense into a cached list: drop rows the server deleted, mark
+ * ended recurring rows, then insert or replace the saved row and re-sort.
+ */
+export function applySavedExpense(
+  prev: Expense[],
+  saved: Expense,
+  deletedIds: readonly string[] = [],
+  endedIds: readonly string[] = [],
+): Expense[] {
+  const gone = new Set(deletedIds);
+  const ended = new Set(endedIds);
+  const next = prev
+    .filter((e) => !gone.has(e.id))
+    .map((e) =>
+      e.id === saved.id ? saved : ended.has(e.id) ? { ...e, recurring: false as const } : e,
+    );
+
+  return sortExpensesByDateDesc(next.some((e) => e.id === saved.id) ? next : [saved, ...next]);
+}
+
 export const isIncome = (e: Expense) => e.kind === "income";
 export const isOutgoing = (e: Expense) => e.kind !== "income";
 
