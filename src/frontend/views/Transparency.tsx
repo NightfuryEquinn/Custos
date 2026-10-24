@@ -92,7 +92,11 @@ const COLLECTIONS: CollectionDoc[] = [
       { key: "currency", value: '"MYR"' },
       { key: "fundingMode", value: '"monthly" | "starting"' },
       { key: "enc", value: "1", note: "E2EE version" },
-      { key: "payload", value: "base64 AES-GCM", note: "name, income, startingBalance, budgets" },
+      {
+        key: "payload",
+        value: "base64 AES-GCM",
+        note: "name, income, startingBalance, budgets, subcategoryBudgets",
+      },
       { key: "isDefault", value: "true" },
       { key: "createdAt / updatedAt", value: "ISO dates" },
     ],
@@ -244,7 +248,7 @@ const COLLECTIONS: CollectionDoc[] = [
       {
         key: "payload",
         value: "base64 AES-GCM",
-        note: "title, description, goal, unit, today's count",
+        note: "title, description, goal, unit, step, daily totals and today's count",
       },
       {
         key: "enabled · everyMin · windowStart · windowEnd",
@@ -259,6 +263,28 @@ const COLLECTIONS: CollectionDoc[] = [
       },
       { key: "metOn", value: '"2026-10-09"', note: "the day the goal was reached; plaintext" },
       { key: "createdAt / updatedAt", value: "ISO dates" },
+    ],
+  },
+  {
+    name: "nudge_check_ins",
+    purpose: "Permanent Nudge check-in journal; removed with the Nudge or account",
+    encrypted: true,
+    fields: [
+      {
+        key: "accountId / nudgeId",
+        value: "opaque account and Nudge IDs",
+        note: "ownership and linkage; plaintext",
+      },
+      {
+        key: "day / at",
+        value: "local date / ISO timestamp",
+        note: "original check-in day and time; plaintext for ordered history",
+      },
+      {
+        key: "enc / payload",
+        value: "1 / base64 AES-GCM",
+        note: "intended adjustment, applied adjustment, resulting count, goal and unit snapshots",
+      },
     ],
   },
   {
@@ -625,9 +651,11 @@ export function Transparency() {
               You navigate with a sidebar (or a bottom bar on smaller screens) with four
               customizable favorites, and Ctrl or Command + K searches pages. A device passphrase
               wraps your in-app recovery key on this browser; encrypted backups download to your
-              machine only. Optional Face ID / Touch ID unlock runs entirely in the browser through
-              WebAuthn — it can prompt on its own when you open the app, but the server never
-              receives the credential, the assertion, or any signal that a biometric check happened.
+              machine only. Remembered unlock keys expire twelve hours after unlocking and are
+              removed on sign-out or clearing local data. Optional Face ID / Touch ID unlock runs
+              entirely in the browser through WebAuthn — it can prompt on its own when you open the
+              app, but the server never receives the credential, the assertion, or any signal that a
+              biometric check happened.
             </p>
             <p className="panel-sub panel-sub--spaced">
               The installable PWA caches ciphertext locally so the app opens, unlocks, and reads
@@ -681,8 +709,10 @@ export function Transparency() {
               is closed, so while a nudge is on the server holds its on/off state, interval, hours,
               next send time, the day its goal was reached, and a readable copy of the notification
               (title, goal and description). Switching a nudge off deletes the readable copy and the
-              next send time. Today&apos;s count and everything else about it stay ciphertext.
-              Nudges are delivered as web push only, never by email.
+              next send time. Counts and daily totals stay encrypted. The check-in journal exposes
+              its Nudge linkage, local day, and occurrence timestamp; adjustments, resulting counts,
+              goals, and units remain encrypted. Detailed events are retained until the Nudge or
+              account is deleted. Nudges are delivered as web push only, never by email.
             </p>
             <p className="panel-sub panel-sub--spaced">
               Budget alerts are a deliberate exception: the client sends cleartext{" "}

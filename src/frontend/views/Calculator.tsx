@@ -1,3 +1,4 @@
+import { liveSubs } from "@/frontend/lib/categories";
 import { ReadableValue } from "@/frontend/components/ReadableValue";
 import { useEnter, useModalMotion, useStagger } from "@/frontend/lib/animate";
 import { toast } from "@/frontend/lib/feedback";
@@ -46,7 +47,10 @@ type TaxLine = {
 type CalculatorProps = {
   wallet: FinancialWallet | null | undefined;
   budgets: Budgets;
-  setBudgets: (next: Budgets) => void | Promise<void>;
+  setBudgets: (
+    next: Budgets,
+    breakdown?: FinancialWallet["subcategoryBudgets"],
+  ) => void | Promise<void>;
   budgetsSaving?: boolean;
   currency: string;
   categoryIndex: CategoryIndex;
@@ -109,6 +113,7 @@ export function Calculator({
     if (draftWallet.current !== wallet?.id) {
       grossDirty.current = false;
       draftWallet.current = wallet?.id;
+      setAmtByCat({});
     }
     if (grossDirty.current) return;
     const income = wallet?.income ?? 0;
@@ -118,7 +123,7 @@ export function Calculator({
 
   /** Keep allocation draft keys aligned with expense categories. */
   useEffect(() => {
-    const ids = expenseCategories.map((c) => c.id);
+    const ids = expenseCategories.flatMap((c) => liveSubs(c).map((sub) => `${c.id}:${sub.id}`));
 
     setAmtByCat((prev) => alignDraftMap(prev, ids));
   }, [expenseCategories]);
@@ -134,7 +139,11 @@ export function Calculator({
     () =>
       expenseCategories.map((c) => ({
         id: c.id,
-        amount: parseNonNeg(amtByCat[c.id] ?? ""),
+        amount:
+          liveSubs(c).reduce(
+            (sum, sub) => sum + Math.round(parseNonNeg(amtByCat[`${c.id}:${sub.id}`] ?? "") * 100),
+            0,
+          ) / 100,
       })),
     [expenseCategories, amtByCat],
   );
@@ -225,6 +234,16 @@ export function Calculator({
 
   /* Zero allocations are omitted from `computed`, so those categories keep their budget. */
   const nextBudgets = { ...budgets, ...computed };
+  const nextBreakdown = { ...wallet?.subcategoryBudgets };
+  for (const category of expenseCategories) {
+    if (computed[category.id])
+      nextBreakdown[category.id] = Object.fromEntries(
+        liveSubs(category).map((sub) => [
+          sub.id,
+          Math.round(parseNonNeg(amtByCat[`${category.id}:${sub.id}`] ?? "") * 100) / 100,
+        ]),
+      );
+  }
 
   const openApply = () => {
     setApplyError("");
@@ -239,7 +258,7 @@ export function Calculator({
     setApplyError("");
 
     try {
-      await setBudgets(nextBudgets);
+      await setBudgets(nextBudgets, nextBreakdown);
       setConfirmOpen(false);
       setApplied(true);
       toast("Budgets applied");
@@ -465,41 +484,43 @@ export function Calculator({
 
             <div className="calculator-alloc-list">
               {expenseCategories.map((c) => {
-                const amountDraft = parseNonNeg(amtByCat[c.id] ?? "");
-                const derivedPct = net > 0 ? (amountDraft / net) * 100 : 0;
-
+                const amount = amountRows.find((row) => row.id === c.id)?.amount ?? 0;
                 return (
-                  <div key={c.id} className="calculator-alloc-row">
+                  <div key={c.id} className="calculator-alloc-row calculator-category-breakdown">
                     <div className="calculator-alloc-name">
                       <CatGlyph glyph={c.glyph} id={c.id} />
                       <span>{c.name}</span>
+                      <strong className="num">{fmtMoney(amount, { currency })}</strong>
                     </div>
-                    <div className="calculator-alloc-controls">
-                      <ReadableValue as="div" className="calculator-alloc-amt num">
-                        {formatPct(derivedPct)}
-                      </ReadableValue>
-                      <div className="calculator-field calculator-amt-field">
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          inputMode="decimal"
-                          placeholder="0.00"
-                          value={amtByCat[c.id] ?? ""}
-                          onChange={(e) => {
-                            markDirty();
-                            setAmtByCat((prev) => ({
-                              ...prev,
-                              [c.id]: stripNegativeInput(e.target.value),
-                            }));
-                          }}
-                          onKeyDown={preventNegativeKeys}
-                          onWheel={preventWheelChange}
-                          aria-label={`${c.name} amount`}
-                        />
-                        <span className="calculator-field-suffix">{cur.symbol}</span>
-                      </div>
-                    </div>
+                    <ReadableValue className="calculator-alloc-amt num">
+                      {formatPct(net > 0 ? (amount / net) * 100 : 0)}
+                    </ReadableValue>
+                    {liveSubs(c).map((sub) => (
+                      <label className="calculator-sub-allocation" key={sub.id}>
+                        <span>{sub.name}</span>
+                        <div className="calculator-field calculator-amt-field">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            inputMode="decimal"
+                            placeholder="0.00"
+                            value={amtByCat[`${c.id}:${sub.id}`] ?? ""}
+                            onChange={(e) => {
+                              markDirty();
+                              setAmtByCat((prev) => ({
+                                ...prev,
+                                [`${c.id}:${sub.id}`]: stripNegativeInput(e.target.value),
+                              }));
+                            }}
+                            onKeyDown={preventNegativeKeys}
+                            onWheel={preventWheelChange}
+                            aria-label={`${c.name}: ${sub.name} amount`}
+                          />
+                          <span className="calculator-field-suffix">{cur.symbol}</span>
+                        </div>
+                      </label>
+                    ))}
                   </div>
                 );
               })}
@@ -566,6 +587,21 @@ export function Calculator({
                           <span className="num">
                             {before !== after ? `${fmtMoney(before, { currency })} → ` : ""}
                             {fmtMoney(after, { currency })}
+                            <small className="allocation-confirm-subs">
+                              {computed[c.id]
+                                ? (categoryIndex.catById[c.id]?.subs ?? c.subs)
+                                    .filter(
+                                      (sub) =>
+                                        (nextBreakdown[c.id]?.[sub.id] ?? 0) > 0 ||
+                                        (wallet?.subcategoryBudgets?.[c.id]?.[sub.id] ?? 0) > 0,
+                                    )
+                                    .map(
+                                      (sub) =>
+                                        `${sub.name}: ${fmtMoney(wallet?.subcategoryBudgets?.[c.id]?.[sub.id] ?? 0, { currency })} -> ${fmtMoney(nextBreakdown[c.id]?.[sub.id] ?? 0, { currency })}`,
+                                    )
+                                    .join(" / ")
+                                : "Unchanged"}
+                            </small>
                           </span>
                         </li>
                       );

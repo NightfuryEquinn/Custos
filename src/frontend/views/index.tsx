@@ -745,6 +745,16 @@ export function Budgets({
       return;
     }
     const v = roundMoney(draftEvaluated);
+    const childTotal = Object.values(wallet?.subcategoryBudgets?.[id] ?? {}).reduce(
+      (sum, n) => sum + n,
+      0,
+    );
+    if (v < roundMoney(childTotal)) {
+      setEditError(
+        "This is below the subcategory total. Adjust the breakdown in Calculator first.",
+      );
+      return;
+    }
     if (v === (budgets[id] ?? 0)) return closeEdit();
 
     savingEditRef.current = true;
@@ -885,7 +895,22 @@ export function Budgets({
                   ) : (
                     <span>{fmtMoney(budget - spent, { currency })} remaining</span>
                   )}
-                  <span className="be-subs">{c.subs.map((s) => s.name).join(" · ")}</span>
+                  <span className="be-subs">
+                    {(categoryIndex.catById[c.id]?.subs ?? c.subs)
+                      .map((sub) => {
+                        const amount = wallet?.subcategoryBudgets?.[c.id]?.[sub.id];
+                        const label = `${sub.name}${sub.archived ? " (archived)" : ""}`;
+                        return amount === undefined
+                          ? label
+                          : `${label}: ${fmtMoney(amount, { currency })}`;
+                      })
+                      .join(" / ")}
+                    {wallet?.subcategoryBudgets?.[c.id] &&
+                    (budget ?? 0) >
+                      Object.values(wallet.subcategoryBudgets[c.id]!).reduce((sum, n) => sum + n, 0)
+                      ? ` / Unallocated: ${fmtMoney((budget ?? 0) - Object.values(wallet.subcategoryBudgets[c.id]!).reduce((sum, n) => sum + n, 0), { currency })}`
+                      : ""}
+                  </span>
                 </div>
               </div>
             );

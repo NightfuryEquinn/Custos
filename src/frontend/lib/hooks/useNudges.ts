@@ -1,13 +1,20 @@
 import { api } from "@/frontend/lib/api";
-import { decodeNudge, encodeNudge } from "@/frontend/lib/crypto/codec";
+import {
+  decodeNudge,
+  encodeNudge,
+  decodeNudgeCheckIn,
+  encodeNudgeCheckIn,
+  type NudgeWire,
+  type NudgeCheckInWire,
+} from "@/frontend/lib/crypto/codec";
 import { ledgerKeyStore } from "@/frontend/lib/crypto/key-store";
 import { drainOutbox } from "@/frontend/lib/sync/engine";
 import { sealLabel } from "@/frontend/lib/sync/labels";
 import { clientObjectId } from "@/frontend/lib/sync/object-id";
-import { enqueueOutbox, listOutbox } from "@/frontend/lib/sync/outbox";
-import { nudgeOverlay } from "@/frontend/lib/sync/overlay";
-import { useOutboxEntries, usePendingOverlay } from "@/frontend/lib/sync/useOutbox";
-import type { Nudge } from "@/lib/nudge";
+import { enqueueOutbox, listOutbox, discardOutbox } from "@/frontend/lib/sync/outbox";
+import { useOutboxEntries } from "@/frontend/lib/sync/useOutbox";
+import { applyNudgeCheckIn, type Nudge, type NudgeCheckIn } from "@/lib/nudge";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { zonedTodayIso } from "@/lib/recurring";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -45,8 +52,86 @@ export function useNudges(
     enabled: cryptoReady,
   });
   const key = ledgerKeyStore.get(address);
-  const nudges = usePendingOverlay(address, query.data, key, nudgeOverlay);
-  const pending = useOutboxEntries(address).filter((e) => e.entity === "nudge");
+  const entries = useOutboxEntries(address);
+  const pending = useMemo(
+    () => entries.filter((e) => e.entity === "nudge" || e.entity === "nudgeCheckIn"),
+    [entries],
+  );
+  const [nudges, setNudges] = useState<Nudge[]>([]);
+  const [pendingEvents, setPendingEvents] = useState<NudgeCheckIn[]>([]);
+  const confirmed = useRef(new Set<string>());
+  const previousPending = useRef<string[]>([]);
+  useEffect(() => {
+    const ids = pending.map((entry) => entry.opId);
+    if (previousPending.current.some((id) => !ids.includes(id)))
+      void queryClient.invalidateQueries({ queryKey: keys.data(address) });
+    previousPending.current = ids;
+  }, [pending, address, queryClient]);
+  useEffect(() => {
+    let cancelled = false;
+    if (!key || !query.data) return;
+    void (async () => {
+      const rows = new Map(query.data.map((row) => [row.id, row]));
+      const events: NudgeCheckIn[] = [];
+      for (const entry of pending) {
+        if (confirmed.current.has(entry.opId)) continue;
+        if (entry.entity === "nudge") {
+          if (entry.op === "delete") {
+            rows.delete(entry.targetId);
+            continue;
+          }
+          const row = await decodeNudge(
+            { ...(entry.request.body as NudgeWire), id: entry.targetId },
+            key,
+          );
+          const previous = rows.get(row.id);
+          rows.set(
+            row.id,
+            previous && entry.op === "update"
+              ? { ...row, progress: previous.progress, history: previous.history }
+              : row,
+          );
+        } else {
+          const event = await decodeNudgeCheckIn(entry.request.body as NudgeCheckInWire, key);
+          const row = rows.get(event.nudgeId);
+          if (!row) continue;
+          if (entry.request.method === "PUT") {
+            events.push(event);
+            continue;
+          }
+          const applied = applyNudgeCheckIn(row, event);
+          rows.set(row.id, applied.nudge);
+          events.push(applied.event);
+        }
+      }
+      if (!cancelled) {
+        setNudges([...rows.values()]);
+        setPendingEvents(events);
+      }
+    })().catch(() => {
+      /* Failed ciphertext stays represented by the sync error. */
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [key, query.data, pending]);
+  useEffect(() => {
+    const synced = (event: Event) => {
+      const { detail } = event as CustomEvent<{ address: string; opId: string; nudge: NudgeWire }>;
+      if (detail.address !== address) return;
+      confirmed.current.add(detail.opId);
+      void decodeNudge(detail.nudge, ledgerKeyStore.require(address)).then((row) => {
+        queryClient.setQueryData<Nudge[]>(keys.data(address), (prev) =>
+          prev?.some((n) => n.id === row.id)
+            ? prev.map((n) => (n.id === row.id ? row : n))
+            : [...(prev ?? []), row],
+        );
+        void queryClient.invalidateQueries({ queryKey: ["nudge-check-ins", address] });
+      });
+    };
+    window.addEventListener("custos:nudge-synced", synced);
+    return () => window.removeEventListener("custos:nudge-synced", synced);
+  }, [address, queryClient]);
 
   /** Insert, replace or remove rows in the cached list, so the UI answers before the queue drains. */
   const patchCache = (patch: (data: Nudge[]) => Nudge[]) =>
@@ -96,16 +181,21 @@ export function useNudges(
 
       return { id: newId, ...rest };
     },
-    onSuccess: (saved) =>
-      patchCache((data) =>
-        data.some((n) => n.id === saved.id)
-          ? data.map((n) => (n.id === saved.id ? saved : n))
-          : [...data, saved],
-      ),
+    onSuccess: (saved, input) => {
+      if (!input.id) patchCache((rows) => [...rows.filter((row) => row.id !== saved.id), saved]);
+    },
   });
 
   const deleteNudgeMutation = useMutation({
     mutationFn: async (id: string) => {
+      for (const entry of await listOutbox(address)) {
+        if (
+          entry.entity === "nudgeCheckIn" &&
+          (entry.request.body as NudgeCheckInWire).nudgeId === id &&
+          entry.status !== "inflight"
+        )
+          await discardOutbox(entry.opId);
+      }
       await enqueueOutbox({
         address,
         entity: "nudge",
@@ -120,7 +210,65 @@ export function useNudges(
     onSuccess: (_res, id) => patchCache((data) => data.filter((n) => n.id !== id)),
   });
 
+  const recordCheckIn = async (row: Nudge, direction: 1 | -1) => {
+    if (!timeZone) throw new Error("Nudges are not ready yet");
+    const day = zonedTodayIso(timeZone);
+    const event: NudgeCheckIn = {
+      id: clientObjectId(),
+      nudgeId: row.id,
+      day,
+      at: new Date().toISOString(),
+      change: direction * (row.step ?? 1),
+      delta: 0,
+      count: 0,
+      target: row.target,
+      unit: row.unit,
+    };
+    const applied = applyNudgeCheckIn(row, event);
+    const create = (await listOutbox(address)).find(
+      (e) => e.entity === "nudge" && e.targetId === row.id && e.op === "create",
+    );
+    await enqueueOutbox({
+      address,
+      entity: "nudgeCheckIn",
+      op: "create",
+      targetId: event.id,
+      request: {
+        method: "POST",
+        path: `/nudges/${row.id}/check-ins`,
+        body: await encodeNudgeCheckIn(applied.event, ledgerKeyStore.require(address)),
+      },
+      dependsOn: create ? [create.opId] : [],
+      label: "Nudge check-in",
+    });
+    void drainOutbox(address);
+    return applied.nudge;
+  };
+  const restoreCheckIn = async (event: NudgeCheckIn) => {
+    const create = (await listOutbox(address)).find(
+      (e) => e.entity === "nudge" && e.targetId === event.nudgeId && e.op === "create",
+    );
+    await enqueueOutbox({
+      address,
+      entity: "nudgeCheckIn",
+      op: "create",
+      targetId: event.id,
+      request: {
+        method: "PUT",
+        path: `/nudges/${event.nudgeId}/check-ins/${event.id}`,
+        body: await encodeNudgeCheckIn(event, ledgerKeyStore.require(address)),
+      },
+      dependsOn: create ? [create.opId] : [],
+      label: "Nudge check-in",
+    });
+    void drainOutbox(address);
+  };
+
   return {
+    address,
+    pendingEvents,
+    recordCheckIn,
+    restoreCheckIn,
     query,
     nudges,
     today,

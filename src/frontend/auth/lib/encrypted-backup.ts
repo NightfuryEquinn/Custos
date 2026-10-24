@@ -1,3 +1,4 @@
+import type { Nudge, NudgeCheckIn } from "@/lib/nudge";
 import type { DailyCompletion, DailyRoutine } from "@/lib/daily";
 /**
  * Client-only encrypted ledger backup — download / restore a portable blob.
@@ -63,6 +64,8 @@ export type LedgerBackupPlain = {
   /** Present on backups from 6.5.0 onward; omitted on older exports. */
   dailyRoutines?: DailyRoutine[];
   dailyCompletions?: DailyCompletion[];
+  nudges?: Nudge[];
+  nudgeCheckIns?: NudgeCheckIn[];
   /** Present on backups from 6.0.0 onward; omitted on older exports. */
   settings?: BackupSettings;
 };
@@ -94,6 +97,8 @@ export function buildBackupPlain(input: {
   vehicleFills?: FuelFill[];
   dailyRoutines?: DailyRoutine[];
   dailyCompletions?: DailyCompletion[];
+  nudges?: Nudge[];
+  nudgeCheckIns?: NudgeCheckIn[];
   settings?: BackupSettings;
 }): LedgerBackupPlain {
   return {
@@ -111,6 +116,8 @@ export function buildBackupPlain(input: {
     vehicleFills: input.vehicleFills,
     dailyRoutines: input.dailyRoutines,
     dailyCompletions: input.dailyCompletions,
+    nudges: input.nudges,
+    nudgeCheckIns: input.nudgeCheckIns,
     settings: input.settings,
   };
 }

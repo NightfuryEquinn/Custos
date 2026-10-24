@@ -23,6 +23,7 @@ export type NudgeRule = { everyMin: number; windowStart: string; windowEnd: stri
 
 export type Nudge = NudgeRule & {
   id: string;
+  revision?: number;
   title: string;
   description: string;
   /** Daily goal as a count, with a free-text unit such as "glasses". */
@@ -38,6 +39,35 @@ export type Nudge = NudgeRule & {
   enabled: boolean;
   createdAt: string;
 };
+
+export type NudgeCheckIn = {
+  id: string;
+  nudgeId: string;
+  day: string;
+  at: string;
+  /** Intended adjustment survives offline rebasing; delta is the applied adjustment. */
+  change: number;
+  delta: number;
+  count: number;
+  target: number;
+  unit: string;
+};
+
+/** Apply a queued operation to its original calendar day, never to the sync day. */
+export function applyNudgeCheckIn(row: Nudge, event: NudgeCheckIn) {
+  const before =
+    row.progress.day === event.day ? row.progress.count : (row.history?.[event.day] ?? 0);
+  const count = Math.max(0, before + event.change);
+  const history = { ...row.history, [row.progress.day]: row.progress.count, [event.day]: count };
+  return {
+    nudge: {
+      ...row,
+      history,
+      progress: event.day >= row.progress.day ? { day: event.day, count } : row.progress,
+    },
+    event: { ...event, delta: count - before, count },
+  };
+}
 
 /** Minutes after midnight for an `HH:mm` string. */
 export const toMinutes = (hhmm: string) => {

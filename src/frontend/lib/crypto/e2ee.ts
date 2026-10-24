@@ -26,6 +26,7 @@ export type WalletSecrets = {
   income: number;
   startingBalance: number;
   budgets: Record<string, number>;
+  subcategoryBudgets?: Record<string, Record<string, number>>;
 };
 
 export type CategorySecrets = {

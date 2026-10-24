@@ -7,7 +7,7 @@
 import { openCustosDb, reqAsPromise, STORES, txAsPromise } from "@/frontend/lib/pwa/idb";
 import { ledgerKeyStore, seriesKeyStore } from "./key-store";
 
-export const UNLOCK_TTL_MS = 6 * 60 * 60 * 1000;
+export const UNLOCK_TTL_MS = 12 * 60 * 60 * 1000;
 
 type UnlockRow = { address: string; key: CryptoKey; seriesKey: CryptoKey; expiresAt: number };
 

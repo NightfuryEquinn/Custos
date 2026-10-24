@@ -28,6 +28,7 @@ export const COLLECTIONS = {
   dailyRoutines: "daily_routines",
   dailyCompletions: "daily_completions",
   nudges: "nudges",
+  nudgeCheckIns: "nudge_check_ins",
   rateLimits: "rate_limits",
 } as const;
 
@@ -242,7 +243,18 @@ type DailyCompletionDocument = {
  * Timing and the readable push copy sit in the clear so the cron can fire a nudge
  * without the key; `nextAt` is the next slot, null while the nudge is off.
  */
+type NudgeCheckInDocument = {
+  _id: ObjectId;
+  accountId: string;
+  nudgeId: string;
+  day: string;
+  at: string;
+  enc: 1;
+  payload: string;
+};
+
 type NudgeDocument = {
+  revision?: number;
   _id: ObjectId;
   accountId: string;
   enc: 1;
@@ -279,6 +291,7 @@ type Collections = {
   dailyRoutines: Collection<DailyRoutineDocument>;
   dailyCompletions: Collection<DailyCompletionDocument>;
   nudges: Collection<NudgeDocument>;
+  nudgeCheckIns: Collection<NudgeCheckInDocument>;
 };
 
 /** Get typed collection handles for the connected database. */
@@ -303,5 +316,6 @@ export function getCollections(db: Db): Collections {
     dailyRoutines: db.collection<DailyRoutineDocument>(COLLECTIONS.dailyRoutines),
     dailyCompletions: db.collection<DailyCompletionDocument>(COLLECTIONS.dailyCompletions),
     nudges: db.collection<NudgeDocument>(COLLECTIONS.nudges),
+    nudgeCheckIns: db.collection<NudgeCheckInDocument>(COLLECTIONS.nudgeCheckIns),
   };
 }

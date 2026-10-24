@@ -75,6 +75,16 @@ export function currentPeriod(routine: DailyRoutine, today: string): string | nu
   return emits(rule, today) ? today : null;
 }
 
+/** Historical eligibility follows the rule in force then, including archived pauses. */
+export function historicalPeriod(routine: DailyRoutine, day: string, today: string): string | null {
+  if (day > today || (routine.archivedOn && day > routine.archivedOn)) return null;
+  const rule = scheduleAt(routine.schedule, day);
+  if (!rule) return null;
+  const period = periodOf(rule.kind, day);
+  if (period < (routine.schedule[0]?.from ?? day)) return null;
+  return rule.kind === "weekly" || emits(rule, day) ? period : null;
+}
+
 /** Every occurrence key from the routine's start through `asOf`, ascending. */
 function occurrencesUntil(history: DailySchedule[], asOf: string): string[] {
   const keys: string[] = [];
@@ -240,6 +250,19 @@ export function dueRows(
     (a, b) =>
       Number(a.done) - Number(b.done) || a.routine.createdAt.localeCompare(b.routine.createdAt),
   );
+}
+
+/** History follows the tab's routine kind, including routines not due today. */
+export function activityRoutines(
+  routines: DailyRoutine[],
+  today: string,
+  tab: "today" | "week",
+): DailyRoutine[] {
+  return routines.filter((routine) => {
+    const asOf = routine.archivedOn && routine.archivedOn < today ? routine.archivedOn : today;
+    const rule = scheduleAt(routine.schedule, asOf);
+    return !!rule && (rule.kind === "weekly") === (tab === "week");
+  });
 }
 
 /**

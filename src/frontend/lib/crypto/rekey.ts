@@ -199,6 +199,19 @@ export async function rekeyLedgerToCustos(oldKey: CryptoKey, newKey: CryptoKey):
     });
   }
 
+  for (const row of nudges) {
+    let cursor: string | undefined;
+    do {
+      const page = await api.nudges.checkIns(row.id, { cursor }, { fresh: true });
+      for (const event of page.events)
+        await api.nudges.rekeyCheckIn({
+          ...event,
+          payload: await rewritePayload(oldKey, newKey, event.payload),
+        });
+      cursor = page.cursor ?? undefined;
+    } while (cursor);
+  }
+
   /* Completions are rewritten through the same idempotent set-state the app uses,
      so each stays on its routine and period. */
   const { completions } = await api.daily.completions.list();

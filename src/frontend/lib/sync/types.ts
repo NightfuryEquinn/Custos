@@ -16,6 +16,7 @@ export type EntityKind =
   | "vehicleFill"
   | "dailyRoutine"
   | "dailyCompletion"
+  | "nudgeCheckIn"
   | "nudge"
   | "profile";
 

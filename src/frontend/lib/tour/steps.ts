@@ -145,7 +145,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "daily-list",
       "Routines",
-      "Tick a routine to complete it. The number beside it is its streak. Tap a title to rename it, change when it repeats, or archive it. Archived routines can be restored with their streak and points, or deleted for good.",
+      "Tick a routine to complete it. The higher-contrast activity heatmaps follow Today or This week. Browse earlier weeks below to tick missed occurrences. The number beside it is its streak. Tap a title to rename it, change when it repeats, or archive it. Archived routines can be restored with their streak and points, or deleted for good.",
       '[data-tour="tour-daily-list"]',
     ),
     lastStep(
@@ -166,7 +166,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "nudge-list",
       "Your nudges",
-      "Tap +1 to log one toward today's goal. A nudge stays quiet once the goal is met and starts again tomorrow. The switch turns it on or off.",
+      "Use the plus and minus controls to grow your habit bloom. Select a day on the calendar to see its total. A nudge stays quiet once the goal is met and starts again tomorrow. The switch turns it on or off.",
       '[data-tour="tour-nudge-list"]',
     ),
     lastStep(
@@ -308,7 +308,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     lastStep(
       "calculator-apply",
       "Apply",
-      "Confirm to apply the amounts above to those expense category budgets.",
+      "Confirm to apply subcategory amounts and their parent totals to wallet budgets. Blank categories stay unchanged.",
       '[data-tour="tour-calculator-apply"]',
       "top",
     ),

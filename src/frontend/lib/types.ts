@@ -28,6 +28,7 @@ export type FinancialWallet = {
   income: number;
   startingBalance: number;
   budgets: Budgets;
+  subcategoryBudgets?: SubcategoryBudgets;
   isDefault: boolean;
 };
 
@@ -68,6 +69,7 @@ export type LedgerEvent = {
 };
 
 export type Budgets = Record<string, number>;
+export type SubcategoryBudgets = Record<string, Record<string, number>>;
 
 export type Account = {
   address: string;

@@ -7,6 +7,7 @@ import type {
   EventWire,
   ExpenseWire,
   NudgeBody,
+  NudgeCheckInWire,
   NudgeWire,
   TodoListWire,
   VehicleFillWire,
@@ -493,6 +494,36 @@ export const api = {
   },
 
   nudges: {
+    get(id: string, options?: ReadOptions) {
+      return request<{ nudge: NudgeWire }>(`/nudges/${id}`, readOptions(options));
+    },
+    checkIns(
+      id: string,
+      filters: { month?: string; day?: string; cursor?: string } = {},
+      options?: ReadOptions,
+    ) {
+      const query = new URLSearchParams(
+        Object.entries(filters).filter(
+          (entry): entry is [string, string] => entry[1] !== undefined,
+        ),
+      );
+      return request<{ events: NudgeCheckInWire[]; cursor: string | null }>(
+        `/nudges/${id}/check-ins?${query}`,
+        readOptions(options),
+      );
+    },
+    restoreCheckIn(event: NudgeCheckInWire) {
+      return request(`/nudges/${event.nudgeId}/check-ins/${event.id}`, {
+        method: "PUT",
+        body: event,
+      });
+    },
+    rekeyCheckIn(event: NudgeCheckInWire) {
+      return request(`/nudges/${event.nudgeId}/check-ins/${event.id}`, {
+        method: "PATCH",
+        body: { enc: event.enc, payload: event.payload },
+      });
+    },
     list(options?: ReadOptions) {
       return request<{ nudges: NudgeWire[] }>("/nudges", readOptions(options));
     },

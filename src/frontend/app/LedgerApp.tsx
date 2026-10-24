@@ -577,6 +577,8 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
         dailyRoutines: ledger.daily.routines,
         dailyCompletions: ledger.daily.completions,
         dailyLoaded: ledger.daily.query.data !== undefined,
+        nudges: ledger.nudges.nudges,
+        nudgesLoaded: ledger.nudges.ready,
       },
       {
         saveCategories: ledger.saveCategories,
@@ -599,6 +601,8 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
         },
         saveDailyRoutine: async (r) => ledger.daily.saveRoutine(r),
         putDailyCompletion: async (c) => ledger.daily.restoreCompletion(c),
+        saveNudge: async (row) => ledger.nudges.saveNudge(row),
+        restoreNudgeCheckIn: (event) => ledger.nudges.restoreCheckIn(event),
         updateUser: (settings) => api.users.updateMe(settings),
         updateProfile: (settings) => api.profile.update(settings),
         updateConsent: (optedIn) => api.consent.update(optedIn),

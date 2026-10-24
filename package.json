@@ -1,9 +1,13 @@
 {
   "name": "custos",
-  "version": "6.6.0",
+  "version": "6.6.1",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "24.22.1"
+  },
   "scripts": {
+    "test": "bun test",
     "dev": "bun --hot src/index.ts",
     "build": "bun run build.ts",
     "typecheck": "tsc --noEmit",

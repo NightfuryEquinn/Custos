@@ -1,3 +1,4 @@
+import type { Nudge, NudgeCheckIn } from "@/lib/nudge";
 /**
  * Apply a decrypted backup into the live ledger via existing save APIs.
  * Client-only; remaps wallets by name+currency when ids differ.
@@ -17,6 +18,8 @@ import type { DailyCompletion, DailyRoutine } from "@/lib/daily";
 import type { BackupSettings, LedgerBackupPlain } from "./encrypted-backup";
 
 type BackupRestoreApi = {
+  saveNudge?: (row: Omit<Nudge, "id">) => Promise<Nudge>;
+  restoreNudgeCheckIn?: (event: NudgeCheckIn) => Promise<unknown>;
   saveCategories: (categories: Category[]) => Promise<unknown>;
   saveWallet: (wallet: Omit<FinancialWallet, "id"> & { id?: string }) => Promise<FinancialWallet>;
   saveExpense: (expense: Omit<Expense, "id"> & { id?: string }) => Promise<unknown>;
@@ -50,6 +53,8 @@ export type BackupRestoreResult = {
   vehicleFills: number;
   dailyRoutines: number;
   dailyCompletions: number;
+  nudges: number;
+  nudgeCheckIns: number;
   settings: boolean;
   failed: number;
 };
@@ -68,6 +73,8 @@ export async function restoreBackupToLedger(
     vehicleFills: FuelFill[];
     dailyRoutines?: DailyRoutine[];
     dailyCompletions?: DailyCompletion[];
+    nudges?: Nudge[];
+    nudgesLoaded?: boolean;
     /** False while Daily has not loaded; restoring Daily rows then could duplicate routines and points. */
     dailyLoaded?: boolean;
   },
@@ -83,7 +90,12 @@ export async function restoreBackupToLedger(
     throw new Error("Daily hasn't finished loading. Reconnect and try again.");
   }
 
+  if (current.nudgesLoaded === false && (plain.nudges?.length || plain.nudgeCheckIns?.length))
+    throw new Error("Nudges have not finished loading. Reconnect and try again.");
+
   const result: BackupRestoreResult = {
+    nudges: 0,
+    nudgeCheckIns: 0,
     wallets: 0,
     categories: false,
     expenses: 0,
@@ -256,6 +268,36 @@ export async function restoreBackupToLedger(
       if (!api.putDailyCompletion) throw new Error("Daily restore is not available");
       await api.putDailyCompletion({ routineId, period: row.period, done: row.done, at: row.at });
       result.dailyCompletions++;
+    } catch {
+      result.failed++;
+    }
+  }
+
+  const nudgeIds = new Map<string, string>();
+  for (const row of plain.nudges ?? []) {
+    const same = current.nudges?.find(
+      (n) => n.id === row.id || (n.createdAt === row.createdAt && n.title === row.title),
+    );
+    if (same) {
+      nudgeIds.set(row.id, same.id);
+      continue;
+    }
+    try {
+      if (!api.saveNudge) throw new Error("Nudge restore unavailable");
+      const { id: _id, ...data } = row;
+      const saved = await api.saveNudge(data);
+      nudgeIds.set(row.id, saved.id);
+      result.nudges++;
+    } catch {
+      result.failed++;
+    }
+  }
+  for (const event of plain.nudgeCheckIns ?? []) {
+    const nudgeId = nudgeIds.get(event.nudgeId);
+    try {
+      if (!nudgeId || !api.restoreNudgeCheckIn) throw new Error("Nudge restore unavailable");
+      await api.restoreNudgeCheckIn({ ...event, nudgeId });
+      result.nudgeCheckIns++;
     } catch {
       result.failed++;
     }

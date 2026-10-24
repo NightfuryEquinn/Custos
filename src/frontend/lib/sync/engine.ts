@@ -1,3 +1,6 @@
+import { cacheNudgeResult, cacheNudgeDeletion } from "./nudge-cache";
+import type { NudgeWire } from "@/frontend/lib/crypto/codec";
+import { sendNudgeEntry } from "./nudge-check-ins";
 import { ledgerKeyStore } from "@/frontend/lib/crypto/key-store";
 /**
  * Drains the offline write queue: sends each pending entry in strict `seq`
@@ -30,18 +33,35 @@ function errorInfo(err: unknown): { status?: number; message: string } {
 type SendOutcome = "confirmed" | "retry" | "paused" | "failed";
 
 async function sendEntry(entry: OutboxEntry): Promise<SendOutcome> {
+  if (
+    (entry.entity === "nudgeCheckIn" || (entry.entity === "nudge" && entry.op === "update")) &&
+    !ledgerKeyStore.get(entry.address)
+  ) {
+    await releaseOutboxEntry(entry.opId);
+    return "paused";
+  }
   try {
-    await apiFetch(entry.request.path, {
-      method: entry.request.method,
-      body: entry.request.body,
-    });
-    await confirmOutbox(entry.opId);
+    if (entry.entity === "nudgeCheckIn" || (entry.entity === "nudge" && entry.op === "update")) {
+      await sendNudgeEntry(entry);
+    } else {
+      const result = await apiFetch<{ nudge: NudgeWire }>(entry.request.path, {
+        method: entry.request.method,
+        body: entry.request.body,
+      });
+      if (entry.entity === "nudge") {
+        if (entry.op === "create") await cacheNudgeResult(entry.address, result, entry.opId);
+        else if (entry.op === "delete")
+          await cacheNudgeDeletion(entry.address, entry.targetId, entry.opId);
+      } else await confirmOutbox(entry.opId);
+    }
     return "confirmed";
   } catch (err) {
     if (err instanceof ApiError && err.status === 404 && entry.op === "delete") {
       /* Already gone — a queued delete replayed after it (or a prior
          attempt whose response was lost) already landed. Success. */
-      await confirmOutbox(entry.opId);
+      if (entry.entity === "nudge")
+        await cacheNudgeDeletion(entry.address, entry.targetId, entry.opId);
+      else await confirmOutbox(entry.opId);
       return "confirmed";
     }
     if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
@@ -51,7 +71,7 @@ async function sendEntry(entry: OutboxEntry): Promise<SendOutcome> {
       await releaseOutboxEntry(entry.opId);
       return "paused";
     }
-    if (isOfflineFailure(err)) {
+    if (isOfflineFailure(err) || (err instanceof ApiError && err.status === 409)) {
       await rescheduleOutbox(entry.opId, errorInfo(err));
       return "retry";
     }

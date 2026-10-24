@@ -27,7 +27,7 @@ import type {
 } from "@/frontend/lib/types";
 import { normalizeRecurring } from "@/frontend/lib/stats";
 import type { DailyCompletion, DailyRoutine } from "@/lib/daily";
-import { goalMet, nudgeBody, type Nudge } from "@/lib/nudge";
+import { goalMet, nudgeBody, type Nudge, type NudgeCheckIn } from "@/lib/nudge";
 import type { RecurringField } from "@/lib/recurring";
 import type { ReminderDetails } from "@/schemas/event";
 
@@ -51,7 +51,7 @@ export type ExpenseWire = {
 
 export type WalletWire = Omit<
   FinancialWallet,
-  "name" | "income" | "startingBalance" | "budgets"
+  "name" | "income" | "startingBalance" | "budgets" | "subcategoryBudgets"
 > & {
   name?: string;
   income?: number;
@@ -197,6 +197,7 @@ export async function decodeWallet(wire: WalletWire, key: CryptoKey): Promise<Fi
       income: secrets.income ?? 0,
       startingBalance: secrets.startingBalance ?? 0,
       budgets: secrets.budgets ?? {},
+      subcategoryBudgets: secrets.subcategoryBudgets ?? {},
     };
   }
 
@@ -214,7 +215,13 @@ export async function decodeWallet(wire: WalletWire, key: CryptoKey): Promise<Fi
 
 /** Encrypt wallet name and financial fields for create/update. */
 export async function encodeWalletFinancials(
-  data: { name: string; income?: number; startingBalance?: number; budgets?: Budgets },
+  data: {
+    name: string;
+    income?: number;
+    startingBalance?: number;
+    budgets?: Budgets;
+    subcategoryBudgets?: FinancialWallet["subcategoryBudgets"];
+  },
   key: CryptoKey,
 ) {
   return {
@@ -224,6 +231,7 @@ export async function encodeWalletFinancials(
       income: data.income ?? 0,
       startingBalance: data.startingBalance ?? 0,
       budgets: data.budgets ?? {},
+      subcategoryBudgets: data.subcategoryBudgets ?? {},
     } satisfies WalletSecrets),
   };
 }
@@ -828,6 +836,7 @@ export async function encodeDailyCompletion(
 
 export type NudgeWire = {
   id: string;
+  revision?: number;
   enc?: 1;
   payload?: string;
   enabled: boolean;
@@ -852,6 +861,7 @@ export async function decodeNudge(wire: NudgeWire, key: CryptoKey): Promise<Nudg
   return {
     id: wire.id,
     ...secrets,
+    revision: wire.revision ?? 0,
     enabled: wire.enabled,
     everyMin: wire.everyMin,
     windowStart: wire.windowStart,
@@ -886,4 +896,25 @@ export async function encodeNudge(data: Omit<Nudge, "id">, key: CryptoKey, today
     notifyDetails: data.enabled ? { title: data.title, body: nudgeBody(data) } : null,
     metOn: data.enabled && goalMet(data, today) ? today : null,
   };
+}
+
+export type NudgeCheckInWire = Pick<NudgeCheckIn, "id" | "nudgeId" | "day" | "at"> & {
+  enc: 1;
+  payload: string;
+};
+export async function encodeNudgeCheckIn(
+  event: NudgeCheckIn,
+  key: CryptoKey,
+): Promise<NudgeCheckInWire> {
+  const { id, nudgeId, day, at, ...secrets } = event;
+  return { id, nudgeId, day, at, enc: 1, payload: await encryptJson(key, secrets) };
+}
+export async function decodeNudgeCheckIn(
+  wire: NudgeCheckInWire,
+  key: CryptoKey,
+): Promise<NudgeCheckIn> {
+  const secrets = await decryptJson<
+    Pick<NudgeCheckIn, "change" | "delta" | "count" | "target" | "unit">
+  >(key, wire.payload);
+  return { ...secrets, id: wire.id, nudgeId: wire.nudgeId, day: wire.day, at: wire.at };
 }

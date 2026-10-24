@@ -83,3 +83,8 @@ export function getDb(): Db {
   }
   return db;
 }
+
+export function getMongoClient(): MongoClient {
+  if (!client) throw new Error("Database not connected");
+  return client;
+}

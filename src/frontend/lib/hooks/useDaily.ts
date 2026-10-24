@@ -14,6 +14,7 @@ import { dailyCompletionOverlay, dailyRoutineOverlay } from "@/frontend/lib/sync
 import { useOutboxEntries, usePendingOverlay } from "@/frontend/lib/sync/useOutbox";
 import {
   currentPeriod,
+  historicalPeriod,
   msUntilNextDay,
   type DailyCompletion,
   type DailyRoutine,
@@ -270,7 +271,26 @@ export function useDaily(address: string, cryptoReady: boolean) {
     onSuccess: cacheCompletion,
   });
 
-  /** Write a past period's state from a restored backup (the UI itself only edits the current period). */
+  const setHistoricalDoneMutation = useMutation({
+    mutationFn: ({
+      routine,
+      period,
+      done,
+    }: {
+      routine: DailyRoutine;
+      period: string;
+      done: boolean;
+    }) => {
+      const zone = queryClient.getQueryData<string>(keys.timezone(address));
+      if (!zone || historicalPeriod(routine, period, zonedTodayIso(zone)) !== period) {
+        throw new Error("This occurrence is not available to edit");
+      }
+      return queueCompletion(routine, { period, done, at: new Date().toISOString() });
+    },
+    onSuccess: cacheCompletion,
+  });
+
+  /** Write a past period's state from a restored backup. */
   const restoreCompletionMutation = useMutation({
     mutationFn: (c: Pick<DailyCompletion, "routineId" | "period" | "done" | "at">) => {
       const routine = routines.find((r) => r.id === c.routineId);
@@ -304,6 +324,7 @@ export function useDaily(address: string, cryptoReady: boolean) {
     setDone: (routine: DailyRoutine, done: boolean, expectedPeriod?: string) =>
       setDoneMutation.mutateAsync({ routine, done, expectedPeriod }),
     restoreCompletion: restoreCompletionMutation.mutateAsync,
+    setHistoricalDone: setHistoricalDoneMutation.mutateAsync,
     /** Routine writes only; checkbox taps are instant and never disable the page. */
     isSaving: saveRoutineMutation.isPending,
   };

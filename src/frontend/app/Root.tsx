@@ -66,7 +66,7 @@ export function Root() {
     if (saved) {
       // Local-first boot: render UnlockScreen immediately from localStorage —
       // zero network needed — rather than waiting on auth.me() to resolve.
-      // Keys remembered from the last 6 hours are restored first (a local IndexedDB
+      // Keys remembered from the last 12 hours are restored first (a local IndexedDB
       // read), so a still-valid unlock skips the passphrase screen.
       void restoreUnlock(saved.address).then(() => {
         setAccount(saved);

@@ -1,3 +1,4 @@
+import { loadNudgeBackup } from "@/frontend/auth/lib/nudge-backup";
 import type { DailyCompletion, DailyRoutine } from "@/lib/daily";
 import { CsvImportPanel, type CsvImportPreview } from "@/frontend/auth/components/CsvImportPanel";
 import { Icon } from "@/frontend/components/ui";
@@ -200,7 +201,9 @@ export function ImportExportModal({
         api.profile.get(),
         api.consent.get(),
       ]);
+      const nudgeBackup = await loadNudgeBackup(accountAddress);
       const plain = buildBackupPlain({
+        ...nudgeBackup,
         address: accountAddress,
         wallets,
         categories: categoryIndex?.allCategories ?? [],
@@ -530,6 +533,8 @@ export function ImportExportModal({
                 {backupResult.capitalPlans ? ` · ${backupResult.capitalPlans} capital plans` : ""}
                 {backupResult.vehicles ? ` · ${backupResult.vehicles} vehicles` : ""}
                 {backupResult.vehicleFills ? ` · ${backupResult.vehicleFills} fills` : ""}
+                {backupResult.nudges ? ` / ${backupResult.nudges} nudges` : ""}
+                {backupResult.nudgeCheckIns ? ` / ${backupResult.nudgeCheckIns} check-ins` : ""}
                 {backupResult.dailyRoutines ? ` · ${backupResult.dailyRoutines} routines` : ""}
                 {backupResult.wallets ? ` · ${backupResult.wallets} wallets` : ""}
                 {backupResult.categories ? " · categories" : ""}

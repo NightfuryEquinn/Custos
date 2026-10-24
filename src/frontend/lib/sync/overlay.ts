@@ -23,7 +23,6 @@ import {
   decodeDailyRoutine,
   decodeEvent,
   decodeExpense,
-  decodeNudge,
   decodeTodoList,
   decodeVehicle,
   decodeVehicleFill,
@@ -33,7 +32,6 @@ import {
   type DailyRoutineWire,
   type EventWire,
   type ExpenseWire,
-  type NudgeWire,
   type TodoListWire,
   type VehicleFillWire,
   type VehicleWire,
@@ -49,7 +47,6 @@ import type {
   Vehicle,
 } from "@/frontend/lib/types";
 import type { DailyCompletion, DailyRoutine } from "@/lib/daily";
-import { NUDGE_DEFAULT_WINDOW, NUDGE_MIN_EVERY, type Nudge } from "@/lib/nudge";
 import type { EntityKind, OutboxEntry } from "./types";
 
 /** Merge a patch's *present* keys onto a base wire; absent keys are untouched. */
@@ -246,26 +243,6 @@ export const dailyRoutineOverlay: OverlaySpec<DailyRoutine, DailyRoutineWire> = 
   wireFrom: (id) => ({ id }),
 };
 
-/** Timing is plaintext on the wire, so a partial update starts from the row's current timing. */
-export const nudgeOverlay: OverlaySpec<Nudge, NudgeWire> = {
-  entity: "nudge",
-  decode: decodeNudge,
-  emptyWire: (id) => ({
-    id,
-    enabled: false,
-    everyMin: NUDGE_MIN_EVERY,
-    windowStart: NUDGE_DEFAULT_WINDOW.start,
-    windowEnd: NUDGE_DEFAULT_WINDOW.end,
-  }),
-  wireFrom: (id, existing) => ({
-    id,
-    enabled: existing.enabled,
-    everyMin: existing.everyMin,
-    windowStart: existing.windowStart,
-    windowEnd: existing.windowEnd,
-  }),
-};
-
 /** Completions are keyed `${routineId}:${period}`; the request body supplies both halves. */
 export const dailyCompletionOverlay: OverlaySpec<DailyCompletion, DailyCompletionWire> = {
   entity: "dailyCompletion",
@@ -295,6 +272,7 @@ export const walletBudgetsOverlay: OverlaySpec<FinancialWallet, WalletWire> = {
     income: existing.income,
     startingBalance: existing.startingBalance,
     budgets: existing.budgets,
+    subcategoryBudgets: existing.subcategoryBudgets,
   }),
 };
 

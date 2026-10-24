@@ -1,3 +1,4 @@
+import { DailyActivity } from "@/frontend/components/DailyActivity";
 import { ConfirmDialog, EmptyState, Icon, Segmented } from "@/frontend/components/ui";
 import { LoadingBloom } from "@/frontend/components/LoadingBloom";
 import { useEnter, useModalMotion } from "@/frontend/lib/animate";
@@ -93,7 +94,6 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
   );
   const { done, total } = progressOf(rows);
   const lifetime = useMemo(() => points(completions), [completions]);
-  const active = routines.filter((r) => !r.archivedOn);
   const idle = useMemo(() => (today ? idleRoutines(routines, today) : []), [routines, today]);
   const archived = routines.filter((r) => r.archivedOn);
 
@@ -248,7 +248,7 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
 
   return (
     <div ref={viewRef} className="view">
-      {active.length ? (
+      {routines.length ? (
         <>
           <div className="daily-top">
             <Segmented
@@ -386,6 +386,8 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
           </div>
         </section>
       )}
+
+      {routines.length ? <DailyActivity key={tab} daily={daily} tab={tab} /> : null}
 
       {archived.length ? (
         <section className="panel daily-archived">

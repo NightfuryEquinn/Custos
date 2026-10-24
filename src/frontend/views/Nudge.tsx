@@ -1,8 +1,9 @@
+import { NudgeHistory, NudgeBloom } from "@/frontend/components/NudgeHistory";
 import { TimePicker } from "@/frontend/components/DateTimePicker";
 import { LoadingBloom } from "@/frontend/components/LoadingBloom";
 import { ConfirmDialog, EmptyState, Icon } from "@/frontend/components/ui";
 import { useEnter, useModalMotion } from "@/frontend/lib/animate";
-import { dayLabel, fmtTime, monthLabel } from "@/frontend/lib/data";
+import { fmtTime } from "@/frontend/lib/data";
 import { toast } from "@/frontend/lib/feedback";
 import type { NudgesState } from "@/frontend/lib/hooks/useNudges";
 import {
@@ -19,7 +20,6 @@ import {
   countToday,
   everyLabel,
   goalMet,
-  monthLog,
   nextNudgeAt,
   toMinutes,
   type Nudge as NudgeRow,
@@ -127,7 +127,11 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
 
   /** Per-card save state, from the queued writes for this nudge. */
   const syncOf = (id: string): "syncing" | "failed" | null => {
-    const entries = pending.filter((e) => e.targetId === id);
+    const entries = pending.filter(
+      (e) =>
+        e.targetId === id ||
+        (e.entity === "nudgeCheckIn" && (e.request.body as { nudgeId?: string }).nudgeId === id),
+    );
     if (entries.some((e) => e.status === "failed" || e.status === "blocked")) return "failed";
 
     return entries.length ? "syncing" : null;
@@ -185,13 +189,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
       if (!today) return;
       const before = countToday(row, today);
       const count = Math.max(0, before + direction * (row.step ?? 1));
-      /* Bank the previous progress day too: it is about to be overwritten. */
-      const history = {
-        ...row.history,
-        [row.progress.day]: row.progress.count,
-        [today]: count,
-      };
-      await nudge.saveNudge({ ...row, history, progress: { day: today, count } });
+      await nudge.recordCheckIn(row, direction);
       if (before < row.target && count >= row.target) {
         toast("Goal reached. Nudge paused until tomorrow");
       }
@@ -324,7 +322,6 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
               const count = countToday(row, today);
               const met = goalMet(row, today);
               const sync = syncOf(row.id);
-              const log = monthLog(row, month);
               const next = row.enabled && !met ? nextNudgeAt(row, Date.now(), timeZone) : null;
 
               return (
@@ -355,6 +352,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
                     </label>
                   </header>
 
+                  <NudgeBloom count={count} target={row.target} />
                   <div className="nudge-count" role="status">
                     <strong>{count}</strong>
                     <span>
@@ -405,28 +403,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
                     ) : null}
                   </p>
 
-                  <details className="nudge-log">
-                    <summary>
-                      <Icon name="list" size={15} />
-                      <span>{monthLabel(month, true)} log</span>
-                      <Icon name="chevD" size={14} />
-                    </summary>
-                    {log.length ? (
-                      <div className="nudge-log-list">
-                        {log.map(([day, n]) => (
-                          <div key={day} className="nudge-log-row">
-                            <span className="nudge-log-day">{dayLabel(day)}</span>
-                            <span className="nudge-log-count num">
-                              {n} / {row.target} {row.unit}
-                              {n >= row.target ? " ✓" : ""}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="panel-sub">Nothing logged</p>
-                    )}
-                  </details>
+                  <NudgeHistory row={row} today={today} month={month} />
                 </article>
               );
             })}
@@ -451,7 +428,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
       {deleting ? (
         <ConfirmDialog
           title="Delete nudge"
-          message={`Delete "${deleting.title}"? It stops notifying you, and today's count is lost.`}
+          message={`Delete "${deleting.title}"? It stops notifying you, and all its check-in history is deleted.`}
           onCancel={() => setDeleting(null)}
           onConfirm={async () => {
             await nudge.deleteNudge(deleting.id);
@@ -605,32 +582,34 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
                       </p>
                     </div>
 
-                    <div className="editor-field">
-                      <div className="nudge-on-row">
-                        <label className="fld-label" htmlFor="nudge-on">
-                          Notify me
-                        </label>
-                        <label className="switch">
-                          <input
-                            id="nudge-on"
-                            type="checkbox"
-                            checked={enabled}
-                            onChange={(e) => setEnabled(e.target.checked)}
-                          />
-                          <span className="toggle-ui" />
-                        </label>
-                      </div>
-                      <p className="fld-hint">
-                        While on, the title, goal and description are kept readable on the server so
-                        the notification can show them. Everything else stays encrypted.
-                      </p>
-                    </div>
                     {editorError ? (
                       <p className="auth-error auth-error--gap" role="alert">
                         {editorError}
                       </p>
                     ) : null}
                   </div>
+                </div>
+                <div className="nudge-notify-section">
+                  <div className="nudge-on-row">
+                    <label className="fld-label" htmlFor="nudge-on">
+                      Notify me
+                    </label>
+                    <label className="switch">
+                      <input
+                        id="nudge-on"
+                        type="checkbox"
+                        checked={enabled}
+                        disabled={saving}
+                        aria-describedby="nudge-notify-hint"
+                        onChange={(e) => setEnabled(e.target.checked)}
+                      />
+                      <span className="toggle-ui" />
+                    </label>
+                  </div>
+                  <p id="nudge-notify-hint" className="fld-hint">
+                    When on, the server can read your title, goal and description to send
+                    notifications. Everything else stays encrypted.
+                  </p>
                 </div>
                 <div className="modal-foot">
                   {editing ? (

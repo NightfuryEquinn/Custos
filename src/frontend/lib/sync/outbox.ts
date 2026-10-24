@@ -154,20 +154,35 @@ async function blockedOn(store: IDBObjectStore, opId: string): Promise<OutboxEnt
  * anything that was blocked waiting on it back to pending so the next drain
  * picks it up.
  */
-export async function confirmOutbox(opId: string): Promise<void> {
+export async function confirmOutbox(
+  opId: string,
+  beforeConfirm?: (tx: IDBTransaction) => Promise<void>,
+): Promise<void> {
   const db = await openCustosDb();
-  const tx = db.transaction(STORE, "readwrite");
+  const tx = db.transaction(beforeConfirm ? [STORE, STORES.apiGets] : STORE, "readwrite");
+  const completed = txAsPromise(tx);
   const store = tx.objectStore(STORE);
-  store.delete(opId);
-  for (const dep of await blockedOn(store, opId)) {
-    store.put({
-      ...dep,
-      status: "pending",
-      blockedBy: undefined,
-      updatedAt: Date.now(),
-    } satisfies OutboxEntry);
+  try {
+    if (beforeConfirm) await beforeConfirm(tx);
+    store.delete(opId);
+    for (const dep of await blockedOn(store, opId)) {
+      store.put({
+        ...dep,
+        status: "pending",
+        blockedBy: undefined,
+        updatedAt: Date.now(),
+      } satisfies OutboxEntry);
+    }
+    await completed;
+  } catch (error) {
+    try {
+      tx.abort();
+    } catch {
+      /* The transaction already aborted. */
+    }
+    await completed.catch(() => {});
+    throw error;
   }
-  await txAsPromise(tx);
   notify();
 }
 

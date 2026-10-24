@@ -16,7 +16,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - **Savings (Piggies)** — savings tracker per category ("piggy") and subcategory ("piglet"): lifetime balance (deposits minus withdrawals, excluding Capitals-assigned savings), an optional target/deadline with a progress ring (piggies with no goal show no ring), and a **Piggy Insights** engine (rate, streak, best month, pace-vs-deadline) on the Insights view — spanning Piggies and Capitals together, with a pace line per Capitals plan. Linked from Home, Budgets, and Categories; exports to CSV.
 - **Big Expenses (Capitals)** — planner for big expenses (marriage, trips, loans, or custom): a total budget, paid line items, and assigned savings deposits, shown as Total / Saved / Paid / Unspent with a progress bar. **Save/mo** is the need at the start of the month (unpaid budget less what's still in the pot) divided by months to target, so it holds steady when you deposit mid-month, with a "left this month" line beside **Remaining**. **Log** records a real payment against an item; deleting a plan returns its deposits to savings.
 - **Subcategory breakdowns** — Insights' By Category and Transactions both drill into subcategories.
-- **Calculator** — client-side budgeting: deduct custom tax lines from income (each a percentage of gross or a fixed amount), allocate the rest across categories (partial is fine), then apply to wallet budgets. Includes Malaysia-oriented presets (EPF/SOCSO/EIS/PCB/SST); nothing leaves the browser.
+- **Calculator** — client-side budgeting: deduct custom tax lines from income (each a percentage of gross or a fixed amount), allocate the rest to active subcategories (partial is fine), then apply their rolled-up parent budgets and encrypted breakdowns to the wallet. Includes Malaysia-oriented presets (EPF/SOCSO/EIS/PCB/SST); nothing leaves the browser.
 - **Multiple wallets** — 29 currencies; monthly-income or starting-balance funding.
 - **Custom categories** — editable taxonomy with glyphs and colors; unused entries delete, in-use ones archive (so history keeps its type) and can transfer to another category.
 - **Recurring transactions** — monthly/quarterly/yearly, auto-posted via cron-job.org; scoped delete (one occurrence, this-and-future, or the whole series) with confirmation.
@@ -31,8 +31,8 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - **Email reminders** — optional Resend emails with per-event lead time and your timezone, plus a reminder at the event's own start; delivered to your account notify email.
 - **Push notifications** — opt-in Web Push per device under **Account → Preferences**, on the same 15-minute poll as email.
 - **To-do lists** — multiple named lists with inline task management.
-- **Daily** — recurring routines (Everyday, Specific weekdays, or Once a Week) with a Today / This week checklist. Each completed occurrence earns 10 points; every routine keeps its own streak. Points and streaks are derived from encrypted completion history (one row per routine and period), checkbox taps queue offline against the period they were made in, and a routine's note shows under its title. Routines are archived first so history and points stay; an archived routine can be restored with its points and streak (the days it was archived are not counted as misses) or deleted, which removes its points with it.
-- **Nudge** — repeating reminders for small habits (drink water, stretch): a title, a daily goal with your own unit, and an interval from 30 minutes to 12 hours inside hours you choose. Count each one with +1; a nudge stays quiet once the day's goal is met and starts again the next day. Delivered as Web Push only, never email, on the same 15-minute poll as event reminders. While a nudge is on, the server keeps its timing and a readable copy of the notification (title, goal, description) so the push can be sent while the app is closed; the count and everything else stay encrypted.
+- **Daily** — recurring routines (Everyday, Specific weekdays, or Once a Week) with a Today / This week checklist and higher-contrast twelve-week activity heatmaps that follow the selected tab: daily/weekday routines under Today, weekly routines under This week. Browse earlier windows and tick or untick eligible past occurrences; future days and paused periods cannot be edited. Each completed occurrence earns 10 points; every routine keeps its own streak. Points and streaks are derived from encrypted completion history (one row per routine and period), checkbox taps queue offline against the period they were made in, and a routine's note shows under its title. Routines are archived first so history and points stay; an archived routine can be restored with its points and streak (the days it was archived are not counted as misses) or deleted, which removes its points with it.
+- **Nudge** — repeating reminders for small habits (drink water, stretch): a title, a daily goal with your own unit, and an interval from 30 minutes to 12 hours inside hours you choose. Use custom increment/decrement steps to grow a habit-garden bloom. An always-visible calendar shows daily totals; selecting a day shows its total without a detailed event feed. The Add/Edit form keeps Notify me and its privacy explanation visible above the action buttons. Detailed events are retained until the nudge/account is deleted; legacy totals remain without invented timestamps. Encrypted backups include Nudges and all event pages. a nudge stays quiet once the day's goal is met and starts again the next day. Delivered as Web Push only, never email, on the same 15-minute poll as event reminders. While a nudge is on, the server keeps its timing and a readable copy of the notification (title, goal, description) so the push can be sent while the app is closed; counts, adjustments, goal snapshots, and units stay encrypted. Check-in linkage, local day, and occurrence timestamp are server-readable for pagination.
 - **Page actions** — each page's main action (Add transaction, Add event, Add list, Add plan, Add category, Add fill-up) sits beside its title.
 
 ### Identity & privacy
@@ -145,6 +145,10 @@ build.ts                  # Production build (dist/ + api/handler.js)
 ```
 
 ## Setup
+
+Use Node.js **v24.22.1** for development tools (pinned in `.nvmrc` and `package.json`). GitHub workflows read the same pin. Bun remains the package manager, test runner, build tool, and application runtime, including on Vercel.
+
+With a Node version manager, run `nvm install 24.22.1` and `nvm use 24.22.1`, then verify `node --version`. On Windows PowerShell, use `bun.exe` if script execution policy blocks the `bun.ps1` shim.
 
 ```bash
 bun install
@@ -461,3 +465,23 @@ Custos is proprietary ([LICENSE](LICENSE)). The repository is public for **trans
 ### Public website development
 
 Run `bun scripts/build-website.ts` to bundle the public site’s local Anime.js motion before previewing `website/`. GitHub Pages CI builds this asset automatically.
+
+### 6.6.1 storage and deployment
+
+Remembered unlock keys expire twelve hours after a successful unlock, without sliding renewal. Existing records keep their original expiry until the next unlock. Server login-session lifetimes are unchanged. Sign-out and clear-local-data remove remembered keys.
+
+Wallet ciphertext now optionally includes `subcategoryBudgets` (`categoryId -> subcategoryId -> amount`). Old wallets default to an empty breakdown. Calculator applies positive parent allocations with their complete active-subcategory breakdown; blank/zero parent allocations leave existing budgets unchanged. Budget totals and alerts count parent envelopes once. Manual parent edits cannot undercut the stored child total. Archived allocations remain stored; category transfers merge associated amounts, and transfers into income remove them.
+
+`nudge_check_ins` stores account ownership, nudge linkage, local day, timestamp, and an encrypted event payload. Indexes cover `(accountId, nudgeId, at, _id)` and `(accountId, nudgeId, day, at, _id)`. There is no event TTL. The parent Nudge has a revision counter. Counts and events are committed atomically, so **MongoDB must be an Atlas/replica-set deployment supporting transactions** (including local integration tests). Deploy the backend and run `bun run db:indexes` before shipping the frontend. These changes are additive; no destructive migration or invented legacy events are needed.
+
+| Endpoint                                                                | Behavior                                                                                                          |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `GET /api/nudges/:id`                                                   | Owned Nudge snapshot and revision                                                                                 |
+| `GET /api/nudges/:id/check-ins?month=YYYY-MM&day=YYYY-MM-DD&cursor=...` | Newest first, 50 events per page; day takes precedence over month; opaque continuation cursor                     |
+| `POST /api/nudges/:id/check-ins`                                        | Event ID, day/time, encrypted event, encrypted Nudge update, expected revision; transaction and idempotent replay |
+| `PUT /api/nudges/:id/check-ins/:eventId`                                | Restore an event without applying its count again; existing IDs are preserved                                     |
+| `PATCH /api/nudges/:id/check-ins/:eventId`                              | Replace ciphertext during key rotation; identity and ordering stay unchanged                                      |
+
+Each offline check-in is a separate encrypted queue entry. Sync rebases its intended adjustment on the latest summary, preserves the original day, and retries conflicts with the same event ID. Deleting a Nudge removes its event history atomically; account purge includes the collection. Backup export walks every history page and fails rather than silently truncating a partial export. Backup format 1 remains compatible through optional Nudge and breakdown fields.
+
+Run `bun test`, `bun run check`, and `bun run build` before release. Set `CUSTOS_TEST_MONGO_URI` to a disposable replica-set server to run the transaction integration test (it creates and drops a uniquely named `custos_test_661_*` database). Without it, this integration test is skipped. It never falls back to the application database connection.

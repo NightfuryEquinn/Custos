@@ -1,3 +1,4 @@
+import { ActionHints } from "@/frontend/components/ActionHints";
 import { useEnter, useModalMotion } from "@/frontend/lib/animate";
 import { ConfirmDialog, EmptyState, Icon, Segmented, glyphTint } from "@/frontend/components/ui";
 import { CategoryColorPicker } from "@/frontend/components/CategoryColorPicker";
@@ -689,6 +690,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
 
   return (
     <div ref={viewRef} className="view">
+      <ActionHints />
       <div className="cat-toolbar" data-tour="tour-categories-toolbar">
         <Segmented
           options={[
@@ -783,11 +785,6 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
                             : setConfirmDelete({ type: "cat", id: cat.id })
                         }
                         aria-label={inUse ? "Archive" : "Delete"}
-                        title={
-                          inUse
-                            ? "Archive — keeps past transactions classified correctly"
-                            : "Delete"
-                        }
                         tabIndex={filteredOut ? -1 : undefined}
                       >
                         <Icon name={inUse ? "archive" : "trash"} size={16} />
@@ -827,11 +824,6 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
                                   else setConfirmDelete(target);
                                 }}
                                 aria-label={used ? "Archive" : "Remove"}
-                                title={
-                                  used
-                                    ? "Archive — keeps past transactions classified correctly"
-                                    : "Delete"
-                                }
                                 tabIndex={filteredOut || !open ? -1 : undefined}
                               >
                                 <Icon name={used ? "archive" : "trash"} size={16} />

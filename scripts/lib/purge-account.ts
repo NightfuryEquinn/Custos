@@ -20,6 +20,7 @@ export const OWNED_BY_ACCOUNT_ID = [
   COLLECTIONS.dailyRoutines,
   COLLECTIONS.dailyCompletions,
   COLLECTIONS.nudges,
+  COLLECTIONS.nudgeCheckIns,
   COLLECTIONS.consent,
   COLLECTIONS.budgetAlertLogs,
   COLLECTIONS.reminderLogs,

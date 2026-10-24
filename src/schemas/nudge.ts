@@ -54,4 +54,18 @@ export const createNudgeSchema = z
   .refine(windowOrdered, WINDOW_MESSAGE);
 
 /** A PATCH replaces the whole document: the client always holds the full nudge. */
-export const updateNudgeSchema = z.object(nudgeShape).refine(windowOrdered, WINDOW_MESSAGE);
+export const updateNudgeSchema = z
+  .object({ ...nudgeShape, expectedRevision: z.number().int().nonnegative().optional() })
+  .refine(windowOrdered, WINDOW_MESSAGE);
+
+export const nudgeCheckInSchema = z.object({
+  id: objectIdSchema,
+  day: isoDateSchema,
+  at: z.iso.datetime(),
+  enc: e2eeVersionSchema,
+  payload: encryptedPayloadSchema,
+});
+export const recordNudgeCheckInSchema = nudgeCheckInSchema.extend({
+  nudge: updateNudgeSchema,
+  expectedRevision: z.number().int().nonnegative(),
+});

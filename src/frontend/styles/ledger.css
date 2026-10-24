@@ -6968,8 +6968,16 @@ textarea::placeholder {
 }
 
 .auth-terms-line {
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
   margin-bottom: var(--sp-4);
+}
+
+.auth-terms-line > span:not(.toggle-ui) {
+  min-width: 0;
 }
 
 .auth-terms-link {
@@ -9023,5 +9031,223 @@ select.text-in {
   .page-refresh-status {
     min-width: 0;
     max-width: 100%;
+  }
+}
+
+/* History controls and hints outside clipping containers. */
+.action-hint {
+  position: fixed;
+  z-index: 10000;
+  pointer-events: none;
+  max-width: calc(100vw - 16px);
+  padding: 6px 10px;
+  border-radius: var(--r-xs);
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 12px;
+}
+.cat-block-actions button[aria-label]::after,
+.cat-sub-actions button[aria-label]::after {
+  display: none;
+}
+.daily-history-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.daily-history-routine {
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+.daily-history-routine h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+.daily-heatmap {
+  display: grid;
+  grid-template-rows: repeat(7, 26px);
+  grid-auto-flow: column;
+  grid-template-columns: repeat(12, minmax(18px, 1fr));
+  gap: 4px;
+  max-width: 660px;
+  padding: 4px;
+}
+.daily-heat-cell {
+  border: 2px solid var(--ink-soft);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 12px;
+}
+.daily-heat-cell.complete {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+.daily-heat-cell:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.daily-heat-cell.unavailable {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.daily-heat-cell[aria-busy="true"] {
+  cursor: progress;
+}
+.daily-heat-cell:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+.daily-heat-cell.today {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+.daily-heat-cell[data-pending] {
+  border-style: dashed;
+}
+@media (pointer: coarse) {
+  .daily-heatmap {
+    grid-template-rows: repeat(7, 44px);
+    grid-template-columns: repeat(12, 44px);
+    overflow-x: auto;
+    padding: 4px;
+  }
+}
+
+.calculator-category-breakdown {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+.calculator-category-breakdown .calculator-alloc-name {
+  flex-wrap: wrap;
+}
+.calculator-category-breakdown .calculator-alloc-name strong {
+  margin-left: auto;
+}
+.calculator-sub-allocation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.calculator-sub-allocation > span {
+  overflow-wrap: anywhere;
+}
+.calculator-sub-allocation input {
+  width: 100%;
+  min-width: 0;
+}
+.calculator-sub-allocation .calculator-field {
+  width: 140px;
+  flex-shrink: 0;
+}
+.allocation-confirm-subs {
+  display: block;
+  font-weight: 400;
+  white-space: normal;
+}
+
+/* Habit garden: a bloom grows with each day's progress. */
+.nudge-card {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+}
+.nudge-card .nudge-count {
+  position: relative;
+  margin-top: 8px;
+}
+.nudge-bloom {
+  display: block;
+  width: 150px;
+  height: 150px;
+  align-self: center;
+  margin: 4px auto;
+  color: var(--accent);
+}
+.bloom-petal {
+  fill: var(--surface-2);
+  stroke: var(--border);
+  stroke-width: 1;
+  transition: fill 0.3s ease;
+}
+.bloom-petal.grown {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+.bloom-heart {
+  fill: var(--ink);
+}
+.bloom-leaf {
+  fill: var(--accent);
+  opacity: 0.5;
+}
+.nudge-card.met .nudge-bloom {
+  filter: drop-shadow(0 3px 10px color-mix(in srgb, var(--accent) 20%, transparent));
+}
+.nudge-history {
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.nudge-history h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+.nudge-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+.nudge-calendar > span {
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.nudge-calendar-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--ink);
+  cursor: pointer;
+}
+.nudge-calendar-day.growing {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+}
+.nudge-calendar-day.met {
+  background: color-mix(in srgb, var(--accent) 35%, var(--surface));
+}
+.nudge-calendar-day[aria-pressed="true"] {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+.nudge-calendar-day:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.nudge-calendar-day span {
+  font-size: 11px;
+  line-height: 1;
+}
+.nudge-calendar-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 20px 0 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bloom-petal {
+    transition: none;
   }
 }

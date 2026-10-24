@@ -1,3 +1,4 @@
+import { transferBudgetBreakdown } from "@/frontend/lib/subcategory-budgets";
 import { sealLabel } from "@/frontend/lib/sync/labels";
 import { api, ApiError } from "@/frontend/lib/api";
 import { maybeNotifyBudgetAlerts } from "@/frontend/lib/budget/notify";
@@ -56,7 +57,6 @@ import {
   useSyncStatus,
 } from "@/frontend/lib/sync/useOutbox";
 import { releaseOrphanedPlanRefs } from "@/frontend/lib/capitals";
-import { mergeCategoryBudget } from "@/frontend/lib/category-retire";
 import {
   applyTransferFields,
   expensesMatchingSubs,
@@ -277,6 +277,7 @@ export function useLedger(walletAddress: string) {
                   income: decoded.income,
                   startingBalance: decoded.startingBalance,
                   budgets: decoded.budgets,
+                  subcategoryBudgets: decoded.subcategoryBudgets,
                 },
                 cryptoKey,
               );
@@ -907,7 +908,13 @@ export function useLedger(walletAddress: string) {
   });
 
   const setBudgetsMutation = useMutation({
-    mutationFn: async (budgets: Budgets) => {
+    mutationFn: async ({
+      budgets,
+      subcategoryBudgets,
+    }: {
+      budgets: Budgets;
+      subcategoryBudgets?: FinancialWallet["subcategoryBudgets"];
+    }) => {
       if (!activeWallet) throw new Error("No active wallet");
       const cryptoKey = requireKey(wallet);
       /* A pure $set of {enc, payload} server-side (PUT /wallets/:id/budgets)
@@ -924,6 +931,7 @@ export function useLedger(walletAddress: string) {
           income: activeWallet.income,
           startingBalance: activeWallet.startingBalance,
           budgets,
+          subcategoryBudgets: subcategoryBudgets ?? activeWallet.subcategoryBudgets,
         },
         cryptoKey,
       );
@@ -938,11 +946,15 @@ export function useLedger(walletAddress: string) {
       });
       void drainOutbox(wallet);
     },
-    onSuccess: (_void, budgets) => {
+    onSuccess: (_void, { budgets, subcategoryBudgets }) => {
       const id = activeWallet?.id;
       if (!id) return;
       queryClient.setQueryData<FinancialWallet[]>(keys.wallets(wallet), (prev = []) =>
-        prev.map((w) => (w.id === id ? { ...w, budgets } : w)),
+        prev.map((w) =>
+          w.id === id
+            ? { ...w, budgets, subcategoryBudgets: subcategoryBudgets ?? w.subcategoryBudgets }
+            : w,
+        ),
       );
     },
   });
@@ -964,13 +976,15 @@ export function useLedger(walletAddress: string) {
           data.name !== undefined ||
           data.income !== undefined ||
           data.startingBalance !== undefined ||
-          data.budgets !== undefined
+          data.budgets !== undefined ||
+          data.subcategoryBudgets !== undefined
             ? await encodeWalletFinancials(
                 {
                   name,
                   income: data.income ?? existing?.income ?? 0,
                   startingBalance: data.startingBalance ?? existing?.startingBalance ?? 0,
                   budgets: data.budgets ?? existing?.budgets ?? {},
+                  subcategoryBudgets: data.subcategoryBudgets ?? existing?.subcategoryBudgets,
                 },
                 cryptoKey,
               )
@@ -988,7 +1002,8 @@ export function useLedger(walletAddress: string) {
           name: data.name!,
           income: data.fundingMode === "monthly" ? (data.income ?? 0) : 0,
           startingBalance: data.fundingMode === "starting" ? (data.startingBalance ?? 0) : 0,
-          budgets: {},
+          budgets: data.budgets ?? {},
+          subcategoryBudgets: data.subcategoryBudgets,
         },
         cryptoKey,
       );
@@ -1320,6 +1335,7 @@ export function useLedger(walletAddress: string) {
               income: activeWallet.income,
               startingBalance: activeWallet.startingBalance,
               budgets: merged,
+              subcategoryBudgets: activeWallet.subcategoryBudgets,
             },
             cryptoKey,
           );
@@ -1942,22 +1958,16 @@ export function useLedger(walletAddress: string) {
         };
       }
 
+      for (const w of overlaidWalletsData) {
+        const next = transferBudgetBreakdown(w.budgets, w.subcategoryBudgets ?? {}, args);
+        if (
+          JSON.stringify(next.budgets) === JSON.stringify(w.budgets) &&
+          JSON.stringify(next.subcategoryBudgets) === JSON.stringify(w.subcategoryBudgets ?? {})
+        )
+          continue;
+        await saveWalletMutation.mutateAsync({ id: w.id, ...next });
+      }
       if (args.sourceCatId) {
-        const destTakesBudget = args.destType !== "income";
-        for (const w of overlaidWalletsData) {
-          const nextBudgets = mergeCategoryBudget(
-            w.budgets,
-            args.sourceCatId,
-            args.destCatId,
-            destTakesBudget,
-          );
-          const sameKeys =
-            Object.keys(nextBudgets).length === Object.keys(w.budgets).length &&
-            Object.keys(nextBudgets).every((k) => nextBudgets[k] === w.budgets[k]);
-          if (sameKeys) continue;
-          await saveWalletMutation.mutateAsync({ id: w.id, budgets: nextBudgets });
-        }
-
         const destHoldId = args.destType === "expense" ? args.destCatId : undefined;
         const monthEvents =
           queryClient.getQueryData<LedgerEvent[]>(keys.events(wallet, month)) ?? [];
@@ -2064,7 +2074,8 @@ export function useLedger(walletAddress: string) {
     setNavPrefs: setNavPrefsMutation.mutateAsync,
     setMonth: (currentMonth: string) => setMonthMutation.mutate(currentMonth),
     isMonthPending: setMonthMutation.isPending,
-    setBudgets: (budgets: Budgets) => setBudgetsMutation.mutateAsync(budgets),
+    setBudgets: (budgets: Budgets, subcategoryBudgets?: FinancialWallet["subcategoryBudgets"]) =>
+      setBudgetsMutation.mutateAsync({ budgets, subcategoryBudgets }),
     saveCategories: saveCategoriesMutation.mutateAsync,
     transferHistory,
     saveWallet: saveWalletMutation.mutateAsync,

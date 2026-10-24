@@ -38,6 +38,43 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "6.6.1",
+    date: "October 2026",
+    lead: "Catch up on Daily, grow your habit garden, and give every subcategory a budget.",
+    highlights: [
+      {
+        icon: "daily",
+        title: "Your routine history",
+        body: "Higher-contrast twelve-week activity heatmaps follow Today or This week. Browse earlier weeks and tick missed occurrences; your points and streaks update with them.",
+      },
+      {
+        icon: "bell",
+        title: "Your habit garden at a glance",
+        body: "Nudge blooms as you reach your goal. Its calendar shows daily totals without a detailed log. Notify me stays visible above the buttons when adding or editing a nudge.",
+      },
+      {
+        icon: "calculator",
+        title: "Allocate to subcategories",
+        body: "Enter a budget for each subcategory. Parent totals roll up automatically, and the confirmation shows the breakdown before you save.",
+      },
+      {
+        icon: "shield",
+        title: "Twelve-hour remembered unlock",
+        body: "After unlocking, this device remembers your keys for twelve hours. Signing out or clearing local data still removes them.",
+      },
+      {
+        icon: "tags",
+        title: "Category hints stay visible",
+        body: "Action hints now sit outside clipped category cards and stay within the screen.",
+      },
+      {
+        icon: "download",
+        title: "Nudge history in backups",
+        body: "Encrypted backups now include Nudges and their complete check-in history. Older backups remain supported.",
+      },
+    ],
+  },
+  {
     version: "6.6.0",
     date: "October 2026",
     lead: "Nudge keeps your small habits on schedule, and archived Daily routines can come back.",

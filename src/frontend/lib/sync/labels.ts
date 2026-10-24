@@ -21,6 +21,7 @@ const ENTITY_LABEL: Record<EntityKind, string> = {
   dailyRoutine: "Routine",
   dailyCompletion: "Routine check-in",
   nudge: "Nudge",
+  nudgeCheckIn: "Nudge check-in",
   profile: "Profile",
 };
 
