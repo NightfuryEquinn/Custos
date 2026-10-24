@@ -15,7 +15,9 @@ import { ApiError } from "@/frontend/lib/net/api-error";
  */
 export function isOfflineFailure(err: unknown): boolean {
   const status = err instanceof ApiError ? err.status : undefined;
-  const isAbort = err instanceof DOMException && err.name === "AbortError";
+  /* AbortSignal.timeout() rejects with "TimeoutError", not "AbortError". */
+  const isAbort =
+    err instanceof DOMException && (err.name === "AbortError" || err.name === "TimeoutError");
 
   return (
     err instanceof TypeError ||

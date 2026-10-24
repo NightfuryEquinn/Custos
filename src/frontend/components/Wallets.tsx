@@ -1,4 +1,5 @@
 import { evaluateExpression, isPlainNumber } from "@/frontend/lib/arithmetic";
+import { useSearchReveal } from "@/frontend/lib/search/reveal";
 import { useModalMotion } from "@/frontend/lib/animate";
 import { fmtMoney, getCurrency } from "@/frontend/lib/data";
 import type { FinancialWallet } from "@/frontend/lib/types";
@@ -106,6 +107,13 @@ export function WalletManageModal({ wallets, onSave, onDelete, onClose }: Wallet
     );
     setError("");
   };
+
+  useSearchReveal(["wallet"], (target) => {
+    const wallet = wallets.find((row) => row.id === target.id);
+    if (!wallet) return false;
+    startEdit(wallet);
+    return true;
+  });
 
   const backToList = () => {
     setMode("list");

@@ -16,6 +16,7 @@ import {
   disableBiometric,
   enrollBiometric,
 } from "../lib/biometric";
+import { keepUnlockedEnabled, setKeepUnlocked } from "@/frontend/lib/crypto/unlock-persist";
 import { unwrapSecrets } from "../lib/device-vault";
 import { identityStorage } from "../lib/identity-storage";
 import { codenameFor } from "../lib/codename";
@@ -25,7 +26,8 @@ import { codenameFor } from "../lib/codename";
  * ──────────────────
  * Per-device settings:
  *   1. Push notifications — Web Push reminders for this device
- *   2. Face ID            — biometric unlock instead of the device passphrase
+ *   2. Stay unlocked      — keep the unlock keys on this device for 12 hours
+ *   3. Face ID            — biometric unlock instead of the device passphrase
  */
 
 type PreferencesModalProps = {
@@ -115,6 +117,13 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
     setBioOn(false);
   };
 
+  const [keepOn, setKeepOn] = useState(() => keepUnlockedEnabled(account.address));
+  const toggleKeepUnlocked = () => {
+    const next = !keepOn;
+    setKeepOn(next);
+    void setKeepUnlocked(account.address, next);
+  };
+
   const on = status?.subscribed === true;
   const unsupported = status !== null && !status.supported;
   const modalBusy = busy || bioBusy;
@@ -158,13 +167,14 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
             <div className="consent-card">
               <div className="consent-top">
                 <div>
-                  <div className="consent-title">Notify Me On This Device</div>
+                  <div className="consent-title">Notifications on this device</div>
                   <p className="consent-desc">
-                    Event reminders and Nudges arrive even when Custos is closed. Event reminders
-                    show the event name, time, budget hold, and comments; a Nudge shows its title,
-                    goal and description. Each device is enabled separately; turning this off does
-                    not change other devices or email reminders. Reminders and Nudges are checked
-                    every 15 minutes.
+                    Get event reminders and Nudges while Custos is closed. Checked every 15 minutes;
+                    this setting affects only this device.
+                  </p>
+                  <p className="consent-desc">
+                    Notifications may show event names, times, budget holds and comments, or a
+                    Nudge's title, goal and description. Email reminders are managed separately.
                   </p>
                 </div>
                 <label className="switch">
@@ -190,6 +200,33 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
             </div>
             {note ? <p className="dm-note">{note}</p> : null}
             {unsupported ? <p className="dm-note">{PUSH_FAILURE_NOTE.unsupported}</p> : null}
+          </div>
+
+          <div className="dm-div" />
+          <div className="dm-sec">
+            <div className="consent-card">
+              <div className="consent-top">
+                <div>
+                  <div className="consent-title">Stay unlocked on this device</div>
+                  <p className="consent-desc">
+                    Skip the passphrase when you reload within 12 hours. This stores your unlock
+                    keys in this browser's storage until they expire; anyone who copies this browser
+                    profile in that time could read your data. Leave it off on shared computers.
+                    Signing out removes the keys.
+                  </p>
+                </div>
+                <label className="switch">
+                  <input type="checkbox" checked={keepOn} onChange={toggleKeepUnlocked} />
+                  <span className="toggle-ui" />
+                </label>
+              </div>
+              <div className={`consent-status ${keepOn ? "cs-on" : "cs-off"}`}>
+                <span className="cs-dot" />
+                {keepOn
+                  ? "Enabled — reloads stay unlocked for up to 12 hours"
+                  : "Disabled — you unlock each time you open Custos"}
+              </div>
+            </div>
           </div>
 
           {hasVault ? (

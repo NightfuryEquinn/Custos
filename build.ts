@@ -20,6 +20,16 @@ const frontend = await Bun.build({
   },
 });
 
+// A separate same-origin worker keeps private search off the UI thread and in the offline shell.
+const searchWorker = await Bun.build({
+  entrypoints: ["src/frontend/lib/search/worker.ts"],
+  outdir,
+  naming: "search-worker.js",
+  minify: true,
+  target: "browser",
+});
+if (!searchWorker.success) throw new Error("Could not build search worker");
+
 if (!frontend.success) {
   console.error(frontend.logs);
   process.exit(1);

@@ -11,6 +11,7 @@ export function ThemeToggle({ className = "" }: ThemeToggleProps) {
   return (
     <button
       type="button"
+      data-search-id="appearance"
       className={"icon-btn theme-toggle" + (className ? ` ${className}` : "")}
       onClick={toggle}
       aria-label={dark ? "Switch to Light Mode" : "Switch to Dark Mode"}

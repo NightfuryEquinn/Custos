@@ -2,6 +2,7 @@ import { ReadableValue } from "@/frontend/components/ReadableValue";
 import { DatePicker } from "@/frontend/components/DateTimePicker";
 import { ConfirmDialog, EmptyState, Icon, InsightFeed } from "@/frontend/components/ui";
 import { dayLabel, fmtMoney, monthLabel, TODAY_ISO } from "@/frontend/lib/data";
+import { useSearchReveal } from "@/frontend/lib/search/reveal";
 import { useEnter, useModalMotion } from "@/frontend/lib/animate";
 import { toast } from "@/frontend/lib/feedback";
 import {
@@ -649,6 +650,22 @@ export const Vehicles = forwardRef<VehiclesHandle, VehiclesProps>(function Vehic
     }
   };
 
+  useSearchReveal(["vehicle", "fill"], (target) => {
+    if (target.kind === "fill") {
+      const fill = fills.find((row) => row.id === target.id);
+      if (!fill) return false;
+      setSelectedId(fill.vehicleId);
+      setFillList(fills);
+      openEditFill(fill);
+    } else {
+      const vehicle = vehicles.find((row) => row.id === target.id);
+      if (!vehicle) return false;
+      setSelectedId(vehicle.id);
+      openEditVehicle(vehicle);
+    }
+    return true;
+  });
+
   const openAddVehicle = () => setEditor({ type: "add-vehicle" });
   const openEditVehicle = (vehicle: Vehicle) =>
     setEditor({ type: "edit-vehicle", vehicleId: vehicle.id });
@@ -668,7 +685,7 @@ export const Vehicles = forwardRef<VehiclesHandle, VehiclesProps>(function Vehic
     return (
       <div ref={viewRef} className="view">
         <EmptyState
-          title="No Vehicles Yet"
+          title="No vehicles yet"
           sub="Add a car, EV, bike, or van to start tracking fuel or charging costs."
         />
         <div className="todo-empty-action">
@@ -727,7 +744,7 @@ export const Vehicles = forwardRef<VehiclesHandle, VehiclesProps>(function Vehic
       {selectedVehicle ? (
         <section className="panel vehicles-fuel-insights" data-tour="tour-vehicles-insights">
           <div className="panel-head">
-            <h2>Fuel Insights</h2>
+            <h2>Fuel insights</h2>
           </div>
           {assessment.status === "insufficient" ? (
             <div className="profile-locked">

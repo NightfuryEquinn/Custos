@@ -168,10 +168,7 @@ export async function ensureIndexes(db: Db): Promise<void> {
     db.collection(COLLECTIONS.nudges).createIndex({ accountId: 1, createdAt: 1 }),
     db
       .collection(COLLECTIONS.nudgeCheckIns)
-      .createIndex({ accountId: 1, nudgeId: 1, at: -1, _id: -1 }),
-    db
-      .collection(COLLECTIONS.nudgeCheckIns)
-      .createIndex({ accountId: 1, nudgeId: 1, day: 1, at: -1, _id: -1 }),
+      .createIndex({ accountId: 1, nudgeId: 1, day: -1, seq: -1, _id: -1 }),
     /* Cron scan: only nudges that are on carry a next slot, so the index stays small. */
     db
       .collection(COLLECTIONS.nudges)

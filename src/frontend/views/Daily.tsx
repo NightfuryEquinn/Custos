@@ -1,4 +1,5 @@
 import { DailyActivity } from "@/frontend/components/DailyActivity";
+import { useSearchReveal, focusSearchRecord } from "@/frontend/lib/search/reveal";
 import { ConfirmDialog, EmptyState, Icon, Segmented } from "@/frontend/components/ui";
 import { LoadingBloom } from "@/frontend/components/LoadingBloom";
 import { useEnter, useModalMotion } from "@/frontend/lib/animate";
@@ -38,7 +39,7 @@ const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const KIND_OPTIONS: { v: DailyKind; label: string }[] = [
   { v: "daily", label: "Everyday" },
   { v: "weekdays", label: "Specific" },
-  { v: "weekly", label: "Once a Week" },
+  { v: "weekly", label: "Once a week" },
 ];
 
 type Editor = { routineId: string | null } | null;
@@ -48,6 +49,8 @@ const streakLabel = (n: number, unit: "day" | "week") => `${n} ${unit}${n === 1 
 
 export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Daily({ daily }, ref) {
   const { routines, completions, today, pending } = daily;
+  const [searchDay, setSearchDay] = useState<string | undefined>();
+  const [searchRoutineId, setSearchRoutineId] = useState<string | undefined>();
   const [tab, setTab] = useState<Tab>("today");
   const [editor, setEditor] = useState<Editor>(null);
   const [title, setTitle] = useState("");
@@ -224,6 +227,22 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
     }
   };
 
+  useSearchReveal(["daily"], (target) => {
+    const routine = routines.find((row) => row.id === target.id);
+    if (!routine) return false;
+    if (target.date) {
+      const rule = routine.schedule.filter((row) => row.from <= target.date!).at(-1);
+      setTab(rule?.kind === "weekly" ? "week" : "today");
+      setSearchDay(target.date);
+      setSearchRoutineId(routine.id);
+      focusSearchRecord(`daily:${routine.id}:${target.date}`);
+    } else {
+      setShowArchived(!!routine.archivedOn);
+      openEditor(routine);
+    }
+    return true;
+  });
+
   if (daily.loading) {
     return (
       <div ref={viewRef} className="view view-loading">
@@ -257,7 +276,11 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
                 { v: "week", label: "This week" },
               ]}
               value={tab}
-              onChange={setTab}
+              onChange={(next) => {
+                setTab(next);
+                setSearchDay(undefined);
+                setSearchRoutineId(undefined);
+              }}
             />
             <div className="daily-progress" data-tour="tour-daily-progress">
               <span className="daily-count">
@@ -387,7 +410,15 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
         </section>
       )}
 
-      {routines.length ? <DailyActivity key={tab} daily={daily} tab={tab} /> : null}
+      {routines.length ? (
+        <DailyActivity
+          key={`${tab}:${searchDay ?? ""}`}
+          daily={daily}
+          tab={tab}
+          initialDay={searchDay}
+          initialRoutineId={searchRoutineId}
+        />
+      ) : null}
 
       {archived.length ? (
         <section className="panel daily-archived">

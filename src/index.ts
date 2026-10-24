@@ -19,6 +19,16 @@ try {
 
 const server = serve({
   routes: {
+    "/search-worker.js": async () => {
+      const result = await Bun.build({
+        entrypoints: ["src/frontend/lib/search/worker.ts"],
+        target: "browser",
+      });
+      if (!result.success) return new Response("Search unavailable", { status: 500 });
+      return new Response(result.outputs[0], {
+        headers: { "Content-Type": "application/javascript" },
+      });
+    },
     "/api/*": (req) => api.fetch(req),
     "/manifest.webmanifest": () =>
       new Response(Bun.file("public/manifest.webmanifest"), {

@@ -276,14 +276,14 @@ const COLLECTIONS: CollectionDoc[] = [
         note: "ownership and linkage; plaintext",
       },
       {
-        key: "day / at",
-        value: "local date / ISO timestamp",
-        note: "original check-in day and time; plaintext for ordered history",
+        key: "day / seq",
+        value: "local date / counter",
+        note: "original check-in day and a sort counter; plaintext for ordered history, no clock time",
       },
       {
         key: "enc / payload",
         value: "1 / base64 AES-GCM",
-        note: "intended adjustment, applied adjustment, resulting count, goal and unit snapshots",
+        note: "exact time, intended adjustment, applied adjustment, resulting count, goal and unit snapshots; padded to hide length",
       },
     ],
   },
@@ -633,49 +633,61 @@ export function Transparency() {
       <section className="panel" data-tour="tour-transparency-intro">
         <div className="panel-head panel-head--stack">
           <div>
-            <h2>How the Whole System Works</h2>
+            <h2>How Custos works</h2>
             <p className="panel-sub">
               Custos is private by design: your browser derives a ledger key from your wallet
               signature, encrypts secrets with AES-256-GCM, and syncs ciphertext to MongoDB Atlas.
             </p>
             <p className="panel-sub panel-sub--spaced">
-              Free-tier hosting: Vercel serves the app and API (Analytics + Speed Insights) but runs
-              no cron — cron-job.org is the only scheduler, polling{" "}
-              <code>GET /api/cron/reminders</code> about every fifteen minutes for email reminders,
-              push notifications, and recurring expense rows. Optional email uses Resend; push
-              delivery uses FCM, Apple Push, or Mozilla&apos;s service depending on the browser. UI
-              typefaces (Schibsted Grotesk, Azeret Mono from <code>fonts.css</code>) ship with the
-              app as self-hosted SIL OFL files — no third-party font CDN.
+              Global search downloads encrypted records and matches on this device. Search text and
+              results are never sent to the server or analytics. Its in-memory index is discarded
+              when search closes. Offline results cover downloaded records.
             </p>
-            <p className="panel-sub panel-sub--spaced">
-              You navigate with a sidebar (or a bottom bar on smaller screens) with four
-              customizable favorites, and Ctrl or Command + K searches pages. A device passphrase
-              wraps your in-app recovery key on this browser; encrypted backups download to your
-              machine only. Remembered unlock keys expire twelve hours after unlocking and are
-              removed on sign-out or clearing local data. Optional Face ID / Touch ID unlock runs
-              entirely in the browser through WebAuthn — it can prompt on its own when you open the
-              app, but the server never receives the credential, the assertion, or any signal that a
-              biometric check happened.
-            </p>
-            <p className="panel-sub panel-sub--spaced">
-              The installable PWA caches ciphertext locally so the app opens, unlocks, and reads
-              your last-synced data with no connection at all — a session with no server
-              confirmation is trusted offline for 30 days before it&apos;s dropped. Creating or
-              editing expenses, schedule events, to-do lists, Capitals plans, vehicles, fuel fills,
-              wallet budgets, and categories also works offline: each change is queued
-              already-encrypted — the same local database the read cache uses, no new plaintext
-              exposure — and sent automatically once you reconnect, never needing the ledger key
-              again to do so.
-            </p>
-            <p className="panel-sub panel-sub--spaced">
-              A handful of operations still need a connection because the server, not the client,
-              decides their outcome: editing an already-recurring expense, a scoped
-              (this/future/all) expense delete, wallet create/rename/set-default/delete, deleting a
-              Capitals plan, category transfer, backup restore, and rekey (which refuses to run
-              while anything is still queued, since a queued write is ciphertext under the key being
-              replaced). Older rows may still carry legacy plaintext columns from before E2EE
-              payloads.
-            </p>
+            <details className="editorial-details">
+              <summary>Hosting, device security and offline access</summary>
+              <p className="panel-sub panel-sub--spaced">
+                Free-tier hosting: Vercel serves the app and API (Analytics + Speed Insights) but
+                runs no cron — cron-job.org is the only scheduler, polling{" "}
+                <code>GET /api/cron/reminders</code> about every fifteen minutes for email
+                reminders, push notifications, and recurring expense rows. Optional email uses
+                Resend; push delivery uses FCM, Apple Push, or Mozilla&apos;s service depending on
+                the browser. UI typefaces (Schibsted Grotesk, Azeret Mono from{" "}
+                <code>fonts.css</code>) ship with the app as self-hosted SIL OFL files — no
+                third-party font CDN.
+              </p>
+              <p className="panel-sub panel-sub--spaced">
+                You navigate with a sidebar (or a bottom bar on smaller screens) with four
+                customizable favorites, and Ctrl or Command + K searches records, pages and
+                settings. A device passphrase wraps your in-app recovery key on this browser;
+                encrypted backups download to your machine only. Staying unlocked across reloads is
+                off unless you turn it on in Preferences; when on, your unlock keys sit in this
+                browser's storage for up to twelve hours, so anyone who copies this browser profile
+                in that time could read your data. They are removed on sign-out, expiry, turning it
+                off, or clearing local data. Optional Face ID / Touch ID unlock runs entirely in the
+                browser through WebAuthn — it can prompt on its own when you open the app, but the
+                server never receives the credential, the assertion, or any signal that a biometric
+                check happened.
+              </p>
+              <p className="panel-sub panel-sub--spaced">
+                The installable PWA caches ciphertext locally so the app opens, unlocks, and reads
+                your last-synced data with no connection at all — a session with no server
+                confirmation is trusted offline for 30 days before it&apos;s dropped. Creating or
+                editing expenses, schedule events, to-do lists, Capitals plans, vehicles, fuel
+                fills, wallet budgets, and categories also works offline: each change is queued
+                already-encrypted — the same local database the read cache uses, no new plaintext
+                exposure — and sent automatically once you reconnect, never needing the ledger key
+                again to do so.
+              </p>
+              <p className="panel-sub panel-sub--spaced">
+                A handful of operations still need a connection because the server, not the client,
+                decides their outcome: editing an already-recurring expense, a scoped
+                (this/future/all) expense delete, wallet create/rename/set-default/delete, deleting
+                a Capitals plan, category transfer, backup restore, and rekey (which refuses to run
+                while anything is still queued, since a queued write is ciphertext under the key
+                being replaced). Older rows may still carry legacy plaintext columns from before
+                E2EE payloads.
+              </p>
+            </details>
           </div>
         </div>
       </section>
@@ -683,7 +695,7 @@ export function Transparency() {
       <section className="panel" data-tour="tour-transparency-infer">
         <div className="panel-head panel-head--stack">
           <div>
-            <h2>What the Server Can Infer</h2>
+            <h2>What the server can infer</h2>
             <p className="panel-sub">
               Even with E2EE, plaintext metadata remains for queries and accurate schedule reminders
               (day-level dates, multi-day <code>endDate</code> / <code>endTime</code> span bounds,
@@ -710,9 +722,10 @@ export function Transparency() {
               next send time, the day its goal was reached, and a readable copy of the notification
               (title, goal and description). Switching a nudge off deletes the readable copy and the
               next send time. Counts and daily totals stay encrypted. The check-in journal exposes
-              its Nudge linkage, local day, and occurrence timestamp; adjustments, resulting counts,
-              goals, and units remain encrypted. Detailed events are retained until the Nudge or
-              account is deleted. Nudges are delivered as web push only, never by email.
+              its Nudge linkage, local day and a sort counter, never a clock time; the exact time,
+              adjustments, resulting counts, goals, and units remain encrypted. Detailed events are
+              retained until the Nudge or account is deleted. Nudges are delivered as web push only,
+              never by email.
             </p>
             <p className="panel-sub panel-sub--spaced">
               Budget alerts are a deliberate exception: the client sends cleartext{" "}
@@ -765,7 +778,7 @@ export function Transparency() {
         </div>
         <div className="transparency-diagram-stack">
           <div>
-            <h3 className="transparency-diagram-title">Hosting &amp; Jobs</h3>
+            <h3 className="transparency-diagram-title">Hosting and jobs</h3>
             <p className="panel-sub">
               Free-tier roles: Vercel hosts, Atlas stores, cron-job.org schedules; typefaces ship
               with the app
@@ -773,14 +786,14 @@ export function Transparency() {
             <MermaidDiagram chart={SYSTEM_CHART} label="System Hosting Flowchart" />
           </div>
           <div data-tour="tour-transparency-flow">
-            <h3 className="transparency-diagram-title">Data Relationships</h3>
+            <h3 className="transparency-diagram-title">Data relationships</h3>
             <p className="panel-sub">
               Opaque accountId anchors every user-owned collection; SIWE address stays on users
             </p>
             <MermaidDiagram chart={RELATIONSHIP_CHART} label="Collection Relationship Flowchart" />
           </div>
           <div data-tour="tour-transparency-e2ee">
-            <h3 className="transparency-diagram-title">Encrypted Write Path</h3>
+            <h3 className="transparency-diagram-title">Encrypted write path</h3>
             <p className="panel-sub">
               Categories, events, todos, daily routines, nudges, expenses, capital plans,
               vehicles/fills, and wallet names/budgets are AES-256-GCM encrypted client-side before

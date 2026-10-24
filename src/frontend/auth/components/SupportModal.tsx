@@ -26,7 +26,7 @@ export function SupportModal({ onClose }: SupportModalProps) {
   const { accentName, setAccentName, surfaceName, setSurfaceName, dark } = useTheme();
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
+  const { dismiss } = useModalMotion(scrimRef, panelRef, { variant: "center", onDismiss: onClose });
 
   /* Repaint immediately, then persist so it follows the account across
      devices; on failure, fall back to whatever the server still has. */
@@ -63,26 +63,19 @@ export function SupportModal({ onClose }: SupportModalProps) {
       ref={scrimRef}
       className="modal-scrim center"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) requestClose(onClose);
+        if (e.target === e.currentTarget) dismiss();
       }}
     >
       <div ref={panelRef} className="modal sm" role="dialog" aria-modal="true">
         <div className="modal-head">
           <h3>Support Custos</h3>
-          <button
-            className="icon-btn"
-            type="button"
-            onClick={() => requestClose(onClose)}
-            aria-label="Close"
-          >
+          <button className="icon-btn" type="button" onClick={() => dismiss()} aria-label="Close">
             <Icon name="close" size={18} />
           </button>
         </div>
 
         <div className="modal-body modal-scroll support-body">
-          <p className="dm-lead">
-            Every feature is free. Tips are optional and never unlock or gate ledger features.
-          </p>
+          <p className="dm-lead">Every feature is free. Tips help keep Custos running.</p>
 
           <div className="dm-sec">
             <span className="fld-label">Send a tip</span>

@@ -149,7 +149,13 @@ export function DatePicker({ value, onChange, className }: DatePickerProps) {
         if (e.target === e.currentTarget) requestClose(() => setOpen(false));
       }}
     >
-      <div ref={menuRef} className="picker-menu picker-menu--date" role="dialog" aria-modal="true">
+      <div
+        ref={menuRef}
+        className="picker-menu picker-menu--date"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Choose a date"
+      >
         <div className="picker-cal-head">
           <button
             type="button"
@@ -264,6 +270,7 @@ export function TimePicker({ value, onChange, className, disabled, placeholder }
           ref={menuRef}
           className="picker-menu picker-menu--time"
           role="dialog"
+          aria-label="Choose a time"
           aria-modal="true"
         >
           <div className="picker-time-cols">

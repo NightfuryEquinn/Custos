@@ -3,6 +3,16 @@ import { confirmOutbox } from "./outbox";
 import { reqAsPromise, STORES } from "@/frontend/lib/pwa/idb";
 import type { NudgeCheckInWire, NudgeWire } from "@/frontend/lib/crypto/codec";
 
+/** Newest first, the same order the server pages in: day, then arrival counter, then id. */
+function newestFirst(a: NudgeCheckInWire, b: NudgeCheckInWire) {
+  return b.day.localeCompare(a.day) || (b.seq ?? 0) - (a.seq ?? 0) || b.id.localeCompare(a.id);
+}
+
+/** The continuation token the server hands out for the page ending at `event`. */
+function cursorAfter(event: NudgeCheckInWire) {
+  return `${event.day}|${event.seq ?? 0}|${event.id}`;
+}
+
 /** Commit acknowledged ciphertext and remove the outbox operation in one transaction. */
 export async function cacheNudgeResult(
   address: string,
@@ -42,12 +52,12 @@ export async function cacheNudgeResult(
         const events = [
           ...cached.events.filter((e) => e.id !== result.event!.id),
           result.event,
-        ].sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id));
+        ].sort(newestFirst);
         const page = events.slice(0, 50);
         const last = page.at(-1);
         body = {
           events: page,
-          cursor: events.length > 50 && last ? `${last.at}|${last.id}` : cached.cursor,
+          cursor: events.length > 50 && last ? cursorAfter(last) : cached.cursor,
         };
       }
       if (body) store.put({ ...row, body: JSON.stringify(body), updatedAt: Date.now() });
@@ -63,7 +73,7 @@ export async function cacheNudgeResult(
           updatedAt: Date.now(),
           body: JSON.stringify({
             events: [result.event],
-            cursor: `${result.event.at}|${result.event.id}`,
+            cursor: cursorAfter(result.event),
           }),
         });
       }

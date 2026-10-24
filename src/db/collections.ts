@@ -248,7 +248,10 @@ type NudgeCheckInDocument = {
   accountId: string;
   nudgeId: string;
   day: string;
-  at: string;
+  /** Arrival order within the Nudge (its revision after the write); the exact time is in the payload. */
+  seq: number;
+  /** Plaintext time on rows written before `seq`; removed by `db:migrate-nudge-at`. */
+  at?: string;
   enc: 1;
   payload: string;
 };

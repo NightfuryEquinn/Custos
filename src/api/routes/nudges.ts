@@ -140,12 +140,14 @@ nudgesRoutes.get("/:id/check-ins", async (c) => {
     .safeParse(c.req.query());
   if (!query.success) badRequest("Invalid history filter");
   const { month, day, cursor } = query.data;
+  /* Cursor is `day|seq|id`: the last row of the previous page, in the order below. */
   const before = cursor?.split("|");
   if (
     before &&
-    (before.length !== 2 ||
-      !z.iso.datetime().safeParse(before[0]).success ||
-      !objectIdSchema.safeParse(before[1]).success)
+    (before.length !== 3 ||
+      !isoDateSchema.safeParse(before[0]).success ||
+      !/^-?\d+$/.test(before[1]!) ||
+      !objectIdSchema.safeParse(before[2]).success)
   )
     badRequest("Invalid history cursor");
   const docs = await nudgeCheckIns
@@ -156,20 +158,22 @@ nudgesRoutes.get("/:id/check-ins", async (c) => {
       ...(before
         ? {
             $or: [
-              { at: { $lt: before[0]! } },
-              { at: before[0]!, _id: { $lt: new ObjectId(before[1]!) } },
+              { day: { $lt: before[0]! } },
+              { day: before[0]!, seq: { $lt: Number(before[1]) } },
+              { day: before[0]!, seq: Number(before[1]), _id: { $lt: new ObjectId(before[2]!) } },
             ],
           }
         : {}),
     })
-    .sort({ at: -1, _id: -1 })
+    .sort({ day: -1, seq: -1, _id: -1 })
     .limit(51)
     .toArray();
   const page = docs.slice(0, 50);
   const last = page.at(-1);
   return c.json({
     events: serializeDocs(page),
-    cursor: docs.length > 50 && last ? `${last.at}|${last._id.toHexString()}` : null,
+    cursor:
+      docs.length > 50 && last ? `${last.day}|${last.seq ?? 0}|${last._id.toHexString()}` : null,
   });
 });
 
@@ -193,7 +197,8 @@ nudgesRoutes.post("/:id/check-ins", zValidator("json", recordNudgeCheckInSchema)
       const updated = await nudges.findOneAndUpdate(
         { _id: current._id, accountId, ...revisionFilter(body.expectedRevision) },
         {
-          $set: { enc: body.nudge.enc, payload: body.nudge.payload, ...set, updatedAt: new Date() },
+          /* No updatedAt here: it would record the time of every tap in the clear. */
+          $set: { enc: body.nudge.enc, payload: body.nudge.payload, ...set },
           $inc: { revision: 1 },
           ...(Object.keys(unset).length ? { $unset: unset } : {}),
         },
@@ -205,7 +210,7 @@ nudgesRoutes.post("/:id/check-ins", zValidator("json", recordNudgeCheckInSchema)
         accountId,
         nudgeId: id,
         day: body.day,
-        at: body.at,
+        seq: updated.revision ?? 0,
         enc: body.enc,
         payload: body.payload,
       };
@@ -233,11 +238,11 @@ nudgesRoutes.put("/:id/check-ins/:eventId", zValidator("json", nudgeCheckInSchem
           conflict("Check-in id already in use");
         return;
       }
-      // Touch the parent to serialize against concurrent deletion.
-      await nudges.updateOne(
+      // Touch the parent to serialize against concurrent deletion; its revision orders the row.
+      const touched = await nudges.findOneAndUpdate(
         { _id: new ObjectId(id), accountId },
         { $inc: { revision: 1 } },
-        { session },
+        { session, returnDocument: "after" },
       );
       await nudgeCheckIns.insertOne(
         {
@@ -245,7 +250,7 @@ nudgesRoutes.put("/:id/check-ins/:eventId", zValidator("json", nudgeCheckInSchem
           accountId,
           nudgeId: id,
           day: body.day,
-          at: body.at,
+          seq: touched?.revision ?? 0,
           enc: body.enc,
           payload: body.payload,
         },

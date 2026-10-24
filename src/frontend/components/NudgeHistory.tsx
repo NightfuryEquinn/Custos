@@ -45,8 +45,18 @@ export function NudgeBloom({ count, target }: { count: number; target: number })
   );
 }
 
-export function NudgeHistory({ row, today, month }: { row: Nudge; today: string; month: string }) {
-  const [selectedDay, setDay] = useState<string | null>(null);
+export function NudgeHistory({
+  row,
+  today,
+  month,
+  initialDay,
+}: {
+  row: Nudge;
+  today: string;
+  month: string;
+  initialDay?: string;
+}) {
+  const [selectedDay, setDay] = useState<string | null>(initialDay ?? null);
   const day = selectedDay?.startsWith(month)
     ? selectedDay
     : today.startsWith(month)

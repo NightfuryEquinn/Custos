@@ -7,7 +7,11 @@ import { ThemeToggle } from "@/frontend/components/ThemeToggle";
 import { api, ApiError } from "@/frontend/lib/api";
 import { ledgerKeyStore, seriesKeyStore } from "@/frontend/lib/crypto/key-store";
 import { unlockLedgerKey } from "@/frontend/lib/crypto/unlock";
-import { forgetUnlock, restoreUnlock } from "@/frontend/lib/crypto/unlock-persist";
+import {
+  forgetUnlock,
+  restoreUnlock,
+  sweepExpiredUnlocks,
+} from "@/frontend/lib/crypto/unlock-persist";
 import { identityStorage } from "@/frontend/auth/lib/identity-storage";
 import { sessionSecrets } from "@/frontend/auth/lib/session-secrets";
 import { isSessionTrustFresh, markSessionVerified } from "@/frontend/auth/lib/session-trust";
@@ -63,12 +67,25 @@ export function Root() {
   // Restore session; prefer locally-stored codename when it matches.
   useEffect(() => {
     const saved = getSavedAccount();
+    /* Set when the server (or the trust window) rejects the session, so a slower
+       restoreUnlock cannot bring the account back unlocked afterwards. */
+    let rejected = false;
+    const reject = () => {
+      rejected = true;
+      ledgerKeyStore.clear();
+      seriesKeyStore.clear();
+    };
+    void sweepExpiredUnlocks();
     if (saved) {
       // Local-first boot: render UnlockScreen immediately from localStorage —
       // zero network needed — rather than waiting on auth.me() to resolve.
       // Keys remembered from the last 12 hours are restored first (a local IndexedDB
       // read), so a still-valid unlock skips the passphrase screen.
       void restoreUnlock(saved.address).then(() => {
+        if (rejected) {
+          reject();
+          return;
+        }
         setAccount(saved);
         setBooting(false);
       });
@@ -104,6 +121,7 @@ export function Root() {
       .catch((err) => {
         if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
           // A definite, server-answered rejection — sign out, online or not.
+          reject();
           void forgetUnlock();
           setAccount(null);
           return;
@@ -112,6 +130,7 @@ export function Root() {
         // (if any) so UnlockScreen stays reachable, but bound how long a
         // session may be trusted with no server confirmation at all.
         if (saved && !isSessionTrustFresh(saved.address)) {
+          reject();
           setAccount(null);
           void forgetUnlock(saved.address);
           void clearCipherCacheForAddress(saved.address);

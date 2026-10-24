@@ -14,12 +14,14 @@ Before finishing UI work, verify (or adjust CSS for) roughly:
 
 | Class | Width | Expectations |
 | --- | --- | --- |
-| PC / large laptop | ≥981px | Full sidebar layout, multi-column grids |
-| Laptop / small desktop | ~861–980px | Overview may collapse; avoid overflow |
-| Tablet / large phone | ≤860px | Sidebar → five-tab bar + More sheet; stack panels; tap targets ≥44px |
-| Phone | ≤560px | Single column; readable type; no horizontal scroll |
+| Desktop | ?1280px | Sidebar, full content width, multi-column layouts |
+| Laptop | 1024?1279px | Sidebar, fluid columns without overflow |
+| Tablet | 640?1023px | Bottom navigation and More sheet; touch targets ?44px |
+| Phone | ?639px | Single column, readable type, no page overflow |
 
-Match existing breakpoints in `src/frontend/styles/ledger.css` (`980px`, `860px`, `560px`) unless a new query is clearly needed.
+Use the current 639px, 1023px and 1279px tiers in `journal.css` and `website/site.css`.
+Also verify 360px phones, tablet landscape and 200% zoom. Update the stylesheet that
+owns the component; avoid duplicating overrides across the legacy and journal layers.
 
 ## Patterns
 
@@ -29,7 +31,7 @@ Match existing breakpoints in `src/frontend/styles/ledger.css` (`980px`, `860px`
 
 /* ✅ GOOD — fluid + existing breakpoints */
 .panel { width: 100%; max-width: 720px; }
-@media (max-width: 560px) {
+@media (max-width: 639px) {
   .panel { padding: 12px; }
 }
 ```
@@ -37,4 +39,4 @@ Match existing breakpoints in `src/frontend/styles/ledger.css` (`980px`, `860px`
 - Prefer fluid widths (`%`, `minmax(0, 1fr)`, `min-width: 0`) over fixed pixel shells.
 - Stack grids/flex rows at tablet/mobile; don’t clip labels or force overflow.
 - Modals, pickers, and toolbars must remain usable on small screens and touch (`hover: none`).
-- When editing a component, update the matching `@media` rules in `ledger.css` in the same change.
+- When editing a component, update the matching `@media` rules in the owning stylesheet in the same change.

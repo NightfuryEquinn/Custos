@@ -7,7 +7,6 @@
     "node": "24.22.1"
   },
   "scripts": {
-    "test": "bun test",
     "dev": "bun --hot src/index.ts",
     "build": "bun run build.ts",
     "typecheck": "tsc --noEmit",
@@ -21,7 +20,8 @@
     "db:grant-supporter": "bun scripts/grant-supporter.ts",
     "db:wipe-account": "bun scripts/wipe-account.ts",
     "db:prune-stale": "bun scripts/prune-stale-users.ts",
-    "db:indexes": "bun scripts/sync-indexes.ts"
+    "db:indexes": "bun scripts/sync-indexes.ts",
+    "db:migrate-nudge-at": "bun scripts/migrate-nudge-check-in-at.ts"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.8.0",

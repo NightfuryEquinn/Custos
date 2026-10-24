@@ -1,3 +1,4 @@
+import { useSearchReveal, focusSearchRecord } from "@/frontend/lib/search/reveal";
 import { useEnter, useModalMotion } from "@/frontend/lib/animate";
 import { ConfirmDialog, EmptyState, Icon } from "@/frontend/components/ui";
 import { slugId } from "@/frontend/lib/categories";
@@ -118,6 +119,17 @@ export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(fu
   };
 
   useImperativeHandle(ref, () => ({ openAdd: openAddList }));
+
+  useSearchReveal(["todo"], (target) => {
+    const list = lists.find((row) => row.id === (target.parentId ?? target.id));
+    if (!list) return false;
+    setActiveId(list.id);
+    if (target.parentId) {
+      if (!list.tasks.some((task) => task.id === target.id)) return false;
+      focusSearchRecord(`task:${target.id}`);
+    } else openEditList(list);
+    return true;
+  });
 
   const openEditList = (list: TodoList) => {
     setEditor({ type: "edit-list", listId: list.id });
@@ -296,7 +308,11 @@ export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(fu
                   [...active.tasks]
                     .sort((a, b) => Number(a.done) - Number(b.done))
                     .map((task) => (
-                      <div key={task.id} className={"todo-task" + (task.done ? " done" : "")}>
+                      <div
+                        key={task.id}
+                        data-search-id={`task:${task.id}`}
+                        className={"todo-task" + (task.done ? " done" : "")}
+                      >
                         <button
                           type="button"
                           className={"todo-check" + (task.done ? " checked" : "")}
@@ -384,7 +400,7 @@ export const TodoListView = forwardRef<TodoListViewHandle, TodoListViewProps>(fu
       ) : (
         <section className="panel" data-tour="tour-todos-tabs">
           <div data-tour="tour-todos-tasks">
-            <EmptyState title="No Lists Yet" sub="Use the + button to create one." />
+            <EmptyState title="No lists yet" sub="Use the + button to create one." />
           </div>
         </section>
       )}

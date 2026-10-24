@@ -782,13 +782,18 @@ export async function encodeDailyRoutine(data: Omit<DailyRoutine, "id">, key: Cr
     archivedOn: data.archivedOn,
     createdAt: data.createdAt,
   };
-  /* Round the plaintext up to a multiple of 256 bytes. Without this the stored size
-     tells the server when a routine was archived (+26 bytes) or its schedule changed. */
+  return { enc: 1 as const, payload: await encryptJson(key, padded(secrets)) };
+}
+
+/**
+ * Round the plaintext up to a multiple of 256 bytes. Without this the stored size tells the
+ * server when a routine was archived (+26 bytes), a Nudge tap was a minus, or a count grew a digit.
+ */
+function padded<T extends object>(secrets: T): T & { pad: string } {
   const size = (value: object) => new TextEncoder().encode(JSON.stringify(value)).length;
   const base = size({ ...secrets, pad: "" });
-  const pad = "x".repeat(Math.ceil(base / 256) * 256 - base);
 
-  return { enc: 1 as const, payload: await encryptJson(key, { ...secrets, pad }) };
+  return { ...secrets, pad: "x".repeat(Math.ceil(base / 256) * 256 - base) };
 }
 
 export type DailyCompletionWire = {
@@ -856,7 +861,11 @@ export async function decodeNudge(wire: NudgeWire, key: CryptoKey): Promise<Nudg
   if (wire.enc !== 1 || !wire.payload) {
     throw new Error("Nudge is encrypted but no key is available");
   }
-  const secrets = await decryptJson<NudgeSecrets>(key, wire.payload);
+  /* `pad` is absent on Nudges saved before padding existed; either way it is dropped. */
+  const { pad: _pad, ...secrets } = await decryptJson<NudgeSecrets & { pad?: string }>(
+    key,
+    wire.payload,
+  );
 
   return {
     id: wire.id,
@@ -888,7 +897,7 @@ export async function encodeNudge(data: Omit<Nudge, "id">, key: CryptoKey, today
 
   return {
     enc: 1 as const,
-    payload: await encryptJson(key, secrets),
+    payload: await encryptJson(key, padded(secrets)),
     enabled: data.enabled,
     everyMin: data.everyMin,
     windowStart: data.windowStart,
@@ -898,7 +907,13 @@ export async function encodeNudge(data: Omit<Nudge, "id">, key: CryptoKey, today
   };
 }
 
-export type NudgeCheckInWire = Pick<NudgeCheckIn, "id" | "nudgeId" | "day" | "at"> & {
+/**
+ * The server keeps only the local day and a sort counter (`seq`, set on arrival); the exact
+ * time lives in the payload. `at` is the plaintext time older rows and queued writes still carry.
+ */
+export type NudgeCheckInWire = Pick<NudgeCheckIn, "id" | "nudgeId" | "day"> & {
+  seq?: number;
+  at?: string;
   enc: 1;
   payload: string;
 };
@@ -906,15 +921,24 @@ export async function encodeNudgeCheckIn(
   event: NudgeCheckIn,
   key: CryptoKey,
 ): Promise<NudgeCheckInWire> {
-  const { id, nudgeId, day, at, ...secrets } = event;
-  return { id, nudgeId, day, at, enc: 1, payload: await encryptJson(key, secrets) };
+  const { id, nudgeId, day, ...secrets } = event;
+  return { id, nudgeId, day, enc: 1, payload: await encryptJson(key, padded(secrets)) };
 }
 export async function decodeNudgeCheckIn(
   wire: NudgeCheckInWire,
   key: CryptoKey,
 ): Promise<NudgeCheckIn> {
-  const secrets = await decryptJson<
-    Pick<NudgeCheckIn, "change" | "delta" | "count" | "target" | "unit">
+  const { pad: _pad, ...secrets } = await decryptJson<
+    Pick<NudgeCheckIn, "change" | "delta" | "count" | "target" | "unit"> & {
+      at?: string;
+      pad?: string;
+    }
   >(key, wire.payload);
-  return { ...secrets, id: wire.id, nudgeId: wire.nudgeId, day: wire.day, at: wire.at };
+  return {
+    ...secrets,
+    id: wire.id,
+    nudgeId: wire.nudgeId,
+    day: wire.day,
+    at: secrets.at ?? wire.at ?? wire.day,
+  };
 }

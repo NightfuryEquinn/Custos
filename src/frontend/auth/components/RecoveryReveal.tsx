@@ -23,7 +23,10 @@ export function RecoveryReveal({ identity, onClose }: RecoveryRevealProps) {
   const [busy, setBusy] = useState(false);
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
+  const { dismiss } = useModalMotion(scrimRef, panelRef, {
+    variant: "center",
+    onDismiss: busy ? false : onClose,
+  });
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(copiedTimer.current), []);
   const words = mnemonic.split(/\s+/).filter(Boolean);
@@ -54,16 +57,16 @@ export function RecoveryReveal({ identity, onClose }: RecoveryRevealProps) {
       ref={scrimRef}
       className="modal-scrim center"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !busy) requestClose(onClose);
+        if (e.target === e.currentTarget && !busy) dismiss();
       }}
     >
       <div ref={panelRef} className="modal sm" role="dialog" aria-modal="true">
         <div className="modal-head">
-          <h3>Recovery Phrase</h3>
+          <h3>Recovery phrase</h3>
           <button
             className="icon-btn"
             type="button"
-            onClick={() => requestClose(onClose)}
+            onClick={() => dismiss()}
             aria-label="Close"
             disabled={busy}
           >

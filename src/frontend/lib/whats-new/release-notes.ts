@@ -40,8 +40,23 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
   {
     version: "6.6.1",
     date: "October 2026",
-    lead: "Catch up on Daily, grow your habit garden, and give every subcategory a budget.",
+    lead: "Search everything, catch up on Daily, grow your habit garden, and give every subcategory a budget.",
     highlights: [
+      {
+        icon: "list",
+        title: "Search all of Custos",
+        body: "Find records across wallets and dates, plus pages and settings. Open a match directly. Search stays on your device; offline results cover downloaded records.",
+      },
+      {
+        icon: "wifi-on",
+        title: "Sync recovers on its own",
+        body: "After a dropped connection or a timeout, Custos keeps checking and sends your queued changes as soon as it can reach the server again.",
+      },
+      {
+        icon: "sparkle",
+        title: "A quieter interface",
+        body: "Clearer labels, shorter help text and consistent dialog controls, with the same editorial style. The website now covers Daily, Nudges and search too.",
+      },
       {
         icon: "daily",
         title: "Your routine history",
@@ -59,8 +74,13 @@ export const RELEASE_NOTES: ReleaseNotes[] = [
       },
       {
         icon: "shield",
-        title: "Twelve-hour remembered unlock",
-        body: "After unlocking, this device remembers your keys for twelve hours. Signing out or clearing local data still removes them.",
+        title: "Stay unlocked, if you choose",
+        body: "Turn on Preferences → Stay unlocked on this device to skip the passphrase on reloads for twelve hours. It is off by default because it keeps your unlock keys in this browser's storage; signing out or clearing local data removes them.",
+      },
+      {
+        icon: "shield",
+        title: "More private Nudges",
+        body: "Check-in times are now encrypted, Nudge data is padded so its size reveals less, and a Nudge you edit offline no longer keeps its notification text on this device while it waits to sync.",
       },
       {
         icon: "tags",

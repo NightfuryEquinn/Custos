@@ -1025,8 +1025,7 @@ export function EventModal({
                 Reminders go to your account email only — set it under Data &amp; privacy.
               </p>
               <p className="notify-note">
-                You'll always get a reminder right at the event itself — the start time, or 9:00 AM
-                on the day for all-day events — this lead time is an extra one sent earlier.
+                Also reminds you at the start time, or 9:00 AM for all-day events.
               </p>
               <p className="notify-note">
                 The email includes this event's name, budget hold and comments. Email is not

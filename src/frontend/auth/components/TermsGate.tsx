@@ -48,7 +48,7 @@ export function TermsGate({ onAccepted, onSignOut, signingOut = false }: TermsGa
         <div className="auth-ambient" aria-hidden="true" />
         <div ref={cardRef} className="auth-card">
           <Brand variant="auth" />
-          <h1 className="auth-h1">Terms Have Changed</h1>
+          <h1 className="auth-h1">Terms have changed</h1>
           <p className="auth-lead">
             Updated {TERMS_UPDATED}. Continuing means accepting the current Terms &amp; Conditions.
           </p>

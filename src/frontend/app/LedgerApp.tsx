@@ -12,6 +12,9 @@ import { OfflineBanner } from "@/frontend/components/OfflineBanner";
 import { toast } from "@/frontend/lib/feedback";
 import { BottomNav, SideNav } from "@/frontend/components/Navigation";
 import { DailyHomePanel } from "@/frontend/components/DailyHomePanel";
+import { SearchRevealContext } from "@/frontend/lib/search/reveal";
+import type { SearchTarget } from "@/frontend/lib/search/model";
+import type { SearchHistory } from "@/frontend/lib/search/documents";
 import { PageSearch } from "@/frontend/components/PageSearch";
 import { resolveStartView, useJournalNavigation } from "@/frontend/lib/journal-navigation";
 import { ThemeToggle } from "@/frontend/components/ThemeToggle";
@@ -189,6 +192,8 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
   const scheduleDayRef = useRef<string | null>(null);
   const categoriesRef = useRef<CategoriesHandle>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchTarget, setSearchTarget] = useState<SearchTarget | null>(null);
+  const [searchFill, setSearchFill] = useState<FuelFill | null>(null);
   /** Latched once the start page has been applied, so views never flash the wrong page first. */
   const [landed, setLanded] = useState(false);
   const tourReady = !ledger.isLoading && !ledger.error && !!ledger.profile && landed;
@@ -234,7 +239,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
 
   /* Custom nav layout, also account-wide. Undefined fields (never customized)
      fall back to the built-in defaults inside resolveNav. */
-  const { sidebarItems, tabItems, groups, moreGroups } = useMemo(
+  const { sidebarItems, tabItems, moreGroups } = useMemo(
     () => resolveNav(ledgerProfile?.navOrder, ledgerProfile?.navTabs),
     [ledgerProfile?.navOrder, ledgerProfile?.navTabs],
   );
@@ -790,355 +795,402 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
     </div>
   );
 
+  /** Resolve records across wallets before handing off to an existing editor. */
+  const selectSearchResult = (target: SearchTarget, history: SearchHistory) => {
+    if (target.walletId && !wallets.some((row) => row.id === target.walletId)) {
+      toast("This wallet is no longer available.");
+      return;
+    }
+    if (target.walletId) setActiveWalletId(target.walletId);
+    if (target.date) setMonth(target.date.slice(0, 7));
+    setSearchTarget(null);
+    if (target.kind === "setting") {
+      if (target.id === "whats-new") {
+        openWhatsNew();
+        return;
+      }
+      setSearchTarget(target);
+      return;
+    }
+    setView(target.view);
+    if (target.kind === "expense") {
+      const row = history.expenses.find((row) => row.id === target.id);
+      if (row) setModal(row);
+      else toast("This transaction is no longer available.");
+    } else if (target.kind === "event") {
+      const row = history.events.find((row) => row.id === target.id);
+      if (row) openEvent(row, target.date);
+      else toast("This event is no longer available.");
+    } else if (target.kind !== "page") {
+      if (target.kind === "fill")
+        setSearchFill(history.fills.find((row) => row.id === target.id) ?? null);
+      if (target.kind === "wallet") setWalletModal(true);
+      setSearchTarget(target);
+    }
+  };
+
   return (
-    <div className="app journal-app">
-      <SideNav view={view} favorites={tabItems} groups={moreGroups} />
-      <main className="main">
-        <header className="topbar">
-          <div className="journal-masthead">
-            <button
-              type="button"
-              className="journal-brand"
-              onClick={() => setView("overview")}
-              aria-label="Home"
-            >
-              custos
-            </button>
-            <div className="tb-actions">
+    <SearchRevealContext.Provider
+      value={{ target: searchTarget, handled: () => setSearchTarget(null) }}
+    >
+      <div className="app journal-app">
+        <SideNav view={view} favorites={tabItems} groups={moreGroups} />
+        <main className="main">
+          <header className="topbar">
+            <div className="journal-masthead">
               <button
                 type="button"
-                className="icon-btn"
-                aria-label="Search pages"
-                aria-haspopup="dialog"
-                onClick={() => setSearchOpen(true)}
+                className="journal-brand"
+                onClick={() => setView("overview")}
+                aria-label="Home"
               >
-                <Icon name="search" size={20} />
+                custos
               </button>
-              <button
-                type="button"
-                className="icon-btn page-refresh-btn page-refresh-btn--main"
-                aria-label={`Refresh ${viewTitle(view)}`}
-                aria-busy={ledger.refreshingView !== null}
-                disabled={ledger.refreshingView !== null || isSaving || isMonthPending}
-                onClick={() => void ledger.refreshPage(view)}
-              >
-                <span className={ledger.refreshingView ? "refresh-spinning" : undefined}>
-                  <Icon name="recurring" size={20} />
-                </span>
-              </button>
-              <ThemeToggle />
-              <AccountMenu
-                account={account}
-                onSignOut={onSignOut}
-                signingOut={signingOut}
-                expenses={allExpenses}
-                events={events}
-                todoLists={ledger.todoLists}
-                wallets={wallets}
-                categoryIndex={ledger.categoryIndex}
-                activeWalletId={activeWallet?.id}
-                savingsTxns={ledger.savingsTxns}
-                capitalPlans={ledger.capitalPlans}
-                vehicles={ledger.vehicles}
-                vehicleFills={ledger.vehicleFills}
-                dailyRoutines={ledger.daily.routines}
-                dailyCompletions={ledger.daily.completions}
-                onImportExpenses={importExpenses}
-                onImportEvents={importEvents}
-                onImportTodos={importTodos}
-                onRestoreBackup={restoreBackup}
-                onTakeTour={() => startViewTour(view)}
-                onWhatsNew={openWhatsNew}
-                navSidebarItems={sidebarItems}
-                navTabItems={tabItems}
-                startView={ledgerProfile?.startView}
-                onSaveNavPrefs={ledger.setNavPrefs}
-              />
+              <div className="tb-actions">
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label="Search Custos"
+                  aria-haspopup="dialog"
+                  onClick={() => setSearchOpen(true)}
+                >
+                  <Icon name="search" size={20} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn page-refresh-btn page-refresh-btn--main"
+                  aria-label={`Refresh ${viewTitle(view)}`}
+                  aria-busy={ledger.refreshingView !== null}
+                  disabled={ledger.refreshingView !== null || isSaving || isMonthPending}
+                  onClick={() => void ledger.refreshPage(view)}
+                >
+                  <span className={ledger.refreshingView ? "refresh-spinning" : undefined}>
+                    <Icon name="recurring" size={20} />
+                  </span>
+                </button>
+                <ThemeToggle />
+                <AccountMenu
+                  account={account}
+                  onSignOut={onSignOut}
+                  signingOut={signingOut}
+                  expenses={allExpenses}
+                  events={events}
+                  todoLists={ledger.todoLists}
+                  wallets={wallets}
+                  categoryIndex={ledger.categoryIndex}
+                  activeWalletId={activeWallet?.id}
+                  savingsTxns={ledger.savingsTxns}
+                  capitalPlans={ledger.capitalPlans}
+                  vehicles={ledger.vehicles}
+                  vehicleFills={ledger.vehicleFills}
+                  dailyRoutines={ledger.daily.routines}
+                  dailyCompletions={ledger.daily.completions}
+                  onImportExpenses={importExpenses}
+                  onImportEvents={importEvents}
+                  onImportTodos={importTodos}
+                  onRestoreBackup={restoreBackup}
+                  onTakeTour={() => startViewTour(view)}
+                  onWhatsNew={openWhatsNew}
+                  navSidebarItems={sidebarItems}
+                  navTabItems={tabItems}
+                  startView={ledgerProfile?.startView}
+                  onSaveNavPrefs={ledger.setNavPrefs}
+                />
+              </div>
             </div>
-          </div>
-          <div className="tb-row tb-row--context">
-            {!compactHeader && titleRow}
-            {tools && (
-              <div className="tb-context-tools">
-                {tools.includes("w") && activeWallet && wallets.length ? (
-                  <WalletSwitcher
-                    wallets={wallets}
-                    activeId={activeWallet.id}
-                    onChange={setActiveWalletId}
-                    onManage={() => setWalletModal(true)}
-                  />
-                ) : null}
-                {tools.includes("m") && (
-                  <MonthSwitcher
-                    months={MONTHS}
-                    current={month}
-                    onChange={setMonth}
-                    changing={isMonthPending}
-                  />
+            <div className="tb-row tb-row--context">
+              {!compactHeader && titleRow}
+              {tools && (
+                <div className="tb-context-tools">
+                  {tools.includes("w") && activeWallet && wallets.length ? (
+                    <WalletSwitcher
+                      wallets={wallets}
+                      activeId={activeWallet.id}
+                      onChange={setActiveWalletId}
+                      onManage={() => setWalletModal(true)}
+                    />
+                  ) : null}
+                  {tools.includes("m") && (
+                    <MonthSwitcher
+                      months={MONTHS}
+                      current={month}
+                      onChange={setMonth}
+                      changing={isMonthPending}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          </header>
+
+          <div className="scroll">
+            {compactHeader && (
+              <div className="journal-page-heading">
+                {titleRow}
+                {activeWallet && tools.includes("w") && (
+                  <p className="journal-active-wallet">
+                    {activeWallet.name} &middot; {activeWallet.currency}
+                  </p>
                 )}
               </div>
             )}
-          </div>
-        </header>
-
-        <div className="scroll">
-          {compactHeader && (
-            <div className="journal-page-heading">
-              {titleRow}
-              {activeWallet && tools.includes("w") && (
+            <div className="journal-status">
+              {!compactHeader && activeWallet && tools.includes("w") && (
                 <p className="journal-active-wallet">
                   {activeWallet.name} &middot; {activeWallet.currency}
                 </p>
               )}
+              <OfflineBanner
+                address={account.address}
+                month={ledger.month}
+                dataReady={ledger.offlineDataReady}
+                saving={ledger.isSaving}
+              />
+              {(ledger.refreshingView === view ||
+                (ledger.refreshMessageView === view && ledger.refreshMessage)) && (
+                <span className="page-refresh-status" role="status" aria-live="polite">
+                  {ledger.refreshingView === view
+                    ? `Refreshing ${viewTitle(view)}...`
+                    : ledger.refreshMessage}
+                </span>
+              )}
             </div>
-          )}
-          <div className="journal-status">
-            {!compactHeader && activeWallet && tools.includes("w") && (
-              <p className="journal-active-wallet">
-                {activeWallet.name} &middot; {activeWallet.currency}
+
+            {ledger.unavailableResources.length > 0 && (
+              <p className="journal-data-notice" role="status">
+                Some content is unavailable: {ledger.unavailableResources.join(", ")}. Connect to
+                download it; empty sections may not reflect your records.
               </p>
             )}
-            <OfflineBanner
-              address={account.address}
-              month={ledger.month}
-              dataReady={ledger.offlineDataReady}
-              saving={ledger.isSaving}
-            />
-            {(ledger.refreshingView === view ||
-              (ledger.refreshMessageView === view && ledger.refreshMessage)) && (
-              <span className="page-refresh-status" role="status" aria-live="polite">
-                {ledger.refreshingView === view
-                  ? `Refreshing ${viewTitle(view)}...`
-                  : ledger.refreshMessage}
-              </span>
+            {view === "recurring" && (
+              <p className="journal-data-notice">
+                Editing a recurring transaction series requires a connection. New entries can be
+                saved offline.
+              </p>
             )}
-          </div>
-
-          {ledger.unavailableResources.length > 0 && (
-            <p className="journal-data-notice" role="status">
-              Some content is unavailable: {ledger.unavailableResources.join(", ")}. Connect to
-              download it; empty sections may not reflect your records.
-            </p>
-          )}
-          {view === "recurring" && (
-            <p className="journal-data-notice">
-              Editing a recurring transaction series requires a connection. New entries can be saved
-              offline.
-            </p>
-          )}
-          <Suspense
-            fallback={
-              <div className="view-loading">
-                <LoadingBloom />
-              </div>
-            }
-          >
-            {landed && view === "daily" && <DailyView ref={dailyRef} daily={ledger.daily} />}
-            {landed && view === "nudge" && (
-              <NudgeView ref={nudgeRef} nudge={ledger.nudges} month={month} />
-            )}
-            {landed && view === "overview" && (
-              <Overview
-                {...viewProps}
-                refreshedAt={ledger.refreshedAt}
-                balanceExpenses={ledger.balanceExpenses}
-                todoLists={ledger.todoLists}
-                events={ledger.homeEvents}
-                daily={<DailyHomePanel daily={ledger.daily} setView={setView} />}
-                setView={setView}
-                onEdit={setModal}
-                onEditEvent={(ev: LedgerEvent) => openEvent(ev, TODAY_ISO)}
-              />
-            )}
-            {view === "schedule" && (
-              <Schedule
-                events={events}
-                month={month}
-                currency={currency}
-                onAddEvent={(iso: string) => {
-                  setEvOccurrenceIso(undefined);
-                  setEvModal({ add: true, date: iso });
-                }}
-                onEditEvent={openEvent}
-                onSelectedDayChange={(iso) => {
-                  scheduleDayRef.current = iso;
-                }}
-              />
-            )}
-            {view === "todos" && (
-              <TodoListView
-                ref={todoListRef}
-                todoLists={ledger.todoLists}
-                onSave={ledger.saveTodoList}
-                onDelete={ledger.deleteTodoList}
-              />
-            )}
-            {view === "transactions" && (
-              <Transactions {...viewProps} onEdit={setModal} onDelete={deleteExpense} />
-            )}
-            {view === "budgets" && (
-              <BudgetsView
-                {...viewProps}
-                events={events}
-                setBudgets={setBudgets}
-                budgetsSaving={isBudgetsPending}
-                setView={setView}
-              />
-            )}
-            {view === "calculator" && (
-              <Calculator
-                wallet={wallet}
-                budgets={budgets}
-                setBudgets={setBudgets}
-                budgetsSaving={isBudgetsPending}
-                currency={currency}
-                categoryIndex={ledger.categoryIndex}
-              />
-            )}
-            {view === "categories" && (
-              <CategoriesView
-                ref={categoriesRef}
-                categoryIndex={ledger.categoryIndex}
-                onSave={ledger.saveCategories}
-                usedSubIds={ledger.usedSubIds}
-                expenses={ledger.usedSubIds === null ? null : ledger.allExpenses}
-                onTransfer={ledger.transferHistory}
-              />
-            )}
-            {view === "recurring" && <Recurring {...viewProps} onEdit={setModal} />}
-            {view === "piggies" && (
-              <Piggies
-                savingsTxns={ledger.savingsTxns}
-                savingsLoading={ledger.savingsLoading}
-                allExpenses={allExpenses}
-                categoryIndex={ledger.categoryIndex}
-                currency={currency}
-                month={month}
-                onAddDeposit={addPiggyDeposit}
-                onWithdraw={withdrawFromPiggy}
-              />
-            )}
-            {view === "capitals" && (
-              <Capitals
-                ref={capitalsRef}
-                capitalPlans={ledger.capitalPlans}
-                savingsTxns={ledger.savingsTxns}
-                categoryIndex={ledger.categoryIndex}
-                currency={currency}
-                onSavePlan={ledger.saveCapitalPlan}
-                onDeletePlan={ledger.deleteCapitalPlan}
-                onLogItem={logCapitalItem}
-              />
-            )}
-            {view === "vehicles" && (
-              <Vehicles
-                ref={vehiclesRef}
-                vehicles={ledger.vehicles}
-                fills={ledger.vehicleFills}
-                month={month}
-                currency={currency}
-                onSaveVehicle={ledger.saveVehicle}
-                onDeleteVehicle={ledger.deleteVehicle}
-                onSaveFill={ledger.saveVehicleFill}
-                onDeleteFill={ledger.deleteVehicleFill}
-                onLogFill={logFuelFill}
-                linkedExpenseIds={liveExpenseIds}
-              />
-            )}
-            {view === "insights" && (
-              <Insights
-                {...viewProps}
-                capitalPlans={ledger.capitalPlans}
-                setMonth={setMonth}
-                balanceExpenses={ledger.balanceExpenses}
-              />
-            )}
-            {view === "transparency" && <Transparency />}
-          </Suspense>
-        </div>
-      </main>
-
-      <BottomNav view={view} favorites={tabItems} moreGroups={moreGroups} />
-      <PageSearch
-        view={view}
-        navigate={setView}
-        groups={groups}
-        open={searchOpen}
-        setOpen={setSearchOpen}
-      />
-
-      {modal && activeWallet ? (
-        <AddExpenseModal
-          initial={
-            "add" in modal
-              ? modal.eventId || modal.date || modal.note || modal.sub || modal.kind || modal.amount
-                ? {
-                    eventId: modal.eventId,
-                    date: modal.date,
-                    note: modal.note,
-                    sub: modal.sub,
-                    kind: modal.kind,
-                    amount: modal.amount,
+            <Suspense
+              fallback={
+                <div className="view-loading">
+                  <LoadingBloom />
+                </div>
+              }
+            >
+              {landed && view === "daily" && <DailyView ref={dailyRef} daily={ledger.daily} />}
+              {landed && view === "nudge" && (
+                <NudgeView ref={nudgeRef} nudge={ledger.nudges} month={month} />
+              )}
+              {landed && view === "overview" && (
+                <Overview
+                  {...viewProps}
+                  refreshedAt={ledger.refreshedAt}
+                  balanceExpenses={ledger.balanceExpenses}
+                  todoLists={ledger.todoLists}
+                  events={ledger.homeEvents}
+                  daily={<DailyHomePanel daily={ledger.daily} setView={setView} />}
+                  setView={setView}
+                  onEdit={setModal}
+                  onEditEvent={(ev: LedgerEvent) => openEvent(ev, TODAY_ISO)}
+                />
+              )}
+              {view === "schedule" && (
+                <Schedule
+                  events={events}
+                  month={month}
+                  currency={currency}
+                  onAddEvent={(iso: string) => {
+                    setEvOccurrenceIso(undefined);
+                    setEvModal({ add: true, date: iso });
+                  }}
+                  onEditEvent={openEvent}
+                  onSelectedDayChange={(iso) => {
+                    scheduleDayRef.current = iso;
+                  }}
+                />
+              )}
+              {view === "todos" && (
+                <TodoListView
+                  ref={todoListRef}
+                  todoLists={ledger.todoLists}
+                  onSave={ledger.saveTodoList}
+                  onDelete={ledger.deleteTodoList}
+                />
+              )}
+              {view === "transactions" && (
+                <Transactions {...viewProps} onEdit={setModal} onDelete={deleteExpense} />
+              )}
+              {view === "budgets" && (
+                <BudgetsView
+                  {...viewProps}
+                  events={events}
+                  setBudgets={setBudgets}
+                  budgetsSaving={isBudgetsPending}
+                  setView={setView}
+                />
+              )}
+              {view === "calculator" && (
+                <Calculator
+                  wallet={wallet}
+                  budgets={budgets}
+                  setBudgets={setBudgets}
+                  budgetsSaving={isBudgetsPending}
+                  currency={currency}
+                  categoryIndex={ledger.categoryIndex}
+                />
+              )}
+              {view === "categories" && (
+                <CategoriesView
+                  ref={categoriesRef}
+                  categoryIndex={ledger.categoryIndex}
+                  onSave={ledger.saveCategories}
+                  usedSubIds={ledger.usedSubIds}
+                  expenses={ledger.usedSubIds === null ? null : ledger.allExpenses}
+                  onTransfer={ledger.transferHistory}
+                />
+              )}
+              {view === "recurring" && <Recurring {...viewProps} onEdit={setModal} />}
+              {view === "piggies" && (
+                <Piggies
+                  savingsTxns={ledger.savingsTxns}
+                  savingsLoading={ledger.savingsLoading}
+                  allExpenses={allExpenses}
+                  categoryIndex={ledger.categoryIndex}
+                  currency={currency}
+                  month={month}
+                  onAddDeposit={addPiggyDeposit}
+                  onWithdraw={withdrawFromPiggy}
+                />
+              )}
+              {view === "capitals" && (
+                <Capitals
+                  ref={capitalsRef}
+                  capitalPlans={ledger.capitalPlans}
+                  savingsTxns={ledger.savingsTxns}
+                  categoryIndex={ledger.categoryIndex}
+                  currency={currency}
+                  onSavePlan={ledger.saveCapitalPlan}
+                  onDeletePlan={ledger.deleteCapitalPlan}
+                  onLogItem={logCapitalItem}
+                />
+              )}
+              {view === "vehicles" && (
+                <Vehicles
+                  ref={vehiclesRef}
+                  vehicles={ledger.vehicles}
+                  fills={
+                    searchFill && !ledger.vehicleFills.some((row) => row.id === searchFill.id)
+                      ? [...ledger.vehicleFills, searchFill]
+                      : ledger.vehicleFills
                   }
-                : null
-              : modal
-          }
-          wallets={wallets}
-          defaultWalletId={activeWallet.id}
-          categoryIndex={ledger.categoryIndex}
-          capitalPlans={ledger.capitalPlans}
-          onSave={saveExpense}
-          onClose={() => {
-            setCapitalLogTarget(null);
-            setFillLogTarget(null);
-            setModal(null);
-          }}
-          onDelete={deleteExpense}
-          title={"add" in modal ? modal.title : undefined}
-          withdrawFrom={"add" in modal ? modal.withdrawFrom : undefined}
+                  month={month}
+                  currency={currency}
+                  onSaveVehicle={ledger.saveVehicle}
+                  onDeleteVehicle={ledger.deleteVehicle}
+                  onSaveFill={ledger.saveVehicleFill}
+                  onDeleteFill={ledger.deleteVehicleFill}
+                  onLogFill={logFuelFill}
+                  linkedExpenseIds={liveExpenseIds}
+                />
+              )}
+              {view === "insights" && (
+                <Insights
+                  {...viewProps}
+                  capitalPlans={ledger.capitalPlans}
+                  setMonth={setMonth}
+                  balanceExpenses={ledger.balanceExpenses}
+                />
+              )}
+              {view === "transparency" && <Transparency />}
+            </Suspense>
+          </div>
+        </main>
+
+        <BottomNav view={view} favorites={tabItems} moreGroups={moreGroups} />
+        <PageSearch
+          address={account.address}
+          ledger={ledger}
+          onSelect={selectSearchResult}
+          open={searchOpen}
+          setOpen={setSearchOpen}
         />
-      ) : null}
-      {walletModal ? (
-        <WalletManageModal
-          wallets={wallets}
-          activeId={activeWallet?.id ?? ""}
-          onSave={ledger.saveWallet}
-          onDelete={ledger.deleteWallet}
-          onClose={() => setWalletModal(false)}
-        />
-      ) : null}
-      {evModal && (
-        <Suspense fallback={null}>
-          <EventModal
-            initial={"add" in evModal ? null : evModal}
-            defaultDate={"add" in evModal ? evModal.date : undefined}
-            occurrenceIso={"add" in evModal ? undefined : evOccurrenceIso}
-            hasLinkedPayment={
-              !("add" in evModal) &&
-              !!evModal.expenseId &&
-              allExpenses.some((expense) => expense.id === evModal.expenseId)
+
+        {modal && activeWallet ? (
+          <AddExpenseModal
+            initial={
+              "add" in modal
+                ? modal.eventId ||
+                  modal.date ||
+                  modal.note ||
+                  modal.sub ||
+                  modal.kind ||
+                  modal.amount
+                  ? {
+                      eventId: modal.eventId,
+                      date: modal.date,
+                      note: modal.note,
+                      sub: modal.sub,
+                      kind: modal.kind,
+                      amount: modal.amount,
+                    }
+                  : null
+                : modal
             }
+            wallets={wallets}
+            defaultWalletId={activeWallet.id}
             categoryIndex={ledger.categoryIndex}
-            currency={currency}
-            onSave={saveEvent}
-            onLogPayment={logPaymentFromEvent}
+            capitalPlans={ledger.capitalPlans}
+            onSave={saveExpense}
             onClose={() => {
-              setEvModal(null);
-              setEvOccurrenceIso(undefined);
+              setCapitalLogTarget(null);
+              setFillLogTarget(null);
+              setModal(null);
             }}
-            onDelete={deleteEvent}
+            onDelete={deleteExpense}
+            title={"add" in modal ? modal.title : undefined}
+            withdrawFrom={"add" in modal ? modal.withdrawFrom : undefined}
           />
-        </Suspense>
-      )}
-      {welcomeOpen ? (
-        <TourWelcomeModal
-          onGuided={chooseGuidedTour}
-          onExplore={chooseExploreAlone}
-          onStartView={(startView) => ledger.setNavPrefs({ startView })}
-          onClosed={() => setWelcomeOpen(false)}
-        />
-      ) : null}
-      {whatsNewOpen ? <WhatsNewModal onClose={closeWhatsNew} /> : null}
-    </div>
+        ) : null}
+        {walletModal ? (
+          <WalletManageModal
+            wallets={wallets}
+            activeId={activeWallet?.id ?? ""}
+            onSave={ledger.saveWallet}
+            onDelete={ledger.deleteWallet}
+            onClose={() => setWalletModal(false)}
+          />
+        ) : null}
+        {evModal && (
+          <Suspense fallback={null}>
+            <EventModal
+              initial={"add" in evModal ? null : evModal}
+              defaultDate={"add" in evModal ? evModal.date : undefined}
+              occurrenceIso={"add" in evModal ? undefined : evOccurrenceIso}
+              hasLinkedPayment={
+                !("add" in evModal) &&
+                !!evModal.expenseId &&
+                allExpenses.some((expense) => expense.id === evModal.expenseId)
+              }
+              categoryIndex={ledger.categoryIndex}
+              currency={currency}
+              onSave={saveEvent}
+              onLogPayment={logPaymentFromEvent}
+              onClose={() => {
+                setEvModal(null);
+                setEvOccurrenceIso(undefined);
+              }}
+              onDelete={deleteEvent}
+            />
+          </Suspense>
+        )}
+        {welcomeOpen ? (
+          <TourWelcomeModal
+            onGuided={chooseGuidedTour}
+            onExplore={chooseExploreAlone}
+            onStartView={(startView) => ledger.setNavPrefs({ startView })}
+            onClosed={() => setWelcomeOpen(false)}
+          />
+        ) : null}
+        {whatsNewOpen ? <WhatsNewModal onClose={closeWhatsNew} /> : null}
+      </div>
+    </SearchRevealContext.Provider>
   );
 }

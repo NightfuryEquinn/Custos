@@ -131,7 +131,10 @@ export async function apiFetch<T>(path: string, opts: RequestOptions = {}): Prom
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch (err) {
-    if (err instanceof TypeError || (err instanceof DOMException && err.name === "AbortError")) {
+    if (
+      err instanceof TypeError ||
+      (err instanceof DOMException && (err.name === "AbortError" || err.name === "TimeoutError"))
+    ) {
       connectivity.observe("network-failure");
     }
     throw err;

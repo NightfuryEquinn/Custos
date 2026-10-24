@@ -4,14 +4,40 @@ import { activityRoutines, historicalPeriod, weekStart } from "@/lib/daily";
 import { shiftIso } from "@/lib/schedule";
 import { Icon } from "./ui";
 
-export function DailyActivity({ daily, tab }: { daily: DailyState; tab: "today" | "week" }) {
-  const [offset, setOffset] = useState(0);
+export function DailyActivity({
+  daily,
+  tab,
+  initialDay,
+  initialRoutineId,
+}: {
+  daily: DailyState;
+  tab: "today" | "week";
+  initialDay?: string;
+  initialRoutineId?: string;
+}) {
+  const [offset, setOffset] = useState(() =>
+    initialDay
+      ? Math.max(
+          0,
+          Math.floor(
+            (Date.parse(shiftIso(weekStart(daily.today!), 6)) - Date.parse(initialDay)) /
+              (84 * 86400000),
+          ),
+        )
+      : 0,
+  );
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const end = shiftIso(weekStart(daily.today!), 6 - offset * 84);
   const start = shiftIso(end, -83);
   const days = useMemo(() => Array.from({ length: 84 }, (_, i) => shiftIso(start, i)), [start]);
-  const routines = activityRoutines(daily.routines, daily.today!, tab);
+  const filtered = activityRoutines(daily.routines, daily.today!, tab);
+  // A routine may have changed cadence since the searched occurrence; still reveal its history.
+  const searched = daily.routines.find((routine) => routine.id === initialRoutineId);
+  const routines =
+    searched && !filtered.some((routine) => routine.id === searched.id)
+      ? [searched, ...filtered]
+      : filtered;
   const first = routines.reduce(
     (min, r) => (r.schedule[0]?.from && r.schedule[0].from < min ? r.schedule[0].from : min),
     daily.today!,
@@ -23,8 +49,8 @@ export function DailyActivity({ daily, tab }: { daily: DailyState; tab: "today" 
         <div>
           <h2>Activity</h2>
           <p className="panel-sub">
-            {tab === "today" ? "Daily and weekday routines." : "Weekly routines."} Tick a missed
-            occurrence or undo a check-in.
+            {tab === "today" ? "Daily and weekday routines" : "Weekly routines"} ? Select a day to
+            update it.
           </p>
         </div>
         <div className="daily-history-nav">
@@ -76,6 +102,7 @@ export function DailyActivity({ daily, tab }: { daily: DailyState; tab: "today" 
                 return (
                   <button
                     key={day}
+                    data-search-id={`daily:${routine.id}:${day}`}
                     type="button"
                     className={`daily-heat-cell${!period || duplicate ? " unavailable" : ""}${checked && !duplicate ? " complete" : ""}${day === daily.today ? " today" : ""}`}
                     disabled={!period || duplicate || busy.has(id)}

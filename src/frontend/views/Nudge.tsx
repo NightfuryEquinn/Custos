@@ -1,3 +1,4 @@
+import { useSearchReveal, focusSearchRecord } from "@/frontend/lib/search/reveal";
 import { NudgeHistory, NudgeBloom } from "@/frontend/components/NudgeHistory";
 import { TimePicker } from "@/frontend/components/DateTimePicker";
 import { LoadingBloom } from "@/frontend/components/LoadingBloom";
@@ -61,6 +62,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
   ref,
 ) {
   const { nudges, today, timeZone, pending } = nudge;
+  const [searchDay, setSearchDay] = useState<{ id: string; day: string } | null>(null);
   const [editor, setEditor] = useState<Editor>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -261,6 +263,16 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
     }
   };
 
+  useSearchReveal(["nudge"], (target) => {
+    const row = nudges.find((row) => row.id === target.id);
+    if (!row) return false;
+    if (target.date) {
+      setSearchDay({ id: row.id, day: target.date });
+      focusSearchRecord(`nudge:${row.id}`);
+    } else openEditor(row);
+    return true;
+  });
+
   if (nudge.loading) {
     return (
       <div ref={viewRef} className="view view-loading">
@@ -327,6 +339,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
               return (
                 <article
                   key={row.id}
+                  data-search-id={`nudge:${row.id}`}
                   className={"nudge-card" + (met ? " met" : "") + (row.enabled ? "" : " off")}
                 >
                   <header className="nudge-card-head">
@@ -403,7 +416,13 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
                     ) : null}
                   </p>
 
-                  <NudgeHistory row={row} today={today} month={month} />
+                  <NudgeHistory
+                    key={searchDay?.id === row.id ? searchDay.day : row.id}
+                    row={row}
+                    today={today}
+                    month={month}
+                    initialDay={searchDay?.id === row.id ? searchDay.day : undefined}
+                  />
                 </article>
               );
             })}
@@ -608,7 +627,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
                   </div>
                   <p id="nudge-notify-hint" className="fld-hint">
                     When on, the server can read your title, goal and description to send
-                    notifications. Everything else stays encrypted.
+                    notifications. Counts, adjustments and units stay encrypted.
                   </p>
                 </div>
                 <div className="modal-foot">

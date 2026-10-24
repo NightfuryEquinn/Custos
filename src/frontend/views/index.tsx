@@ -1,5 +1,6 @@
 import { ReadableValue } from "@/frontend/components/ReadableValue";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchReveal, focusSearchRecord } from "@/frontend/lib/search/reveal";
 import { useEnter, useModalMotion, useStagger } from "@/frontend/lib/animate";
 import { FadeIn } from "@/frontend/components/FadeIn";
 import { AreaTrend, Donut, MiniSpark, MoMBars } from "@/frontend/charts";
@@ -727,6 +728,12 @@ export function Budgets({
     setDraft(isBudgetSet(budgets[id]) ? String(budgets[id]) : "");
     setEditError("");
   };
+  useSearchReveal(["budget"], (target) => {
+    if (!categoryIndex.catById[target.id]) return false;
+    startEdit(target.id);
+    focusSearchRecord(`budget:${target.id}`);
+    return true;
+  });
   const closeEdit = () => {
     editRef.current = null;
     setEditId(null);
@@ -791,7 +798,7 @@ export function Budgets({
 
       <section className="panel">
         <div className="panel-head">
-          <h2>Budget by Category</h2>
+          <h2>Budget by category</h2>
         </div>
         <div className="budget-edit-list" data-tour="tour-budgets-list">
           {categoryIndex.expenseCategories.map((c) => {
@@ -804,7 +811,7 @@ export function Budgets({
             const over = budgetSet && committed > budget;
             const available = budgetSet ? budget - committed : 0;
             return (
-              <div key={c.id} className="bedit">
+              <div key={c.id} data-search-id={`budget:${c.id}`} className="bedit">
                 <div className="be-top">
                   <div className="be-name">
                     <CatGlyph glyph={c.glyph} id={c.id} /> {c.name}
@@ -1021,7 +1028,7 @@ function MonthBreakdown({
     <div className="ov-grid">
       <section className="panel donut-panel" data-tour="tour-insights-donut">
         <div className="panel-head panel-head--row">
-          <h2>By Category</h2>
+          <h2>By category</h2>
           <Segmented
             options={[
               { v: "expense", label: "Expense" },
@@ -1506,7 +1513,7 @@ export function Insights({
       <div className="ov-grid" data-tour="tour-insights-trends">
         <section className="panel">
           <div className="panel-head">
-            <h2>Category Trends</h2>
+            <h2>Category trends</h2>
             <p className="panel-sub">vs previous month</p>
           </div>
           <div className="cat-trend-list">
@@ -1534,7 +1541,7 @@ export function Insights({
 
         <section className="panel">
           <div className="panel-head">
-            <h2>Top Subcategories</h2>
+            <h2>Top subcategories</h2>
             <p className="panel-sub">{monthLabel(month, true)}</p>
           </div>
           <div className="topsub-list">
@@ -1567,12 +1574,12 @@ export function Insights({
 
       <div className="insights-section" data-tour="tour-insights-habits">
         <div className="insights-section-head">
-          <h2>Spending Habit</h2>
+          <h2>Spending habits</h2>
         </div>
         <section className="panel">
           <div className="panel-head profile-head">
             <div>
-              <h2>Expense Profile</h2>
+              <h2>Expense profile</h2>
               <p className="panel-sub">Based on expense in {habit.periodLabel}</p>
             </div>
             <Segmented
@@ -1711,7 +1718,7 @@ export function Insights({
       <section className="panel" data-tour="tour-insights-chart">
         <div className="panel-head insights-chart-head">
           <div>
-            <h2>Month Over Month</h2>
+            <h2>Month over month</h2>
           </div>
           <Segmented
             options={[
@@ -1742,7 +1749,7 @@ export function Insights({
         <div className="ov-grid">
           <section className="panel">
             <div className="panel-head">
-              <h2>Income Trends</h2>
+              <h2>Income trends</h2>
               <p className="panel-sub">by source · vs previous month</p>
             </div>
             <div className="cat-trend-list">
@@ -1778,7 +1785,7 @@ export function Insights({
 
           <section className="panel">
             <div className="panel-head">
-              <h2>Top Income Sources</h2>
+              <h2>Top income sources</h2>
               <p className="panel-sub">{monthLabel(month, true)}</p>
             </div>
             <div className="topsub-list">
@@ -1819,7 +1826,7 @@ export function Insights({
         <section className="panel">
           <div className="panel-head profile-head">
             <div>
-              <h2>Income Profile</h2>
+              <h2>Income profile</h2>
               <p className="panel-sub">
                 {incomeProfile.status === "ready"
                   ? `Based on income in ${incomeProfile.windowLabel}`
@@ -1933,7 +1940,7 @@ export function Insights({
         <section className="panel insights-savings">
           <div className="panel-head">
             <div>
-              <h2>Piggy Insights</h2>
+              <h2>Savings insights</h2>
             </div>
           </div>
           <div className="summary-grid sg-2">
@@ -2001,7 +2008,7 @@ export function Recurring({ expenses, month, currency, categoryIndex, onEdit }: 
       </div>
       <section className="panel">
         <div className="panel-head">
-          <h2>Fixed & Recurring</h2>
+          <h2>Fixed & recurring</h2>
         </div>
         <div className="rec-list" data-tour="tour-recurring-list">
           {list.length ? (

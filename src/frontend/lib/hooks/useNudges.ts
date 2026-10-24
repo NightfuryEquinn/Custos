@@ -143,7 +143,13 @@ export function useNudges(
       /* Read the zone fresh: the goal marker must name the day the tap happened on. */
       if (!timeZone) throw new Error("Nudges are not ready yet");
       const { id, ...rest } = data;
-      const body = await encodeNudge(rest, cryptoKey, zonedTodayIso(timeZone));
+      /* The push copy and goal marker are plaintext, so they stay out of the queue on disk;
+         the drain rebuilds them from the encrypted payload when it sends. */
+      const {
+        notifyDetails: _copy,
+        metOn: _met,
+        ...body
+      } = await encodeNudge(rest, cryptoKey, zonedTodayIso(timeZone));
       const labelEnc = await sealLabel(address, rest.title);
 
       if (id) {

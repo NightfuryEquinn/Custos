@@ -20,6 +20,18 @@ export async function sendNudgeEntry(entry: OutboxEntry) {
   const checkIn = entry.entity === "nudgeCheckIn";
   const wire = entry.request.body as NudgeCheckInWire;
   const id = checkIn ? wire.nudgeId : entry.targetId;
+  if (entry.entity === "nudge" && entry.op === "create") {
+    /* The queued body holds only ciphertext; rebuild the push copy for the first send. */
+    const { user } = await api.users.me();
+    const draft = await decodeNudge({ ...(entry.request.body as NudgeWire), id }, key);
+    const today = zonedTodayIso(user.timezone ?? DEFAULT_TIMEZONE);
+    const result = await apiFetch<{ nudge: NudgeWire }>(entry.request.path, {
+      method: entry.request.method,
+      body: { id, ...(await encodeNudge(draft, key, today)) },
+    });
+    await cacheNudgeResult(entry.address, result, entry.opId);
+    return;
+  }
   // Restores insert history only; their summary was restored with the parent.
   if (entry.request.method === "PUT") {
     await api.nudges.restoreCheckIn(wire);

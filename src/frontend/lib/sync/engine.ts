@@ -34,14 +34,14 @@ type SendOutcome = "confirmed" | "retry" | "paused" | "failed";
 
 async function sendEntry(entry: OutboxEntry): Promise<SendOutcome> {
   if (
-    (entry.entity === "nudgeCheckIn" || (entry.entity === "nudge" && entry.op === "update")) &&
+    (entry.entity === "nudgeCheckIn" || (entry.entity === "nudge" && entry.op !== "delete")) &&
     !ledgerKeyStore.get(entry.address)
   ) {
     await releaseOutboxEntry(entry.opId);
     return "paused";
   }
   try {
-    if (entry.entity === "nudgeCheckIn" || (entry.entity === "nudge" && entry.op === "update")) {
+    if (entry.entity === "nudgeCheckIn" || (entry.entity === "nudge" && entry.op !== "delete")) {
       await sendNudgeEntry(entry);
     } else {
       const result = await apiFetch<{ nudge: NudgeWire }>(entry.request.path, {
@@ -149,6 +149,10 @@ export function armSyncTriggers(getAddress: () => string | null): void {
   window.addEventListener("online", trigger);
   window.addEventListener("focus", trigger);
   document.addEventListener("visibilitychange", onVisible);
+  /* A probe-detected reconnect fires no `online` event; drain as soon as the store flips. */
+  connectivity.subscribe(() => {
+    if (connectivity.get() === "online") trigger();
+  });
   setInterval(() => {
     if (connectivity.isOnline()) trigger();
   }, 60_000);

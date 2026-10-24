@@ -47,6 +47,7 @@ type ModalMotionOpts = {
 
 /** Managed modals, topmost last; one Escape listener serves them all. */
 const dismissStack: { dismiss: () => void }[] = [];
+let dialogTitleSequence = 0;
 
 /** Open modals and pickers; the page behind stays locked until the last one closes. */
 let openModalCount = 0;
@@ -102,7 +103,11 @@ function onEscape(event: KeyboardEvent) {
   if (event.key !== "Escape" || event.defaultPrevented) return;
   // ponytail: pickers own their Escape and aren't in the stack, so detect them by class.
   if (document.querySelector(".picker-scrim")) return;
-  dismissStack.at(-1)?.dismiss();
+  const top = dismissStack.at(-1);
+  if (!top) return;
+  event.preventDefault();
+  event.stopPropagation();
+  top.dismiss();
 }
 
 /** Return whether the user prefers reduced motion. */
@@ -285,17 +290,28 @@ export function useModalMotion(
     if (!active || !panel || panel.getAttribute("role") !== "dialog") return;
     const previous = document.activeElement as HTMLElement | null;
     panel.setAttribute("aria-modal", "true");
+    if (!panel.hasAttribute("aria-labelledby") && !panel.hasAttribute("aria-label")) {
+      const heading = panel.querySelector<HTMLElement>("h1, h2, h3");
+      if (heading) {
+        if (!heading.id) heading.id = `custos-dialog-title-${++dialogTitleSequence}`;
+        panel.setAttribute("aria-labelledby", heading.id);
+      }
+    }
     const frame = requestAnimationFrame(() => {
       // Respect an autoFocus the modal already set; otherwise prefer a field,
       // then the safe footer action (Cancel), never the header close button.
       if (document.activeElement !== panel && panel.contains(document.activeElement)) return;
-      (
+      const initial =
         panel.querySelector<HTMLElement>(
           '[data-autofocus], input:not([type="hidden"]):not(:disabled), textarea:not(:disabled)',
         ) ??
         panel.querySelector<HTMLElement>(".modal-foot button:not(:disabled)") ??
-        panel.querySelector<HTMLElement>("button")
-      )?.focus();
+        panel.querySelector<HTMLElement>("button");
+      if (initial) initial.focus();
+      else {
+        panel.tabIndex = -1;
+        panel.focus();
+      }
     });
     const trap = (event: KeyboardEvent) => {
       if (
@@ -431,7 +447,7 @@ export function useModalMotion(
     if (!dirty) return requestClose(onDismiss);
     openConfirm({
       title: "Discard changes?",
-      message: "You have unsaved changes. Closing now will discard them.",
+      message: "Your edits will not be saved.",
       confirmLabel: "Discard",
       pendingLabel: "Discarding…",
       arm: false,

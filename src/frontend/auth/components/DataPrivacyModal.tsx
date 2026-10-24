@@ -245,7 +245,7 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
     >
       <div ref={panelRef} className="modal sm modal--wide" role="dialog" aria-modal="true">
         <div className="modal-head">
-          <h3>Data &amp; Privacy</h3>
+          <h3>Data &amp; privacy</h3>
           <button
             className="icon-btn"
             type="button"
@@ -262,8 +262,7 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
           <div className="dm-sec">
             <span className="fld-label">Active sessions</span>
             <p className="dm-lead">
-              Each sign-in creates a secure session on this device or browser. Revoke any session
-              you do not recognize to protect against phishing or unauthorized access.
+              Signed-in devices and browsers. Revoke any you do not recognize.
             </p>
             <div className="session-list">
               {sessions.length ? (
@@ -381,7 +380,7 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
             </div>
 
             <label className="fld u-gap-top">
-              <p className="dm-subhead">Notification Email</p>
+              <p className="dm-subhead">Notification email</p>
               <div className="settings-inline-row">
                 <input
                   className="text-in"
@@ -450,8 +449,7 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
               </div>
             </div>
             <p className="dm-note">
-              Your choice is saved to your account and applies on every device. Turning this off
-              stops sharing for future periods.
+              This saves your preference across devices. No data-sharing programme is active.
             </p>
           </div>
 

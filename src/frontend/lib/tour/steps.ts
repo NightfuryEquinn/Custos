@@ -59,7 +59,7 @@ export const SHELL_TOUR_STEPS: TourStep[] = [
   step(
     "shell-nav",
     "Navigation",
-    "Your pages. Favorites come first; everything else is grouped below, or under More on smaller screens. Change favorites and your start page in Account > Navigation. Ctrl or Command + K searches pages.",
+    "Favorites come first; more pages are grouped below or under More. Customize them in Account > Navigation. Ctrl or Command + K searches records, pages and settings.",
     '[data-tour="tour-nav"]',
     "right",
   ),

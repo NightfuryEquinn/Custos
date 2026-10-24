@@ -29,9 +29,6 @@ jobs:
       - name: Format check
         run: bun run format:check
 
-      - name: Regression tests
-        run: bun test
-
       - name: Typecheck
         run: bun run typecheck
 

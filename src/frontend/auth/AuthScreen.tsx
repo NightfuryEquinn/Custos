@@ -582,7 +582,7 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
         <button className="auth-back" type="button" onClick={reset}>
           ← Back
         </button>
-        <h2 className="auth-h2">Meet Your New Identity</h2>
+        <h2 className="auth-h2">Your new identity</h2>
         <div className="identity-hero">
           <Identicon address={draft.address} size={54} radius={15} />
           <div>
@@ -656,10 +656,8 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
         >
           ← Back
         </button>
-        <h2 className="auth-h2">Confirm Your Phrase</h2>
-        <p className="auth-lead">
-          Enter the requested words from your recovery phrase to make sure you wrote them down.
-        </p>
+        <h2 className="auth-h2">Confirm your phrase</h2>
+        <p className="auth-lead">Enter these words from your saved recovery phrase.</p>
         <div className="vault-quiz">
           {quizIndices.map((idx) => (
             <label key={idx} className="fld-label vault-quiz-row">
@@ -696,7 +694,7 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
         >
           ← Back
         </button>
-        <h2 className="auth-h2">Device Passphrase</h2>
+        <h2 className="auth-h2">Device passphrase</h2>
         <p className="auth-lead">
           Encrypt your recovery key on this device. The server never receives this passphrase — only
           ciphertext syncs to the cloud.
@@ -721,9 +719,7 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
             onChange={(e) => setPassphrase2(e.target.value)}
           />
         </label>
-        <p className="rec-note2">
-          At least 8 characters. You will need this passphrase to unlock Custos on this browser.
-        </p>
+        <p className="rec-note2">At least 8 characters. Used to unlock this browser.</p>
         {error ? <div className="auth-error">{error}</div> : null}
         <button
           className="primary-btn lg full"
@@ -751,7 +747,7 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
         >
           ← Back
         </button>
-        <h2 className="auth-h2">Unlock this Device</h2>
+        <h2 className="auth-h2">Unlock this device</h2>
         <p className="auth-lead">Enter the passphrase that encrypts your key on this browser.</p>
         <div className="identity-hero">
           <Identicon address={pendingIdn.address} size={44} radius={12} />
@@ -799,7 +795,7 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
   if (mode === "biometric-offer") {
     return (
       <AuthShell cardRef={cardRef} tight>
-        <h2 className="auth-h2">Use Face ID on this Device?</h2>
+        <h2 className="auth-h2">Use Face ID on this device?</h2>
         <p className="auth-lead">
           Next time, Custos will ask for Face ID or Touch ID on its own — no need to type your
           passphrase. Your passphrase is encrypted with your biometric key and never leaves this
@@ -832,7 +828,7 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
     return (
       <>
         <AuthShell cardRef={cardRef} tight>
-          <h2 className="auth-h2">Before You Enter</h2>
+          <h2 className="auth-h2">Before you begin</h2>
           <p className="auth-lead">{SIGNUP_LEAD}</p>
 
           <div className="consent-card auth-share-card">
@@ -905,7 +901,7 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
         <button className="auth-back" type="button" onClick={reset}>
           ← Back
         </button>
-        <h2 className="auth-h2">Welcome Back</h2>
+        <h2 className="auth-h2">Welcome back</h2>
         {identities.length ? (
           <div className="known">
             <span className="known-label">On this device</span>

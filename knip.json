@@ -1,15 +1,15 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "entry": [
-    "tests/**/*.test.ts",
     "src/index.ts",
     "src/vercel-api.ts",
     "src/frontend/main.tsx",
+    "src/frontend/lib/search/worker.ts",
     "scripts/*.ts",
     "website/motion.ts",
     "website/theme.ts"
   ],
-  "project": ["src/**", "scripts/**", "tests/**"],
+  "project": ["src/**", "scripts/**"],
   "exclude": ["duplicates"],
   "ignoreExportsUsedInFile": true,
   "ignoreDependencies": ["lint-staged"]

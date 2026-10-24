@@ -29,8 +29,8 @@ import { createPortal } from "react-dom";
  * amount each) from income, allocate the
  * net across expense categories by amount, then optionally apply the
  * result to wallet budgets via a confirmation modal.
- * Layout: Income + Tax Collection share a setup grid on wider screens;
- * Allocate by Category uses a live progress bar and responsive cards.
+ * Layout: Income + Deductions share a setup grid on wider screens;
+ * Allocate by category uses a live progress bar and responsive cards.
  * Typography: Schibsted Grotesk / Azeret Mono via fonts.css.
  */
 
@@ -322,7 +322,7 @@ export function Calculator({
 
         <section className="panel" data-tour="tour-calculator-tax">
           <div className="panel-head">
-            <h2>Tax Collection</h2>
+            <h2>Deductions</h2>
           </div>
           <div className="calculator-presets" role="group" aria-label="Tax presets">
             {MY_TAX_PRESETS.map((preset) => {
@@ -443,7 +443,7 @@ export function Calculator({
 
       <section className="panel" data-tour="tour-calculator-allocate">
         <div className="panel-head">
-          <h2>Allocate by Category</h2>
+          <h2>Allocate by category</h2>
         </div>
 
         {!expenseCategories.length ? (
@@ -557,7 +557,7 @@ export function Calculator({
                 aria-labelledby={titleId}
               >
                 <div className="modal-head">
-                  <h3 id={titleId}>Apply Calculator Budgets?</h3>
+                  <h3 id={titleId}>Apply budgets?</h3>
                   <button
                     className="icon-btn"
                     type="button"

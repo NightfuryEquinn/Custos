@@ -1,3 +1,4 @@
+import { useSearchReveal, focusSearchRecord } from "@/frontend/lib/search/reveal";
 import type { DailyCompletion, DailyRoutine } from "@/lib/daily";
 import { useFadeIn } from "@/frontend/lib/animate";
 import { ACCOUNT_STALE_DAYS } from "@/lib/account-retention";
@@ -128,6 +129,35 @@ export function AccountMenu({
   onSaveNavPrefs,
   startView,
 }: AccountMenuProps) {
+  useSearchReveal(["setting"], (target) => {
+    if (
+      target.id === "recovery" &&
+      !(stored?.vault || stored?.mnemonic || sessionSecrets.get(account.address)?.mnemonic)
+    )
+      return false;
+    const openers: Record<string, () => void> = {
+      preferences: () => setPrefsOpen(true),
+      navigation: () => setNavOpen(true),
+      privacy: () => setDataOpen(true),
+      exports: () => setCsvOpen(true),
+      recovery: () => setReveal(true),
+      support: () => setSupportOpen(true),
+      terms: () => setTermsOpen(true),
+      copyright: () => setCopyrightOpen(true),
+      tour: () => onTakeTour?.(),
+      timezone: () => {
+        setOpen(true);
+        focusSearchRecord("timezone");
+      },
+      appearance: () => {
+        focusSearchRecord("appearance");
+      },
+    };
+    const open = openers[target.id];
+    if (!open) return false;
+    open();
+    return true;
+  });
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [reveal, setReveal] = useState(false);
@@ -237,7 +267,7 @@ export function AccountMenu({
               <div className="am-addr num">{shortAddr(account.address)}</div>
             </div>
           </div>
-          <div className="am-tz">
+          <div className="am-tz" data-search-id="timezone">
             <p className="am-tz-hint am-tz-hint--warn">
               Accounts inactive for over {ACCOUNT_STALE_DAYS} days may be deleted along with their
               data.

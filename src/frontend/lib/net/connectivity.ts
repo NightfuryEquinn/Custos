@@ -75,6 +75,9 @@ function createConnectivityStore() {
       } catch {
         probeAttempt++;
         setStatus("offline");
+        /* setStatus only re-arms on a change, so a failed probe while already
+           offline must schedule its own retry or the app stays offline for good. */
+        armProbe();
       } finally {
         inFlightProbe = null;
       }

@@ -61,7 +61,6 @@ export const updateNudgeSchema = z
 export const nudgeCheckInSchema = z.object({
   id: objectIdSchema,
   day: isoDateSchema,
-  at: z.iso.datetime(),
   enc: e2eeVersionSchema,
   payload: encryptedPayloadSchema,
 });

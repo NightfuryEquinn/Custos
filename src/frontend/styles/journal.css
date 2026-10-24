@@ -1,4 +1,131 @@
 /* The journal: quiet typography, ruled sections, and a single command surface. */
+
+.journal-command.global-search {
+  width: min(720px, 100%);
+  max-height: min(820px, calc(var(--visual-height, 100dvh) - 64px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.global-search-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--modal-pad);
+  flex: none;
+}
+
+.global-search-controls .journal-search {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.global-search-controls input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  font-size: 16px;
+}
+
+.global-search-controls select {
+  max-width: 38%;
+  min-height: 44px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.global-search-status {
+  margin: 0;
+  padding: var(--sp-2) var(--modal-pad);
+  font-size: 12px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+  flex: none;
+}
+
+.global-search-results {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  flex: 1;
+}
+
+.global-search-group {
+  margin: var(--sp-4) 0 var(--sp-2);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.global-search-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: 60px;
+  padding: var(--sp-3);
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  text-align: left;
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+}
+
+.global-search-result > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.global-search-result strong,
+.global-search-result small {
+  display: block;
+}
+
+.global-search-result strong {
+  font-weight: 500;
+}
+
+.global-search-result small {
+  margin-top: var(--sp-1);
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.global-search-result[aria-selected="true"] {
+  background: var(--surface-2);
+  outline: 1px solid var(--border);
+  outline-offset: -1px;
+}
+
+[data-search-id]:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  scroll-margin-block: 24px;
+}
+
+@media (max-width: 639px) {
+  .journal-command.global-search {
+    max-height: var(--visual-height, 100dvh);
+  }
+
+  .global-search-controls {
+    flex-wrap: wrap;
+  }
+
+  .global-search-controls .journal-search {
+    flex-basis: 100%;
+  }
+
+  .global-search-controls select {
+    max-width: 100%;
+  }
+}
 /* Tiers: phone <=639, tablet 640-1023, laptop 1024-1279, desktop >=1280 (extra-small phone <=379). */
 :root {
   --font-display: "Young Serif", Georgia, serif;
@@ -1810,4 +1937,45 @@ input:focus-visible {
 }
 .journal-app .insight-card-metric-value {
   flex: 0 1 auto;
+}
+
+.journal-command.global-search {
+  padding: 0;
+}
+
+.modal-scrim.global-search-scrim {
+  align-items: flex-start;
+  padding: min(8dvh, 32px) var(--sp-4) var(--sp-4);
+}
+
+@media (max-width: 639px) {
+  .modal-scrim.global-search-scrim {
+    padding: 0;
+  }
+
+  .global-search .modal-head {
+    padding-top: max(var(--sp-4), env(safe-area-inset-top));
+  }
+}
+
+.global-search .modal-body {
+  padding: var(--sp-2) var(--modal-pad) var(--sp-4);
+  padding-bottom: max(var(--sp-4), env(safe-area-inset-bottom));
+}
+
+.global-search .modal-foot {
+  padding-bottom: max(var(--sp-4), env(safe-area-inset-bottom));
+}
+
+.editorial-details {
+  margin-top: var(--sp-4);
+  border-top: 1px solid var(--border);
+}
+
+.editorial-details > summary {
+  padding-block: var(--sp-3);
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 14px;
 }

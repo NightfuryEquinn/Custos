@@ -1,5 +1,6 @@
 import { ReadableValue } from "@/frontend/components/ReadableValue";
 import { DatePicker } from "@/frontend/components/DateTimePicker";
+import { useSearchReveal, focusSearchRecord } from "@/frontend/lib/search/reveal";
 import { ConfirmDialog, EmptyState, Icon } from "@/frontend/components/ui";
 import { isPlainNumber } from "@/frontend/lib/arithmetic";
 import { openConfirm, toast } from "@/frontend/lib/feedback";
@@ -368,6 +369,16 @@ export const Capitals = forwardRef<CapitalsHandle, CapitalsProps>(function Capit
 
   useImperativeHandle(ref, () => ({ openAdd: openAddPlan }));
 
+  useSearchReveal(["capital"], (target) => {
+    const plan = plans.find((row) => row.id === (target.parentId ?? target.id));
+    if (!plan) return false;
+    if (target.parentId) {
+      if (!plan.items.some((item) => item.id === target.id)) return false;
+      focusSearchRecord(`capital-item:${target.id}`);
+    } else openEditPlan(plan);
+    return true;
+  });
+
   const openEditPlan = (plan: CapitalPlan) => {
     setEditor({ type: "edit-plan", planId: plan.id });
     setError("");
@@ -527,7 +538,7 @@ export const Capitals = forwardRef<CapitalsHandle, CapitalsProps>(function Capit
     return (
       <div ref={viewRef} className="view">
         <EmptyState
-          title="No Plans Yet"
+          title="No plans yet"
           sub="Start a plan for a big future expense — set a budget and target date to see how much to save each month."
         />
       </div>
@@ -696,6 +707,7 @@ export const Capitals = forwardRef<CapitalsHandle, CapitalsProps>(function Capit
                     .map((item) => (
                       <Fragment key={item.id}>
                         <div
+                          data-search-id={`capital-item:${item.id}`}
                           className={"capital-item-row" + (item.paid ? " capital-item-paid" : "")}
                         >
                           <button

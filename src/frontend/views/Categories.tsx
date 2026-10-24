@@ -1,4 +1,5 @@
 import { ActionHints } from "@/frontend/components/ActionHints";
+import { useSearchReveal } from "@/frontend/lib/search/reveal";
 import { useEnter, useModalMotion } from "@/frontend/lib/animate";
 import { ConfirmDialog, EmptyState, Icon, Segmented, glyphTint } from "@/frontend/components/ui";
 import { CategoryColorPicker } from "@/frontend/components/CategoryColorPicker";
@@ -469,6 +470,17 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
   };
 
   /** Open the edit-category editor. */
+  useSearchReveal(["category"], (target) => {
+    const category = categories.find((row) => row.id === (target.parentId ?? target.id));
+    if (!category) return false;
+    setFilter("all");
+    if (target.parentId) {
+      if (!category.subs.some((row) => row.id === target.id)) return false;
+      openEditSub(category.id, target.id);
+    } else openEditCat(category);
+    return true;
+  });
+
   const openEditCat = (cat: Category) => {
     setEditor({ type: "edit-cat", catId: cat.id });
     setError("");
@@ -707,7 +719,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
       <section className="panel">
         <div className="panel-head">
           <div>
-            <h2>Your Taxonomy</h2>
+            <h2>Your categories</h2>
           </div>
         </div>
 
@@ -855,8 +867,8 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
             <div>
               <h2>Archived</h2>
               <p className="panel-sub">
-                Retired categories and subcategories, kept so past transactions keep their type.
-                Restore them, or transfer their history onto another category and remove them.
+                Archived categories keep your history intact. Restore them or transfer their
+                transactions.
               </p>
             </div>
           </div>

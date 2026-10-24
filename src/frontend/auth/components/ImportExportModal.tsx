@@ -462,7 +462,7 @@ export function ImportExportModal({
         aria-labelledby="ie-modal-title"
       >
         <div className="modal-head">
-          <h3 id="ie-modal-title">Exports &amp; Imports</h3>
+          <h3 id="ie-modal-title">Exports &amp; imports</h3>
           <button
             className="icon-btn"
             type="button"
@@ -476,16 +476,12 @@ export function ImportExportModal({
 
         <div className="modal-body modal-scroll">
           <div className="dm-sec">
-            <p className="dm-lead">
-              Download or restore your ledger. Prefer the encrypted backup for private portability;
-              use CSV when you need a spreadsheet.
-            </p>
+            <p className="dm-lead">Back up your ledger or move records to a spreadsheet.</p>
 
-            <p className="dm-subhead">Encrypted Backup</p>
+            <p className="dm-subhead">Encrypted backup</p>
             <p className="dm-note">
-              Client-side AES pack unlocked with your ledger key. Not stored on the server. Covers
-              your ledger data plus account and profile settings (notify email, timezone, accent,
-              nav layout).
+              Encrypted on this device with your ledger key. Includes ledger data and account
+              settings; the backup file stays on your device.
             </p>
             <button
               className="primary-btn full"
@@ -630,7 +626,7 @@ export function ImportExportModal({
 
             <div className="dm-div" />
 
-            <p className="dm-subhead">TO-DO Lists</p>
+            <p className="dm-subhead">To-do lists</p>
             {onImportTodos ? (
               <CsvImportPanel
                 importLead="Import to-do lists and tasks from a todos CSV export."

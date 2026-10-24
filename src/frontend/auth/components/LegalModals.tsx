@@ -13,14 +13,14 @@ type LegalModalProps = {
 export function TermsModal({ onClose }: LegalModalProps) {
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
+  const { dismiss } = useModalMotion(scrimRef, panelRef, { variant: "center", onDismiss: onClose });
 
   return createPortal(
     <div
       ref={scrimRef}
       className="modal-scrim center"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) requestClose(onClose);
+        if (e.target === e.currentTarget) dismiss();
       }}
     >
       <div
@@ -32,12 +32,7 @@ export function TermsModal({ onClose }: LegalModalProps) {
       >
         <div className="modal-head">
           <h3 id="tnc-title">Terms &amp; Conditions</h3>
-          <button
-            className="icon-btn"
-            type="button"
-            onClick={() => requestClose(onClose)}
-            aria-label="Close"
-          >
+          <button className="icon-btn" type="button" onClick={() => dismiss()} aria-label="Close">
             <Icon name="close" size={18} />
           </button>
         </div>
@@ -149,14 +144,14 @@ export function TermsModal({ onClose }: LegalModalProps) {
 export function CopyrightModal({ onClose }: LegalModalProps) {
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "center" });
+  const { dismiss } = useModalMotion(scrimRef, panelRef, { variant: "center", onDismiss: onClose });
 
   return createPortal(
     <div
       ref={scrimRef}
       className="modal-scrim center"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) requestClose(onClose);
+        if (e.target === e.currentTarget) dismiss();
       }}
     >
       <div
@@ -168,12 +163,7 @@ export function CopyrightModal({ onClose }: LegalModalProps) {
       >
         <div className="modal-head">
           <h3 id="copyright-title">Copyright</h3>
-          <button
-            className="icon-btn"
-            type="button"
-            onClick={() => requestClose(onClose)}
-            aria-label="Close"
-          >
+          <button className="icon-btn" type="button" onClick={() => dismiss()} aria-label="Close">
             <Icon name="close" size={18} />
           </button>
         </div>
