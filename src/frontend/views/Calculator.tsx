@@ -490,11 +490,13 @@ export function Calculator({
                     <div className="calculator-alloc-name">
                       <CatGlyph glyph={c.glyph} id={c.id} />
                       <span>{c.name}</span>
-                      <strong className="num">{fmtMoney(amount, { currency })}</strong>
                     </div>
-                    <ReadableValue className="calculator-alloc-amt num">
-                      {formatPct(net > 0 ? (amount / net) * 100 : 0)}
-                    </ReadableValue>
+                    <div className="calculator-alloc-summary">
+                      <strong className="num">{fmtMoney(amount, { currency })}</strong>
+                      <ReadableValue className="calculator-alloc-amt num">
+                        {formatPct(net > 0 ? (amount / net) * 100 : 0)}
+                      </ReadableValue>
+                    </div>
                     {liveSubs(c).map((sub) => (
                       <label className="calculator-sub-allocation" key={sub.id}>
                         <span>{sub.name}</span>

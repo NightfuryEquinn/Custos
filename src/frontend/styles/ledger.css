@@ -9122,13 +9122,35 @@ select.text-in {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 12px;
+  justify-content: flex-start;
+  gap: var(--sp-3);
 }
+
 .calculator-category-breakdown .calculator-alloc-name {
+  display: flex;
+  align-items: center;
   flex-wrap: wrap;
+  gap: var(--sp-4);
 }
-.calculator-category-breakdown .calculator-alloc-name strong {
-  margin-left: auto;
+
+.calculator-category-breakdown .calculator-alloc-name > span:not(.cat-glyph-inline) {
+  margin-left: 0;
+}
+
+.calculator-alloc-summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  width: 100%;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.calculator-alloc-summary .calculator-alloc-amt {
+  flex: none;
 }
 .calculator-sub-allocation {
   display: flex;

@@ -15,6 +15,104 @@ type SearchProps = {
   onSelect: (target: SearchTarget, history: SearchHistory) => void;
 };
 
+type SearchGroupOption = { id: string; label: string };
+
+/** Custom dropdown for the search result type. */
+function SearchGroupPicker({
+  options,
+  value,
+  onChange,
+}: {
+  options: readonly SearchGroupOption[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const scrimRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const activeRef = useRef<HTMLButtonElement>(null);
+  const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "picker", active: open });
+  const selected = options.find((option) => option.id === value) ?? options[0];
+
+  useEffect(() => {
+    if (!open) return;
+    activeRef.current?.scrollIntoView({ block: "nearest" });
+
+    /** Close the menu without also dismissing the search dialog behind it. */
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      setOpen(false);
+    };
+
+    window.addEventListener("keydown", onKeyDown, true);
+
+    return () => {
+      window.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [open]);
+
+  if (!selected) return null;
+
+  const menu = open ? (
+    <div
+      ref={scrimRef}
+      className="picker-scrim"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) requestClose(() => setOpen(false));
+      }}
+    >
+      <div
+        ref={panelRef}
+        className="picker-menu picker-menu--lead"
+        role="listbox"
+        aria-label="Result type"
+      >
+        <div className="picker-timezone-list">
+          {options.map((option) => {
+            const active = option.id === selected.id;
+
+            return (
+              <button
+                key={option.id || "everything"}
+                ref={active ? activeRef : undefined}
+                type="button"
+                role="option"
+                aria-selected={active}
+                className={"picker-timezone-item" + (active ? " active" : "")}
+                onClick={() => {
+                  onChange(option.id);
+                  setOpen(false);
+                }}
+              >
+                <span className="pti-label">{option.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  return (
+    <div className="picker-wrap search-group-picker" ref={rootRef}>
+      <button
+        type="button"
+        className="picker-trigger"
+        aria-label="Result type"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        <span className="picker-trigger-label">{selected.label}</span>
+        <Icon name="chevD" size={16} />
+      </button>
+      {menu ? createPortal(menu, document.body) : null}
+    </div>
+  );
+}
+
 /** Keep the shortcut available while unmounting private search state when closed. */
 export function PageSearch(props: SearchProps) {
   const { open, setOpen } = props;
@@ -93,6 +191,11 @@ function SearchDialog({ address, ledger, setOpen, onSelect }: SearchProps) {
     () => new Map(documents.map((document) => [document.key, document])),
     [documents],
   );
+  const groupOptions = useMemo(() => {
+    const labels = [...new Set(documents.map((row) => row.group))];
+
+    return [{ id: "", label: "Everything" }, ...labels.map((label) => ({ id: label, label }))];
+  }, [documents]);
   const ranked = keys.map((key) => byKey.get(key)).filter((row) => row !== undefined);
   const resultGroups = new Map<string, typeof ranked>();
   for (const row of ranked) {
@@ -174,20 +277,15 @@ function SearchDialog({ address, ledger, setOpen, onSelect }: SearchProps) {
               }}
             />
           </div>
-          <select
-            aria-label="Result type"
+          <SearchGroupPicker
+            options={groupOptions}
             value={group}
-            onChange={(event) => {
-              setGroup(event.target.value);
+            onChange={(next) => {
+              setGroup(next);
               setActive(0);
               setLimit(40);
             }}
-          >
-            <option value="">Everything</option>
-            {[...new Set(documents.map((row) => row.group))].map((label) => (
-              <option key={label}>{label}</option>
-            ))}
-          </select>
+          />
         </div>
         <p className="global-search-status" role="status" aria-live="polite">
           {workerError

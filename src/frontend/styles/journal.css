@@ -29,13 +29,17 @@
   font-size: 16px;
 }
 
-.global-search-controls select {
+.global-search-controls .search-group-picker {
+  flex: none;
+  width: auto;
   max-width: 38%;
+  min-width: 0;
+}
+
+.global-search-controls .search-group-picker .picker-trigger {
+  width: auto;
+  max-width: 100%;
   min-height: 44px;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 4px;
 }
 
 .global-search-status {
@@ -122,8 +126,14 @@
     flex-basis: 100%;
   }
 
-  .global-search-controls select {
+  .global-search-controls .search-group-picker {
+    flex: 1 1 100%;
+    width: 100%;
     max-width: 100%;
+  }
+
+  .global-search-controls .search-group-picker .picker-trigger {
+    width: 100%;
   }
 }
 /* Tiers: phone <=639, tablet 640-1023, laptop 1024-1279, desktop >=1280 (extra-small phone <=379). */
@@ -721,7 +731,7 @@
 .text-in.daily-notes-in {
   display: block;
   min-height: 88px;
-  resize: vertical;
+  resize: none;
 }
 .daily-streak,
 .daily-sync {
@@ -1273,7 +1283,8 @@ input:focus-visible {
 }
 
 .amount-field input:focus-visible,
-.be-edit input:focus-visible {
+.be-edit input:focus-visible,
+.calculator-field input:focus-visible {
   outline: none;
 }
 /* The detail sheet's head, body and foot carry their own insets; the panel adds none. */
@@ -1948,13 +1959,17 @@ input:focus-visible {
   padding: min(8dvh, 32px) var(--sp-4) var(--sp-4);
 }
 
+.global-search .modal-head {
+  padding: var(--modal-pad) var(--modal-pad) 0;
+}
+
 @media (max-width: 639px) {
   .modal-scrim.global-search-scrim {
     padding: 0;
   }
 
   .global-search .modal-head {
-    padding-top: max(var(--sp-4), env(safe-area-inset-top));
+    padding-top: max(var(--modal-pad), env(safe-area-inset-top));
   }
 }
 
