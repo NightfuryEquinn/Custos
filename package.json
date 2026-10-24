@@ -3,9 +3,6 @@
   "version": "6.6.1",
   "private": true,
   "type": "module",
-  "engines": {
-    "node": "24.22.1"
-  },
   "scripts": {
     "dev": "bun --hot src/index.ts",
     "build": "bun run build.ts",
