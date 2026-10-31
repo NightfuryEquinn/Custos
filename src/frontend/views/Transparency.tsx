@@ -335,8 +335,25 @@ const COLLECTIONS: CollectionDoc[] = [
     ],
   },
   {
+    name: "personalization_history",
+    purpose: "Optional encrypted recommendation history, up to 30 days; 60 events per UTC day",
+    fields: [
+      { key: "accountId / epoch / day", value: "ownership, consent epoch, UTC bucket" },
+      {
+        key: "events",
+        value: "IDs and AES-GCM ciphertext",
+        note: "Feature, action, exact time and feedback encrypted; counts and sync timing visible",
+      },
+      {
+        key: "expiresAt",
+        value: "TTL date",
+        note: "Filtered immediately on read; background physical deletion",
+      },
+    ],
+  },
+  {
     name: "consent",
-    purpose: "Third-party data-sharing opt-in",
+    purpose: "Legacy sharing preference and separately versioned personalisation permission",
     fields: [
       { key: "accountId", value: '"64b6…"', note: "users._id hex (opaque)" },
       { key: "optedIn", value: "false" },
@@ -630,6 +647,21 @@ export function Transparency() {
 
   return (
     <div ref={viewRef} className="view transparency-view">
+      <section className="panel">
+        <div className="panel-head panel-head--stack">
+          <div>
+            <h2>Private suggestions</h2>
+            <p className="panel-sub">
+              With a fresh opt-in, Suggestions analyses records on your unlocked device and uses
+              limited feature activity and feedback to adjust ordering. History syncs encrypted for
+              up to 30 days; no behaviour is sent to analytics or AI providers. The server sees
+              account ownership, UTC storage day, event counts, ciphertext size and sync timing.
+              Turning off erases history; unreachable devices clear local copies when they
+              reconnect. History is excluded from backups.
+            </p>
+          </div>
+        </div>
+      </section>
       <section className="panel" data-tour="tour-transparency-intro">
         <div className="panel-head panel-head--stack">
           <div>

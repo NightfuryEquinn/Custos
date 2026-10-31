@@ -9,17 +9,20 @@
 
 export const DB_NAME = "custos-cache";
 /* v2 added the api-gets `updatedAt` index; v3 added the `outbox` store; v4 adds `unlock`. */
-export const DB_VERSION = 4;
+export const DB_VERSION = 5;
 
 export const STORES = {
   apiGets: "api-gets",
   outbox: "outbox",
   unlock: "unlock",
+  personalization: "personalization",
 } as const;
 
 let sharedDb: Promise<IDBDatabase> | null = null;
 
 function upgrade(db: IDBDatabase, tx: IDBTransaction): void {
+  if (!db.objectStoreNames.contains(STORES.personalization))
+    db.createObjectStore(STORES.personalization, { keyPath: "address" });
   const apiGets = db.objectStoreNames.contains(STORES.apiGets)
     ? tx.objectStore(STORES.apiGets)
     : db.createObjectStore(STORES.apiGets, { keyPath: "key" });
@@ -59,6 +62,10 @@ export function openCustosDb(): Promise<IDBDatabase> {
       req.onupgradeneeded = () => upgrade(req.result, req.transaction!);
       req.onsuccess = () => {
         const db = req.result;
+        db.onversionchange = () => {
+          db.close();
+          sharedDb = null;
+        };
         db.onclose = () => {
           sharedDb = null;
         };

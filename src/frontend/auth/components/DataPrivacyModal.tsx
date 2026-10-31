@@ -1,18 +1,14 @@
+import { PersonalizationSettings } from "@/frontend/views/Suggestions";
 import { ConfirmDialog, Icon } from "@/frontend/components/ui";
 import { api, type ApiSession } from "@/frontend/lib/api";
 import { useModalMotion } from "@/frontend/lib/animate";
 import { toast } from "@/frontend/lib/feedback";
 import { useOutboxEntries } from "@/frontend/lib/sync/useOutbox";
-import {
-  SHARING_CARD_DESCRIPTION,
-  SHARING_CARD_TITLE,
-  SHARING_OFF_STATUS,
-  SHARING_ON_STATUS,
-} from "@/lib/legal";
+
 import type { Account } from "@/frontend/lib/types";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { getConsent, markSharingChoiceMade, setConsent } from "../lib/consent";
+
 import { clearAllLocalData } from "../lib/identity-storage";
 import {
   emitNotifyEmailChanged,
@@ -39,10 +35,6 @@ type DataPrivacyModalProps = {
 };
 
 export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyModalProps) {
-  /* Consent: server is the source of truth; localStorage is a warm cache. */
-  const [consent, setConsentState] = useState(() => getConsent(account.address));
-  const [consentBusy, setConsentBusy] = useState(false);
-
   /* Email reminders: global preference stored on the user record. */
   const [remindersOn, setRemindersOn] = useState(true);
   const [remindersBusy, setRemindersBusy] = useState(false);
@@ -82,13 +74,6 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
       .sessions()
       .then(({ sessions: list }) => setSessions(list))
       .catch(() => {});
-    api.consent
-      .get()
-      .then(({ consent: record }) => {
-        setConsentState(record.optedIn);
-        setConsent(account.address, record.optedIn);
-      })
-      .catch(() => {});
     api.users
       .me()
       .then(({ user }) => {
@@ -111,24 +96,6 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
   }, [account.address]);
 
   /* ── Handlers ─────────────────────────────────────────────────── */
-
-  const toggleConsent = async () => {
-    const next = !consent;
-    setConsentState(next);
-    setConsentBusy(true);
-    setError("");
-    try {
-      const { consent: record } = await api.consent.update(next);
-      setConsentState(record.optedIn);
-      setConsent(account.address, record.optedIn);
-      markSharingChoiceMade(account.address);
-    } catch {
-      setConsentState(!next); // revert on failure
-      setError("Could not update data sharing. Check your connection and try again.");
-    } finally {
-      setConsentBusy(false);
-    }
-  };
 
   const toggleReminders = async () => {
     const next = !remindersOn;
@@ -424,37 +391,12 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
 
           <div className="dm-div" />
 
-          {/* 4. Third-party data sharing consent */}
           <div className="dm-sec">
-            <span className="fld-label">Third-party data sharing</span>
-            <div className="consent-card">
-              <div className="consent-top">
-                <div>
-                  <div className="consent-title">{SHARING_CARD_TITLE}</div>
-                  <p className="consent-desc">{SHARING_CARD_DESCRIPTION}</p>
-                </div>
-                <label className="switch">
-                  <input
-                    type="checkbox"
-                    checked={consent}
-                    disabled={consentBusy}
-                    onChange={toggleConsent}
-                  />
-                  <span className="toggle-ui" />
-                </label>
-              </div>
-              <div className={`consent-status ${consent ? "cs-on" : "cs-off"}`}>
-                <span className="cs-dot" />
-                {consent ? SHARING_ON_STATUS : SHARING_OFF_STATUS}
-              </div>
-            </div>
-            <p className="dm-note">
-              This saves your preference across devices. No data-sharing programme is active.
-            </p>
+            <span className="fld-label">Personalised suggestions</span>
+            <PersonalizationSettings address={account.address} />
           </div>
 
           <div className="dm-div" />
-
           {/* 5. Clear local data */}
           <div className="dm-sec">
             <span className="fld-label">Cookies &amp; local data</span>

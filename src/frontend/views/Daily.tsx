@@ -313,17 +313,11 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
                       >
                         {row.done ? <Icon name="check" size={14} /> : null}
                       </button>
-                      <button
-                        type="button"
-                        className="daily-title todo-task-title"
-                        aria-label={`Edit ${row.routine.title}`}
-                        onClick={() => openEditor(row.routine)}
-                      >
+                      <div className="daily-task-name todo-task-title">
                         <span>
                           <RoutineName routine={row.routine} />
                         </span>
-                        <Icon name="edit" size={14} />
-                      </button>
+                      </div>
                       <div className="daily-task-meta">
                         {earned === row.routine.id ? (
                           <span className="daily-plus" aria-hidden="true">
@@ -341,6 +335,14 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
                         >
                           {streakLabel(row.streak.current, row.unit)}
                         </span>
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          aria-label={`Edit ${row.routine.title}`}
+                          onClick={() => openEditor(row.routine)}
+                        >
+                          <Icon name="edit" size={14} />
+                        </button>
                       </div>
                       {error && error.id === row.routine.id ? (
                         <p className="auth-error daily-task-error" role="alert">

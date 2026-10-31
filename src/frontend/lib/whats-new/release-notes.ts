@@ -38,6 +38,28 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "7.0.0",
+    date: "October 2026",
+    lead: "Private suggestions that learn from the way you use Custos.",
+    highlights: [
+      {
+        icon: "insights",
+        title: "Your next useful step",
+        body: "Open Suggestions for explainable next steps across budgets, savings, bills, tasks, routines and vehicles. Helpful and dismiss feedback adjust their order.",
+      },
+      {
+        icon: "shield",
+        title: "Your choice, with a purpose",
+        body: "Personalised suggestions need a fresh opt-in. Calculations run on your device; limited behaviour history syncs encrypted for up to 30 days. Turning off stops collection and erases recommendation history.",
+      },
+      {
+        icon: "list",
+        title: "See what is remembered",
+        body: "Browse Recommendation history or clear it to start learning again. Existing insights remain available with personalisation off.",
+      },
+    ],
+  },
+  {
     version: "6.6.2",
     date: "October 2026",
     lead: "Clearer routines, a calmer habit garden, and more consistent controls.",

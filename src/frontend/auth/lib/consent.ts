@@ -1,30 +1,5 @@
-/*
- * Local cache of the third-party data-sharing consent flag.
- * The server record (GET/PATCH /api/consent) is the source of truth;
- * this cache only seeds the toggle before the network round-trip resolves.
- */
-
-const consentKey = (addr: string) => `ledger:consent:${(addr || "").toLowerCase()}`;
-
-const choiceMadeKey = (addr: string) => `ledger:sharing-choice-made:${(addr || "").toLowerCase()}`;
-
-/** Read cached opt-in flag for an address. */
-export function getConsent(addr: string): boolean {
-  try {
-    return localStorage.getItem(consentKey(addr)) === "true";
-  } catch {
-    return false;
-  }
-}
-
-/** Cache the opt-in flag locally for an address. */
-export function setConsent(addr: string, value: boolean): void {
-  try {
-    localStorage.setItem(consentKey(addr), value ? "true" : "false");
-  } catch {
-    /* ignore */
-  }
-}
+/* Signup choice is versioned separately from legacy sharing preferences. */
+const choiceMadeKey = (addr: string) => `ledger:personalization-choice-v1:${addr.toLowerCase()}`;
 
 /** Whether this browser already completed the signup sharing choice for an address. */
 export function hasSharingChoiceMade(addr: string): boolean {

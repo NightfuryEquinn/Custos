@@ -497,3 +497,17 @@ Deploy the backend, then run `bun run db:migrate-nudge-at` once (it gives rows w
 Each offline check-in is a separate encrypted queue entry. Sync rebases its intended adjustment on the latest summary, preserves the original day, and retries conflicts with the same event ID. Deleting a Nudge removes its event history atomically; account purge includes the collection. Backup export walks every history page and fails rather than silently truncating a partial export. Backup format 1 remains compatible through optional Nudge and breakdown fields.
 
 Run `bun run check` and `bun run build` before release.
+
+## v7.0.0 private suggestions
+
+Suggestions is an optional on-device engine across budgets, savings, Capitals, bills, tasks, Daily, Nudge and vehicles. Helpful/dismiss feedback adjusts ordering inside urgency tiers. There are no model APIs, training services or additional cron jobs.
+
+Set `PERSONALIZATION_ENABLED=true` in Vercel after deploying backend/index support and the v7 frontend. It defaults off; disabling it stops new opt-ins and history ingestion but preserves deletion. Existing sharing opt-ins are never treated as consent for this purpose. Signup and Data & privacy require a new choice. Recommendation history is excluded from backups and restored backups cannot enable personalisation.
+
+The build's existing `bun run db:indexes` creates the unique account/epoch/day and expiry TTL indexes on `personalization_history`. Retention is the current UTC day and previous 29 days. Each account/day has at most 60 events and 64 KiB, with up to 20 ciphertext events per request. Browser storage uses IndexedDB version 5, preserving the existing ledger outbox. History sync has a separate best-effort queue. Opt-out clears this device immediately; server deletion retries online and stale epochs cannot upload. Other offline devices clear their copies when they reconnect.
+
+Only ciphertext, event IDs/counts, account ownership, consent epoch, UTC day and expiry are server-readable. Exact event times, feature use and feedback remain encrypted. No behaviour enters Vercel Analytics or operational logs. This is limited recommendation history, not a full activity audit.
+
+Free-tier pilot target: up to 50 active accounts. Daily bucket ceilings total about 94 MiB over 30 days plus indexes; existing ledger data uses the same Atlas allocation. Review Atlas logical size at 70%; at 80%, set `PERSONALIZATION_ENABLED=false` to stop history ingestion. Monitor Vercel invocation/CPU usage too. This release does not change reminder scheduling or require a paid service.
+
+Deploy backend/index support first, then frontend, then enable personalisation. Roll back by disabling the flag; keep erasure routes available. Run `bun test`, `bun run check`, and `bun run build`. Test the installed v6.6.2 PWA upgrade, queued ledger changes, fresh consent and opt-out on two devices before enabling production. A separate replica-set test database is required for live transaction/race verification; never point test fixtures at the hosted ledger.

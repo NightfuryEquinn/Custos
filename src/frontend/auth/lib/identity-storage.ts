@@ -2,6 +2,7 @@ import type { IdentityRecord, LegacyIdentitySecrets } from "@/frontend/lib/types
 import { ledgerKeyStore, seriesKeyStore } from "@/frontend/lib/crypto/key-store";
 import { sessionSecrets } from "@/frontend/auth/lib/session-secrets";
 import { forgetUnlock } from "@/frontend/lib/crypto/unlock-persist";
+import { clearPersonalizationLocal } from "@/frontend/lib/personalization-client";
 import { clearCipherCacheForAddress } from "@/frontend/lib/pwa/cipher-cache";
 import { clearOutboxForAddress } from "@/frontend/lib/sync/outbox";
 
@@ -131,6 +132,7 @@ export function clearAllLocalData(): void {
   }
   keys.forEach((key) => localStorage.removeItem(key));
   for (const addr of knownAddresses) {
+    void clearPersonalizationLocal(addr);
     void clearCipherCacheForAddress(addr);
     void clearOutboxForAddress(addr);
   }

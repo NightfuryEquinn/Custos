@@ -830,8 +830,11 @@
   grid-row: 1;
   align-self: start;
 }
-.daily-task-row > .daily-title {
+.daily-task-row > .daily-task-name {
   grid-column: 2;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
 }
 .daily-task-meta {
   display: flex;

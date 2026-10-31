@@ -17,6 +17,18 @@ export type RefreshResource =
   | "fx";
 
 export const PAGE_REFRESH_RESOURCES: Record<ViewId, readonly RefreshResource[]> = {
+  suggestions: [
+    "allExpenses",
+    "events",
+    "daily",
+    "nudges",
+    "todoLists",
+    "capitalPlans",
+    "vehicles",
+    "vehicleFills",
+    "categories",
+    "wallets",
+  ],
   overview: [
     "wallets",
     "categories",

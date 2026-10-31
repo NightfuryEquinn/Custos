@@ -2396,6 +2396,35 @@ textarea::placeholder {
   color: var(--danger);
 }
 
+/* Suggestions: card actions and retained-history list */
+.suggestion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: auto;
+}
+
+.suggestion-history {
+  list-style: none;
+  margin: var(--sp-3) 0 0;
+  padding: 0;
+}
+
+.suggestion-history li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--hair);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.suggestion-history time {
+  font: 11px var(--font-mono);
+  color: var(--ink-soft);
+}
+
 :root[data-theme="light"] .insight-card.tone-positive {
   background: #edf3ec;
 }

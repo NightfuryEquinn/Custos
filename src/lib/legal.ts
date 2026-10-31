@@ -7,35 +7,13 @@
  */
 
 /** Bump when the Terms text changes in a way that needs re-acceptance. */
-export const TERMS_VERSION = "2026-09-16";
-export const TERMS_UPDATED = "September 16, 2026";
+export const TERMS_VERSION = "2026-10-31";
+export const TERMS_UPDATED = "October 31, 2026";
 
 export const SHARING_LEGAL_PARAGRAPH =
-  "Custos does not share your data with anyone, and never has. The data-sharing switch under " +
-  "Account → Data & privacy only records a preference for a possible future opt-in programme " +
-  "that does not exist yet — if one is ever built, it will be described here and announced " +
-  "before any data leaves your device. Transaction amounts, titles, and notes stay end-to-end " +
-  "encrypted either way. Custos is free on the official host with full features; optional " +
-  "tips help fund it, and never gate anything in the core ledger.";
-
-export const SHARING_CARD_TITLE = "Share Anonymized Category Totals";
-
-export const SHARING_CARD_DESCRIPTION =
-  "Nothing is shared today, and nothing has ever been shared — this switch only records a " +
-  "preference for a possible future opt-in programme. If one is ever built, Custos will " +
-  "describe it here and announce it before any data leaves your device. Your name, wallet " +
-  "address, notes, and decrypted amounts always stay end-to-end encrypted.";
-
-export const SHARING_ON_STATUS = "On — recorded as a preference; nothing is sent anywhere yet";
-export const SHARING_OFF_STATUS = "Off — nothing is shared";
-
-export const SHARING_SIGNUP_TITLE = "Optional data sharing";
-
+  "Personalised suggestions are optional. Existing records are analysed on your unlocked device. If you opt in, limited feature activity and suggestion feedback sync encrypted for up to 30 days. Custos cannot read this history; the server sees account ownership, storage day, event counts and sync timing. Turning off stops collection and erases history; offline deletion completes when devices reconnect. No behaviour is sent to analytics or an AI provider. Core features and existing insights remain free either way.";
+export const SHARING_SIGNUP_TITLE = "Optional personalised suggestions";
 export const SHARING_SIGNUP_DESCRIPTION =
-  "Record a preference for a possible future opt-in programme sharing de-identified category " +
-  "totals — not your name, wallet address, notes, or decrypted ledger amounts. Nothing is " +
-  "shared today; change this anytime under Account → Data & privacy.";
-
+  "Allow on-device suggestions to learn from limited feature use and feedback, with encrypted history synced for up to 30 days. Turning off erases recommendation history. A fresh opt-in is required; you can change this in Data & privacy. If unavailable on this host, enable later from Suggestions.";
 export const SIGNUP_LEAD =
-  "Custos is free on the official host with full features. Optional tips help keep the " +
-  "lights on — never a paywall on the ledger itself.";
+  "Custos is free on the official host with full features. Optional tips help keep it running.";

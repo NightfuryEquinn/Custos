@@ -1,5 +1,6 @@
 import type { Db } from "mongodb";
 import { COLLECTIONS } from "./collections";
+import { HISTORY_COLLECTION } from "@/lib/personalization";
 
 /**
  * Drop an index by name if it exists under a now-stale definition.
@@ -34,6 +35,10 @@ async function dropStaleIndex(db: Db, collection: string, name: string): Promise
  * migration ever needs repeating, add the drops back temporarily.
  */
 export async function ensureIndexes(db: Db): Promise<void> {
+  await db
+    .collection(HISTORY_COLLECTION)
+    .createIndex({ accountId: 1, epoch: 1, day: 1 }, { unique: true });
+  await db.collection(HISTORY_COLLECTION).createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
   /* One-time redefinitions: these three existed under the same name with
      different options (no `unique`, and — for the plaintext recurring
      lookup — no `enc` exclusion in the partial filter) before this change.

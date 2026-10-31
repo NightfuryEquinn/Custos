@@ -5,9 +5,11 @@
 
 import { ObjectId, type Db } from "mongodb";
 import { COLLECTIONS } from "../../src/db/collections";
+import { HISTORY_COLLECTION } from "../../src/lib/personalization";
 
 /** Collections keyed by opaque accountId. */
 export const OWNED_BY_ACCOUNT_ID = [
+  HISTORY_COLLECTION,
   COLLECTIONS.ledgerProfiles,
   COLLECTIONS.financialWallets,
   COLLECTIONS.categoryTaxonomies,

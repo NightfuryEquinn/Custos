@@ -7,6 +7,7 @@ import { budgetAlertsRoutes } from "./budget-alerts";
 import { capitalPlansRoutes } from "./capital-plans";
 import { categoriesRoutes } from "./categories";
 import { consentRoutes } from "./consent";
+import { personalizationRoutes } from "./personalization";
 import { cronRoutes } from "./cron";
 import { dailyRoutes } from "./daily";
 import { eventsRoutes } from "./events";
@@ -46,6 +47,7 @@ export function createApiRoutes() {
   api.route("/capital-plans", capitalPlansRoutes);
   api.route("/vehicles", vehiclesRoutes);
   api.route("/consent", consentRoutes);
+  api.route("/personalization", personalizationRoutes);
   api.route("/budget-alerts", budgetAlertsRoutes);
   api.route("/fx", fxRoutes);
   api.route("/cron", cronRoutes);

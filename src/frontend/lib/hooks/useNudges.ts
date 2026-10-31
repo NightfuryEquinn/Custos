@@ -1,3 +1,4 @@
+import { recordBehaviour } from "@/frontend/lib/personalization-client";
 import { api } from "@/frontend/lib/api";
 import {
   decodeNudge,
@@ -167,6 +168,7 @@ export function useNudges(
           label: "Nudge",
           labelEnc,
         });
+        void recordBehaviour(address, "action", "nudge");
         void drainOutbox(address);
 
         return { id, ...rest };
@@ -183,6 +185,7 @@ export function useNudges(
         label: "Nudge",
         labelEnc,
       });
+      void recordBehaviour(address, "action", "nudge");
       void drainOutbox(address);
 
       return { id: newId, ...rest };
@@ -211,6 +214,7 @@ export function useNudges(
         dependsOn: [],
         label: "Delete nudge",
       });
+      void recordBehaviour(address, "action", "nudge");
       void drainOutbox(address);
     },
     onSuccess: (_res, id) => patchCache((data) => data.filter((n) => n.id !== id)),
@@ -247,6 +251,7 @@ export function useNudges(
       dependsOn: create ? [create.opId] : [],
       label: "Nudge check-in",
     });
+    void recordBehaviour(address, "action", "nudge");
     void drainOutbox(address);
     return applied.nudge;
   };
@@ -267,6 +272,7 @@ export function useNudges(
       dependsOn: create ? [create.opId] : [],
       label: "Nudge check-in",
     });
+    void recordBehaviour(address, "action", "nudge");
     void drainOutbox(address);
   };
 

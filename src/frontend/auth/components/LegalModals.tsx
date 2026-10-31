@@ -73,7 +73,7 @@ export function TermsModal({ onClose }: LegalModalProps) {
             <p className="legal-p">
               Ledger data you create (transactions, budgets, events, categories, and related
               preferences) is stored with your account. You can export a CSV copy and manage
-              sessions, reminder preferences, and third-party sharing from Data &amp; privacy.
+              sessions, reminder preferences, and personalised suggestions from Data &amp; privacy.
               Clearing local browser data does not delete your server-side ledger. Accounts inactive
               for over {ACCOUNT_STALE_DAYS} days may be deleted along with their associated data.
             </p>
@@ -82,7 +82,7 @@ export function TermsModal({ onClose }: LegalModalProps) {
           <div className="dm-div" />
 
           <div className="dm-sec">
-            <span className="fld-label">Freemium &amp; data sharing</span>
+            <span className="fld-label">Personalisation &amp; privacy</span>
             <p className="legal-p">{SHARING_LEGAL_PARAGRAPH}</p>
           </div>
 

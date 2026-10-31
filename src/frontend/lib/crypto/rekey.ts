@@ -3,6 +3,8 @@
  * Fails closed — callers must not mark migration complete if this throws.
  */
 
+import { resetPersonalization } from "@/frontend/lib/personalization-client";
+import { identityStorage } from "@/frontend/auth/lib/identity-storage";
 import { api } from "@/frontend/lib/api";
 import type {
   CapitalPlanSecrets,
@@ -107,6 +109,9 @@ async function rekeyVehicleFills(oldKey: CryptoKey, newKey: CryptoKey): Promise<
  * Throws on the first failure so the session can keep the old key.
  */
 export async function rekeyLedgerToCustos(oldKey: CryptoKey, newKey: CryptoKey): Promise<void> {
+  const address = identityStorage.session();
+  /* Disposable history: a failed reset retries from the stored control key, never blocks rekey. */
+  if (address) await resetPersonalization(address).catch(() => {});
   const { wallets } = await api.wallets.list();
 
   for (const wire of wallets) {
