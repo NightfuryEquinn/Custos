@@ -1030,6 +1030,7 @@ function MonthBreakdown({
         <div className="panel-head panel-head--row">
           <h2>By category</h2>
           <Segmented
+            label="Category breakdown type"
             options={[
               { v: "expense", label: "Expense" },
               { v: "income", label: "Income" },
@@ -1583,6 +1584,7 @@ export function Insights({
               <p className="panel-sub">Based on expense in {habit.periodLabel}</p>
             </div>
             <Segmented
+              label="Expense profile period"
               options={[
                 { v: "month", label: "Per Month" },
                 { v: "year", label: "Per Year" },
@@ -1721,6 +1723,7 @@ export function Insights({
             <h2>Month over month</h2>
           </div>
           <Segmented
+            label="Chart period"
             options={[
               { v: "daily", label: "Daily" },
               { v: "monthly", label: "Monthly" },
@@ -1834,6 +1837,7 @@ export function Insights({
               </p>
             </div>
             <Segmented
+              label="Income profile period"
               options={[
                 { v: "6mo", label: "Last 6 Months" },
                 { v: "12mo", label: "Last 12 Months" },

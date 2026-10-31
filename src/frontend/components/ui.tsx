@@ -736,18 +736,21 @@ function Segmented<T extends string>({
   options,
   value,
   onChange,
+  label,
 }: {
   options: { v: T; label: ReactNode }[];
   value: T;
   onChange: (v: T) => void;
+  label: string;
 }) {
   return (
-    <div className="seg">
+    <div className="seg" role="group" aria-label={label}>
       {options.map((o) => (
         <button
           type="button"
           key={o.v}
           className={"seg-btn" + (value === o.v ? " active" : "")}
+          aria-pressed={value === o.v}
           onClick={() => onChange(o.v)}
         >
           {o.label}
@@ -1155,6 +1158,7 @@ function AddExpenseModal({
             <>
               <label className="fld-label">Type</label>
               <Segmented
+                label="Transaction type"
                 options={[
                   { v: "expense", label: "Expense" },
                   { v: "income", label: "Income" },
@@ -1323,6 +1327,7 @@ function AddExpenseModal({
               {recurringOn ? (
                 <div className="wallet-seg">
                   <Segmented
+                    label="Repeat interval"
                     options={[
                       { v: "monthly", label: "Monthly" },
                       { v: "quarterly", label: "Quarterly" },

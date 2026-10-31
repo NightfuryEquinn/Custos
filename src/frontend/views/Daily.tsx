@@ -37,9 +37,9 @@ type Tab = "today" | "week";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const KIND_OPTIONS: { v: DailyKind; label: string }[] = [
-  { v: "daily", label: "Everyday" },
-  { v: "weekdays", label: "Specific" },
-  { v: "weekly", label: "Once a week" },
+  { v: "daily", label: "Every day" },
+  { v: "weekdays", label: "Selected days" },
+  { v: "weekly", label: "Weekly" },
 ];
 
 type Editor = { routineId: string | null } | null;
@@ -57,8 +57,10 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
   const [notes, setNotes] = useState("");
   const [kind, setKind] = useState<DailyKind>("daily");
   const [weekdays, setWeekdays] = useState<number[]>([]);
-  const [draft, setDraft] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ id: string; message: string } | null>(null);
+  const [restoringError, setRestoringError] = useState<{ id: string; message: string } | null>(
+    null,
+  );
   const [editorError, setEditorError] = useState("");
   const [saving, setSaving] = useState(false);
   const [archiving, setArchiving] = useState(false);
@@ -66,6 +68,7 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
   /* Which archived row's Restore is running, so only that button says Restoring…. */
   const [restoring, setRestoring] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
   const [earned, setEarned] = useState<string | null>(null);
   const viewRef = useRef<HTMLDivElement>(null);
   const scrimRef = useRef<HTMLDivElement>(null);
@@ -117,7 +120,7 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
     const next = {
       title: routine?.title ?? "",
       notes: routine?.notes ?? "",
-      kind: rule?.kind ?? ("daily" as DailyKind),
+      kind: rule?.kind ?? (tab === "week" ? "weekly" : "daily"),
       weekdays: rule?.weekdays ?? [],
     };
     setEditor({ routineId: routine?.id ?? null });
@@ -132,30 +135,15 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
   useImperativeHandle(ref, () => ({ openAdd: () => openEditor() }));
 
   const toggle = async (row: DailyRow) => {
-    setError("");
+    setError(null);
     try {
       await daily.setDone(row.routine, !row.done, row.period);
       if (!row.done) setEarned(row.routine.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not update routine");
-    }
-  };
-
-  const addInline = async () => {
-    const value = draft.trim();
-    if (!value || !today || savingRef.current) return;
-    savingRef.current = true;
-    setError("");
-    try {
-      await daily.saveRoutine(
-        newRoutine({ title: value, kind: "daily" }, today, new Date().toISOString()),
-      );
-      setDraft((current) => (current.trim() === value ? "" : current));
-      setTab("today");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not add routine");
-    } finally {
-      savingRef.current = false;
+      setError({
+        id: row.routine.id,
+        message: err instanceof Error ? err.message : "Could not update routine",
+      });
     }
   };
 
@@ -217,11 +205,15 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
   const restore = async (routine: DailyRoutine, doneSet: Set<string>) => {
     if (!today || restoring) return;
     setRestoring(routine.id);
+    setRestoringError(null);
     try {
       await daily.saveRoutine(restoreRoutine(routine, doneSet, today));
       toast("Routine restored");
     } catch (err) {
-      toast(err instanceof Error ? err.message : "Could not restore routine");
+      setRestoringError({
+        id: routine.id,
+        message: err instanceof Error ? err.message : "Could not restore routine",
+      });
     } finally {
       setRestoring(null);
     }
@@ -235,6 +227,7 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
       setTab(rule?.kind === "weekly" ? "week" : "today");
       setSearchDay(target.date);
       setSearchRoutineId(routine.id);
+      setShowActivity(true);
       focusSearchRecord(`daily:${routine.id}:${target.date}`);
     } else {
       setShowArchived(!!routine.archivedOn);
@@ -262,8 +255,14 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
     );
   }
 
-  const pendingChange = editing?.schedule.at(-1);
-  const futureChange = pendingChange && pendingChange.from > today ? pendingChange.from : null;
+  const scheduleFrom = editing
+    ? editSchedule(
+        editing.schedule,
+        { kind, ...(kind === "weekdays" ? { weekdays } : {}) },
+        today,
+        completions.some((completion) => completion.routineId === editing.id && completion.done),
+      ).at(-1)?.from
+    : undefined;
 
   return (
     <div ref={viewRef} className="view">
@@ -271,6 +270,7 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
         <>
           <div className="daily-top">
             <Segmented
+              label="Routine period"
               options={[
                 { v: "today", label: "Today" },
                 { v: "week", label: "This week" },
@@ -316,9 +316,13 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
                       <button
                         type="button"
                         className="daily-title todo-task-title"
+                        aria-label={`Edit ${row.routine.title}`}
                         onClick={() => openEditor(row.routine)}
                       >
-                        <RoutineName routine={row.routine} />
+                        <span>
+                          <RoutineName routine={row.routine} />
+                        </span>
+                        <Icon name="edit" size={14} />
                       </button>
                       <div className="daily-task-meta">
                         {earned === row.routine.id ? (
@@ -333,66 +337,45 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
                         ) : null}
                         <span
                           className="daily-streak"
-                          title={`Best: ${streakLabel(row.streak.best, row.unit)}`}
+                          aria-label={`Streak: ${streakLabel(row.streak.current, row.unit)}. Best: ${streakLabel(row.streak.best, row.unit)}`}
                         >
                           {streakLabel(row.streak.current, row.unit)}
                         </span>
                       </div>
+                      {error && error.id === row.routine.id ? (
+                        <p className="auth-error daily-task-error" role="alert">
+                          {error.message}
+                        </p>
+                      ) : null}
                     </div>
                   );
                 })
               ) : (
-                <EmptyState
-                  title={tab === "today" ? "Nothing due today" : "No weekly routines"}
-                  sub={tab === "week" ? "Add one with Once a Week." : undefined}
-                />
+                <EmptyState title={tab === "today" ? "Nothing due today" : "No weekly routines"} />
               )}
             </div>
             {tab === "today" && idle.length ? (
-              <div className="daily-idle">
-                <span className="journal-eyebrow">Not due today</span>
+              <details className="daily-idle">
+                <summary>Not due today ({idle.length})</summary>
                 {idle.map((routine) => (
                   <button
                     key={routine.id}
                     type="button"
                     className="daily-title daily-idle-row"
+                    aria-label={`Edit ${routine.title}`}
                     onClick={() => openEditor(routine)}
                   >
-                    <RoutineName routine={routine} />
+                    <span>
+                      <RoutineName routine={routine} />
+                    </span>
+                    <Icon name="edit" size={14} />
                   </button>
                 ))}
-              </div>
+              </details>
             ) : null}
             {total > 0 && done === total ? (
               <p className="daily-all-done" role="status">
                 {tab === "today" ? "All done for today" : "All done this week"}
-              </p>
-            ) : null}
-
-            <div className="todo-add-row" data-tour="tour-daily-add">
-              <input
-                className="text-in"
-                value={draft}
-                maxLength={120}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder="Add a daily routine…"
-                aria-label="New routine title"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void addInline();
-                }}
-              />
-              <button
-                className="ghost-btn"
-                type="button"
-                disabled={!draft.trim()}
-                onClick={() => void addInline()}
-              >
-                Add
-              </button>
-            </div>
-            {error ? (
-              <p className="auth-error auth-error--gap" role="alert">
-                {error}
               </p>
             ) : null}
           </section>
@@ -401,76 +384,95 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
         <section className="panel" data-tour="tour-daily-list">
           <div data-tour="tour-daily-progress">
             <EmptyState title="No routines yet" />
-            <div className="todo-empty-action" data-tour="tour-daily-add">
-              <button className="ghost-btn" type="button" onClick={() => openEditor()}>
-                <Icon name="plus" size={15} /> Add routine
-              </button>
-            </div>
           </div>
         </section>
       )}
 
       {routines.length ? (
-        <DailyActivity
-          key={`${tab}:${searchDay ?? ""}`}
-          daily={daily}
-          tab={tab}
-          initialDay={searchDay}
-          initialRoutineId={searchRoutineId}
-        />
+        <section className="panel daily-history-section">
+          <button
+            type="button"
+            className="disclosure-btn"
+            aria-expanded={showActivity}
+            aria-controls="daily-activity"
+            onClick={() => setShowActivity((open) => !open)}
+          >
+            Activity <Icon name={showActivity ? "chevU" : "chevD"} size={15} />
+          </button>
+          <div id="daily-activity" hidden={!showActivity}>
+            {showActivity ? (
+              <DailyActivity
+                key={`${tab}:${searchDay ?? ""}`}
+                daily={daily}
+                tab={tab}
+                initialDay={searchDay}
+                initialRoutineId={searchRoutineId}
+              />
+            ) : null}
+          </div>
+        </section>
       ) : null}
 
       {archived.length ? (
         <section className="panel daily-archived">
           <button
             type="button"
-            className="link-btn"
+            className="disclosure-btn"
             aria-expanded={showArchived}
+            aria-controls="daily-archived"
             onClick={() => setShowArchived((open) => !open)}
           >
             Archived ({archived.length})
+            <Icon name={showArchived ? "chevU" : "chevD"} size={15} />
           </button>
-          {showArchived ? (
-            <ul className="daily-archive-list">
-              {archived.map((routine) => {
-                const doneSet = new Set(
-                  completions
-                    .filter((c) => c.routineId === routine.id && c.done)
-                    .map((c) => c.period),
-                );
-                return (
-                  <li key={routine.id}>
-                    <span className="todo-task-title">
-                      <RoutineName routine={routine} />
-                    </span>
-                    <span className="daily-streak">
-                      Best {computeStreak(routine, doneSet, today).best} ·{" "}
-                      {doneSet.size * DAILY_POINTS} points
-                    </span>
-                    <div className="daily-archive-actions">
-                      <button
-                        type="button"
-                        className="ghost-btn"
-                        disabled={restoring !== null}
-                        aria-label={`Restore ${routine.title}`}
-                        onClick={() => void restore(routine, doneSet)}
-                      >
-                        {restoring === routine.id ? "Restoring…" : "Restore"}
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-btn"
-                        aria-label={`Delete ${routine.title}`}
-                        onClick={() => setDeleting(routine)}
-                      >
-                        <Icon name="trash" size={16} />
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : null}
+          <div id="daily-archived" hidden={!showArchived}>
+            {showArchived ? (
+              <ul className="daily-archive-list">
+                {archived.map((routine) => {
+                  const doneSet = new Set(
+                    completions
+                      .filter((c) => c.routineId === routine.id && c.done)
+                      .map((c) => c.period),
+                  );
+                  return (
+                    <li key={routine.id}>
+                      <span className="todo-task-title">
+                        <RoutineName routine={routine} />
+                      </span>
+                      <span className="daily-streak">
+                        Best {computeStreak(routine, doneSet, today).best} ·{" "}
+                        {doneSet.size * DAILY_POINTS} points
+                      </span>
+                      <div className="daily-archive-actions">
+                        <button
+                          type="button"
+                          className="ghost-btn"
+                          disabled={restoring !== null}
+                          aria-label={`Restore ${routine.title}`}
+                          onClick={() => void restore(routine, doneSet)}
+                        >
+                          {restoring === routine.id ? "Restoring…" : "Restore"}
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          aria-label={`Delete ${routine.title}`}
+                          onClick={() => setDeleting(routine)}
+                        >
+                          <Icon name="trash" size={16} />
+                        </button>
+                      </div>
+                      {restoringError && restoringError.id === routine.id ? (
+                        <p className="auth-error" role="alert">
+                          {restoringError.message}
+                        </p>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+          </div>
         </section>
       ) : null}
 
@@ -500,7 +502,7 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
             >
               <form
                 ref={panelRef}
-                className="modal sm"
+                className="modal sm routine-editor"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="daily-editor-title"
@@ -540,7 +542,12 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
 
                     <div className="editor-field">
                       <span className="fld-label">Repeats</span>
-                      <Segmented options={KIND_OPTIONS} value={kind} onChange={setKind} />
+                      <Segmented
+                        label="Recurrence"
+                        options={KIND_OPTIONS}
+                        value={kind}
+                        onChange={setKind}
+                      />
                       {kind === "weekdays" ? (
                         <div className="sub-row" role="group" aria-label="Weekdays">
                           {WEEKDAYS.map((label, i) => (
@@ -561,10 +568,12 @@ export const Daily = forwardRef<DailyHandle, { daily: DailyState }>(function Dai
                           ))}
                         </div>
                       ) : null}
-                      {futureChange ? (
-                        <p className="fld-hint">Changes from {futureChange}.</p>
-                      ) : editing ? (
-                        <p className="fld-hint">Changes to how it repeats start after today.</p>
+                      {editing ? (
+                        <p className="fld-hint">
+                          {scheduleFrom && scheduleFrom > today
+                            ? `New schedule from ${scheduleFrom}.`
+                            : "Schedule changes apply immediately."}
+                        </p>
                       ) : null}
                     </div>
 

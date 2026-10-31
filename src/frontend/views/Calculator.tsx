@@ -383,6 +383,7 @@ export function Calculator({
                 <div className="calculator-tax-mode">
                   <label className="fld-label">Type</label>
                   <Segmented
+                    label="Deduction type"
                     options={[
                       { v: "pct", label: "%" },
                       { v: "fixed", label: cur.symbol },

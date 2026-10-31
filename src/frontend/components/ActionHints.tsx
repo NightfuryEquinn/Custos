@@ -1,7 +1,27 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-/** Hints live outside animated, clipping category containers. */
+const HINT_TARGETS = [
+  "[data-hint]",
+  ...[
+    ".icon-btn",
+    ".txn-actions button",
+    ".picker-nav-btn",
+    ".tour-help-btn",
+    ".shepherd-cancel-icon",
+    ".msbtn",
+    ".agenda-nav-btn",
+    ".txn-filter-clear",
+    ".capital-item-remove",
+    ".capital-card-actions button",
+    ".cmt-remove",
+    ".cat-block-actions button",
+    ".cat-sub-actions button",
+    ".todo-panel-actions button",
+  ].map((selector) => `${selector}[aria-label]`),
+].join(", ");
+
+/** One hint surface outside scrolling and animated containers. */
 export function ActionHints() {
   const [target, setTarget] = useState<HTMLElement | null>(null);
   const [position, setPosition] = useState({ left: 0, top: 0 });
@@ -9,12 +29,17 @@ export function ActionHints() {
   const id = useId();
   useEffect(() => {
     const find = (event: Event) =>
-      event.target instanceof Element
-        ? event.target.closest<HTMLElement>(
-            ".cat-block-actions button[aria-label], .cat-sub-actions button[aria-label]",
-          )
-        : null;
-    const show = (event: Event) => setTarget(find(event));
+      event.target instanceof Element ? event.target.closest<HTMLElement>(HINT_TARGETS) : null;
+    const show = (event: Event) => {
+      if (
+        event instanceof PointerEvent &&
+        (event.pointerType === "touch" ||
+          !window.matchMedia("(hover: hover) and (pointer: fine)").matches)
+      )
+        return;
+      const element = find(event);
+      setTarget(element && !element.matches(":disabled") ? element : null);
+    };
     const hide = () => setTarget(null);
     const leave = (event: PointerEvent) => {
       const button = find(event);
@@ -61,7 +86,9 @@ export function ActionHints() {
           : Math.max(8, rect.top - box.height - 8),
     });
     const previous = target.getAttribute("aria-describedby");
-    target.setAttribute("aria-describedby", [previous, id].filter(Boolean).join(" "));
+    // An aria-label already supplies the action's name; describe only supplementary hints.
+    if (target.hasAttribute("data-hint"))
+      target.setAttribute("aria-describedby", [previous, id].filter(Boolean).join(" "));
     return () => {
       if (previous) target.setAttribute("aria-describedby", previous);
       else target.removeAttribute("aria-describedby");
@@ -70,7 +97,7 @@ export function ActionHints() {
   return target
     ? createPortal(
         <div ref={hint} id={id} role="tooltip" className="action-hint" style={position}>
-          {target.getAttribute("aria-label")}
+          {target.getAttribute("data-hint") ?? target.getAttribute("aria-label")}
         </div>,
         document.body,
       )

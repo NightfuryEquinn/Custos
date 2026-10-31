@@ -109,7 +109,7 @@
 
 [data-search-id]:focus {
   outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  outline-offset: 2px;
   scroll-margin-block: 24px;
 }
 
@@ -707,6 +707,9 @@
   letter-spacing: 0.04em;
 }
 .daily-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
   border: 0;
   background: transparent;
   color: inherit;
@@ -716,6 +719,14 @@
   min-height: 44px;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+.daily-title > span {
+  min-width: 0;
+}
+.daily-title > svg,
+.nudge-name > svg {
+  flex: none;
+  color: var(--ink-soft);
 }
 /* Notes stay readable beneath the title, including on Home. */
 .daily-note {
@@ -793,17 +804,18 @@
   flex-shrink: 0;
 }
 .daily-idle {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--sp-2);
   margin: var(--sp-6) 0;
   color: var(--ink-soft);
 }
-.daily-idle > .journal-eyebrow {
-  margin: 0;
+.daily-idle > summary {
+  width: fit-content;
+  min-height: 44px;
+  align-content: center;
+  font-size: 13px;
+  cursor: pointer;
 }
 .daily-idle-row {
+  width: 100%;
   max-width: 100%;
   min-height: 44px;
   font-size: 14px;
@@ -831,6 +843,10 @@
 }
 .daily-task-meta :is(.daily-sync, .daily-streak) {
   overflow-wrap: anywhere;
+}
+.daily-task-error {
+  grid-column: 2 / -1;
+  margin: 0;
 }
 .daily-archived {
   margin-top: 0;
@@ -874,8 +890,9 @@
 
 .nudge-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sp-6);
+  align-items: start;
 }
 
 .nudge-card {
@@ -886,17 +903,8 @@
   padding: var(--card-pad);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  background: transparent;
-  transition: border-color 0.2s ease;
-}
-
-.nudge-card:hover {
-  border-color: var(--border-strong);
-}
-
-.nudge-card.off .nudge-name,
-.nudge-card.off .nudge-count strong {
-  color: var(--ink-soft);
+  background: var(--surface);
+  overflow: visible;
 }
 
 .nudge-card.met .nudge-count strong {
@@ -923,6 +931,11 @@
   font: 18px/1.25 var(--font-display);
   color: var(--ink);
   overflow-wrap: anywhere;
+}
+.nudge-name > svg {
+  display: inline;
+  vertical-align: middle;
+  margin-left: var(--sp-1);
 }
 
 .nudge-desc {
@@ -955,27 +968,10 @@
   overflow-wrap: anywhere;
 }
 
-.nudge-card progress {
-  width: 100%;
-  height: 6px;
-  border: 0;
-  border-radius: 999px;
-  overflow: hidden;
-  appearance: none;
-  background: var(--surface-3);
-  accent-color: var(--accent);
-}
-
-.nudge-card progress::-webkit-progress-bar {
-  background: var(--surface-3);
-}
-
-.nudge-card progress::-webkit-progress-value {
-  background: var(--accent);
-}
-
-.nudge-card progress::-moz-progress-bar {
-  background: var(--accent);
+.nudge-counter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
 }
 
 .nudge-actions {
@@ -991,14 +987,115 @@
 
 .nudge-meta {
   margin: 0;
-  font: 11px/1.8 var(--font-mono);
-  letter-spacing: 0.02em;
+  font-size: 12px;
+  line-height: 1.6;
   color: var(--ink-soft);
   overflow-wrap: anywhere;
 }
 
-.nudge-add {
-  margin-top: var(--sp-6);
+.nudge-reminders,
+.nudge-history-head,
+.nudge-history-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.nudge-reminder-label {
+  font-size: 13px;
+}
+.nudge-history-disclosure {
+  border-top: 1px solid var(--hair);
+  padding-top: var(--sp-2);
+}
+.nudge-history {
+  border: 0;
+  padding-top: var(--sp-3);
+}
+.nudge-history h3 {
+  margin: 0;
+}
+.nudge-history-head {
+  margin-bottom: var(--sp-3);
+}
+.nudge-history-nav {
+  flex: none;
+}
+.nudge-calendar-total {
+  flex-wrap: wrap;
+}
+.nudge-calendar-scroll {
+  overflow-x: auto;
+  padding: var(--sp-1);
+  margin-inline: calc(-1 * var(--sp-1));
+}
+@media (pointer: coarse) {
+  .nudge-calendar {
+    grid-template-columns: repeat(7, minmax(44px, 1fr));
+  }
+}
+.nudge-count {
+  font-variant-numeric: tabular-nums;
+}
+.disclosure-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-height: 44px;
+  width: 100%;
+  padding: var(--sp-2) 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 500 14px var(--font-body);
+  text-align: left;
+  cursor: pointer;
+}
+.daily-history-section > .disclosure-btn {
+  font: 400 22px var(--font-display);
+}
+.daily-activity {
+  padding-top: var(--sp-4);
+}
+.editor-section-title {
+  margin: 0;
+  color: var(--ink);
+  font: 400 18px var(--font-display);
+}
+.editor-section-title:not(:first-child) {
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--hair);
+}
+.modal.sm.routine-editor {
+  width: min(100%, 520px);
+}
+@media (min-width: 1280px) {
+  .nudge-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  :is(.daily-title, .disclosure-btn):hover {
+    color: var(--accent);
+  }
+}
+@media (max-width: 639px) {
+  .modal.sm.routine-editor {
+    width: 100%;
+    height: var(--visual-height, 100dvh);
+    max-height: var(--visual-height, 100dvh);
+    border-radius: 0;
+  }
+  .modal-scrim.center:has(> .routine-editor) {
+    padding: 0;
+  }
+  .routine-editor .modal-head {
+    padding-top: max(var(--modal-pad), env(safe-area-inset-top));
+  }
+  .routine-editor .modal-foot {
+    padding-bottom: max(var(--sp-4), env(safe-area-inset-bottom));
+  }
 }
 
 .nudge-goal-row {
@@ -1274,14 +1371,6 @@
 .tour-help-btn {
   min-width: 44px;
 }
-button:focus-visible,
-a:focus-visible,
-summary:focus-visible,
-input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 4px;
-}
-
 .amount-field input:focus-visible,
 .be-edit input:focus-visible,
 .calculator-field input:focus-visible {

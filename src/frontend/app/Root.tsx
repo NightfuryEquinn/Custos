@@ -2,6 +2,7 @@ import { LedgerApp } from "@/frontend/app/LedgerApp";
 import { AuthScreen, getSavedAccount, logoutSession, UnlockScreen } from "@/frontend/auth";
 import { TermsGate } from "@/frontend/auth/components/TermsGate";
 import { FeedbackHost } from "@/frontend/components/Feedback";
+import { ActionHints } from "@/frontend/components/ActionHints";
 import { LoadingBloom } from "@/frontend/components/LoadingBloom";
 import { ThemeToggle } from "@/frontend/components/ThemeToggle";
 import { api, ApiError } from "@/frontend/lib/api";
@@ -184,6 +185,7 @@ export function Root() {
   return (
     <ThemeProvider>
       <FeedbackHost />
+      <ActionHints />
       {account ? (
         termsKnown && termsVersion !== TERMS_VERSION ? (
           <TermsGate onAccepted={setTermsVersion} onSignOut={signOut} signingOut={signingOut} />

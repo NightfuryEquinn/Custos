@@ -38,6 +38,33 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "6.6.2",
+    date: "October 2026",
+    lead: "Clearer routines, a calmer habit garden, and more consistent controls.",
+    highlights: [
+      {
+        icon: "daily",
+        title: "Daily, simplified",
+        body: "Add routines from one place beside the page title. New routines follow Today or This week. Open Activity for past check-ins, or Archived to restore a routine.",
+      },
+      {
+        icon: "bell",
+        title: "A calmer habit garden",
+        body: "Blooms and daily counts take the lead. Open History to browse monthly totals. The Reminders switch controls notifications; you can keep logging with reminders off.",
+      },
+      {
+        icon: "list",
+        title: "History opens where you need it",
+        body: "Search results expand the matching Daily activity or Nudge calendar and take you to the selected date. Errors appear beside the action that needs attention.",
+      },
+      {
+        icon: "info",
+        title: "Steadier controls and dialogs",
+        body: "Consistent keyboard focus, action hints that stay within the screen, and clearer selection states. Dialogs return focus to the right control, including after discarding edits. Daily and Nudge editors fill the screen on phones.",
+      },
+    ],
+  },
+  {
     version: "6.6.1",
     date: "October 2026",
     lead: "Search everything, catch up on Daily, grow your habit garden, and give every subcategory a budget.",

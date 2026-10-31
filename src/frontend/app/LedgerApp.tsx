@@ -786,6 +786,9 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
         <button
           type="button"
           className="primary-btn page-action"
+          data-tour={
+            view === "daily" ? "tour-daily-add" : view === "nudge" ? "tour-nudge-add" : undefined
+          }
           disabled={isSaving || pageAction.disabled}
           onClick={pageAction.run}
         >

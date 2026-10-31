@@ -44,14 +44,10 @@ export function DailyActivity({
   );
   const done = new Set(daily.completions.filter((c) => c.done).map((c) => c.id));
   return (
-    <section className="panel daily-activity">
+    <div className="daily-activity">
       <div className="panel-head">
         <div>
-          <h2>Activity</h2>
-          <p className="panel-sub">
-            {tab === "today" ? "Daily and weekday routines" : "Weekly routines"} ? Select a day to
-            update it.
-          </p>
+          <p className="panel-sub">Select a {tab === "today" ? "day" : "week"} to update it.</p>
         </div>
         <div className="daily-history-nav">
           <button
@@ -107,7 +103,7 @@ export function DailyActivity({
                     className={`daily-heat-cell${!period || duplicate ? " unavailable" : ""}${checked && !duplicate ? " complete" : ""}${day === daily.today ? " today" : ""}`}
                     disabled={!period || duplicate || busy.has(id)}
                     aria-label={label}
-                    title={label}
+                    data-hint={label}
                     aria-pressed={checked && !duplicate}
                     aria-busy={busy.has(id) || undefined}
                     data-pending={pending || undefined}
@@ -137,16 +133,13 @@ export function DailyActivity({
         );
       })}
       {routines.length ? (
-        <p className="panel-sub">
-          Filled ✓ completed · outlined missed or open · muted not scheduled. Weekly routines have
-          one editable cell per week.
-        </p>
+        <p className="panel-sub">✓ Complete · outlined incomplete · muted not scheduled</p>
       ) : null}
       {error ? (
         <p role="alert" className="auth-error">
           {error}
         </p>
       ) : null}
-    </section>
+    </div>
   );
 }

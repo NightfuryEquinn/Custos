@@ -287,6 +287,7 @@ export function WalletManageModal({ wallets, onSave, onDelete, onClose }: Wallet
               <label className="fld-label">Funding</label>
               <div className="wallet-seg">
                 <Segmented
+                  label="Wallet funding"
                   options={[
                     { v: "monthly", label: "Monthly Income" },
                     { v: "starting", label: "Starting Balance" },

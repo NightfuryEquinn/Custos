@@ -1,4 +1,3 @@
-import { ActionHints } from "@/frontend/components/ActionHints";
 import { useSearchReveal } from "@/frontend/lib/search/reveal";
 import { useEnter, useModalMotion } from "@/frontend/lib/animate";
 import { ConfirmDialog, EmptyState, Icon, Segmented, glyphTint } from "@/frontend/components/ui";
@@ -255,6 +254,7 @@ function CategoryEditor({
           <div className="dm-sec">
             {mode.type === "add-cat" ? (
               <Segmented
+                label="Category type"
                 options={[
                   { v: "expense", label: "Expense" },
                   { v: "savings", label: "Savings" },
@@ -702,9 +702,9 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
 
   return (
     <div ref={viewRef} className="view">
-      <ActionHints />
       <div className="cat-toolbar" data-tour="tour-categories-toolbar">
         <Segmented
+          label="Filter categories"
           options={[
             { v: "all", label: "All" },
             { v: "expense", label: "Expense" },

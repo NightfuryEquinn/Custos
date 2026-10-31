@@ -45,9 +45,22 @@ type ModalMotionOpts = {
   dirty?: boolean;
 };
 
-/** Managed modals, topmost last; one Escape listener serves them all. */
-const dismissStack: { dismiss: () => void }[] = [];
+/** One opening order controls layering, keyboard focus, and dismissal. */
+const dialogStack: {
+  panel: HTMLElement;
+  scrim: HTMLElement;
+  dismiss: () => void;
+  returnFocus: (HTMLElement | null)[];
+}[] = [];
 let dialogTitleSequence = 0;
+
+function layerDialogs() {
+  dialogStack.forEach(({ panel, scrim }, index) => {
+    scrim.style.zIndex = String(50 + index * 2);
+    panel.inert = index !== dialogStack.length - 1;
+    panel.setAttribute("aria-modal", String(!panel.inert));
+  });
+}
 
 /** Open modals and pickers; the page behind stays locked until the last one closes. */
 let openModalCount = 0;
@@ -103,7 +116,7 @@ function onEscape(event: KeyboardEvent) {
   if (event.key !== "Escape" || event.defaultPrevented) return;
   // ponytail: pickers own their Escape and aren't in the stack, so detect them by class.
   if (document.querySelector(".picker-scrim")) return;
-  const top = dismissStack.at(-1);
+  const top = dialogStack.at(-1);
   if (!top) return;
   event.preventDefault();
   event.stopPropagation();
@@ -251,11 +264,23 @@ export function useModalMotion(
   const closingRef = useRef(false);
   const variant = opts?.variant ?? "center";
   const active = opts?.active !== false;
-  const managed = opts?.onDismiss !== undefined;
+  // Capture before React commits an autofocus field, including newly mounted confirmations.
+  const opener = useRef<HTMLElement | null>(document.activeElement as HTMLElement | null);
   const latest = useRef({ onDismiss: opts?.onDismiss, dirty: opts?.dirty });
   useEffect(() => {
     latest.current = { onDismiss: opts?.onDismiss, dirty: opts?.dirty };
   });
+
+  useLayoutEffect(() => {
+    if (active) return;
+    const remember = () => {
+      if (!panelRef.current?.contains(document.activeElement))
+        opener.current = document.activeElement as HTMLElement | null;
+    };
+    remember();
+    document.addEventListener("focusin", remember);
+    return () => document.removeEventListener("focusin", remember);
+  }, [active, panelRef]);
 
   useEffect(() => {
     if (!active || !scrimRef.current) return;
@@ -285,11 +310,21 @@ export function useModalMotion(
     };
   }, [active, scrimRef]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const panel = panelRef.current;
-    if (!active || !panel || panel.getAttribute("role") !== "dialog") return;
-    const previous = document.activeElement as HTMLElement | null;
-    panel.setAttribute("aria-modal", "true");
+    const scrim = scrimRef.current;
+    if (!active || !panel || !scrim || panel.getAttribute("role") !== "dialog") return;
+    const entry = {
+      panel,
+      scrim,
+      dismiss: () => dismissRef.current(),
+      // A discard/delete may close both dialogs in one commit. Keep the outer opener too.
+      returnFocus: [opener.current, ...(dialogStack.at(-1)?.returnFocus ?? [])],
+    };
+    const previousZIndex = scrim.style.zIndex;
+    dialogStack.push(entry);
+    layerDialogs();
+    if (dialogStack.length === 1) window.addEventListener("keydown", onEscape, true);
     if (!panel.hasAttribute("aria-labelledby") && !panel.hasAttribute("aria-label")) {
       const heading = panel.querySelector<HTMLElement>("h1, h2, h3");
       if (heading) {
@@ -298,6 +333,7 @@ export function useModalMotion(
       }
     }
     const frame = requestAnimationFrame(() => {
+      if (dialogStack.at(-1) !== entry) return;
       // Respect an autoFocus the modal already set; otherwise prefer a field,
       // then the safe footer action (Cancel), never the header close button.
       if (document.activeElement !== panel && panel.contains(document.activeElement)) return;
@@ -314,11 +350,7 @@ export function useModalMotion(
       }
     });
     const trap = (event: KeyboardEvent) => {
-      if (
-        event.key !== "Tab" ||
-        [...document.querySelectorAll('[aria-modal="true"]')].at(-1) !== panel
-      )
-        return;
+      if (event.key !== "Tab" || dialogStack.at(-1) !== entry) return;
       const elements = [
         ...panel.querySelectorAll<HTMLElement>(
           'button:not(:disabled), input:not(:disabled):not([type="hidden"]), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]',
@@ -326,6 +358,12 @@ export function useModalMotion(
       ].filter((el) => el.getClientRects().length > 0);
       const first = elements[0];
       const last = elements.at(-1);
+      if (!first) {
+        event.preventDefault();
+        panel.tabIndex = -1;
+        panel.focus();
+        return;
+      }
       if (
         event.shiftKey &&
         (document.activeElement === first || !panel.contains(document.activeElement))
@@ -344,9 +382,22 @@ export function useModalMotion(
     return () => {
       cancelAnimationFrame(frame);
       document.removeEventListener("keydown", trap);
-      if (previous?.isConnected) previous.focus({ preventScroll: true });
+      const wasTop = dialogStack.at(-1) === entry;
+      dialogStack.splice(dialogStack.indexOf(entry), 1);
+      panel.inert = false;
+      panel.setAttribute("aria-modal", "true");
+      scrim.style.zIndex = previousZIndex;
+      layerDialogs();
+      if (!dialogStack.length) window.removeEventListener("keydown", onEscape, true);
+      if (wasTop) {
+        const target = entry.returnFocus.find(
+          (element) =>
+            element?.isConnected && !panel.contains(element) && !element.closest("[inert]"),
+        );
+        target?.focus({ preventScroll: true });
+      }
     };
-  }, [active, panelRef]);
+  }, [active, panelRef, scrimRef]);
 
   /* Cancel any in-flight exit animation on unmount, and also whenever
      `active` flips — a picker/sheet's owner stays mounted across opens, and
@@ -455,15 +506,10 @@ export function useModalMotion(
     });
   }, [requestClose]);
 
-  useEffect(() => {
-    if (!active || !managed) return;
-    const entry = { dismiss };
-    if (dismissStack.push(entry) === 1) window.addEventListener("keydown", onEscape, true);
-    return () => {
-      dismissStack.splice(dismissStack.indexOf(entry), 1);
-      if (!dismissStack.length) window.removeEventListener("keydown", onEscape, true);
-    };
-  }, [active, managed, dismiss]);
+  const dismissRef = useRef(dismiss);
+  useLayoutEffect(() => {
+    dismissRef.current = dismiss;
+  }, [dismiss]);
 
   return { requestClose, dismiss };
 }

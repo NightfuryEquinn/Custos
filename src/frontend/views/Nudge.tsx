@@ -4,7 +4,6 @@ import { TimePicker } from "@/frontend/components/DateTimePicker";
 import { LoadingBloom } from "@/frontend/components/LoadingBloom";
 import { ConfirmDialog, EmptyState, Icon } from "@/frontend/components/ui";
 import { useEnter, useModalMotion } from "@/frontend/lib/animate";
-import { fmtTime } from "@/frontend/lib/data";
 import { toast } from "@/frontend/lib/feedback";
 import type { NudgesState } from "@/frontend/lib/hooks/useNudges";
 import {
@@ -62,7 +61,11 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
   ref,
 ) {
   const { nudges, today, timeZone, pending } = nudge;
-  const [searchDay, setSearchDay] = useState<{ id: string; day: string } | null>(null);
+  const [searchDay, setSearchDay] = useState<{ id: string; day: string; month: string } | null>(
+    null,
+  );
+  const [openHistories, setOpenHistories] = useState<ReadonlySet<string>>(new Set());
+  const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
   const [editor, setEditor] = useState<Editor>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -78,6 +81,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
   const [deleting, setDeleting] = useState<NudgeRow | null>(null);
   /** Cards with a write in flight, so a fast double tap cannot count from a stale number. */
   const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
+  const busyRef = useRef(new Set<string>());
   const [push, setPush] = useState<PushStatus | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushNote, setPushNote] = useState("");
@@ -169,13 +173,19 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
 
   /** Run one card's write, ignoring taps on that card until it lands. */
   const withBusy = async (id: string, work: () => Promise<unknown>) => {
-    if (busy.has(id)) return;
+    if (busyRef.current.has(id)) return;
+    busyRef.current.add(id);
     setBusy((prev) => new Set(prev).add(id));
+    setCardErrors((prev) => ({ ...prev, [id]: "" }));
     try {
       await work();
     } catch (err) {
-      toast(err instanceof Error ? err.message : "Could not update nudge");
+      setCardErrors((prev) => ({
+        ...prev,
+        [id]: err instanceof Error ? err.message : "Could not update nudge",
+      }));
     } finally {
+      busyRef.current.delete(id);
       setBusy((prev) => {
         const next = new Set(prev);
         next.delete(id);
@@ -185,16 +195,11 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
     }
   };
 
-  /** Move today's count by the nudge's step and say so when that reaches the goal. */
+  /** Move today's count by the nudge's step; the live count announces the result. */
   const step = (row: NudgeRow, direction: 1 | -1) =>
     withBusy(row.id, async () => {
       if (!today) return;
-      const before = countToday(row, today);
-      const count = Math.max(0, before + direction * (row.step ?? 1));
       await nudge.recordCheckIn(row, direction);
-      if (before < row.target && count >= row.target) {
-        toast("Goal reached. Nudge paused until tomorrow");
-      }
     });
 
   const setOn = (row: NudgeRow, on: boolean) =>
@@ -267,8 +272,9 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
     const row = nudges.find((row) => row.id === target.id);
     if (!row) return false;
     if (target.date) {
-      setSearchDay({ id: row.id, day: target.date });
-      focusSearchRecord(`nudge:${row.id}`);
+      setSearchDay({ id: row.id, day: target.date, month });
+      setOpenHistories((prev) => new Set(prev).add(row.id));
+      focusSearchRecord(`nudge:${row.id}:${target.date}`);
     } else openEditor(row);
     return true;
   });
@@ -302,10 +308,12 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
             <Icon name="bell" size={18} />
           </span>
           <div className="nudge-notice-copy">
-            <h2>Notifications are off on this device</h2>
+            <h2>Notifications off on this device</h2>
             <p>
               {push.supported
-                ? "Nudges reach you as push notifications, even when Custos is closed. Turn them on for this device to start receiving them."
+                ? push.permission === "denied"
+                  ? "Allow notifications in your browser settings, then enable them here."
+                  : "Receive reminders even when Custos is closed."
                 : PUSH_FAILURE_NOTE.unsupported}
             </p>
             {pushNote ? (
@@ -321,7 +329,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
               disabled={pushBusy}
               onClick={() => void turnOnPush()}
             >
-              {pushBusy ? "Turning on…" : "Turn on"}
+              {pushBusy ? "Enabling…" : "Enable"}
             </button>
           ) : null}
         </section>
@@ -335,79 +343,91 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
               const met = goalMet(row, today);
               const sync = syncOf(row.id);
               const next = row.enabled && !met ? nextNudgeAt(row, Date.now(), timeZone) : null;
+              const historyOpen = openHistories.has(row.id);
+              const initialDay =
+                searchDay?.id === row.id && searchDay.month === month ? searchDay.day : undefined;
 
               return (
                 <article
                   key={row.id}
                   data-search-id={`nudge:${row.id}`}
-                  className={"nudge-card" + (met ? " met" : "") + (row.enabled ? "" : " off")}
+                  className={"nudge-card" + (met ? " met" : "")}
                 >
                   <header className="nudge-card-head">
                     <button
                       type="button"
                       className="daily-title nudge-title"
+                      aria-label={`Edit ${row.title}`}
                       onClick={() => openEditor(row)}
                     >
-                      <span className="nudge-name">{row.title}</span>
+                      <span className="nudge-name">
+                        {row.title} <Icon name="edit" size={14} />
+                      </span>
                       {row.description ? (
                         <span className="nudge-desc">{row.description}</span>
                       ) : null}
                     </button>
+                  </header>
+
+                  <NudgeBloom count={count} target={row.target} />
+                  <div className="nudge-counter">
+                    <div
+                      className="nudge-count"
+                      role="status"
+                      aria-atomic="true"
+                      aria-label={`${row.title}: ${count} of ${row.target} ${row.unit}${met ? ". Goal reached" : ""}`}
+                    >
+                      <strong>{count}</strong>
+                      <span>
+                        / {row.target} {row.unit}
+                      </span>
+                    </div>
+
+                    <div className="nudge-actions">
+                      <button
+                        className="ghost-btn"
+                        type="button"
+                        disabled={count === 0 || busy.has(row.id)}
+                        aria-label={`${row.title}: remove ${row.step ?? 1} ${row.unit}`}
+                        onClick={() => void step(row, -1)}
+                      >
+                        <span aria-hidden="true">−</span> {row.step ?? 1}
+                      </button>
+                      <button
+                        className="primary-btn"
+                        type="button"
+                        disabled={busy.has(row.id)}
+                        aria-label={`${row.title}: add ${row.step ?? 1} ${row.unit}`}
+                        onClick={() => void step(row, 1)}
+                      >
+                        <span aria-hidden="true">+</span> {row.step ?? 1}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="nudge-reminders">
+                    <label className="nudge-reminder-label" htmlFor={`nudge-on-${row.id}`}>
+                      Reminders
+                    </label>
                     <label className="switch">
                       <input
+                        id={`nudge-on-${row.id}`}
                         type="checkbox"
                         checked={row.enabled}
                         disabled={busy.has(row.id)}
-                        aria-label={`${row.title}: notifications ${row.enabled ? "on" : "off"}`}
+                        aria-label={`${row.title}: reminders`}
                         onChange={(e) => void setOn(row, e.target.checked)}
                       />
                       <span className="toggle-ui" />
                     </label>
-                  </header>
-
-                  <NudgeBloom count={count} target={row.target} />
-                  <div className="nudge-count" role="status">
-                    <strong>{count}</strong>
-                    <span>
-                      of {row.target} {row.unit}
-                    </span>
-                  </div>
-                  <progress
-                    value={Math.min(count, row.target)}
-                    max={row.target}
-                    aria-label="Progress"
-                  />
-
-                  <div className="nudge-actions">
-                    <button
-                      className="ghost-btn"
-                      type="button"
-                      disabled={count === 0 || busy.has(row.id)}
-                      aria-label={`${row.title}: remove ${row.step ?? 1}`}
-                      onClick={() => void step(row, -1)}
-                    >
-                      <span aria-hidden="true">−</span> {row.step ?? 1}
-                    </button>
-                    <button
-                      className="primary-btn"
-                      type="button"
-                      disabled={busy.has(row.id)}
-                      aria-label={`${row.title}: add ${row.step ?? 1}`}
-                      onClick={() => void step(row, 1)}
-                    >
-                      <span aria-hidden="true">+</span> {row.step ?? 1}
-                    </button>
                   </div>
 
                   <p className="nudge-meta">
-                    {everyLabel(row.everyMin)} · {fmtTime(row.windowStart)} to{" "}
-                    {fmtTime(row.windowEnd)}
-                    <br />
                     {!row.enabled
-                      ? "Notifications are off"
+                      ? "Reminders off"
                       : met
-                        ? "Goal met today. Resumes tomorrow"
-                        : `Next ${nextLabel(next!, timeZone, today)}`}
+                        ? "Goal reached · resumes tomorrow"
+                        : `Next around ${nextLabel(next!, timeZone, today)}`}
                     {sync ? (
                       <span className={"daily-sync" + (sync === "failed" ? " failed" : "")}>
                         {" "}
@@ -416,13 +436,40 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
                     ) : null}
                   </p>
 
-                  <NudgeHistory
-                    key={searchDay?.id === row.id ? searchDay.day : row.id}
-                    row={row}
-                    today={today}
-                    month={month}
-                    initialDay={searchDay?.id === row.id ? searchDay.day : undefined}
-                  />
+                  {cardErrors[row.id] ? (
+                    <p className="auth-error" role="alert">
+                      {cardErrors[row.id]}
+                    </p>
+                  ) : null}
+                  <div className="nudge-history-disclosure">
+                    <button
+                      type="button"
+                      className="disclosure-btn"
+                      aria-expanded={historyOpen}
+                      aria-controls={`nudge-history-${row.id}`}
+                      onClick={() =>
+                        setOpenHistories((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(row.id)) next.delete(row.id);
+                          else next.add(row.id);
+                          return next;
+                        })
+                      }
+                    >
+                      History <Icon name={historyOpen ? "chevU" : "chevD"} size={15} />
+                    </button>
+                    <div id={`nudge-history-${row.id}`} hidden={!historyOpen}>
+                      {historyOpen ? (
+                        <NudgeHistory
+                          key={`${row.id}:${month}:${initialDay ?? ""}`}
+                          row={row}
+                          today={today}
+                          month={month}
+                          initialDay={initialDay}
+                        />
+                      ) : null}
+                    </div>
+                  </div>
                 </article>
               );
             })}
@@ -430,18 +477,9 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
         ) : (
           <EmptyState
             title="No nudges yet"
-            sub="Add one for a habit like drinking water, stretching or checking your posture."
+            sub="A little reminder for water, movement, or a moment to pause."
           />
         )}
-
-        <div
-          className={nudges.length ? "nudge-add" : "todo-empty-action"}
-          data-tour="tour-nudge-add"
-        >
-          <button className="ghost-btn" type="button" onClick={() => openEditor()}>
-            <Icon name="plus" size={15} /> Add nudge
-          </button>
-        </div>
       </section>
 
       {deleting ? (
@@ -469,7 +507,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
             >
               <form
                 ref={panelRef}
-                className="modal sm"
+                className="modal sm routine-editor"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="nudge-editor-title"
@@ -493,6 +531,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
                 </div>
                 <div className="modal-body modal-scroll">
                   <div className="editor-fields">
+                    <h4 className="editor-section-title">Habit</h4>
                     <div className="editor-field">
                       <label className="fld-label" htmlFor="nudge-title">
                         Title
@@ -510,7 +549,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
 
                     <div className="editor-field">
                       <label className="fld-label" htmlFor="nudge-desc">
-                        Description
+                        Description (optional)
                       </label>
                       <input
                         id="nudge-desc"
@@ -522,6 +561,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
                       />
                     </div>
 
+                    <h4 className="editor-section-title">Goal</h4>
                     <div className="editor-field">
                       <span className="fld-label" id="nudge-goal-label">
                         Daily goal
@@ -554,7 +594,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
 
                     <div className="editor-field">
                       <label className="fld-label" htmlFor="nudge-step">
-                        Each tap counts
+                        Count per tap
                       </label>
                       <input
                         id="nudge-step"
@@ -568,9 +608,10 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
                       />
                     </div>
 
+                    <h4 className="editor-section-title">Reminders</h4>
                     <div className="editor-field">
                       <label className="fld-label" htmlFor="nudge-every">
-                        Repeats
+                        Reminder interval
                       </label>
                       <div className="nudge-every">
                         <input
@@ -588,7 +629,7 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
 
                     <div className="editor-field">
                       <span className="fld-label" id="nudge-hours-label">
-                        Only between
+                        Active hours
                       </span>
                       <div className="nudge-hours" role="group" aria-labelledby="nudge-hours-label">
                         <TimePicker value={windowStart} onChange={setWindowStart} />
@@ -596,8 +637,8 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
                         <TimePicker value={windowEnd} onChange={setWindowEnd} />
                       </div>
                       <p className="fld-hint">
-                        Notifications are checked every 15 minutes, so one can arrive a little late.
-                        Once today&apos;s goal is met, it stays quiet until tomorrow.
+                        Checked every 15 minutes; delivery may be later. Quiet after your daily
+                        goal.
                       </p>
                     </div>
 
@@ -626,8 +667,8 @@ export const Nudge = forwardRef<NudgeHandle, { nudge: NudgesState; month: string
                     </label>
                   </div>
                   <p id="nudge-notify-hint" className="fld-hint">
-                    When on, the server can read your title, goal and description to send
-                    notifications. Counts, adjustments and units stay encrypted.
+                    To send reminders, the server can read your title, goal, and description.
+                    Counts, adjustments, and units stay encrypted.
                   </p>
                 </div>
                 <div className="modal-foot">

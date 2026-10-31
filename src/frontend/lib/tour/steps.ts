@@ -132,7 +132,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "daily-nav",
       "Daily",
-      "Routines you repeat everyday, on specific weekdays, or once a week. Each completed one earns 10 points.",
+      "Repeat routines every day, on selected days, or weekly. Each completion earns 10 points.",
       navTarget("daily"),
       "right",
     ),
@@ -145,13 +145,13 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "daily-list",
       "Routines",
-      "Tick a routine to complete it. The higher-contrast activity heatmaps follow Today or This week. Browse earlier weeks below to tick missed occurrences. The number beside it is its streak. Tap a title to rename it, change when it repeats, or archive it. Archived routines can be restored with their streak and points, or deleted for good.",
+      "Tick to complete; select a title to edit. The number beside it is its streak. Open Activity to update past check-ins, or Archived to restore a routine.",
       '[data-tour="tour-daily-list"]',
     ),
     lastStep(
       "daily-add",
       "Add a routine",
-      "Type a title for a daily routine, or open Add routine to pick specific weekdays or once a week.",
+      "Choose a title and recurrence. New routines default to the selected Today or This week period.",
       '[data-tour="tour-daily-add"]',
     ),
   ],
@@ -166,7 +166,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "nudge-list",
       "Your nudges",
-      "Use the plus and minus controls to grow your habit bloom. Select a day on the calendar to see its total. A nudge stays quiet once the goal is met and starts again tomorrow. The switch turns it on or off.",
+      "Use plus and minus to grow your bloom. Open History to browse daily totals. Reminders stop after your goal and resume tomorrow; turning them off still lets you log progress.",
       '[data-tour="tour-nudge-list"]',
     ),
     lastStep(

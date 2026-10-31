@@ -503,9 +503,11 @@ h3 {
     color var(--dur-fast) var(--ease);
 }
 
-.tour-help-btn:hover {
-  background: var(--surface-2);
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .tour-help-btn:hover {
+    background: var(--surface-2);
+    color: var(--accent);
+  }
 }
 
 .scroll {
@@ -533,8 +535,10 @@ html.modal-open .scroll {
   color: var(--ink-soft);
 }
 
-.icon-btn:hover:not(:disabled) {
-  background: var(--surface-2);
+@media (hover: hover) and (pointer: fine) {
+  .icon-btn:hover:not(:disabled) {
+    background: var(--surface-2);
+  }
 }
 
 .ghost-btn {
@@ -561,10 +565,12 @@ html.modal-open .scroll {
   overflow: hidden;
 }
 
-.ghost-btn:hover:not(:disabled) {
-  background: var(--surface-2);
-  color: var(--ink);
-  border-color: var(--border-strong);
+@media (hover: hover) and (pointer: fine) {
+  .ghost-btn:hover:not(:disabled) {
+    background: var(--surface-2);
+    color: var(--ink);
+    border-color: var(--border-strong);
+  }
 }
 
 .ghost-btn.danger {
@@ -572,19 +578,25 @@ html.modal-open .scroll {
   border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
 }
 
-.ghost-btn.danger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--danger) 12%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .ghost-btn.danger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+  }
 }
 
-.ghost-btn.danger.armed,
-.ghost-btn.danger.armed:hover:not(:disabled) {
+.ghost-btn.danger.armed {
   background: var(--danger);
   border-color: var(--danger);
   color: var(--accent-contrast, #fff);
 }
 
-.ghost-btn.danger.armed:hover:not(:disabled) {
-  filter: brightness(1.06);
+@media (hover: hover) and (pointer: fine) {
+  .ghost-btn.danger.armed:hover:not(:disabled) {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: var(--accent-contrast, #fff);
+    filter: brightness(1.06);
+  }
 }
 
 .ghost-btn.danger:focus-visible {
@@ -620,8 +632,10 @@ html.modal-open .scroll {
   overflow: hidden;
 }
 
-.primary-btn:hover:not(:disabled) {
-  filter: brightness(1.06);
+@media (hover: hover) and (pointer: fine) {
+  .primary-btn:hover:not(:disabled) {
+    filter: brightness(1.06);
+  }
 }
 
 .primary-btn:disabled {
@@ -680,8 +694,10 @@ html.modal-open .scroll {
   color: var(--accent);
 }
 
-.link-btn:hover:not(:disabled) {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .link-btn:hover:not(:disabled) {
+    text-decoration: underline;
+  }
 }
 
 .mini-btn {
@@ -698,9 +714,11 @@ html.modal-open .scroll {
   transition: all 0.13s;
 }
 
-.mini-btn:hover:not(:disabled) {
-  border-color: var(--border-strong);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .mini-btn:hover:not(:disabled) {
+    border-color: var(--border-strong);
+    color: var(--ink);
+  }
 }
 
 /* Text input */
@@ -903,7 +921,7 @@ textarea::placeholder {
 
 .switch input:focus-visible + .toggle-ui {
   outline: 2px solid var(--accent);
-  outline-offset: 4px;
+  outline-offset: 2px;
 }
 
 .switch input:disabled + .toggle-ui {
@@ -951,8 +969,10 @@ textarea::placeholder {
     transform var(--dur-fast) var(--ease);
 }
 
-.seg-btn:hover:not(.active) {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .seg-btn:hover:not(.active) {
+    color: var(--ink);
+  }
 }
 
 .seg-btn.active {
@@ -1256,8 +1276,10 @@ textarea::placeholder {
   transition: transform var(--dur-fast) var(--ease);
 }
 
-.accent-swatch:hover:not(:disabled) {
-  transform: scale(1.08);
+@media (hover: hover) and (pointer: fine) {
+  .accent-swatch:hover:not(:disabled) {
+    box-shadow: 0 0 0 2px var(--ink-soft);
+  }
 }
 
 .accent-swatch.is-selected {
@@ -1502,7 +1524,6 @@ textarea::placeholder {
   background: var(--accent);
   color: var(--accent-contrast, #fff);
   font-weight: 600;
-  transform: scale(1.04);
 }
 
 .month-pick-cell.today:not(.active) {
@@ -2305,13 +2326,6 @@ textarea::placeholder {
     transform var(--dur-fast) var(--ease),
     box-shadow var(--dur-fast) var(--ease),
     border-color var(--dur-fast) var(--ease);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .insight-card:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  }
 }
 
 .insight-card-head {
@@ -3311,8 +3325,6 @@ textarea::placeholder {
   background: var(--ink);
   color: var(--bg);
   border-color: var(--ink);
-  transform: scale(1.03);
-  box-shadow: var(--shadow);
 }
 
 .txn-panel {
@@ -4198,8 +4210,6 @@ textarea::placeholder {
   font-weight: 600;
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 8%, var(--surface-2));
-  transform: translateY(-1px);
-  box-shadow: var(--shadow);
 }
 
 .todo-tab-icon {
@@ -7752,57 +7762,6 @@ textarea::placeholder {
   position: relative;
   flex: none;
 }
-@media (hover: hover) and (pointer: fine) {
-  :is(
-      .icon-btn,
-      .txn-actions button,
-      .picker-nav-btn,
-      .tour-help-btn,
-      .shepherd-cancel-icon,
-      .msbtn,
-      .agenda-nav-btn,
-      .txn-filter-clear,
-      .capital-item-remove,
-      .capital-card-actions button,
-      .cmt-remove,
-      .cat-block-actions button,
-      .cat-sub-actions button,
-      .todo-panel-actions button
-    )[aria-label]:is(:hover, :focus-visible)::after {
-    content: attr(aria-label);
-    position: absolute;
-    left: 50%;
-    top: calc(100% + 8px);
-    transform: translateX(-50%);
-    z-index: 100;
-    padding: var(--sp-1) var(--sp-2);
-    border-radius: var(--r-xs);
-    background: var(--ink);
-    color: var(--bg);
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1.2;
-    white-space: nowrap;
-    pointer-events: none;
-  }
-
-  /* Every hint sits below its button. Buttons at a clipping edge — the right of
-     the viewport, or a modal's own overflow:hidden — right-align it instead of
-     centring, same as the dark-mode toggle, so it's never cut off. */
-  :is(
-      .theme-toggle,
-      .tour-help-btn,
-      .page-refresh-btn,
-      .tb-actions .icon-btn,
-      .modal .icon-btn,
-      .shepherd-cancel-icon
-    )[aria-label]:is(:hover, :focus-visible)::after {
-    right: 0;
-    left: auto;
-    transform: none;
-  }
-}
-
 .wallet-menu-item,
 .am-item,
 .picker-category-item,
@@ -7999,10 +7958,6 @@ select.text-in {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--sp-3);
-  }
-
-  .agenda-row:hover {
-    transform: translateY(-1px);
   }
 }
 
@@ -9046,10 +9001,6 @@ select.text-in {
   color: var(--bg);
   font-size: 12px;
 }
-.cat-block-actions button[aria-label]::after,
-.cat-sub-actions button[aria-label]::after {
-  display: none;
-}
 .daily-history-nav {
   display: flex;
   align-items: center;
@@ -9099,12 +9050,11 @@ select.text-in {
   cursor: progress;
 }
 .daily-heat-cell:focus-visible {
-  outline: 3px solid var(--ink);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 .daily-heat-cell.today {
-  outline: 2px solid var(--ink);
-  outline-offset: 1px;
+  box-shadow: inset 0 -3px var(--ink);
 }
 .daily-heat-cell[data-pending] {
   border-style: dashed;
@@ -9176,15 +9126,6 @@ select.text-in {
 }
 
 /* Habit garden: a bloom grows with each day's progress. */
-.nudge-card {
-  position: relative;
-  overflow: hidden;
-  background: var(--surface);
-}
-.nudge-card .nudge-count {
-  position: relative;
-  margin-top: 8px;
-}
 .nudge-bloom {
   display: block;
   width: 150px;
@@ -9209,9 +9150,6 @@ select.text-in {
 .bloom-leaf {
   fill: var(--accent);
   opacity: 0.5;
-}
-.nudge-card.met .nudge-bloom {
-  filter: drop-shadow(0 3px 10px color-mix(in srgb, var(--accent) 20%, transparent));
 }
 .nudge-history {
   padding-top: 16px;
@@ -9250,8 +9188,8 @@ select.text-in {
   background: color-mix(in srgb, var(--accent) 35%, var(--surface));
 }
 .nudge-calendar-day[aria-pressed="true"] {
-  outline: 2px solid var(--ink);
-  outline-offset: 1px;
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
 }
 .nudge-calendar-day:disabled {
   opacity: 0.3;
