@@ -2,13 +2,7 @@ import { notFound } from "@/api/lib/errors";
 import { serializeDoc } from "@/api/lib/serialize";
 import type { SessionVariables } from "@/api/middleware/session";
 import { sessionAuth } from "@/api/middleware/session";
-import { getCollections, getDb, getMongoClient } from "@/db";
-import { conflict, badRequest } from "@/api/lib/errors";
-import {
-  emptyPersonalization,
-  PERSONALIZATION_NOTICE,
-  HISTORY_COLLECTION,
-} from "@/lib/personalization";
+import { getCollections, getDb } from "@/db";
 import { updateConsentSchema } from "@/schemas/consent";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
@@ -29,6 +23,8 @@ async function getOrCreateConsent(accountId: string) {
   if (existing) return existing;
 
   const now = new Date();
+  /* Upsert, not insert: two concurrent first loads would otherwise race the
+     unique accountId index into E11000. */
   await consent.updateOne(
     { accountId },
     {
@@ -51,54 +47,15 @@ async function getOrCreateConsent(accountId: string) {
 consentRoutes.get("/", async (c) => {
   const accountId = c.get("accountId");
   const record = await getOrCreateConsent(accountId);
-  return c.json({
-    consent: {
-      ...serializeDoc(record),
-      personalization: record.personalization ?? emptyPersonalization(),
-    },
-    available: process.env.PERSONALIZATION_ENABLED === "true",
-  });
+  return c.json({ consent: serializeDoc(record) });
 });
 
 consentRoutes.patch("/", zValidator("json", updateConsentSchema), async (c) => {
   const accountId = c.get("accountId");
-  const { optedIn, personalization } = c.req.valid("json");
+  const { optedIn } = c.req.valid("json");
   const { consent } = getCollections(getDb());
 
   await getOrCreateConsent(accountId);
-
-  if (personalization) {
-    if (personalization.noticeVersion !== PERSONALIZATION_NOTICE)
-      badRequest("Read the current personalisation notice");
-    if (personalization.enabled && process.env.PERSONALIZATION_ENABLED !== "true")
-      badRequest("Personalisation unavailable");
-    await getMongoClient().withSession((session) =>
-      session.withTransaction(async () => {
-        const current = await consent.findOne({ accountId }, { session });
-        const pref = current?.personalization ?? emptyPersonalization();
-        if (pref.epoch !== personalization.expectedEpoch)
-          conflict("Consent changed; refresh and retry");
-        await consent.updateOne(
-          { accountId },
-          {
-            $set: {
-              personalization: {
-                enabled: personalization.enabled,
-                noticeVersion: PERSONALIZATION_NOTICE,
-                epoch: pref.epoch + 1,
-              },
-              updatedAt: new Date(),
-            },
-          },
-          { session },
-        );
-        await getDb().collection(HISTORY_COLLECTION).deleteMany({ accountId }, { session });
-      }),
-    );
-    const record = await consent.findOne({ accountId });
-    return c.json({ consent: serializeDoc(record!) });
-  }
-  if (optedIn === undefined) badRequest("No consent change supplied");
 
   const updated = await consent.findOneAndUpdate(
     { accountId },

@@ -20,7 +20,9 @@ export function resolveStartView(
   isPhone: boolean,
 ): ViewId | null {
   if (hash.replace(/^#\/?/, "")) return null;
-  return startView ?? (isPhone ? firstFavorite : "overview");
+  /* A saved start page can name a retired view (e.g. 7.0.0 "suggestions"). */
+  if (startView && VIEW_IDS.includes(startView)) return startView;
+  return isPhone ? firstFavorite : "overview";
 }
 
 /** URL-backed destinations survive refresh and support browser Back/Forward. */

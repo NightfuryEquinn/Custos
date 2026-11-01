@@ -8,21 +8,20 @@
  */
 
 export const DB_NAME = "custos-cache";
-/* v2 added the api-gets `updatedAt` index; v3 added the `outbox` store; v4 adds `unlock`. */
-export const DB_VERSION = 5;
+/* v2 added the api-gets `updatedAt` index; v3 added the `outbox` store; v4 added `unlock`;
+   v5 added `personalization` (7.0.0 Suggestions); v6 deletes it. Never lower this. */
+export const DB_VERSION = 6;
 
 export const STORES = {
   apiGets: "api-gets",
   outbox: "outbox",
   unlock: "unlock",
-  personalization: "personalization",
 } as const;
 
 let sharedDb: Promise<IDBDatabase> | null = null;
 
 function upgrade(db: IDBDatabase, tx: IDBTransaction): void {
-  if (!db.objectStoreNames.contains(STORES.personalization))
-    db.createObjectStore(STORES.personalization, { keyPath: "address" });
+  if (db.objectStoreNames.contains("personalization")) db.deleteObjectStore("personalization");
   const apiGets = db.objectStoreNames.contains(STORES.apiGets)
     ? tx.objectStore(STORES.apiGets)
     : db.createObjectStore(STORES.apiGets, { keyPath: "key" });

@@ -7,7 +7,6 @@
  */
 export const VIEW_IDS = [
   "overview",
-  "suggestions",
   "daily",
   "nudge",
   "todos",

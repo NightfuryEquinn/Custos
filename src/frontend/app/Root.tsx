@@ -1,4 +1,3 @@
-import { clearPersonalizationLocal } from "@/frontend/lib/personalization-client";
 import { LedgerApp } from "@/frontend/app/LedgerApp";
 import { AuthScreen, getSavedAccount, logoutSession, UnlockScreen } from "@/frontend/auth";
 import { TermsGate } from "@/frontend/auth/components/TermsGate";
@@ -154,10 +153,7 @@ export function Root() {
     try {
       /* The encrypted read cache holds ciphertext plus routine ids, periods and dates.
          It is dropped on an explicit sign-out; queued writes stay so nothing is lost. */
-      if (leaving) {
-        void clearCipherCacheForAddress(leaving);
-        void clearPersonalizationLocal(leaving);
-      }
+      if (leaving) void clearCipherCacheForAddress(leaving);
       ledgerKeyStore.clear();
       seriesKeyStore.clear();
       sessionSecrets.clearAll();

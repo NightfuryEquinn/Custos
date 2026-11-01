@@ -38,24 +38,29 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
-    version: "7.0.0",
-    date: "October 2026",
-    lead: "Private suggestions that learn from the way you use Custos.",
+    version: "7.0.1",
+    date: "November 2026",
+    lead: "Suggestions is retired, and syncing, reminders and sign-out are sturdier.",
     highlights: [
       {
-        icon: "insights",
-        title: "Your next useful step",
-        body: "Open Suggestions for explainable next steps across budgets, savings, bills, tasks, routines and vehicles. Helpful and dismiss feedback adjust their order.",
-      },
-      {
         icon: "shield",
-        title: "Your choice, with a purpose",
-        body: "Personalised suggestions need a fresh opt-in. Calculations run on your device; limited behaviour history syncs encrypted for up to 30 days. Turning off stops collection and erases recommendation history.",
+        title: "Suggestions retired",
+        body: "Suggestions has been removed. Its recommendation history is erased from this device and the server. The data-sharing preference is back under Data & privacy.",
       },
       {
-        icon: "list",
-        title: "See what is remembered",
-        body: "Browse Recommendation history or clear it to start learning again. Existing insights remain available with personalisation off.",
+        icon: "wifi-on",
+        title: "Offline edits stay in order",
+        body: "An edit made while its record is still waiting to sync now waits for it, and a new edit to a failed change retries automatically.",
+      },
+      {
+        icon: "bell",
+        title: "One reminder, once",
+        body: "Overlapping reminder runs no longer send the same email or push twice, and reminder emails are rate-limited per account.",
+      },
+      {
+        icon: "info",
+        title: "Easier to use",
+        body: "Switches and buttons are announced properly by screen readers, fields no longer zoom the page on iPhone, and the app loads faster.",
       },
     ],
   },

@@ -2,8 +2,6 @@ import { useEnter } from "@/frontend/lib/animate";
 import { Brand } from "@/frontend/components/Brand";
 import { LoadingBloom } from "@/frontend/components/LoadingBloom";
 import { Icon } from "@/frontend/components/ui";
-import { PERSONALIZATION_NOTICE } from "@/lib/personalization";
-import { apiFetch } from "@/frontend/lib/api";
 import { api } from "@/frontend/lib/api";
 import type { Account, IdentityRecord } from "@/frontend/lib/types";
 import { getAddress } from "ethers";
@@ -39,7 +37,7 @@ import {
 } from "@/frontend/lib/hooks/useAccountNotifyEmail";
 import { writeCachedBudgetAlertsEnabled } from "@/frontend/lib/hooks/useBudgetAlertsEnabled";
 import { markSessionVerified } from "@/frontend/auth/lib/session-trust";
-import { hasSharingChoiceMade, markSharingChoiceMade } from "./lib/consent";
+import { hasSharingChoiceMade, markSharingChoiceMade, setConsent } from "./lib/consent";
 import { SHARING_SIGNUP_DESCRIPTION, SHARING_SIGNUP_TITLE, SIGNUP_LEAD } from "@/lib/legal";
 import { walletClient } from "./lib/wallet";
 import { TermsModal } from "./components/LegalModals";
@@ -111,21 +109,8 @@ async function finishAuth(
   writeCachedBudgetAlertsEnabled(user.budgetAlertsEnabled !== false);
 
   if (sharingOptIn !== undefined) {
-    const consentState = await apiFetch<{
-      available: boolean;
-      consent: { personalization?: { enabled: boolean; epoch: number } };
-    }>("/consent");
-    if (consentState.available && !consentState.consent.personalization?.enabled)
-      await apiFetch("/consent", {
-        method: "PATCH",
-        body: {
-          personalization: {
-            enabled: sharingOptIn,
-            noticeVersion: PERSONALIZATION_NOTICE,
-            expectedEpoch: consentState.consent.personalization?.epoch ?? 0,
-          },
-        },
-      });
+    await api.consent.update(sharingOptIn);
+    setConsent(idn.address, sharingOptIn);
     markSharingChoiceMade(idn.address);
   }
 
@@ -849,11 +834,7 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
           <div className="consent-card auth-share-card">
             <div className="consent-title">{SHARING_SIGNUP_TITLE}</div>
             <p className="consent-desc">{SHARING_SIGNUP_DESCRIPTION}</p>
-            <div
-              className="auth-share-choices"
-              role="radiogroup"
-              aria-label="Personalised suggestions choice"
-            >
+            <div className="auth-share-choices" role="radiogroup" aria-label="Data sharing choice">
               <button
                 type="button"
                 className={`auth-share-choice${sharingChoice === "in" ? " is-selected" : ""}`}
@@ -862,9 +843,7 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
                 onClick={() => setSharingChoice("in")}
               >
                 <span className="auth-share-choice-label">Opt in</span>
-                <span className="auth-share-choice-hint">
-                  Allow encrypted recommendation history
-                </span>
+                <span className="auth-share-choice-hint">Record a sharing preference</span>
               </button>
               <button
                 type="button"
@@ -875,7 +854,7 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
               >
                 <span className="auth-share-choice-label">Opt out</span>
                 <span className="auth-share-choice-hint">
-                  No recommendation history — free features unchanged
+                  No preference recorded — free features unchanged
                 </span>
               </button>
             </div>

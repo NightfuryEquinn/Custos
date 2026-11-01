@@ -94,15 +94,6 @@ export const SHELL_TOUR_STEPS: TourStep[] = [
 ];
 
 const VIEW_STEPS: Record<ViewId, TourStep[]> = {
-  suggestions: [
-    step(
-      "suggestions",
-      "Private suggestions",
-      "Choose whether Custos can remember limited activity. Suggestions explain the next step; History shows what is remembered.",
-      navTarget("suggestions"),
-      "right",
-    ),
-  ],
   overview: [
     step(
       "overview-nav",

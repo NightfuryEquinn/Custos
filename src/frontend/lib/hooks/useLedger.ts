@@ -40,7 +40,6 @@ import { connectivity } from "@/frontend/lib/net/connectivity";
 import { clientObjectId } from "@/frontend/lib/sync/object-id";
 import { discardOutbox, enqueueOutbox, listOutbox } from "@/frontend/lib/sync/outbox";
 import { drainOutbox } from "@/frontend/lib/sync/engine";
-import { recordBehaviour } from "@/frontend/lib/personalization-client";
 import { useDaily } from "@/frontend/lib/hooks/useDaily";
 import { useNudges } from "@/frontend/lib/hooks/useNudges";
 import {
@@ -2042,12 +2041,6 @@ export function useLedger(walletAddress: string) {
     activeWallet,
     allExpenses,
     accountExpenses: allExpensesHealed,
-    financialHistoryComplete:
-      allExpensesQuery.isSuccess &&
-      !allExpensesQuery.isFetching &&
-      allExpensesHealed.length < LIST_PAGE_LIMIT * 20 &&
-      !eventsQuery.isLoading &&
-      !capitalPlansQuery.isLoading,
     expenses,
     savingsTxns,
     balanceExpenses,
@@ -2087,43 +2080,19 @@ export function useLedger(walletAddress: string) {
     transferHistory,
     saveWallet: saveWalletMutation.mutateAsync,
     deleteWallet: deleteWalletMutation.mutateAsync,
-    saveExpense: async (...args: Parameters<typeof saveExpenseMutation.mutateAsync>) => {
-      const result = await saveExpenseMutation.mutateAsync(...args);
-      void recordBehaviour(wallet, "action", "transactions");
-      return result;
-    },
+    saveExpense: saveExpenseMutation.mutateAsync,
     deleteExpense: (id: string, opts?: DeleteScopeOpts) =>
       deleteExpenseMutation.mutateAsync({ id, opts }),
-    saveEvent: async (...args: Parameters<typeof saveEventMutation.mutateAsync>) => {
-      const result = await saveEventMutation.mutateAsync(...args);
-      void recordBehaviour(wallet, "action", "schedule");
-      return result;
-    },
+    saveEvent: saveEventMutation.mutateAsync,
     deleteEvent: (id: string, opts?: DeleteScopeOpts) =>
       deleteEventMutation.mutateAsync({ id, opts }),
-    saveTodoList: async (...args: Parameters<typeof saveTodoListMutation.mutateAsync>) => {
-      const result = await saveTodoListMutation.mutateAsync(...args);
-      void recordBehaviour(wallet, "action", "todos");
-      return result;
-    },
+    saveTodoList: saveTodoListMutation.mutateAsync,
     deleteTodoList: deleteTodoListMutation.mutateAsync,
-    saveCapitalPlan: async (...args: Parameters<typeof saveCapitalPlanMutation.mutateAsync>) => {
-      const result = await saveCapitalPlanMutation.mutateAsync(...args);
-      void recordBehaviour(wallet, "action", "capitals");
-      return result;
-    },
+    saveCapitalPlan: saveCapitalPlanMutation.mutateAsync,
     deleteCapitalPlan: deleteCapitalPlanMutation.mutateAsync,
-    saveVehicle: async (...args: Parameters<typeof saveVehicleMutation.mutateAsync>) => {
-      const result = await saveVehicleMutation.mutateAsync(...args);
-      void recordBehaviour(wallet, "action", "vehicles");
-      return result;
-    },
+    saveVehicle: saveVehicleMutation.mutateAsync,
     deleteVehicle: deleteVehicleMutation.mutateAsync,
-    saveVehicleFill: async (...args: Parameters<typeof saveVehicleFillMutation.mutateAsync>) => {
-      const result = await saveVehicleFillMutation.mutateAsync(...args);
-      void recordBehaviour(wallet, "action", "vehicles");
-      return result;
-    },
+    saveVehicleFill: saveVehicleFillMutation.mutateAsync,
     deleteVehicleFill: deleteVehicleFillMutation.mutateAsync,
     isBudgetsPending: setBudgetsMutation.isPending,
     isSaving:

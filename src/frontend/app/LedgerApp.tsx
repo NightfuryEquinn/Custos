@@ -1,5 +1,3 @@
-import { withoutBehaviour } from "@/frontend/lib/personalization-client";
-import { usePersonalization } from "@/frontend/lib/hooks/usePersonalization";
 import { AccountMenu } from "@/frontend/auth";
 import { TourWelcomeModal } from "@/frontend/auth/components/TourWelcomeModal";
 import { WhatsNewModal } from "@/frontend/auth/components/WhatsNewModal";
@@ -85,9 +83,6 @@ const EventModal = lazy(() =>
 const CategoriesView = lazy(() =>
   import("@/frontend/views/Categories").then((m) => ({ default: m.Categories })),
 );
-const Suggestions = lazy(() =>
-  import("@/frontend/views/Suggestions").then((m) => ({ default: m.Suggestions })),
-);
 const DailyView = lazy(() => import("@/frontend/views/Daily").then((m) => ({ default: m.Daily })));
 const NudgeView = lazy(() => import("@/frontend/views/Nudge").then((m) => ({ default: m.Nudge })));
 const TodoListView = lazy(() =>
@@ -159,7 +154,6 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
     [ledger.allExpenses, ledger.accountExpenses],
   );
   const { view, setView } = useJournalNavigation();
-  usePersonalization(account.address, view);
   const [modal, setModal] = useState<
     | Expense
     | {
@@ -894,10 +888,10 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
                   vehicleFills={ledger.vehicleFills}
                   dailyRoutines={ledger.daily.routines}
                   dailyCompletions={ledger.daily.completions}
-                  onImportExpenses={(...args) => withoutBehaviour(() => importExpenses(...args))}
-                  onImportEvents={(...args) => withoutBehaviour(() => importEvents(...args))}
-                  onImportTodos={(...args) => withoutBehaviour(() => importTodos(...args))}
-                  onRestoreBackup={(...args) => withoutBehaviour(() => restoreBackup(...args))}
+                  onImportExpenses={importExpenses}
+                  onImportEvents={importEvents}
+                  onImportTodos={importTodos}
+                  onRestoreBackup={restoreBackup}
                   onTakeTour={() => startViewTour(view)}
                   onWhatsNew={openWhatsNew}
                   navSidebarItems={sidebarItems}
@@ -1106,20 +1100,6 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
                   capitalPlans={ledger.capitalPlans}
                   setMonth={setMonth}
                   balanceExpenses={ledger.balanceExpenses}
-                />
-              )}
-              {view === "suggestions" && (
-                <Suggestions
-                  ledger={ledger}
-                  address={account.address}
-                  onOpen={(target, events) =>
-                    selectSearchResult(target, {
-                      expenses: ledger.accountExpenses,
-                      events,
-                      fills: ledger.vehicleFills,
-                      checkIns: [],
-                    })
-                  }
                 />
               )}
               {view === "transparency" && <Transparency />}

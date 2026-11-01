@@ -7,8 +7,7 @@
     "src/frontend/lib/search/worker.ts",
     "scripts/*.ts",
     "website/motion.ts",
-    "website/theme.ts",
-    "src/**/*.test.ts"
+    "website/theme.ts"
   ],
   "project": ["src/**", "scripts/**"],
   "exclude": ["duplicates"],

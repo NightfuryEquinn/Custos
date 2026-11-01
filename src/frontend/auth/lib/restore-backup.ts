@@ -15,6 +15,7 @@ import type {
   Vehicle,
 } from "@/frontend/lib/types";
 import type { DailyCompletion, DailyRoutine } from "@/lib/daily";
+import { TAB_SLOTS, VIEW_IDS, type ViewId } from "@/lib/views";
 import type { BackupSettings, LedgerBackupPlain } from "./encrypted-backup";
 
 type BackupRestoreApi = {
@@ -323,8 +324,19 @@ async function restoreSettings(settings: BackupSettings, api: BackupRestoreApi):
     await api.updateUser(userPatch);
   }
 
-  const { tourPreference, toursSeen, accent, navTabs, navOrder, startView } = settings;
-  const profilePatch = { tourPreference, toursSeen, accent, navTabs, navOrder, startView };
+  const { tourPreference, toursSeen, accent } = settings;
+  /* Older backups can name retired views (7.0.0 "suggestions"); the profile
+     schema rejects unknown ids, which would drop the whole patch. */
+  const isView = (id: string): id is ViewId => VIEW_IDS.includes(id as ViewId);
+  const navTabs = settings.navTabs?.filter(isView);
+  const profilePatch = {
+    tourPreference,
+    toursSeen,
+    accent,
+    navTabs: navTabs?.length === TAB_SLOTS ? navTabs : undefined,
+    navOrder: settings.navOrder?.filter(isView),
+    startView: settings.startView && isView(settings.startView) ? settings.startView : undefined,
+  };
   if (api.updateProfile && Object.values(profilePatch).some((v) => v !== undefined)) {
     await api.updateProfile(profilePatch);
   }

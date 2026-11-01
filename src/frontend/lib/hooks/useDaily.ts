@@ -1,4 +1,3 @@
-import { recordBehaviour } from "@/frontend/lib/personalization-client";
 import { sealLabel } from "@/frontend/lib/sync/labels";
 import { api } from "@/frontend/lib/api";
 import {
@@ -145,7 +144,6 @@ export function useDaily(address: string, cryptoReady: boolean) {
           label: "Routine",
           labelEnc: await sealLabel(address, rest.title),
         });
-        void recordBehaviour(address, "action", "daily");
         void drainOutbox(address);
         return { id, ...rest };
       }
@@ -161,7 +159,6 @@ export function useDaily(address: string, cryptoReady: boolean) {
         label: "Routine",
         labelEnc: await sealLabel(address, rest.title),
       });
-      void recordBehaviour(address, "action", "daily");
       void drainOutbox(address);
       return { id: newId, ...rest };
     },
@@ -196,7 +193,6 @@ export function useDaily(address: string, cryptoReady: boolean) {
         dependsOn: [],
         label: "Delete routine",
       });
-      void recordBehaviour(address, "action", "daily");
       void drainOutbox(address);
     },
     onSuccess: (_res, id) =>
@@ -234,7 +230,6 @@ export function useDaily(address: string, cryptoReady: boolean) {
       label: "Routine check-in",
       labelEnc: await sealLabel(address, routine.title),
     });
-    void recordBehaviour(address, "action", "daily");
     void drainOutbox(address);
 
     return { id, routineId: routine.id, ...completion };
