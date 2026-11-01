@@ -186,9 +186,16 @@ authRoutes.post("/logout", async (c) => {
   const token = readSessionToken(c);
   if (token) {
     const { sessions } = getCollections(getDb());
+    const tokenHash = hashToken(token);
+    const now = new Date();
+    /* Same match as sessionAuth, so a cookie still inside the rotation grace
+       window (prevTokenHash) also revokes its session. */
     await sessions.updateOne(
-      { tokenHash: hashToken(token), revokedAt: { $exists: false } },
-      { $set: { revokedAt: new Date() } },
+      {
+        $or: [{ tokenHash }, { prevTokenHash: tokenHash, prevTokenValidUntil: { $gt: now } }],
+        revokedAt: { $exists: false },
+      },
+      { $set: { revokedAt: now } },
     );
   }
   clearSessionCookie(c);

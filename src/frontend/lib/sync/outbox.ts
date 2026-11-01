@@ -86,6 +86,18 @@ export async function enqueueOutbox(entry: NewOutboxEntry): Promise<OutboxEntry>
     (e): e is OutboxEntry =>
       (e as OutboxEntry).entity === entry.entity && (e as OutboxEntry).targetId === entry.targetId,
   );
+  // claimNextOutboxEntry skips entries still waiting out a retry delay, so seq order alone
+  // can't keep a later write on this row from overtaking its create; pin it explicitly.
+  const create = existingForTarget.find((e) => e.op === "create");
+  const createOpId = create?.opId;
+  const withCreateDep = (deps: string[]): string[] =>
+    createOpId && !deps.includes(createOpId) ? [...deps, createOpId] : deps;
+  /* Behind a create that already failed, start blocked so retry/discard of the create
+     releases or cascades this entry like any other dependent. */
+  const blockedByCreate =
+    create && (create.status === "failed" || create.status === "blocked")
+      ? ({ status: "blocked", blockedBy: create.opId } satisfies Partial<OutboxEntry>)
+      : undefined;
 
   if (entry.op === "delete" && !entry.overlayPatch) {
     const pendingCreate = existingForTarget.find(
@@ -111,11 +123,22 @@ export async function enqueueOutbox(entry: NewOutboxEntry): Promise<OutboxEntry>
       const merged: OutboxEntry = {
         ...pendingUpdate,
         request: entry.request,
-        dependsOn: entry.dependsOn,
+        dependsOn: withCreateDep(entry.dependsOn),
         label: entry.label ?? pendingUpdate.label,
         labelEnc: entry.labelEnc ?? pendingUpdate.labelEnc,
         updatedAt: Date.now(),
       };
+      // A failed update would never be sent again; the new body deserves a fresh try.
+      if (pendingUpdate.status === "failed") {
+        Object.assign(merged, {
+          status: "pending",
+          attempts: 0,
+          nextAttemptAt: Date.now(),
+          lastError: undefined,
+          leaseUntil: undefined,
+        } satisfies Partial<OutboxEntry>);
+      }
+      if (blockedByCreate) Object.assign(merged, blockedByCreate);
       store.put(merged);
       await txAsPromise(tx);
       notify();
@@ -128,6 +151,7 @@ export async function enqueueOutbox(entry: NewOutboxEntry): Promise<OutboxEntry>
   const stored: OutboxEntry = {
     ...entry,
     address,
+    dependsOn: withCreateDep(entry.dependsOn),
     opId: crypto.randomUUID(),
     seq,
     status: "pending",
@@ -135,6 +159,7 @@ export async function enqueueOutbox(entry: NewOutboxEntry): Promise<OutboxEntry>
     nextAttemptAt: now,
     createdAt: now,
     updatedAt: now,
+    ...blockedByCreate,
   };
   store.put(stored);
   await txAsPromise(tx);

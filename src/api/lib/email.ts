@@ -1,4 +1,5 @@
 import { escapeHtml, LOGO_CONTENT_ID, wrapEmailBody } from "@/api/lib/email-layout";
+import { checkLimit } from "@/api/middleware/rate-limit";
 
 /** Injected by build.ts into the Vercel API bundle; unset in local/dev. */
 declare const __EMAIL_LOGO_BASE64__: string | undefined;
@@ -99,6 +100,15 @@ async function getLogoAttachment(): Promise<LogoAttachment> {
     content_type: "image/png",
     content_id: LOGO_CONTENT_ID,
   };
+}
+
+/**
+ * Per-account outbound email budget. notifyEmail is unverified, so without this
+ * one account could aim user-triggered sends at any inbox. Callers skip (never
+ * fail) a send when this returns true.
+ */
+export async function emailQuotaExceeded(accountId: string): Promise<boolean> {
+  return (await checkLimit(`email:${accountId}`, 50, 60 * 60_000)) !== null;
 }
 
 /**

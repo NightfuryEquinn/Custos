@@ -2,6 +2,7 @@ import { getClientIp, hashToken, readSessionToken } from "@/api/lib/auth";
 import { tooManyRequests } from "@/api/lib/errors";
 import { COLLECTIONS, getDb, isDbConnected } from "@/db";
 import type { RateLimitDocument } from "@/db/collections";
+import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 
 type Bucket = { count: number; resetAt: number };
@@ -73,8 +74,15 @@ async function checkLimitMongo(
   return null;
 }
 
-/** Prefer Mongo when connected so limits hold across serverless isolates. */
-async function checkLimit(key: string, limit: number, windowMs: number): Promise<number | null> {
+/**
+ * Prefer Mongo when connected so limits hold across serverless isolates.
+ * Returns retry-after seconds when over the limit, null when allowed.
+ */
+export async function checkLimit(
+  key: string,
+  limit: number,
+  windowMs: number,
+): Promise<number | null> {
   if (isDbConnected()) {
     try {
       return await checkLimitMongo(key, limit, windowMs);
@@ -90,7 +98,7 @@ type RateLimitOptions = {
   limit: number;
   windowMs: number;
   keyPrefix: string;
-  keyFn?: (c: Parameters<Parameters<typeof createMiddleware>[0]>[0]) => string;
+  keyFn?: (c: Context) => string;
 };
 
 /**
@@ -107,7 +115,7 @@ function getRateLimitSubject(c: Parameters<Parameters<typeof createMiddleware>[0
 }
 
 /** Build a rate-limit middleware with a fixed window and key prefix. */
-function rateLimit(opts: RateLimitOptions) {
+export function rateLimit(opts: RateLimitOptions) {
   return createMiddleware(async (c, next) => {
     const suffix = opts.keyFn ? opts.keyFn(c) : getRateLimitSubject(c);
     const key = `${opts.keyPrefix}:${suffix}`;

@@ -78,7 +78,9 @@ export const sessionAuth = createMiddleware<{ Variables: SessionVariables }>(asy
      resolveAccountId address lookup next time, not a correctness issue,
      so it stays fire-and-forget rather than adding a round trip here. */
   if (!session.accountId) {
-    void sessions.updateOne({ _id: session._id }, { $set: { accountId } });
+    void sessions.updateOne({ _id: session._id }, { $set: { accountId } }).catch(() => {
+      /* best-effort — see above */
+    });
   }
 
   c.set("accountId", accountId);
@@ -112,7 +114,11 @@ export const sessionAuth = createMiddleware<{ Variables: SessionVariables }>(asy
       /* Persist activity on the user — session rows TTL away and cannot drive purge alone.
          Best-effort: worst case is a slightly stale lastSeenAt, not lost auth state. */
       const { users } = getCollections(getDb());
-      void users.updateOne({ _id: new ObjectId(accountId) }, { $set: { lastSeenAt: now } });
+      void users
+        .updateOne({ _id: new ObjectId(accountId) }, { $set: { lastSeenAt: now } })
+        .catch(() => {
+          /* best-effort — see above */
+        });
     }
   }
 

@@ -1,5 +1,6 @@
 import { sendBudgetAlerts } from "@/api/lib/budget-alerts";
 import { badRequest, notFound } from "@/api/lib/errors";
+import { rateLimit } from "@/api/middleware/rate-limit";
 import type { SessionVariables } from "@/api/middleware/session";
 import { sessionAuth } from "@/api/middleware/session";
 import { getCollections, getDb } from "@/db";
@@ -17,6 +18,13 @@ export const budgetAlertsRoutes = new Hono<{ Variables: SessionVariables }>();
 budgetAlertsRoutes.post(
   "/",
   sessionAuth,
+  /* Each request can send up to 32 emails to an unverified address. */
+  rateLimit({
+    keyPrefix: "budget-alerts",
+    limit: 20,
+    windowMs: 60 * 60_000,
+    keyFn: (c) => c.get("accountId"),
+  }),
   zValidator("json", createBudgetAlertsSchema),
   async (c) => {
     const accountId = c.get("accountId");

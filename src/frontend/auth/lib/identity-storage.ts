@@ -124,10 +124,11 @@ export function clearAllLocalData(): void {
   seriesKeyStore.clear();
   sessionSecrets.clearAll();
   void forgetUnlock();
+  /* `custos:` keys (key generation, per-wallet month) name addresses too. */
   const keys: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key?.startsWith("ledger:")) keys.push(key);
+    if (key?.startsWith("ledger:") || key?.startsWith("custos:")) keys.push(key);
   }
   keys.forEach((key) => localStorage.removeItem(key));
   for (const addr of knownAddresses) {

@@ -1,4 +1,5 @@
-import { emailConfigured, sendEmail } from "@/api/lib/email";
+import { emailConfigured, emailQuotaExceeded, sendEmail } from "@/api/lib/email";
+import { acquireCronLock, releaseCronLock } from "@/api/lib/recurring-expenses";
 import { reminderEmailTemplate } from "@/api/lib/reminder-email-html";
 import { formatMoneyLabel } from "@/api/lib/money";
 import {
@@ -86,7 +87,12 @@ type ReminderProcessResult = {
   skipped: number;
   errors: string[];
   truncated?: boolean;
+  /** A run was already in flight (see acquireCronLock) — this call did nothing. */
+  locked?: boolean;
 };
+
+/* Overlapping cron runs would both read "no log yet" and double-send. */
+const REMINDERS_LOCK_ID = "cron-lock:reminders";
 
 /**
  * Per-account channel state.
@@ -182,6 +188,10 @@ export async function sendEventConfirmation(doc: EventDocument): Promise<void> {
     isConfirmation: true,
   });
 
+  if (await emailQuotaExceeded(doc.accountId)) {
+    console.warn(`[reminders] email quota exceeded for ${doc.accountId}; confirmation skipped`);
+    return;
+  }
   await sendEmail({ to: prefs.notifyEmail, subject, template: { id, variables } });
 }
 
@@ -190,6 +200,16 @@ export async function sendEventConfirmation(doc: EventDocument): Promise<void> {
  * Email and Web Push are independent channels — either alone is enough to run.
  */
 export async function processDueReminders(now = new Date()): Promise<ReminderProcessResult> {
+  const locked = await acquireCronLock(REMINDERS_LOCK_ID);
+  if (!locked) return { scanned: 0, sent: 0, skipped: 0, errors: [], locked: true };
+  try {
+    return await deliverDueReminders(now);
+  } finally {
+    await releaseCronLock(REMINDERS_LOCK_ID);
+  }
+}
+
+async function deliverDueReminders(now: Date): Promise<ReminderProcessResult> {
   const result: ReminderProcessResult = { scanned: 0, sent: 0, skipped: 0, errors: [] };
 
   const emailReady = emailConfigured();

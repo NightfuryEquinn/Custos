@@ -1,4 +1,9 @@
-import { budgetAlertEmailHtml, emailConfigured, sendEmail } from "@/api/lib/email";
+import {
+  budgetAlertEmailHtml,
+  emailConfigured,
+  emailQuotaExceeded,
+  sendEmail,
+} from "@/api/lib/email";
 import { formatMoneyLabel } from "@/api/lib/money";
 import { getCollections, getDb } from "@/db";
 import type { BudgetAlertItem } from "@/schemas/budget-alert";
@@ -91,16 +96,18 @@ export async function sendBudgetAlerts(opts: {
       monthLabel: label,
       walletName,
     });
-    const sent = await sendEmail({ to: email, subject, html, text });
-
-    if (!sent.ok) {
-      result.errors.push(`${alert.categoryId}: ${sent.error}`);
+    if (await emailQuotaExceeded(opts.accountId)) {
+      console.warn(`[budget-alerts] email quota exceeded for ${opts.accountId}; alert skipped`);
+      result.skipped++;
       continue;
     }
 
+    /* Claim before sending: the unique log index lets only one of two racing
+       requests through, instead of both emailing then one failing to log. */
+    const logId = new ObjectId();
     try {
       await budgetAlertLogs.insertOne({
-        _id: new ObjectId(),
+        _id: logId,
         accountId: opts.accountId,
         walletId: opts.walletId,
         categoryId: alert.categoryId,
@@ -110,8 +117,6 @@ export async function sendBudgetAlerts(opts: {
         channels: ["email"],
         sentAt: new Date(),
       });
-      existingKeys.add(dedupeKey);
-      result.sent++;
     } catch (err) {
       const code = (err as { code?: number }).code;
       if (code === 11000) {
@@ -119,7 +124,25 @@ export async function sendBudgetAlerts(opts: {
       } else {
         result.errors.push(`${alert.categoryId}: failed to log send`);
       }
+      continue;
     }
+    existingKeys.add(dedupeKey);
+
+    const sent = await sendEmail({ to: email, subject, html, text }).catch((err: unknown) => ({
+      ok: false as const,
+      error: String(err),
+    }));
+
+    if (!sent.ok) {
+      /* Release the claim so a later request can retry this alert. */
+      await budgetAlertLogs.deleteOne({ _id: logId }).catch(() => {
+        /* best-effort — worst case this alert stays suppressed for the month */
+      });
+      result.errors.push(`${alert.categoryId}: ${sent.error}`);
+      continue;
+    }
+
+    result.sent++;
   }
 
   return result;

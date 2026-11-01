@@ -120,14 +120,20 @@ export function useNudges(
       const { detail } = event as CustomEvent<{ address: string; opId: string; nudge: NudgeWire }>;
       if (detail.address !== address) return;
       confirmed.current.add(detail.opId);
-      void decodeNudge(detail.nudge, ledgerKeyStore.require(address)).then((row) => {
-        queryClient.setQueryData<Nudge[]>(keys.data(address), (prev) =>
-          prev?.some((n) => n.id === row.id)
-            ? prev.map((n) => (n.id === row.id ? row : n))
-            : [...(prev ?? []), row],
-        );
-        void queryClient.invalidateQueries({ queryKey: ["nudge-check-ins", address] });
-      });
+      const ledgerKey = ledgerKeyStore.get(address);
+      if (!ledgerKey) return;
+      void decodeNudge(detail.nudge, ledgerKey)
+        .then((row) => {
+          queryClient.setQueryData<Nudge[]>(keys.data(address), (prev) =>
+            prev?.some((n) => n.id === row.id)
+              ? prev.map((n) => (n.id === row.id ? row : n))
+              : [...(prev ?? []), row],
+          );
+          void queryClient.invalidateQueries({ queryKey: ["nudge-check-ins", address] });
+        })
+        .catch(() => {
+          /* Locked or undecryptable: the next fetch reconciles. */
+        });
     };
     window.addEventListener("custos:nudge-synced", synced);
     return () => window.removeEventListener("custos:nudge-synced", synced);

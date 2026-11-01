@@ -28,27 +28,28 @@ type RecurringMaterializeResult = {
   skipped: number;
   errors: string[];
   truncated?: boolean;
-  /** A run was already in flight (see acquireRecurringLock) — this call did nothing. */
+  /** A run was already in flight (see acquireCronLock) — this call did nothing. */
   locked?: boolean;
 };
 
 /* cron-job.org's own retry-on-timeout, plus an overlapping manual trigger,
-   can otherwise run this job twice at once. Both instances read "no
-   occurrence for date X yet" before either inserts, so the non-unique
-   dedupe indexes below don't stop a race, only speed up the query. This
-   lock does. Reuses the same rate-limit-bucket collection/shape as
+   can otherwise run a cron job twice at once. For this one, both instances
+   read "no occurrence for date X yet" before either inserts, so the dedupe
+   indexes only backstop the race, they don't prevent it. This lock does.
+   Reuses the same rate-limit-bucket collection/shape as
    middleware/rate-limit.ts: `_id` unique-constrains one holder, `resetAt`'s
    TTL index is a safety net if the process dies mid-run without releasing it. */
 const RECURRING_LOCK_ID = "cron-lock:recurring-expenses";
-const RECURRING_LOCK_TTL_MS = 5 * 60_000;
+const CRON_LOCK_TTL_MS = 5 * 60_000;
 
-async function acquireRecurringLock(): Promise<boolean> {
+/** Try to take the named cron lock; false if another run already holds it. */
+export async function acquireCronLock(id: string): Promise<boolean> {
   const col = getDb().collection<RateLimitDocument>(COLLECTIONS.rateLimits);
   try {
     await col.insertOne({
-      _id: RECURRING_LOCK_ID,
+      _id: id,
       count: 1,
-      resetAt: new Date(Date.now() + RECURRING_LOCK_TTL_MS),
+      resetAt: new Date(Date.now() + CRON_LOCK_TTL_MS),
     });
     return true;
   } catch (err) {
@@ -57,9 +58,9 @@ async function acquireRecurringLock(): Promise<boolean> {
   }
 }
 
-async function releaseRecurringLock(): Promise<void> {
+export async function releaseCronLock(id: string): Promise<void> {
   const col = getDb().collection<RateLimitDocument>(COLLECTIONS.rateLimits);
-  await col.deleteOne({ _id: RECURRING_LOCK_ID }).catch(() => {
+  await col.deleteOne({ _id: id }).catch(() => {
     /* best-effort — the TTL index still clears it if this fails */
   });
 }
@@ -132,14 +133,14 @@ function collectDueDates(
 export async function processDueRecurringExpenses(
   now = new Date(),
 ): Promise<RecurringMaterializeResult> {
-  const locked = await acquireRecurringLock();
+  const locked = await acquireCronLock(RECURRING_LOCK_ID);
   if (!locked) {
     return { scanned: 0, series: 0, created: 0, skipped: 0, errors: [], locked: true };
   }
   try {
     return await materializeDueRecurringExpenses(now);
   } finally {
-    await releaseRecurringLock();
+    await releaseCronLock(RECURRING_LOCK_ID);
   }
 }
 
