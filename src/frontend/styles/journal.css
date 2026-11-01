@@ -819,6 +819,11 @@
   max-width: 100%;
   min-height: 44px;
   font-size: 14px;
+  padding-bottom: 16px;
+}
+
+.daily-idle-row > svg {
+  margin-left: auto;
 }
 .daily-task-row {
   display: grid;
