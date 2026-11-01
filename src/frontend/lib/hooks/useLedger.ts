@@ -63,7 +63,7 @@ import {
   runPacedTransfer,
 } from "@/frontend/lib/category-transfer";
 import { buildCategoryIndex, isIncomeCategory, type CategoryType } from "@/frontend/lib/categories";
-import { CURRENT_MONTH_KEY, clampMonthKey } from "@/frontend/lib/data";
+import { CURRENT_MONTH_KEY, clampMonthKey, shiftMonthKey } from "@/frontend/lib/data";
 import {
   applySavedExpense,
   classifyTx,
@@ -83,7 +83,7 @@ import type {
   ViewId,
 } from "@/frontend/lib/types";
 import { resolveEventDeleteAction, type DeleteScope } from "@/lib/delete-scope";
-import { DEFAULT_CATEGORIES, validateTaxonomy } from "@/schemas/category";
+import { DEFAULT_CATEGORIES, validateTaxonomy } from "@/lib/default-categories";
 import type { TourPreference } from "@/schemas/profile";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -128,14 +128,6 @@ function cloneDefaultCategories(): Category[] {
     ...c,
     subs: c.subs.map((s) => ({ ...s })),
   }));
-}
-
-/** Shift a YYYY-MM key by a signed month delta. */
-function shiftMonthKey(key: string, delta: number): string {
-  const [y, m] = key.split("-").map(Number);
-  const d = new Date(y!, m! - 1 + delta, 1);
-
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 /** ISO date at the start of a month key. */

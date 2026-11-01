@@ -1,5 +1,4 @@
 import { useSearchReveal, focusSearchRecord } from "@/frontend/lib/search/reveal";
-import type { DailyCompletion, DailyRoutine } from "@/lib/daily";
 import { useFadeIn } from "@/frontend/lib/animate";
 import { ACCOUNT_STALE_DAYS } from "@/lib/account-retention";
 import { APP_VERSION } from "@/lib/version";
@@ -8,21 +7,10 @@ import { Icon } from "@/frontend/components/ui";
 import { api } from "@/frontend/lib/api";
 import { dailyTimezoneKey } from "@/frontend/lib/hooks/useDaily";
 import type { NavItem } from "@/frontend/lib/nav";
-import type {
-  Account,
-  CapitalPlan,
-  Category,
-  CategoryIndex,
-  Expense,
-  FinancialWallet,
-  FuelFill,
-  LedgerEvent,
-  TodoList,
-  Vehicle,
-  ViewId,
-} from "@/frontend/lib/types";
+import type { Account, ViewId } from "@/frontend/lib/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import type { ComponentProps } from "react";
 import { DataPrivacyModal } from "./components/DataPrivacyModal";
 import { ImportExportModal } from "./components/ImportExportModal";
 import { Identicon } from "./components/Identicon";
@@ -35,9 +23,6 @@ import { copyText } from "./lib/clipboard";
 import { shortAddr } from "./lib/format";
 import { identityStorage } from "./lib/identity-storage";
 import { sessionSecrets } from "./lib/session-secrets";
-import type { EventImportRow } from "./lib/import-events";
-import type { ExpenseImportRow } from "./lib/import";
-import type { TodoImportList } from "./lib/import-todos";
 
 /** Resolve the browser's IANA timezone, falling back to UTC. */
 function browserTimezone(): string {
@@ -58,38 +43,13 @@ function supporterChipDate(iso: string): string {
   return `${String(d.getUTCMonth() + 1).padStart(2, "0")}/${String(d.getUTCFullYear()).slice(-2)}`;
 }
 
-type AccountMenuProps = {
+type AccountMenuProps = Omit<
+  ComponentProps<typeof ImportExportModal>,
+  "accountAddress" | "onClose"
+> & {
   account: Account;
   onSignOut: () => void;
   signingOut?: boolean;
-  expenses: Expense[];
-  events?: LedgerEvent[];
-  todoLists?: TodoList[];
-  wallets?: FinancialWallet[];
-  categoryIndex?: CategoryIndex;
-  activeWalletId?: string;
-  savingsTxns?: Expense[];
-  capitalPlans?: CapitalPlan[];
-  vehicles?: Vehicle[];
-  vehicleFills?: FuelFill[];
-  dailyRoutines?: DailyRoutine[];
-  dailyCompletions?: DailyCompletion[];
-  onImportExpenses?: (
-    rows: ExpenseImportRow[],
-    categories?: Category[],
-  ) => Promise<{
-    imported: number;
-    failed: number;
-    newCategories: number;
-    newSubcategories: number;
-  }>;
-  onImportEvents?: (rows: EventImportRow[]) => Promise<{ imported: number; failed: number }>;
-  onImportTodos?: (
-    lists: TodoImportList[],
-  ) => Promise<{ importedLists: number; importedTasks: number; failed: number }>;
-  onRestoreBackup?: (
-    plain: import("./lib/encrypted-backup").LedgerBackupPlain,
-  ) => Promise<import("./lib/restore-backup").BackupRestoreResult>;
   onTakeTour?: () => void;
   onWhatsNew?: () => void;
   navSidebarItems: readonly NavItem[];
@@ -106,28 +66,13 @@ export function AccountMenu({
   account,
   onSignOut,
   signingOut = false,
-  expenses,
-  events = [],
-  todoLists = [],
-  wallets = [],
-  categoryIndex,
-  activeWalletId,
-  savingsTxns = [],
-  capitalPlans = [],
-  vehicles = [],
-  vehicleFills = [],
-  dailyRoutines = [],
-  dailyCompletions = [],
-  onImportExpenses,
-  onImportEvents,
-  onImportTodos,
-  onRestoreBackup,
   onTakeTour,
   onWhatsNew,
   navSidebarItems,
   navTabItems,
   onSaveNavPrefs,
   startView,
+  ...importExportProps
 }: AccountMenuProps) {
   useSearchReveal(["setting"], (target) => {
     if (
@@ -441,23 +386,8 @@ export function AccountMenu({
       ) : null}
       {csvOpen ? (
         <ImportExportModal
+          {...importExportProps}
           accountAddress={account.address}
-          expenses={expenses}
-          events={events}
-          todoLists={todoLists}
-          wallets={wallets}
-          categoryIndex={categoryIndex}
-          activeWalletId={activeWalletId}
-          savingsTxns={savingsTxns}
-          capitalPlans={capitalPlans}
-          vehicles={vehicles}
-          vehicleFills={vehicleFills}
-          dailyRoutines={dailyRoutines}
-          dailyCompletions={dailyCompletions}
-          onImportExpenses={onImportExpenses}
-          onImportEvents={onImportEvents}
-          onImportTodos={onImportTodos}
-          onRestoreBackup={onRestoreBackup}
           onClose={() => setCsvOpen(false)}
         />
       ) : null}

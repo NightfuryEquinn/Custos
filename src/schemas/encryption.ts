@@ -1,7 +1,5 @@
+import { E2EE_VERSION } from "@/lib/e2ee-version";
 import { z } from "zod";
-
-/** Current on-wire encryption format version. */
-export const E2EE_VERSION = 1 as const;
 
 export const e2eeVersionSchema = z.literal(E2EE_VERSION);
 

@@ -1,5 +1,5 @@
 import { slugId, type CategoryIndex } from "@/frontend/lib/categories";
-import { roundMoney } from "@/frontend/lib/data";
+import { isoFromDate, monthsBetween, roundMoney } from "@/frontend/lib/data";
 import { classifyTx } from "@/frontend/lib/stats";
 import type { CapitalItem, CapitalPlan, Expense } from "@/frontend/lib/types";
 
@@ -175,19 +175,6 @@ export function planBudgetProgress(plan: CapitalPlan): number | null {
   return planPaidTotal(plan) / budget;
 }
 
-/** YYYY-MM key for a Date. */
-function monthKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-/** Whole months from one YYYY-MM key to another (may be negative). */
-function monthsBetween(fromKey: string, toKey: string): number {
-  const [fy, fm] = fromKey.split("-").map(Number);
-  const [ty, tm] = toKey.split("-").map(Number);
-
-  return (ty! - fy!) * 12 + (tm! - fm!);
-}
-
 /**
  * Whole calendar months until the plan's target month.
  * Returns null when there is no target or the target month is in the past.
@@ -196,7 +183,7 @@ function monthsBetween(fromKey: string, toKey: string): number {
 export function planMonthsUntilTarget(plan: CapitalPlan, today: Date = new Date()): number | null {
   if (!plan.targetDate) return null;
 
-  const diff = monthsBetween(monthKey(today), plan.targetDate.slice(0, 7));
+  const diff = monthsBetween(isoFromDate(today).slice(0, 7), plan.targetDate.slice(0, 7));
 
   if (diff < 0) return null;
 
@@ -228,7 +215,7 @@ export function planMonthlyPlan(
   if (months === null) return null;
 
   const { remainingNeed, unspent } = planMoney(plan, txns, index);
-  const thisMonth = monthKey(today);
+  const thisMonth = isoFromDate(today).slice(0, 7);
   let net = 0;
 
   for (const e of txns) {

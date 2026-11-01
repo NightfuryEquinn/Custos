@@ -753,6 +753,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesViewProps>(func
                       type="button"
                       className="cat-expand"
                       onClick={() => setExpanded((e) => ({ ...e, [cat.id]: !open }))}
+                      aria-label={cat.name}
                       aria-expanded={open}
                       tabIndex={filteredOut ? -1 : undefined}
                     >

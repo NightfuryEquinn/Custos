@@ -18,7 +18,7 @@ import {
   spanDaysBetween,
   type LeadId,
   type RepeatId,
-} from "@/schemas/common";
+} from "@/lib/event-rules";
 
 export type EventImportRow = Omit<LedgerEvent, "id">;
 

@@ -10,7 +10,7 @@ import {
   SHARING_ON_STATUS,
 } from "@/lib/legal";
 import type { Account } from "@/frontend/lib/types";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { getConsent, markSharingChoiceMade, setConsent } from "../lib/consent";
 import { clearAllLocalData } from "../lib/identity-storage";
@@ -42,6 +42,7 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
   /* Consent: server is the source of truth; localStorage is a warm cache. */
   const [consent, setConsentState] = useState(() => getConsent(account.address));
   const [consentBusy, setConsentBusy] = useState(false);
+  const uid = useId();
 
   /* Email reminders: global preference stored on the user record. */
   const [remindersOn, setRemindersOn] = useState(true);
@@ -313,7 +314,9 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
             <div className="consent-card">
               <div className="consent-top">
                 <div>
-                  <div className="consent-title">Allow Reminder Emails</div>
+                  <div className="consent-title" id={`${uid}-reminders`}>
+                    Allow Reminder Emails
+                  </div>
                   <p className="consent-desc">
                     Events can send you email reminders when you turn them on per event. Those
                     emails include the event name, budget hold and comments, so events with
@@ -325,6 +328,7 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
                 <label className="switch">
                   <input
                     type="checkbox"
+                    aria-labelledby={`${uid}-reminders`}
                     checked={remindersOn}
                     disabled={remindersBusy}
                     onChange={toggleReminders}
@@ -353,7 +357,9 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
             <div className="consent-card">
               <div className="consent-top">
                 <div>
-                  <div className="consent-title">Email When Nearing a Limit</div>
+                  <div className="consent-title" id={`${uid}-budget`}>
+                    Email When Nearing a Limit
+                  </div>
                   <p className="consent-desc">
                     Uses the notification email below. One email per category per month at the
                     warning and exceeded levels.
@@ -362,6 +368,7 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
                 <label className="switch">
                   <input
                     type="checkbox"
+                    aria-labelledby={`${uid}-budget`}
                     checked={budgetAlertsOn}
                     disabled={budgetAlertsBusy}
                     onChange={toggleBudgetAlerts}
@@ -430,12 +437,15 @@ export function DataPrivacyModal({ account, onClose, onSignedOut }: DataPrivacyM
             <div className="consent-card">
               <div className="consent-top">
                 <div>
-                  <div className="consent-title">{SHARING_CARD_TITLE}</div>
+                  <div className="consent-title" id={`${uid}-sharing`}>
+                    {SHARING_CARD_TITLE}
+                  </div>
                   <p className="consent-desc">{SHARING_CARD_DESCRIPTION}</p>
                 </div>
                 <label className="switch">
                   <input
                     type="checkbox"
+                    aria-labelledby={`${uid}-sharing`}
                     checked={consent}
                     disabled={consentBusy}
                     onChange={toggleConsent}

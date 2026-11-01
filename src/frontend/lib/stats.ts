@@ -20,6 +20,7 @@ import {
   TODAY_ISO,
   monthLabel,
   monthsWindow,
+  pad,
   roundMoney,
 } from "./data";
 import type { Budgets, Expense, FinancialWallet, LedgerEvent } from "./types";
@@ -36,10 +37,6 @@ export {
 
 export type ChartPeriod = "daily" | "monthly" | "quarterly" | "yearly";
 type ChartBar = { key: string; label: string; spent: number; earned: number };
-
-function pad2(n: number) {
-  return String(n).padStart(2, "0");
-}
 
 function quarterOf(monthKey: string) {
   const [year, month] = monthKey.split("-").map(Number);
@@ -99,7 +96,7 @@ export function spendingChartSeries(
     const days = new Date(year!, month!, 0).getDate();
     const bars: ChartBar[] = [];
     for (let d = 1; d <= days; d++) {
-      const key = `${anchorMonth}-${pad2(d)}`;
+      const key = `${anchorMonth}-${pad(d)}`;
       const totals = flowTotals(
         expenses.filter((e) => e.date === key),
         index,
@@ -122,7 +119,7 @@ export function spendingChartSeries(
       let spent = 0;
       let earned = 0;
       for (let i = 0; i < 3; i++) {
-        const monthKey = `${year}-${pad2(startM + i)}`;
+        const monthKey = `${year}-${pad(startM + i)}`;
         const totals = flowTotals(monthExpenses(expenses, monthKey), index);
         spent += totals.spent;
         earned += totals.earned;
@@ -260,7 +257,7 @@ export function dayFlowSeries(
 
   const out: DayFlow[] = [];
   for (let d = 1; d <= last; d++) {
-    const day = `${monthKey}-${pad2(d)}`;
+    const day = `${monthKey}-${pad(d)}`;
     const spend = sealEntries(spendByDay.get(day));
     const earn = sealEntries(earnByDay.get(day));
     const spentGross = spend.reduce((s, x) => s + x.amount, 0);
@@ -312,7 +309,7 @@ export function chartSelectionMonth(period: ChartPeriod, key: string) {
   if (period === "quarterly") {
     const [yearPart, quarterPart] = key.split("-Q");
     const quarter = Number(quarterPart);
-    const month = pad2((quarter - 1) * 3 + 1);
+    const month = pad((quarter - 1) * 3 + 1);
     return `${yearPart}-${month}`;
   }
   return `${key}-01`;

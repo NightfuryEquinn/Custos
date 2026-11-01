@@ -8,7 +8,7 @@ import {
   type PushStatus,
 } from "@/frontend/lib/push/subscribe";
 import type { Account } from "@/frontend/lib/types";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   biometricEnrolled,
@@ -38,6 +38,7 @@ type PreferencesModalProps = {
 export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
   const [status, setStatus] = useState<PushStatus | null>(null);
   const [busy, setBusy] = useState(false);
+  const uid = useId();
   const [note, setNote] = useState("");
 
   const idn = identityStorage.find(account.address);
@@ -167,7 +168,9 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
             <div className="consent-card">
               <div className="consent-top">
                 <div>
-                  <div className="consent-title">Notifications on this device</div>
+                  <div className="consent-title" id={`${uid}-push`}>
+                    Notifications on this device
+                  </div>
                   <p className="consent-desc">
                     Get event reminders and Nudges while Custos is closed. Checked every 15 minutes;
                     this setting affects only this device.
@@ -180,6 +183,7 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
                 <label className="switch">
                   <input
                     type="checkbox"
+                    aria-labelledby={`${uid}-push`}
                     checked={on}
                     disabled={busy || status === null || unsupported}
                     onChange={toggle}
@@ -207,7 +211,9 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
             <div className="consent-card">
               <div className="consent-top">
                 <div>
-                  <div className="consent-title">Stay unlocked on this device</div>
+                  <div className="consent-title" id={`${uid}-keep`}>
+                    Stay unlocked on this device
+                  </div>
                   <p className="consent-desc">
                     Skip the passphrase when you reload within 12 hours. This stores your unlock
                     keys in this browser's storage until they expire; anyone who copies this browser
@@ -216,7 +222,12 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
                   </p>
                 </div>
                 <label className="switch">
-                  <input type="checkbox" checked={keepOn} onChange={toggleKeepUnlocked} />
+                  <input
+                    type="checkbox"
+                    aria-labelledby={`${uid}-keep`}
+                    checked={keepOn}
+                    onChange={toggleKeepUnlocked}
+                  />
                   <span className="toggle-ui" />
                 </label>
               </div>
@@ -236,7 +247,9 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
                 <div className="consent-card">
                   <div className="consent-top">
                     <div>
-                      <div className="consent-title">Unlock With Face ID</div>
+                      <div className="consent-title" id={`${uid}-bio`}>
+                        Unlock With Face ID
+                      </div>
                       <p className="consent-desc">
                         The prompt appears when you open Custos. Your passphrase is encrypted with a
                         key tied to your biometric check and stays on this device. Turning this off
@@ -247,6 +260,7 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
                     <label className="switch">
                       <input
                         type="checkbox"
+                        aria-labelledby={`${uid}-bio`}
                         checked={bioOn}
                         disabled={bioBusy || !bioSupported}
                         onChange={() => (bioOn ? disableBio() : startBioEnroll())}

@@ -1,5 +1,5 @@
-import { DEFAULT_CATEGORIES } from "@/schemas/category";
-import { spanDaysBetween } from "@/schemas/common";
+import { DEFAULT_CATEGORIES } from "@/lib/default-categories";
+import { spanDaysBetween } from "@/lib/event-rules";
 import { occurrenceStartFor, spanDays } from "@/lib/schedule";
 import type { MonthEntry } from "./types";
 
@@ -118,6 +118,22 @@ export function monthsWindow(anchorKey: string, size = 6) {
   if (idx < 0) return MONTHS.slice(-size);
 
   return MONTHS.slice(Math.max(0, idx - size + 1), idx + 1);
+}
+
+/** Shift a YYYY-MM key by a signed month delta. */
+export function shiftMonthKey(key: string, delta: number): string {
+  const [y, m] = key.split("-").map(Number);
+  const d = new Date(y!, m! - 1 + delta, 1);
+
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+}
+
+/** Whole months from one YYYY-MM key to another (may be negative). */
+export function monthsBetween(fromKey: string, toKey: string): number {
+  const [fy, fm] = fromKey.split("-").map(Number);
+  const [ty, tm] = toKey.split("-").map(Number);
+
+  return (ty! - fy!) * 12 + (tm! - fm!);
 }
 
 // ── Schedule: event types, recurrence, reminders ────────────────────

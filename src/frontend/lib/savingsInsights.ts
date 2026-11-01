@@ -1,5 +1,12 @@
 import { planIsOverbudget, planMonthlyPlan, planMoney } from "./capitals";
-import { CURRENT_MONTH_KEY, monthLabel, monthsWindow, roundMoney } from "./data";
+import {
+  CURRENT_MONTH_KEY,
+  monthLabel,
+  monthsBetween,
+  monthsWindow,
+  roundMoney,
+  shiftMonthKey,
+} from "./data";
 import { mean } from "./stat-helpers";
 import type { CategoryIndex } from "./categories";
 import type { Piggy } from "./piggies";
@@ -65,22 +72,6 @@ type SavingsInsights = {
   perPlan: CapitalPace[];
   headlines: SavingsHeadline[];
 };
-
-/** Shift a YYYY-MM key by a signed month delta. */
-function shiftMonthKey(key: string, delta: number): string {
-  const [y, m] = key.split("-").map(Number);
-  const d = new Date(y!, m! - 1 + delta, 1);
-
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-/** Whole months from one YYYY-MM key to another (may be negative). */
-function monthsBetween(fromKey: string, toKey: string): number {
-  const [fy, fm] = fromKey.split("-").map(Number);
-  const [ty, tm] = toKey.split("-").map(Number);
-
-  return (ty! - fy!) * 12 + (tm! - fm!);
-}
 
 /**
  * Net monthly deposits (savings − withdrawals) for one category across a

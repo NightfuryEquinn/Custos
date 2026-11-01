@@ -1,6 +1,6 @@
 import { DEFAULT_TIMEZONE, zonedLocalToUtcMs } from "@/lib/timezone";
 import { recurringDueDate } from "@/lib/recurring";
-import { spanDaysBetween, type LeadId } from "@/schemas/common";
+import { spanDaysBetween, type LeadId } from "@/lib/event-rules";
 
 export type ScheduleEvent = {
   date: string;

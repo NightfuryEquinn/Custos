@@ -77,7 +77,7 @@ import type {
 import { displayGlyph } from "@/lib/glyphs";
 import type { DeleteScope } from "@/lib/delete-scope";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 import { createPortal } from "react-dom";
 
 /*
@@ -417,6 +417,40 @@ function scrollIsInsideMenu(menu: HTMLElement | null, target: EventTarget | null
   return !!(menu && target instanceof Node && (target === menu || menu.contains(target)));
 }
 
+/** Position a fixed dropdown while open; dismiss it on outside click or outer scroll. */
+function useAnchoredMenu(
+  open: boolean,
+  setOpen: (open: boolean) => void,
+  rootRef: RefObject<HTMLElement | null>,
+  menuRef: RefObject<HTMLDivElement | null>,
+  placeMenu: () => void,
+) {
+  useEffect(() => {
+    if (!open) return;
+    placeMenu();
+    const onScroll = (e: Event) => {
+      if (scrollIsInsideMenu(menuRef.current, e.target)) return;
+      setOpen(false);
+    };
+    const onMouseDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (rootRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    window.addEventListener("resize", placeMenu);
+    window.addEventListener("scroll", onScroll, true);
+    document.addEventListener("mousedown", onMouseDown);
+    return () => {
+      window.removeEventListener("resize", placeMenu);
+      window.removeEventListener("scroll", onScroll, true);
+      document.removeEventListener("mousedown", onMouseDown);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- placeMenu is rebuilt every render; re-subscribing on it would churn listeners
+  }, [open]);
+
+  useFadeIn(menuRef, { active: open });
+}
+
 function MonthSwitcher({
   months,
   current,
@@ -476,27 +510,7 @@ function MonthSwitcher({
     });
   };
 
-  useEffect(() => {
-    if (!open) return;
-    placeMenu();
-    const onScroll = (e: Event) => {
-      if (scrollIsInsideMenu(menuRef.current, e.target)) return;
-      setOpen(false);
-    };
-    const onMouseDown = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (rootRef.current?.contains(t) || menuRef.current?.contains(t)) return;
-      setOpen(false);
-    };
-    window.addEventListener("resize", placeMenu);
-    window.addEventListener("scroll", onScroll, true);
-    document.addEventListener("mousedown", onMouseDown);
-    return () => {
-      window.removeEventListener("resize", placeMenu);
-      window.removeEventListener("scroll", onScroll, true);
-      document.removeEventListener("mousedown", onMouseDown);
-    };
-  }, [open]);
+  useAnchoredMenu(open, setOpen, rootRef, menuRef, placeMenu);
 
   const pickMonth = (month: number) => {
     requestChange(clampMonthKey(`${pickY}-${pad(month)}`));
@@ -511,7 +525,6 @@ function MonthSwitcher({
 
   const canPrevYear = pickY > minY;
   const canNextYear = pickY < maxY;
-  useFadeIn(menuRef, { active: open });
 
   const picker = open ? (
     <div
@@ -853,29 +866,7 @@ function WalletPicker({ wallets, value, onChange, onManage, className }: WalletP
     });
   };
 
-  useEffect(() => {
-    if (!open) return;
-    placeMenu();
-    const onScroll = (e: Event) => {
-      if (scrollIsInsideMenu(menuRef.current, e.target)) return;
-      setOpen(false);
-    };
-    const onMouseDown = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (rootRef.current?.contains(t) || menuRef.current?.contains(t)) return;
-      setOpen(false);
-    };
-    window.addEventListener("resize", placeMenu);
-    window.addEventListener("scroll", onScroll, true);
-    document.addEventListener("mousedown", onMouseDown);
-    return () => {
-      window.removeEventListener("resize", placeMenu);
-      window.removeEventListener("scroll", onScroll, true);
-      document.removeEventListener("mousedown", onMouseDown);
-    };
-  }, [open]);
-
-  useFadeIn(menuRef, { active: open });
+  useAnchoredMenu(open, setOpen, rootRef, menuRef, placeMenu);
 
   if (!selected) return null;
 

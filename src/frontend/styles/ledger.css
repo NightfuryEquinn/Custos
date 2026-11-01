@@ -3267,6 +3267,10 @@ textarea::placeholder {
   outline: none;
 }
 
+.search:focus-within {
+  border-color: var(--accent);
+}
+
 .txn-filters {
   display: flex;
   align-items: center;
@@ -6563,6 +6567,10 @@ textarea::placeholder {
   min-width: 0;
 }
 
+.amount-field:focus-within {
+  border-color: var(--accent);
+}
+
 .amount-cur {
   font-family: var(--font-num);
   font-size: 24px;
@@ -7864,7 +7872,13 @@ select.text-in {
   }
   .text-in,
   select,
-  textarea {
+  textarea,
+  .search input,
+  .cmt-in,
+  .phrase-in,
+  .be-edit input,
+  .calculator-field input,
+  .capital-item-cost-in {
     font-size: 16px;
   }
   .modal {

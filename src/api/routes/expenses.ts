@@ -12,9 +12,8 @@ import { serializeDoc, serializeDocs } from "@/api/lib/serialize";
 import type { SessionVariables } from "@/api/middleware/session";
 import { sessionAuth } from "@/api/middleware/session";
 import { getCollections, getDb } from "@/db";
-import { deleteScopeQuerySchema } from "@/lib/delete-scope";
 import { normalizeRecurring } from "@/lib/recurring";
-import { monthDateBounds, objectIdSchema } from "@/schemas/common";
+import { deleteScopeQuerySchema, monthDateBounds, objectIdSchema } from "@/schemas/common";
 import {
   createExpenseSchema,
   listExpensesQuerySchema,

@@ -1,5 +1,3 @@
-import { z } from "zod";
-
 const FALLBACK_TIMEZONE = "Asia/Kuala_Lumpur";
 
 /** Server may override via APP_TIMEZONE; browser bundles use the fallback. */
@@ -8,7 +6,7 @@ export const DEFAULT_TIMEZONE =
     ? process.env.APP_TIMEZONE
     : FALLBACK_TIMEZONE;
 
-function isValidTimezone(tz: string): boolean {
+export function isValidTimezone(tz: string): boolean {
   try {
     Intl.DateTimeFormat(undefined, { timeZone: tz });
     return true;
@@ -16,11 +14,6 @@ function isValidTimezone(tz: string): boolean {
     return false;
   }
 }
-
-export const timezoneSchema = z
-  .string()
-  .min(1)
-  .refine(isValidTimezone, { message: "Invalid IANA timezone" });
 
 /** Convert a local calendar date + HH:mm in an IANA zone to UTC epoch ms. */
 export function zonedLocalToUtcMs(dateIso: string, hhmm: string, timeZone: string): number {

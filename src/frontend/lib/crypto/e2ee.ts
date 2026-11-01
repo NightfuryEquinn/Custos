@@ -1,9 +1,10 @@
 import type { DailyRoutine } from "@/lib/daily";
 import type { Nudge } from "@/lib/nudge";
-import { E2EE_VERSION } from "@/schemas/encryption";
+import { E2EE_VERSION } from "@/lib/e2ee-version";
 import { getAddress } from "ethers";
 import { normalizeRecurring, type RecurringField } from "@/lib/recurring";
 import { AUTH_MESSAGE_PREAMBLE, AUTH_MESSAGE_VERIFY_LINE } from "@/lib/auth-message";
+import { base64ToBytes, bytesToBase64 } from "@/frontend/auth/lib/device-vault";
 
 /** Current ledger-key derivation message prefix (Custos). */
 export const DERIVATION_MESSAGE_PREFIX = "Custos data encryption key v1";
@@ -182,19 +183,6 @@ function hexToBytes(hex: string): Uint8Array {
   for (let i = 0; i < bytes.length; i++) {
     bytes[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
   }
-  return bytes;
-}
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  for (const b of bytes) binary += String.fromCharCode(b);
-  return btoa(binary);
-}
-
-function base64ToBytes(b64: string): Uint8Array {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes;
 }
 

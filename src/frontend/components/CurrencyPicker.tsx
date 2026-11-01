@@ -4,10 +4,6 @@ import { CaretDown } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-function ChevDown({ size = 16 }: { size?: number }) {
-  return <CaretDown size={size} aria-hidden />;
-}
-
 type CurrencyPickerProps = {
   value: string;
   onChange: (code: string) => void;
@@ -27,8 +23,6 @@ export function CurrencyPicker({
   badgeFor,
 }: CurrencyPickerProps) {
   const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLButtonElement>(null);
@@ -103,9 +97,8 @@ export function CurrencyPicker({
     ) : null;
 
   return (
-    <div className={"picker-wrap" + (className ? ` ${className}` : "")} ref={rootRef}>
+    <div className={"picker-wrap" + (className ? ` ${className}` : "")}>
       <button
-        ref={triggerRef}
         id={id}
         type="button"
         className="picker-trigger"
@@ -119,7 +112,7 @@ export function CurrencyPicker({
           <span className="num">{selected.code}</span>
           <span className="picker-currency-name">{selected.label}</span>
         </span>
-        <ChevDown />
+        <CaretDown size={16} aria-hidden />
       </button>
       {menu ? createPortal(menu, document.body) : null}
     </div>

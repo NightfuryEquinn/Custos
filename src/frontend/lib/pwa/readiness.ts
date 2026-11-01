@@ -138,12 +138,18 @@ export function useOfflineReadiness(
     run();
     window.addEventListener("custos-cache-changed", run);
     navigator.serviceWorker?.addEventListener("controllerchange", run);
-    const poll = window.setInterval(run, 15_000);
+    /* Hidden tabs skip the poll; catch up when the tab is shown again. */
+    const runIfVisible = () => {
+      if (!document.hidden) run();
+    };
+    document.addEventListener("visibilitychange", runIfVisible);
+    const poll = window.setInterval(runIfVisible, 15_000);
 
     return () => {
       cancelled = true;
       closePort();
       window.clearInterval(poll);
+      document.removeEventListener("visibilitychange", runIfVisible);
       window.removeEventListener("custos-cache-changed", run);
       navigator.serviceWorker?.removeEventListener("controllerchange", run);
     };

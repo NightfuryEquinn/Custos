@@ -1,4 +1,5 @@
 import { Icon } from "@/frontend/components/ui";
+import { OptionPicker } from "@/frontend/components/OptionPicker";
 import { useModalMotion } from "@/frontend/lib/animate";
 import { useSearchData } from "@/frontend/lib/search/useSearchData";
 import type { SearchHistory, SearchLedger } from "@/frontend/lib/search/documents";
@@ -14,104 +15,6 @@ type SearchProps = {
   setOpen: (open: boolean) => void;
   onSelect: (target: SearchTarget, history: SearchHistory) => void;
 };
-
-type SearchGroupOption = { id: string; label: string };
-
-/** Custom dropdown for the search result type. */
-function SearchGroupPicker({
-  options,
-  value,
-  onChange,
-}: {
-  options: readonly SearchGroupOption[];
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const scrimRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const activeRef = useRef<HTMLButtonElement>(null);
-  const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "picker", active: open });
-  const selected = options.find((option) => option.id === value) ?? options[0];
-
-  useEffect(() => {
-    if (!open) return;
-    activeRef.current?.scrollIntoView({ block: "nearest" });
-
-    /** Close the menu without also dismissing the search dialog behind it. */
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.stopPropagation();
-      setOpen(false);
-    };
-
-    window.addEventListener("keydown", onKeyDown, true);
-
-    return () => {
-      window.removeEventListener("keydown", onKeyDown, true);
-    };
-  }, [open]);
-
-  if (!selected) return null;
-
-  const menu = open ? (
-    <div
-      ref={scrimRef}
-      className="picker-scrim"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) requestClose(() => setOpen(false));
-      }}
-    >
-      <div
-        ref={panelRef}
-        className="picker-menu picker-menu--lead"
-        role="listbox"
-        aria-label="Result type"
-      >
-        <div className="picker-timezone-list">
-          {options.map((option) => {
-            const active = option.id === selected.id;
-
-            return (
-              <button
-                key={option.id || "everything"}
-                ref={active ? activeRef : undefined}
-                type="button"
-                role="option"
-                aria-selected={active}
-                className={"picker-timezone-item" + (active ? " active" : "")}
-                onClick={() => {
-                  onChange(option.id);
-                  setOpen(false);
-                }}
-              >
-                <span className="pti-label">{option.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  ) : null;
-
-  return (
-    <div className="picker-wrap search-group-picker" ref={rootRef}>
-      <button
-        type="button"
-        className="picker-trigger"
-        aria-label="Result type"
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        onClick={() => setOpen((prev) => !prev)}
-      >
-        <span className="picker-trigger-label">{selected.label}</span>
-        <Icon name="chevD" size={16} />
-      </button>
-      {menu ? createPortal(menu, document.body) : null}
-    </div>
-  );
-}
 
 /** Keep the shortcut available while unmounting private search state when closed. */
 export function PageSearch(props: SearchProps) {
@@ -277,8 +180,11 @@ function SearchDialog({ address, ledger, setOpen, onSelect }: SearchProps) {
               }}
             />
           </div>
-          <SearchGroupPicker
+          <OptionPicker
             options={groupOptions}
+            label="Result type"
+            className="search-group-picker"
+            triggerLabel="Result type"
             value={group}
             onChange={(next) => {
               setGroup(next);

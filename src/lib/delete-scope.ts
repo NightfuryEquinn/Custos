@@ -1,18 +1,7 @@
 import { formatIsoDateParts, parseIsoDate } from "@/lib/recurring";
-import { z } from "zod";
 
 export const DELETE_SCOPES = ["this", "future", "all"] as const;
 export type DeleteScope = (typeof DELETE_SCOPES)[number];
-
-const deleteScopeSchema = z.enum(DELETE_SCOPES);
-
-export const deleteScopeQuerySchema = z.object({
-  scope: deleteScopeSchema.optional(),
-  fromDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-});
 
 /** ISO calendar day immediately before `iso`. */
 export function dayBeforeIso(iso: string): string {

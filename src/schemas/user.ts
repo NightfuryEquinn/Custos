@@ -1,6 +1,11 @@
-import { timezoneSchema } from "@/lib/timezone";
+import { isValidTimezone } from "@/lib/timezone";
 import { z } from "zod";
 import { walletAddressSchema } from "./common";
+
+const timezoneSchema = z
+  .string()
+  .min(1)
+  .refine(isValidTimezone, { message: "Invalid IANA timezone" });
 
 const userSchema = z.object({
   address: walletAddressSchema,

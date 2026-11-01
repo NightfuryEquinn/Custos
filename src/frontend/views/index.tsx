@@ -592,6 +592,7 @@ export function Transactions({
         <div className="search">
           <Icon name="search" size={17} />
           <input
+            aria-label="Search transactions"
             placeholder="Search notes & categories"
             value={q}
             onChange={(e) => setQ(e.target.value)}

@@ -1,5 +1,6 @@
 import { DatePicker, TimePicker } from "@/frontend/components/DateTimePicker";
 import { CategoryPicker } from "@/frontend/components/CategoryPicker";
+import { OptionPicker } from "@/frontend/components/OptionPicker";
 import { useEnter, useModalMotion, useStagger } from "@/frontend/lib/animate";
 import { FadeIn } from "@/frontend/components/FadeIn";
 import {
@@ -10,7 +11,6 @@ import {
   SummaryCard,
   glyphTint,
 } from "@/frontend/components/ui";
-import { CaretDown } from "@phosphor-icons/react";
 import {
   CURRENT_MONTH_KEY,
   EVENT_CATS,
@@ -41,9 +41,8 @@ import type { CategoryIndex, EventComment, LedgerEvent } from "@/frontend/lib/ty
 import type { DeleteScope } from "@/lib/delete-scope";
 import { CATEGORY_GLYPH_OPTIONS, displayGlyph } from "@/lib/glyphs";
 import { shiftIso } from "@/lib/schedule";
-import { isRepeatAllowedForSpan, spanDaysBetween } from "@/schemas/common";
+import { isRepeatAllowedForSpan, spanDaysBetween } from "@/lib/event-rules";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { createPortal } from "react-dom";
 
 /*
  * Schedule view
@@ -79,103 +78,6 @@ function defaultEndTimeAfter(time: string): string {
   const next = `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 
   return next > time ? next : "";
-}
-
-function ChevDown({ size = 16 }: { size?: number }) {
-  return <CaretDown size={size} aria-hidden />;
-}
-
-type LeadPickerProps = {
-  options: ReadonlyArray<{ id: string; label: string }>;
-  value: string;
-  onChange: (value: string) => void;
-};
-
-/** Custom dropdown for the email reminder lead time. */
-function LeadPicker({ options, value, onChange }: LeadPickerProps) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const scrimRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const activeRef = useRef<HTMLButtonElement>(null);
-  const { requestClose } = useModalMotion(scrimRef, panelRef, { variant: "picker", active: open });
-  const selected = options.find((option) => option.id === value) ?? options[0];
-
-  useEffect(() => {
-    if (!open) return;
-    activeRef.current?.scrollIntoView({ block: "nearest" });
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        setOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown, true);
-
-    return () => {
-      window.removeEventListener("keydown", onKeyDown, true);
-    };
-  }, [open]);
-
-  if (!selected) return null;
-
-  const menu = open ? (
-    <div
-      ref={scrimRef}
-      className="picker-scrim"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) requestClose(() => setOpen(false));
-      }}
-    >
-      <div
-        ref={panelRef}
-        className="picker-menu picker-menu--lead"
-        role="listbox"
-        aria-label="Reminder lead time"
-      >
-        <div className="picker-timezone-list">
-          {options.map((option) => {
-            const active = option.id === selected.id;
-
-            return (
-              <button
-                key={option.id}
-                ref={active ? activeRef : undefined}
-                type="button"
-                role="option"
-                aria-selected={active}
-                className={"picker-timezone-item" + (active ? " active" : "")}
-                onClick={() => {
-                  onChange(option.id);
-                  setOpen(false);
-                }}
-              >
-                <span className="pti-label">{option.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  ) : null;
-
-  return (
-    <div className="picker-wrap" ref={rootRef}>
-      <button
-        type="button"
-        className="picker-trigger"
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        onClick={() => setOpen((prev) => !prev)}
-      >
-        <span className="picker-trigger-label">{selected.label}</span>
-        <ChevDown />
-      </button>
-      {menu ? createPortal(menu, document.body) : null}
-    </div>
-  );
 }
 
 function AgendaEventRow({
@@ -1015,7 +917,12 @@ export function EventModal({
               <div className="notify-fields">
                 <div>
                   <label className="fld-label">Send</label>
-                  <LeadPicker options={leadOptions} value={lead} onChange={setLead} />
+                  <OptionPicker
+                    options={leadOptions}
+                    label="Reminder lead time"
+                    value={lead}
+                    onChange={setLead}
+                  />
                 </div>
                 <p className="notify-send-to">
                   Send to {accountNotifyEmail || "Set your email in Data & privacy"}

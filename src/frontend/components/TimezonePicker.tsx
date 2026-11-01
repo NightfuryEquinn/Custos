@@ -4,10 +4,6 @@ import { CaretDown } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-function ChevDown({ size = 16 }: { size?: number }) {
-  return <CaretDown size={size} aria-hidden />;
-}
-
 function timezoneCity(timeZone: string) {
   return timeZone.split("/").pop()?.replace(/_/g, " ") ?? timeZone;
 }
@@ -22,8 +18,6 @@ type TimezonePickerProps = {
 
 export function TimezonePicker({ value, onChange, className, disabled, id }: TimezonePickerProps) {
   const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
   const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLButtonElement>(null);
@@ -95,9 +89,8 @@ export function TimezonePicker({ value, onChange, className, disabled, id }: Tim
     ) : null;
 
   return (
-    <div className={"picker-wrap" + (className ? ` ${className}` : "")} ref={rootRef}>
+    <div className={"picker-wrap" + (className ? ` ${className}` : "")}>
       <button
-        ref={triggerRef}
         id={id}
         type="button"
         className="picker-trigger"
@@ -110,7 +103,7 @@ export function TimezonePicker({ value, onChange, className, disabled, id }: Tim
           <span className="picker-tz-offset num">{offset}</span>
           <span className="picker-tz-city">{city}</span>
         </span>
-        <ChevDown />
+        <CaretDown size={16} aria-hidden />
       </button>
       {menu ? createPortal(menu, document.body) : null}
     </div>

@@ -12,9 +12,10 @@ import { dateIdCursorClause, pageCursorFromDocs } from "@/api/lib/pagination";
 import type { SessionVariables } from "@/api/middleware/session";
 import { sessionAuth } from "@/api/middleware/session";
 import { getCollections, getDb } from "@/db";
-import { deleteScopeQuerySchema, resolveEventDeleteAction } from "@/lib/delete-scope";
+import { resolveEventDeleteAction } from "@/lib/delete-scope";
 import { shiftIso } from "@/lib/schedule";
 import {
+  deleteScopeQuerySchema,
   isLeadAllowedForEvent,
   isRepeatAllowedForSpan,
   monthDateBounds,
