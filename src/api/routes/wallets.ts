@@ -151,16 +151,16 @@ walletsRoutes.patch("/:id", zValidator("json", updateWalletSchema), async (c) =>
 
   await migrateLegacyData(accountId);
 
-  if (body.isDefault === false) {
-    const target = await findOwnedWallet(accountId, id.data);
-    if (target?.isDefault) {
-      badRequest("Cannot unset the default wallet. Set another wallet as default instead.");
-    }
+  const target = await findOwnedWallet(accountId, id.data);
+  if (!target) notFound("Wallet not found");
+
+  if (body.isDefault === false && target.isDefault) {
+    badRequest("Cannot unset the default wallet. Set another wallet as default instead.");
   }
 
   if (body.isDefault === true) {
     await financialWallets.updateMany(
-      { accountId, isDefault: true },
+      { accountId, isDefault: true, _id: { $ne: target._id } },
       { $set: { isDefault: false, updatedAt: new Date() } },
     );
   }

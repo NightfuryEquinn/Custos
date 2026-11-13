@@ -1,9 +1,9 @@
-import type { Nudge, NudgeCheckIn } from "@/lib/nudge";
 /**
  * Apply a decrypted backup into the live ledger via existing save APIs.
  * Client-only; remaps wallets by name+currency when ids differ.
  */
 
+import type { Nudge, NudgeCheckIn } from "@/lib/nudge";
 import type {
   CapitalPlan,
   Category,
@@ -19,7 +19,7 @@ import { TAB_SLOTS, VIEW_IDS, type ViewId } from "@/lib/views";
 import type { BackupSettings, LedgerBackupPlain } from "./encrypted-backup";
 
 type BackupRestoreApi = {
-  saveNudge?: (row: Omit<Nudge, "id">) => Promise<Nudge>;
+  saveNudge?: (row: Omit<Nudge, "id"> & { id?: string }) => Promise<Nudge>;
   restoreNudgeCheckIn?: (event: NudgeCheckIn) => Promise<unknown>;
   saveCategories: (categories: Category[]) => Promise<unknown>;
   saveWallet: (wallet: Omit<FinancialWallet, "id"> & { id?: string }) => Promise<FinancialWallet>;
@@ -29,8 +29,8 @@ type BackupRestoreApi = {
   saveCapitalPlan: (plan: Omit<CapitalPlan, "id"> & { id?: string }) => Promise<unknown>;
   saveVehicle: (vehicle: Omit<Vehicle, "id"> & { id?: string }) => Promise<Vehicle>;
   saveVehicleFill: (fill: Omit<FuelFill, "id"> & { id?: string }) => Promise<unknown>;
-  /** Create a routine; resolves with its new id, which its completions are attached to. */
-  saveDailyRoutine?: (routine: Omit<DailyRoutine, "id">) => Promise<DailyRoutine>;
+  /** Create a routine; resolves with its id, which its completions are attached to. */
+  saveDailyRoutine?: (routine: Omit<DailyRoutine, "id"> & { id?: string }) => Promise<DailyRoutine>;
   /** Set one routine's checkbox for one period (idempotent on routine + period). */
   putDailyCompletion?: (
     completion: Pick<DailyCompletion, "routineId" | "period" | "done" | "at">,
@@ -150,8 +150,7 @@ export async function restoreBackupToLedger(
       continue;
     }
     try {
-      const { id: _id, ...rest } = row;
-      await api.saveExpense({ ...rest, walletId });
+      await api.saveExpense({ ...row, walletId });
       result.expenses++;
     } catch {
       result.failed++;
@@ -162,8 +161,7 @@ export async function restoreBackupToLedger(
   for (const row of plain.events ?? []) {
     if (existingEventIds.has(row.id)) continue;
     try {
-      const { id: _id, ...rest } = row;
-      await api.saveEvent(rest);
+      await api.saveEvent(row);
       result.events++;
     } catch {
       result.failed++;
@@ -174,8 +172,7 @@ export async function restoreBackupToLedger(
   for (const row of plain.todoLists ?? []) {
     if (existingTodoIds.has(row.id)) continue;
     try {
-      const { id: _id, ...rest } = row;
-      await api.saveTodoList(rest);
+      await api.saveTodoList(row);
       result.todos++;
     } catch {
       result.failed++;
@@ -186,8 +183,7 @@ export async function restoreBackupToLedger(
   for (const row of plain.capitalPlans ?? []) {
     if (existingPlanIds.has(row.id)) continue;
     try {
-      const { id: _id, ...rest } = row;
-      await api.saveCapitalPlan(rest);
+      await api.saveCapitalPlan(row);
       result.capitalPlans++;
     } catch {
       result.failed++;
@@ -206,8 +202,7 @@ export async function restoreBackupToLedger(
       continue;
     }
     try {
-      const { id: _id, ...rest } = row;
-      const created = await api.saveVehicle(rest);
+      const created = await api.saveVehicle(row);
       vehicleIdMap.set(row.id, created.id);
       result.vehicles++;
     } catch {
@@ -224,17 +219,16 @@ export async function restoreBackupToLedger(
       continue;
     }
     try {
-      const { id: _id, ...rest } = row;
-      await api.saveVehicleFill({ ...rest, vehicleId });
+      await api.saveVehicleFill({ ...row, vehicleId });
       result.vehicleFills++;
     } catch {
       result.failed++;
     }
   }
 
-  /* A restored routine gets a new id, so a repeat restore recognises it by when it was
-     created and what it is called. Completions are then matched by routine and period,
-     which keeps a second restore from adding rows (and so points) twice. */
+  /* Prefer the backup id so completions keep their links. A repeat restore also
+     recognises a routine by when it was created and what it is called, in case an
+     older restore reminted the id. */
   const routineIdMap = new Map<string, string>();
   const existingRoutines = current.dailyRoutines ?? [];
   for (const r of existingRoutines) routineIdMap.set(r.id, r.id);
@@ -248,8 +242,7 @@ export async function restoreBackupToLedger(
     }
     try {
       if (!api.saveDailyRoutine) throw new Error("Daily restore is not available");
-      const { id: _id, ...rest } = row;
-      const created = await api.saveDailyRoutine(rest);
+      const created = await api.saveDailyRoutine(row);
       routineIdMap.set(row.id, created.id);
       result.dailyRoutines++;
     } catch {
@@ -285,8 +278,7 @@ export async function restoreBackupToLedger(
     }
     try {
       if (!api.saveNudge) throw new Error("Nudge restore unavailable");
-      const { id: _id, ...data } = row;
-      const saved = await api.saveNudge(data);
+      const saved = await api.saveNudge(row);
       nudgeIds.set(row.id, saved.id);
       result.nudges++;
     } catch {

@@ -1048,14 +1048,6 @@ export function useLedger(walletAddress: string) {
       const seriesHmacKey = requireSeriesKey(wallet);
 
       if (data.id) {
-        /* Safe to queue offline only when the expense being edited is not
-           currently part of a recurring series — shouldRetireOldExpenseSeries
-           (src/api/lib/expense-delete-scope.ts) never retires anything for
-           an expense whose *existing* recurring value is already false,
-           regardless of what the edit changes it to. Editing an
-           already-recurring row can trigger a server-computed multi-document
-           retire, which the client cannot predict — that case keeps requiring
-           a live connection, unchanged from before this queue existed. */
         /* Overlay-aware, not the raw query caches — an expense created
            offline isn't in either cache until its own create confirms, so
            reading the raw data here made editing it while still offline
@@ -1063,39 +1055,51 @@ export function useLedger(walletAddress: string) {
         const existing =
           overlaidExpenseData.find((e) => e.id === data.id) ??
           overlaidAllExpenseData.find((e) => e.id === data.id);
-        const queueable = existing ? normalizeRecurring(existing.recurring) === false : false;
-        const body = await encodeExpenseUpdate(data, cryptoKey, seriesHmacKey);
 
-        if (queueable) {
-          await enqueueOutbox({
-            address: wallet,
-            entity: "expense",
-            op: "update",
-            targetId: data.id,
-            request: { method: "PATCH", path: `/expenses/${data.id}`, body },
-            dependsOn: [],
-            label: "Expense",
-            labelEnc: await sealLabel(wallet, data.note),
-          });
-          void drainOutbox(wallet);
-          const expense = await decodeExpense({ id: data.id, ...body } as ExpenseWire, cryptoKey);
-          return { expense, deletedIds: [] as string[], endedIds: [] as string[], queued: true };
+        if (existing) {
+          /* Safe to queue offline only when the expense being edited is not
+             currently part of a recurring series — shouldRetireOldExpenseSeries
+             (src/api/lib/expense-delete-scope.ts) never retires anything for
+             an expense whose *existing* recurring value is already false,
+             regardless of what the edit changes it to. Editing an
+             already-recurring row can trigger a server-computed multi-document
+             retire, which the client cannot predict — that case keeps requiring
+             a live connection, unchanged from before this queue existed. */
+          const queueable = normalizeRecurring(existing.recurring) === false;
+          const body = await encodeExpenseUpdate(data, cryptoKey, seriesHmacKey);
+
+          if (queueable) {
+            await enqueueOutbox({
+              address: wallet,
+              entity: "expense",
+              op: "update",
+              targetId: data.id,
+              request: { method: "PATCH", path: `/expenses/${data.id}`, body },
+              dependsOn: [],
+              label: "Expense",
+              labelEnc: await sealLabel(wallet, data.note),
+            });
+            void drainOutbox(wallet);
+            const expense = await decodeExpense({ id: data.id, ...body } as ExpenseWire, cryptoKey);
+            return { expense, deletedIds: [] as string[], endedIds: [] as string[], queued: true };
+          }
+
+          const res = await api.expenses.update(data.id, body);
+          const expense = await decodeExpense(res.expense, cryptoKey);
+          return {
+            expense,
+            deletedIds: res.deletedIds ?? [],
+            endedIds: res.endedIds ?? [],
+            queued: false,
+          };
         }
-
-        const res = await api.expenses.update(data.id, body);
-        const expense = await decodeExpense(res.expense, cryptoKey);
-        return {
-          expense,
-          deletedIds: res.deletedIds ?? [],
-          endedIds: res.endedIds ?? [],
-          queued: false,
-        };
       }
 
       /* A brand-new expense never retires anything — always safe to queue,
-         recurring or not. Client-mints the id so the row (and anything that
-         links to it — an event, a Capitals plan) is final immediately. */
-      const id = clientObjectId();
+         recurring or not. Honours a caller-supplied id (encrypted restore)
+         so cross-links survive; otherwise client-mints so the row is final
+         immediately. */
+      const id = data.id ?? clientObjectId();
       const body = await encodeExpenseCreate(data, cryptoKey, seriesHmacKey);
       await enqueueOutbox({
         address: wallet,
@@ -1226,7 +1230,12 @@ export function useLedger(walletAddress: string) {
          server-side validation errors (e.g. an invalid lead/allDay
          combination) for the retry/discard panel on the rare mismatch, in
          exchange for reads/writes never blocking on the network. */
-      if (data.id) {
+      const knownEvent =
+        Boolean(data.id) &&
+        (overlaidEventData.some((event) => event.id === data.id) ||
+          overlaidHomeEventData.some((event) => event.id === data.id));
+
+      if (data.id && knownEvent) {
         const body = await encodeEventUpdate(data, cryptoKey, reminderCtx);
         await enqueueOutbox({
           address: wallet,
@@ -1241,7 +1250,7 @@ export function useLedger(walletAddress: string) {
         void drainOutbox(wallet);
         return decodeEvent({ id: data.id, ...body } as EventWire, cryptoKey);
       }
-      const id = clientObjectId();
+      const id = data.id ?? clientObjectId();
       const body = await encodeEventCreate(data, cryptoKey, reminderCtx);
       await enqueueOutbox({
         address: wallet,
@@ -1262,7 +1271,7 @@ export function useLedger(walletAddress: string) {
 
       for (const cacheMonth of cacheMonths) {
         queryClient.setQueryData<LedgerEvent[]>(keys.events(wallet, cacheMonth), (prev = []) => {
-          if (variables.id) {
+          if (prev.some((e) => e.id === event.id)) {
             const mapped = prev.map((e) => (e.id === event.id ? event : e));
             /* Drop from this month's cache when the event no longer occurs here as a once row. */
             if (event.repeat === "once" && eventMonth !== cacheMonth) {
@@ -1270,7 +1279,7 @@ export function useLedger(walletAddress: string) {
             }
             return mapped;
           }
-          if (prev.some((e) => e.id === event.id)) return prev;
+          if (event.repeat === "once" && eventMonth !== cacheMonth) return prev;
           return [...prev, event];
         });
       }
@@ -1478,30 +1487,31 @@ export function useLedger(walletAddress: string) {
          all N. */
       if (data.id) {
         const current = existing.find((l) => l.id === data.id);
-        if (!current) throw new Error("List not found");
-        const encrypted = await encodeTodoListUpdate(
-          {
-            name: data.name ?? current.name,
-            icon: data.icon ?? current.icon,
-            tasks: data.tasks ?? current.tasks,
-          },
-          cryptoKey,
-        );
-        await enqueueOutbox({
-          address: wallet,
-          entity: "todoList",
-          op: "update",
-          targetId: data.id,
-          request: { method: "PATCH", path: `/todo-lists/${data.id}`, body: encrypted },
-          dependsOn: [],
-          label: "List",
-          labelEnc: await sealLabel(wallet, data.name ?? current.name),
-        });
-        void drainOutbox(wallet);
-        return decodeTodoList({ id: data.id, ...encrypted } as TodoListWire, cryptoKey);
+        if (current) {
+          const encrypted = await encodeTodoListUpdate(
+            {
+              name: data.name ?? current.name,
+              icon: data.icon ?? current.icon,
+              tasks: data.tasks ?? current.tasks,
+            },
+            cryptoKey,
+          );
+          await enqueueOutbox({
+            address: wallet,
+            entity: "todoList",
+            op: "update",
+            targetId: data.id,
+            request: { method: "PATCH", path: `/todo-lists/${data.id}`, body: encrypted },
+            dependsOn: [],
+            label: "List",
+            labelEnc: await sealLabel(wallet, data.name ?? current.name),
+          });
+          void drainOutbox(wallet);
+          return decodeTodoList({ id: data.id, ...encrypted } as TodoListWire, cryptoKey);
+        }
       }
 
-      const id = clientObjectId();
+      const id = data.id ?? clientObjectId();
       const encrypted = await encodeTodoListCreate({ name, icon, tasks }, cryptoKey);
       await enqueueOutbox({
         address: wallet,
@@ -1516,9 +1526,9 @@ export function useLedger(walletAddress: string) {
       void drainOutbox(wallet);
       return decodeTodoList({ id, ...encrypted } as TodoListWire, cryptoKey);
     },
-    onSuccess: (saved, variables) => {
+    onSuccess: (saved) => {
       queryClient.setQueryData<TodoList[]>(keys.todoLists(wallet), (prev = []) => {
-        if (variables.id) {
+        if (prev.some((l) => l.id === saved.id)) {
           return prev.map((l) => (l.id === saved.id ? saved : l));
         }
         return [...prev, saved];
@@ -1562,32 +1572,33 @@ export function useLedger(walletAddress: string) {
          silently fail. */
       if (data.id) {
         const current = existing.find((p) => p.id === data.id);
-        if (!current) throw new Error("Plan not found");
-        const merged: Omit<CapitalPlan, "id"> = {
-          name: data.name ?? current.name,
-          templateId: data.templateId ?? current.templateId,
-          glyph: data.glyph ?? current.glyph,
-          targetDate: data.targetDate ?? current.targetDate,
-          initialBudget: data.initialBudget ?? current.initialBudget,
-          createdAt: current.createdAt,
-          items: data.items ?? current.items,
-        };
-        const encrypted = await encodeCapitalPlanUpdate(merged, cryptoKey);
-        await enqueueOutbox({
-          address: wallet,
-          entity: "capitalPlan",
-          op: "update",
-          targetId: data.id,
-          request: { method: "PATCH", path: `/capital-plans/${data.id}`, body: encrypted },
-          dependsOn: [],
-          label: "Capital plan",
-          labelEnc: await sealLabel(wallet, merged.name),
-        });
-        void drainOutbox(wallet);
-        return decodeCapitalPlan({ id: data.id, ...encrypted } as CapitalPlanWire, cryptoKey);
+        if (current) {
+          const merged: Omit<CapitalPlan, "id"> = {
+            name: data.name ?? current.name,
+            templateId: data.templateId ?? current.templateId,
+            glyph: data.glyph ?? current.glyph,
+            targetDate: data.targetDate ?? current.targetDate,
+            initialBudget: data.initialBudget ?? current.initialBudget,
+            createdAt: current.createdAt,
+            items: data.items ?? current.items,
+          };
+          const encrypted = await encodeCapitalPlanUpdate(merged, cryptoKey);
+          await enqueueOutbox({
+            address: wallet,
+            entity: "capitalPlan",
+            op: "update",
+            targetId: data.id,
+            request: { method: "PATCH", path: `/capital-plans/${data.id}`, body: encrypted },
+            dependsOn: [],
+            label: "Capital plan",
+            labelEnc: await sealLabel(wallet, merged.name),
+          });
+          void drainOutbox(wallet);
+          return decodeCapitalPlan({ id: data.id, ...encrypted } as CapitalPlanWire, cryptoKey);
+        }
       }
 
-      const id = clientObjectId();
+      const id = data.id ?? clientObjectId();
       const fresh: Omit<CapitalPlan, "id"> = {
         name: data.name ?? "",
         templateId: data.templateId,
@@ -1611,9 +1622,11 @@ export function useLedger(walletAddress: string) {
       void drainOutbox(wallet);
       return decodeCapitalPlan({ id, ...encrypted } as CapitalPlanWire, cryptoKey);
     },
-    onSuccess: (saved, variables) => {
+    onSuccess: (saved) => {
       queryClient.setQueryData<CapitalPlan[]>(keys.capitalPlans(wallet), (prev = []) => {
-        if (variables.id) return prev.map((p) => (p.id === saved.id ? saved : p));
+        if (prev.some((p) => p.id === saved.id)) {
+          return prev.map((p) => (p.id === saved.id ? saved : p));
+        }
         return [...prev, saved];
       });
     },
@@ -1645,7 +1658,7 @@ export function useLedger(walletAddress: string) {
          there's no RMW seam to worry about (unlike wallets/categories). Both
          server routes are single-document and $set-only/insertOwned — safe
          to queue unconditionally. */
-      if (id) {
+      if (id && overlaidVehicleData.some((vehicle) => vehicle.id === id)) {
         const body = await encodeVehicleUpdate(rest, cryptoKey);
         await enqueueOutbox({
           address: wallet,
@@ -1660,7 +1673,7 @@ export function useLedger(walletAddress: string) {
         void drainOutbox(wallet);
         return decodeVehicle({ id, ...body } as VehicleWire, cryptoKey);
       }
-      const newId = clientObjectId();
+      const newId = id ?? clientObjectId();
       const body = await encodeVehicleCreate(rest, cryptoKey);
       /* Neither encoder emits `createdAt` (the server sets it) — carried in
          overlayPatch instead of the request body, so it stays stable across
@@ -1680,9 +1693,11 @@ export function useLedger(walletAddress: string) {
       void drainOutbox(wallet);
       return decodeVehicle({ id: newId, ...body, createdAt } as VehicleWire, cryptoKey);
     },
-    onSuccess: (saved, variables) => {
+    onSuccess: (saved) => {
       queryClient.setQueryData<Vehicle[]>(keys.vehicles(wallet), (prev = []) => {
-        if (variables.id) return prev.map((v) => (v.id === saved.id ? saved : v));
+        if (prev.some((v) => v.id === saved.id)) {
+          return prev.map((v) => (v.id === saved.id ? saved : v));
+        }
         return [...prev, saved];
       });
     },
@@ -1739,13 +1754,14 @@ export function useLedger(walletAddress: string) {
          (a vehicle create that fails permanently should block its fills
          rather than firing them at a parent that'll never exist) — see
          failOutboxPermanently in outbox.ts. */
-      const pendingVehicle = !id
+      const updating = Boolean(id && overlaidVehicleFillData.some((fill) => fill.id === id));
+      const pendingVehicle = !updating
         ? (await listOutbox(wallet)).find(
             (e) => e.entity === "vehicle" && e.op === "create" && e.targetId === rest.vehicleId,
           )
         : undefined;
 
-      if (id) {
+      if (updating && id) {
         const body = await encodeVehicleFillUpdate(rest, cryptoKey);
         await enqueueOutbox({
           address: wallet,
@@ -1760,7 +1776,7 @@ export function useLedger(walletAddress: string) {
         void drainOutbox(wallet);
         return decodeVehicleFill({ id, ...body } as VehicleFillWire, cryptoKey);
       }
-      const newId = clientObjectId();
+      const newId = id ?? clientObjectId();
       const body = await encodeVehicleFillCreate(rest, cryptoKey);
       await enqueueOutbox({
         address: wallet,
@@ -1775,9 +1791,11 @@ export function useLedger(walletAddress: string) {
       void drainOutbox(wallet);
       return decodeVehicleFill({ id: newId, ...body } as VehicleFillWire, cryptoKey);
     },
-    onSuccess: (saved, variables) => {
+    onSuccess: (saved) => {
       queryClient.setQueryData<FuelFill[]>(keys.vehicleFills(wallet), (prev = []) => {
-        if (variables.id) return prev.map((f) => (f.id === saved.id ? saved : f));
+        if (prev.some((f) => f.id === saved.id)) {
+          return prev.map((f) => (f.id === saved.id ? saved : f));
+        }
         return [...prev, saved];
       });
     },

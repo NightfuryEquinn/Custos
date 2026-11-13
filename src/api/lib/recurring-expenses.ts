@@ -3,6 +3,7 @@ import { accountTimezone } from "@/api/lib/nudges";
 import { createHash } from "node:crypto";
 import { COLLECTIONS, getCollections, getDb } from "@/db";
 import type { ExpenseDocument, RateLimitDocument } from "@/db/collections";
+import type { Collection } from "mongodb";
 import {
   RECURRING_CATCHUP_LIMIT,
   formatIsoDateParts,
@@ -174,10 +175,6 @@ async function materializeDueRecurringExpenses(now: Date): Promise<RecurringMate
 
     result.scanned += anchors.length;
     const scanStamp = new Date();
-    await expenses.updateMany(
-      { _id: { $in: anchors.map((a) => a._id) } },
-      { $set: { lastScannedAt: scanStamp } },
-    );
 
     /** Latest row supplies payload/amount; earliest date supplies day-of-month (avoids clamp drift). */
     type SeriesState = { latest: ExpenseDocument; anchorIso: string };
@@ -196,12 +193,17 @@ async function materializeDueRecurringExpenses(now: Date): Promise<RecurringMate
     }
 
     result.series += bySeries.size;
+    const processedKeys = new Set<string>();
 
-    for (const { latest: template, anchorIso } of bySeries.values()) {
+    for (const [key, { latest: template, anchorIso }] of bySeries) {
       if (Date.now() - started > CRON_TIME_BUDGET_MS) {
         result.truncated = true;
         break;
       }
+
+      /* Mark considered before any `continue`, so series with nothing due
+         still rotate out of the next poll's front of the queue. */
+      processedKeys.add(key);
 
       const freq = normalizeRecurring(template.recurring) as RecurringInterval;
       if (!template.walletId) {
@@ -286,8 +288,19 @@ async function materializeDueRecurringExpenses(now: Date): Promise<RecurringMate
        it already computed, instead of losing all of them because the one
        insertMany() never ran. */
     if (pendingInserts.length) {
-      await expenses.insertMany(pendingInserts);
-      result.created += pendingInserts.length;
+      result.created += await insertRecurringRows(expenses, pendingInserts, result.errors);
+    }
+
+    const stampIds = anchors
+      .filter((doc) => {
+        const freq = normalizeRecurring(doc.recurring);
+        if (!freq || !doc.walletId) return true;
+
+        return processedKeys.has(`${doc.accountId}|${seriesKey(doc)}`);
+      })
+      .map((doc) => doc._id);
+    if (stampIds.length) {
+      await expenses.updateMany({ _id: { $in: stampIds } }, { $set: { lastScannedAt: scanStamp } });
     }
 
     if (anchors.length < ANCHOR_BATCH_LIMIT) break;
@@ -299,4 +312,36 @@ async function materializeDueRecurringExpenses(now: Date): Promise<RecurringMate
   }
 
   return result;
+}
+
+/** Insert computed dues; duplicate keys from overlapping runs count as created=0, not a crash. */
+async function insertRecurringRows(
+  expenses: Collection<ExpenseDocument>,
+  rows: ExpenseDocument[],
+  errors: string[],
+): Promise<number> {
+  try {
+    const inserted = await expenses.insertMany(rows, { ordered: false });
+
+    return inserted.insertedCount;
+  } catch (err) {
+    const bulk = err as {
+      insertedCount?: number;
+      writeErrors?: { code?: number }[];
+    };
+    const writeErrors = bulk.writeErrors;
+    if (!writeErrors) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`insert: ${msg}`);
+
+      return 0;
+    }
+
+    if (writeErrors.some((item) => item.code !== 11000)) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`insert: ${msg}`);
+    }
+
+    return bulk.insertedCount ?? 0;
+  }
 }

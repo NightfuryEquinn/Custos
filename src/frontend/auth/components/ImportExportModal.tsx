@@ -1,3 +1,4 @@
+import { loadEventsBackup } from "@/frontend/auth/lib/backup-history";
 import { loadNudgeBackup } from "@/frontend/auth/lib/nudge-backup";
 import type { DailyCompletion, DailyRoutine } from "@/lib/daily";
 import { CsvImportPanel, type CsvImportPreview } from "@/frontend/auth/components/CsvImportPanel";
@@ -201,14 +202,17 @@ export function ImportExportModal({
         api.profile.get(),
         api.consent.get(),
       ]);
-      const nudgeBackup = await loadNudgeBackup(accountAddress);
+      const [nudgeBackup, scheduleEvents] = await Promise.all([
+        loadNudgeBackup(accountAddress),
+        loadEventsBackup(accountAddress),
+      ]);
       const plain = buildBackupPlain({
         ...nudgeBackup,
         address: accountAddress,
         wallets,
         categories: categoryIndex?.allCategories ?? [],
         expenses,
-        events,
+        events: scheduleEvents,
         todoLists,
         capitalPlans,
         vehicles,

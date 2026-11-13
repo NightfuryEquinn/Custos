@@ -147,7 +147,7 @@ build.ts                  # Production build (dist/ + api/handler.js)
 
 ## Setup
 
-Use Node.js **v24.22.1** for development tools (pinned in `.nvmrc` and `package.json`). GitHub workflows read the same pin. Bun remains the package manager, test runner, build tool, and application runtime, including on Vercel.
+Use Node.js **v24.22.1** for development tools (pinned in `.nvmrc`; GitHub workflows read the same pin). Do not add an `engines.node` field — that overrides `bunVersion` in `vercel.json` and breaks the API bundle. Bun remains the package manager, build tool, and application runtime, including on Vercel.
 
 With a Node version manager, run `nvm install 24.22.1` and `nvm use 24.22.1`, then verify `node --version`. On Windows PowerShell, use `bun.exe` if script execution policy blocks the `bun.ps1` shim.
 
@@ -186,6 +186,7 @@ bun run db:prune-stale   # scripts/prune-stale-users.ts — see below for flags
 bun run db:grant-supporter 0x… [--revoke]  # set/clear the account's Supporter chip
 bun run db:wipe-account -- --account-id <hex> --dry-run  # wipe one account's data
 bun run db:migrate-nudge-at  # one-off: swap plaintext check-in `at` for `seq` (see 6.6.1 deployment)
+bun run db:remove-personalization  # one-off: drop retired 7.0.0 Suggestions leftovers
 ```
 
 Connectivity check: `curl http://localhost:3000/` (expect `200`)
@@ -304,36 +305,39 @@ You may be prompted to **unlock** on each visit (device passphrase and/or wallet
 
 ## API overview
 
-| Route                                                  | Description                                                                                                                                          |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /api/auth/challenge`                             | Start sign-in                                                                                                                                        |
-| `POST /api/auth/verify`                                | Complete sign-in                                                                                                                                     |
-| `GET /api/auth/me`                                     | Current session                                                                                                                                      |
-| `GET /api/auth/sessions`                               | List active sessions                                                                                                                                 |
-| `DELETE /api/auth/sessions/:id`                        | Revoke a session                                                                                                                                     |
-| `DELETE /api/auth/sessions`                            | Revoke all other sessions                                                                                                                            |
-| `POST /api/auth/logout`                                | End current session                                                                                                                                  |
-| `POST /api/auth/clear`                                 | Revoke all sessions and clear cookie                                                                                                                 |
-| `GET/PATCH /api/users/me`                              | Codename, notify email, timezone, reminder/alert prefs                                                                                               |
-| `POST /api/users`                                      | Create or upsert user profile on first sign-in                                                                                                       |
-| `GET/PATCH /api/profile`                               | Per-user UI state — month, tour progress, theme (accent/surface), nav layout; returns `id`/`createdAt` too                                           |
-| `CRUD /api/wallets`                                    | Financial wallets (metadata + E2EE `enc`/`payload` via PATCH)                                                                                        |
-| `PUT /api/wallets/:id/budgets`                         | Update encrypted wallet financials (`enc`/`payload`)                                                                                                 |
-| `GET/PUT /api/categories`                              | Category taxonomy                                                                                                                                    |
-| `CRUD /api/expenses`                                   | Transactions (scoped by wallet; cursor list via `limit`/`before`; optional series delete scopes)                                                     |
-| `CRUD /api/events`                                     | Schedule events (comments + budget holds live in the E2EE payload; cursor list via `limit`/`before`)                                                 |
-| `CRUD /api/todo-lists`                                 | TO-DO lists and tasks                                                                                                                                |
-| `CRUD /api/capital-plans`                              | Capitals planners and their line items                                                                                                               |
-| `CRUD /api/vehicles`                                   | Tracked vehicles (car/EV/bike/van)                                                                                                                   |
-| `CRUD /api/vehicles/fills`                             | Fuel fills or charges (cursor list via `limit`/`before`, filterable by `vehicleId`)                                                                  |
-| `GET/PATCH /api/consent`                               | Data-sharing consent                                                                                                                                 |
-| `POST /api/budget-alerts`                              | Deliver client-evaluated budget alerts (email; deduped)                                                                                              |
-| `GET /api/fx/latest/:base`                             | Cached FX rates (requires `EXCHANGE_RATE_API_KEY`)                                                                                                   |
-| `GET /api/push/public-key`                             | VAPID application server key for browser subscription                                                                                                |
-| `POST/DELETE /api/push/subscribe`                      | Register or remove this device's Web Push endpoint                                                                                                   |
-| `GET /api/cron/reminders`                              | Auth: `Authorization: Bearer $CRON_SECRET`. Sends due reminders (email + push) and due nudges (push only), and materializes recurring expenses       |
-| `GET/POST /api/nudges`, `PATCH/DELETE /api/nudges/:id` | Session. Nudges: ciphertext plus plaintext timing and push copy; the server computes `nextAt` in the account timezone                                |
-| `POST /api/cron/notify-release`                        | Auth: `Authorization: Bearer $CRON_SECRET`. Body `{ "version": "3.0.0" }`. Broadcasts an "app updated" push — called by CI after a successful deploy |
+| Route                                                                  | Description                                                                                                                                          |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/auth/challenge`                                             | Start sign-in                                                                                                                                        |
+| `POST /api/auth/verify`                                                | Complete sign-in                                                                                                                                     |
+| `GET /api/auth/me`                                                     | Current session                                                                                                                                      |
+| `GET /api/auth/sessions`                                               | List active sessions                                                                                                                                 |
+| `DELETE /api/auth/sessions/:id`                                        | Revoke a session                                                                                                                                     |
+| `DELETE /api/auth/sessions`                                            | Revoke all other sessions                                                                                                                            |
+| `POST /api/auth/logout`                                                | End current session                                                                                                                                  |
+| `POST /api/auth/clear`                                                 | Revoke all sessions and clear cookie                                                                                                                 |
+| `GET/PATCH /api/users/me`                                              | Codename, notify email, timezone, reminder/alert prefs                                                                                               |
+| `POST /api/users`                                                      | Create or upsert user profile on first sign-in                                                                                                       |
+| `GET/PATCH /api/profile`                                               | Per-user UI state — month, tour progress, theme (accent/surface), nav layout; returns `id`/`createdAt` too                                           |
+| `CRUD /api/wallets`                                                    | Financial wallets (metadata + E2EE `enc`/`payload` via PATCH)                                                                                        |
+| `PUT /api/wallets/:id/budgets`                                         | Update encrypted wallet financials (`enc`/`payload`)                                                                                                 |
+| `GET/PUT /api/categories`                                              | Category taxonomy                                                                                                                                    |
+| `CRUD /api/expenses`                                                   | Transactions (scoped by wallet; cursor list via `limit`/`before`; optional series delete scopes)                                                     |
+| `CRUD /api/events`                                                     | Schedule events (comments + budget holds live in the E2EE payload; cursor list via `limit`/`before`)                                                 |
+| `CRUD /api/todo-lists`                                                 | TO-DO lists and tasks                                                                                                                                |
+| `CRUD /api/capital-plans`                                              | Capitals planners and their line items                                                                                                               |
+| `CRUD /api/vehicles`                                                   | Tracked vehicles (car/EV/bike/van)                                                                                                                   |
+| `CRUD /api/vehicles/fills`                                             | Fuel fills or charges (cursor list via `limit`/`before`, filterable by `vehicleId`)                                                                  |
+| `GET/PATCH /api/consent`                                               | Data-sharing consent                                                                                                                                 |
+| `POST /api/budget-alerts`                                              | Deliver client-evaluated budget alerts (email; deduped)                                                                                              |
+| `GET /api/fx/latest/:base`                                             | Cached FX rates (requires `EXCHANGE_RATE_API_KEY`)                                                                                                   |
+| `GET /api/push/public-key`                                             | VAPID application server key for browser subscription                                                                                                |
+| `POST/DELETE /api/push/subscribe`                                      | Register or remove this device's Web Push endpoint                                                                                                   |
+| `GET /api/health`                                                      | Liveness/readiness: pings Mongo and returns `{ ok: true }`                                                                                           |
+| `GET/POST /api/daily/routines`, `PATCH/DELETE /api/daily/routines/:id` | Session. Daily routines (E2EE title/notes/history)                                                                                                   |
+| `GET/PUT /api/daily/completions`                                       | Session. Daily completion rows (one per routine and period)                                                                                          |
+| `GET /api/cron/reminders`                                              | Auth: `Authorization: Bearer $CRON_SECRET`. Sends due reminders (email + push) and due nudges (push only), and materializes recurring expenses       |
+| `GET/POST /api/nudges`, `PATCH/DELETE /api/nudges/:id`                 | Session. Nudges: ciphertext plus plaintext timing and push copy; the server computes `nextAt` in the account timezone                                |
+| `POST /api/cron/notify-release`                                        | Auth: `Authorization: Bearer $CRON_SECRET`. Body `{ "version": "3.0.0" }`. Broadcasts an "app updated" push — called by CI after a successful deploy |
 
 All mutating routes require a valid session cookie. Auth endpoints have stricter rate limits.
 
