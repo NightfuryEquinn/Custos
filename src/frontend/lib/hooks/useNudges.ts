@@ -158,7 +158,7 @@ export function useNudges(
       } = await encodeNudge(rest, cryptoKey, zonedTodayIso(timeZone));
       const labelEnc = await sealLabel(address, rest.title);
 
-      if (id) {
+      if (id && (nudges.some((row) => row.id === id) || query.data?.some((row) => row.id === id))) {
         /* An edit must not reach the server before the nudge's own create. */
         const create = (await listOutbox(address)).find(
           (e) => e.entity === "nudge" && e.op === "create" && e.targetId === id,
@@ -178,7 +178,7 @@ export function useNudges(
         return { id, ...rest };
       }
 
-      const newId = clientObjectId();
+      const newId = id ?? clientObjectId();
       await enqueueOutbox({
         address,
         entity: "nudge",
@@ -193,8 +193,8 @@ export function useNudges(
 
       return { id: newId, ...rest };
     },
-    onSuccess: (saved, input) => {
-      if (!input.id) patchCache((rows) => [...rows.filter((row) => row.id !== saved.id), saved]);
+    onSuccess: (saved) => {
+      patchCache((rows) => [...rows.filter((row) => row.id !== saved.id), saved]);
     },
   });
 

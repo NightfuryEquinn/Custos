@@ -400,6 +400,12 @@ async function sendReminderOnce(
   const [emailResult, pushResult] = await Promise.all([
     wanted.includes("email")
       ? (async () => {
+          if (await emailQuotaExceeded(ev.accountId)) {
+            console.warn(`[reminders] email quota exceeded for ${ev.accountId}; reminder skipped`);
+
+            return { ok: false as const, error: "email quota exceeded" };
+          }
+
           const { id, subject, variables } = reminderEmailTemplate({
             ...content,
             when,

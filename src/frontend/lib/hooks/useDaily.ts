@@ -129,7 +129,7 @@ export function useDaily(address: string, cryptoReady: boolean) {
       const { id, ...rest } = data;
       const encrypted = await encodeDailyRoutine(rest, cryptoKey);
 
-      if (id) {
+      if (id && routines.some((routine) => routine.id === id)) {
         /* An edit or archive must not reach the server before the routine's own create. */
         const create = (await listOutbox(address)).find(
           (e) => e.entity === "dailyRoutine" && e.op === "create" && e.targetId === id,
@@ -148,7 +148,7 @@ export function useDaily(address: string, cryptoReady: boolean) {
         return { id, ...rest };
       }
 
-      const newId = clientObjectId();
+      const newId = id ?? clientObjectId();
       await enqueueOutbox({
         address,
         entity: "dailyRoutine",

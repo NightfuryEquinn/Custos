@@ -39,17 +39,32 @@ categoriesRoutes.put("/", zValidator("json", updateCategoriesSchema), async (c) 
   const { categoryTaxonomies } = getCollections(getDb());
   const now = new Date();
 
-  const updated = await categoryTaxonomies.findOneAndUpdate(
-    { accountId },
-    {
-      $set: { enc, payload, updatedAt: now },
-      $setOnInsert: { accountId, createdAt: now },
-      $unset: { categories: "" },
-    },
-    { upsert: true, returnDocument: "after" },
-  );
+  const patch = {
+    $set: { enc, payload, updatedAt: now },
+    $unset: { categories: "" as const },
+  };
 
-  if (!updated) notFound("Category taxonomy not found");
+  try {
+    const updated = await categoryTaxonomies.findOneAndUpdate(
+      { accountId },
+      { ...patch, $setOnInsert: { accountId, createdAt: now } },
+      { upsert: true, returnDocument: "after" },
+    );
 
-  return c.json({ enc: updated.enc, payload: updated.payload });
+    if (!updated) notFound("Category taxonomy not found");
+
+    return c.json({ enc: updated.enc, payload: updated.payload });
+  } catch (err) {
+    /* Two first-saves can race the unique accountId index the same way
+       getOrCreateProfile does — retry as a plain update of the winner. */
+    if ((err as { code?: number }).code !== 11000) throw err;
+
+    const updated = await categoryTaxonomies.findOneAndUpdate({ accountId }, patch, {
+      returnDocument: "after",
+    });
+
+    if (!updated) notFound("Category taxonomy not found");
+
+    return c.json({ enc: updated.enc, payload: updated.payload });
+  }
 });

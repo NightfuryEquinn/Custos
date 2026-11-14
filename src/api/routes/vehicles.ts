@@ -148,14 +148,18 @@ vehiclesRoutes.patch("/fills/:id", zValidator("json", updateVehicleFillSchema), 
   if (!id.success) notFound("Fill not found");
 
   const body = c.req.valid("json");
-  const { vehicleFills } = getCollections(getDb());
+  const { vehicles, vehicleFills } = getCollections(getDb());
 
   const set: Record<string, unknown> = {
     enc: body.enc,
     payload: body.payload,
     updatedAt: new Date(),
   };
-  if (body.vehicleId) set.vehicleId = new ObjectId(body.vehicleId);
+  if (body.vehicleId) {
+    const vehicle = await vehicles.findOne({ _id: new ObjectId(body.vehicleId), accountId });
+    if (!vehicle) notFound("Vehicle not found");
+    set.vehicleId = new ObjectId(body.vehicleId);
+  }
   if (body.date) set.date = body.date;
   if (body.partial !== undefined) set.partial = body.partial;
 

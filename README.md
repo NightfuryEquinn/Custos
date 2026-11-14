@@ -28,7 +28,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - **Schedule** — calendar/agenda for bills and reminders with recurrence (daily to yearly) and multi-day events (`endDate`); Upcoming shows only the next occurrence of a series.
 - **Budget holds** — optional encrypted envelope holds on any event (amount + category); reserve budget until you log payment or release the occurrence.
 - **Log payment** — open a prefilled expense from an event and link `eventId` ↔ `expenseId`, releasing that occurrence's hold.
-- **Email reminders** — optional Resend emails with per-event lead time and your timezone, plus a reminder at the event's own start; delivered to your account notify email.
+- **Email reminders** — optional Resend emails with per-event lead time and your timezone, plus a reminder at the event's own start; delivered to your account notify email, with a per-account hourly cap shared with confirmations and budget alerts.
 - **Push notifications** — opt-in Web Push per device under **Account → Preferences**, on the same 15-minute poll as email.
 - **To-do lists** — multiple named lists with inline task management.
 - **Daily** — recurring routines (Every day, Selected days, or Weekly) with a Today / This week checklist and expandable twelve-week Activity heatmaps that follow the selected tab: daily/weekday routines under Today, weekly routines under This week. Browse earlier windows and tick or untick eligible past occurrences; future days and paused periods cannot be edited. Each completed occurrence earns 10 points; every routine keeps its own streak. Points and streaks are derived from encrypted completion history (one row per routine and period), checkbox taps queue offline against the period they were made in, and a routine's note shows under its title. Routines are archived first so history and points stay; an archived routine can be restored with its points and streak (the days it was archived are not counted as misses) or deleted, which removes its points with it.
@@ -43,7 +43,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - **Face ID / Touch ID unlock** — optional WebAuthn PRF biometric unlock per device; auto-prompts on open once enrolled, with the passphrase/button as fallback. An explicit sign-out turns auto-prompt off until next sign-in.
 - **Theming** — system-aware dark mode meeting **WCAG 2.1 AA** contrast; 8 accent colors and 4 base surface palettes, both applied instantly and synced across devices via your profile.
 - **Sessions & privacy** — HttpOnly cookies with sliding rotation, per-device revoke, local-data clear, and data-sharing consent under **Account → Data & privacy**.
-- **Encrypted backup** — one pack covering ledger data and account/profile settings (notify email, timezone, theme, nav layout), encrypted with your ledger key, download/restore via **Account → Exports & imports**.
+- **Encrypted backup** — one pack covering ledger data (the full schedule, not only the viewed month) and account/profile settings (notify email, timezone, theme, nav layout), encrypted with your ledger key, download/restore via **Account → Exports & imports**. Restore keeps the original document ids so linked rows stay connected.
 - **CSV export & import** — transactions, schedule events, and to-do lists.
 - **Encrypted ledger** — amounts, names, categories, notes, titles, holds, and to-dos encrypted client-side; unlocked with your wallet key each session.
 - **Offline unlock, reads & writes** — installable app shell + IndexedDB cache opens and unlocks with no connection; daily edits queue already-encrypted and sync once back online. All application chunks and fonts are precached, including unopened views. The status panel distinguishes local saves, syncing, failures, and verified offline readiness for downloaded records; updates wait for a safe reload. Wallet administration and recurring-series edits require a connection. A locally-restored session with no server confirmation is trusted for 30 days.
@@ -77,7 +77,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 | Loading  | [ldrs](https://uiball.com/ldrs) trefoil spinner                                                                     |
 | Motion   | [anime.js](https://animejs.com) v4                                                                                  |
 | Tours    | [Shepherd.js](https://shepherdjs.dev)                                                                               |
-| Diagrams | [Mermaid](https://mermaid.js.org) (Transparency view)                                                               |
+| Diagrams | [Mermaid](https://mermaid.js.org) 12 (Transparency view, dagre layout)                                              |
 | Deploy   | [Vercel](https://vercel.com) hosting + Analytics/Speed Insights only; cron via [cron-job.org](https://cron-job.org) |
 | PWA      | `public/manifest.webmanifest` + `public/sw.js` (copied into `dist/` on build)                                       |
 | Tooling  | TypeScript (`tsc --noEmit`) + [knip](https://knip.dev) (dead code detection)                                        |
@@ -147,7 +147,7 @@ build.ts                  # Production build (dist/ + api/handler.js)
 
 ## Setup
 
-Use Node.js **v24.22.1** for development tools (pinned in `.nvmrc` and `package.json`). GitHub workflows read the same pin. Bun remains the package manager, test runner, build tool, and application runtime, including on Vercel.
+Use Node.js **v24.22.1** for development tools (pinned in `.nvmrc`; GitHub workflows read the same pin). Do not add an `engines.node` field — that overrides `bunVersion` in `vercel.json` and forces the API onto Node, which breaks `import.meta.require`. Bun remains the package manager, build tool, and application runtime, including on Vercel.
 
 With a Node version manager, run `nvm install 24.22.1` and `nvm use 24.22.1`, then verify `node --version`. On Windows PowerShell, use `bun.exe` if script execution policy blocks the `bun.ps1` shim.
 
@@ -186,6 +186,7 @@ bun run db:prune-stale   # scripts/prune-stale-users.ts — see below for flags
 bun run db:grant-supporter 0x… [--revoke]  # set/clear the account's Supporter chip
 bun run db:wipe-account -- --account-id <hex> --dry-run  # wipe one account's data
 bun run db:migrate-nudge-at  # one-off: swap plaintext check-in `at` for `seq` (see 6.6.1 deployment)
+bun run db:remove-personalization  # one-off: drop retired 7.0.0 Suggestions leftovers
 ```
 
 Connectivity check: `curl http://localhost:3000/` (expect `200`)
@@ -250,7 +251,7 @@ bun scripts/prune-stale-users.ts --dry-run
 bun scripts/prune-stale-users.ts --yes
 ```
 
-The in-app **Transparency** view documents hosting roles, what the server can infer, and the same collections with example field shapes.
+The in-app **Transparency** view documents hosting roles, what the server can infer, and the same collections with example field shapes. Its flowcharts are rendered with mermaid 12 using the dagre layout (mermaid 12's default is ELK).
 
 ## Development
 
@@ -261,9 +262,11 @@ bun run check      # lint + format check + typecheck + knip (the same steps CI r
 bun run knip       # unused files/exports/deps
 ```
 
+There is no automated test suite (`258fe3c` / `32c5bf4`) and CI does not run one. `bun run check` is lint, Prettier, `tsc --noEmit`, and knip.
+
 Open [http://localhost:3000](http://localhost:3000). The SPA and API share the same origin (`/api/*`).
 
-When `CRON_SECRET` is set in development, the server also polls every 15 minutes for due reminders, due nudges and recurring expense rows. Email needs `RESEND_API_KEY`, push (reminders and nudges) needs the `VAPID_*` keys — each channel is independent, and recurring materialization runs regardless.
+When `CRON_SECRET` is set in development, the server also polls every 15 minutes for due reminders, due nudges and recurring expense rows. The poller starts even if Mongo is down at boot; `poll()` reconnects. Email needs `RESEND_API_KEY`, push (reminders and nudges) needs the `VAPID_*` keys — each channel is independent, and recurring materialization runs regardless. Each recurring series is stamped `lastScannedAt` only after it is considered, so a time-budget cut does not bury later series.
 
 ### Liveness check
 
@@ -304,36 +307,39 @@ You may be prompted to **unlock** on each visit (device passphrase and/or wallet
 
 ## API overview
 
-| Route                                                  | Description                                                                                                                                          |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /api/auth/challenge`                             | Start sign-in                                                                                                                                        |
-| `POST /api/auth/verify`                                | Complete sign-in                                                                                                                                     |
-| `GET /api/auth/me`                                     | Current session                                                                                                                                      |
-| `GET /api/auth/sessions`                               | List active sessions                                                                                                                                 |
-| `DELETE /api/auth/sessions/:id`                        | Revoke a session                                                                                                                                     |
-| `DELETE /api/auth/sessions`                            | Revoke all other sessions                                                                                                                            |
-| `POST /api/auth/logout`                                | End current session                                                                                                                                  |
-| `POST /api/auth/clear`                                 | Revoke all sessions and clear cookie                                                                                                                 |
-| `GET/PATCH /api/users/me`                              | Codename, notify email, timezone, reminder/alert prefs                                                                                               |
-| `POST /api/users`                                      | Create or upsert user profile on first sign-in                                                                                                       |
-| `GET/PATCH /api/profile`                               | Per-user UI state — month, tour progress, theme (accent/surface), nav layout; returns `id`/`createdAt` too                                           |
-| `CRUD /api/wallets`                                    | Financial wallets (metadata + E2EE `enc`/`payload` via PATCH)                                                                                        |
-| `PUT /api/wallets/:id/budgets`                         | Update encrypted wallet financials (`enc`/`payload`)                                                                                                 |
-| `GET/PUT /api/categories`                              | Category taxonomy                                                                                                                                    |
-| `CRUD /api/expenses`                                   | Transactions (scoped by wallet; cursor list via `limit`/`before`; optional series delete scopes)                                                     |
-| `CRUD /api/events`                                     | Schedule events (comments + budget holds live in the E2EE payload; cursor list via `limit`/`before`)                                                 |
-| `CRUD /api/todo-lists`                                 | TO-DO lists and tasks                                                                                                                                |
-| `CRUD /api/capital-plans`                              | Capitals planners and their line items                                                                                                               |
-| `CRUD /api/vehicles`                                   | Tracked vehicles (car/EV/bike/van)                                                                                                                   |
-| `CRUD /api/vehicles/fills`                             | Fuel fills or charges (cursor list via `limit`/`before`, filterable by `vehicleId`)                                                                  |
-| `GET/PATCH /api/consent`                               | Data-sharing consent                                                                                                                                 |
-| `POST /api/budget-alerts`                              | Deliver client-evaluated budget alerts (email; deduped)                                                                                              |
-| `GET /api/fx/latest/:base`                             | Cached FX rates (requires `EXCHANGE_RATE_API_KEY`)                                                                                                   |
-| `GET /api/push/public-key`                             | VAPID application server key for browser subscription                                                                                                |
-| `POST/DELETE /api/push/subscribe`                      | Register or remove this device's Web Push endpoint                                                                                                   |
-| `GET /api/cron/reminders`                              | Auth: `Authorization: Bearer $CRON_SECRET`. Sends due reminders (email + push) and due nudges (push only), and materializes recurring expenses       |
-| `GET/POST /api/nudges`, `PATCH/DELETE /api/nudges/:id` | Session. Nudges: ciphertext plus plaintext timing and push copy; the server computes `nextAt` in the account timezone                                |
-| `POST /api/cron/notify-release`                        | Auth: `Authorization: Bearer $CRON_SECRET`. Body `{ "version": "3.0.0" }`. Broadcasts an "app updated" push — called by CI after a successful deploy |
+| Route                                                                  | Description                                                                                                                                                                        |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/auth/challenge`                                             | Start sign-in                                                                                                                                                                      |
+| `POST /api/auth/verify`                                                | Complete sign-in                                                                                                                                                                   |
+| `GET /api/auth/me`                                                     | Current session                                                                                                                                                                    |
+| `GET /api/auth/sessions`                                               | List active sessions                                                                                                                                                               |
+| `DELETE /api/auth/sessions/:id`                                        | Revoke a session                                                                                                                                                                   |
+| `DELETE /api/auth/sessions`                                            | Revoke all other sessions                                                                                                                                                          |
+| `POST /api/auth/logout`                                                | End current session                                                                                                                                                                |
+| `POST /api/auth/clear`                                                 | Revoke all sessions and clear cookie                                                                                                                                               |
+| `GET/PATCH /api/users/me`                                              | Codename, notify email, timezone, reminder/alert prefs                                                                                                                             |
+| `POST /api/users`                                                      | Create or upsert user profile on first sign-in                                                                                                                                     |
+| `GET/PATCH /api/profile`                                               | Per-user UI state — month, tour progress, theme (accent/surface), nav layout; returns `id`/`createdAt` too                                                                         |
+| `CRUD /api/wallets`                                                    | Financial wallets (metadata + E2EE `enc`/`payload` via PATCH)                                                                                                                      |
+| `PUT /api/wallets/:id/budgets`                                         | Update encrypted wallet financials (`enc`/`payload`)                                                                                                                               |
+| `GET/PUT /api/categories`                                              | Category taxonomy                                                                                                                                                                  |
+| `CRUD /api/expenses`                                                   | Transactions (scoped by wallet; cursor list via `limit`/`before`; optional series delete scopes)                                                                                   |
+| `CRUD /api/events`                                                     | Schedule events (comments + budget holds live in the E2EE payload; cursor list via `limit`/`before`)                                                                               |
+| `CRUD /api/todo-lists`                                                 | TO-DO lists and tasks                                                                                                                                                              |
+| `CRUD /api/capital-plans`                                              | Capitals planners and their line items                                                                                                                                             |
+| `CRUD /api/vehicles`                                                   | Tracked vehicles (car/EV/bike/van)                                                                                                                                                 |
+| `CRUD /api/vehicles/fills`                                             | Fuel fills or charges (cursor list via `limit`/`before`, filterable by `vehicleId`)                                                                                                |
+| `GET/PATCH /api/consent`                                               | Data-sharing consent                                                                                                                                                               |
+| `POST /api/budget-alerts`                                              | Deliver client-evaluated budget alerts (email; deduped)                                                                                                                            |
+| `GET /api/fx/latest/:base`                                             | Cached FX rates (requires `EXCHANGE_RATE_API_KEY`)                                                                                                                                 |
+| `GET /api/push/public-key`                                             | VAPID application server key for browser subscription                                                                                                                              |
+| `POST/DELETE /api/push/subscribe`                                      | Register or remove this device's Web Push endpoint                                                                                                                                 |
+| `GET /api/health`                                                      | Liveness/readiness: pings Mongo and returns `{ ok: true }`                                                                                                                         |
+| `GET/POST /api/daily/routines`, `PATCH/DELETE /api/daily/routines/:id` | Session. Daily routines (E2EE title/notes/history)                                                                                                                                 |
+| `GET/PUT /api/daily/completions`                                       | Session. Daily completion rows (one per routine and period)                                                                                                                        |
+| `GET /api/cron/reminders`                                              | Auth: `Authorization: Bearer $CRON_SECRET`. Sends due reminders (email, with the per-account hourly quota, + push) and due nudges (push only), and materializes recurring expenses |
+| `GET/POST /api/nudges`, `PATCH/DELETE /api/nudges/:id`                 | Session. Nudges: ciphertext plus plaintext timing and push copy; the server computes `nextAt` in the account timezone                                                              |
+| `POST /api/cron/notify-release`                                        | Auth: `Authorization: Bearer $CRON_SECRET`. Body `{ "version": "3.0.0" }`. Broadcasts an "app updated" push — called by CI after a successful deploy                               |
 
 All mutating routes require a valid session cookie. Auth endpoints have stricter rate limits.
 
@@ -463,6 +469,18 @@ Custos is proprietary ([LICENSE](LICENSE)). The repository is public for **trans
 - **Free to use** on the Licensor's official hosted app (full features), under the in-app Terms. Custos does not share your data with anyone — the "data sharing" toggle under Data & privacy only records a preference for a possible future opt-in programme that does not exist yet.
 - **Not free to self-host, rebrand, claim as your product, or offer as a competing service.** Those uses need a written commercial agreement (monthly fee, collaboration, or copyright buyout) — see [Commercial and self-hosting](https://intro-custos.nightfuryequinn.app/services.html) for fixed-price options.
 - Contact: [xianzyip8@gmail.com](mailto:xianzyip8@gmail.com)
+
+### 7.0.2
+
+Patch release: backup identity, cron reliability, reminder email quota, and mermaid 12 for Transparency. No database or backup format migration. Update the app and public site together so both read 7.0.2.
+
+- Encrypted backup restore keeps document ids; export pages every schedule event.
+- Recurring cron stamps `lastScannedAt` only after a series is considered; `insertMany` is unordered and treats duplicate-key races as non-fatal.
+- Cron reminder emails use the same per-account hourly quota as confirmations and budget alerts; push is unchanged.
+- Default-wallet PATCH loads the owned wallet first; fill PATCH checks `vehicleId` ownership; first `PUT /categories` retries unique-index races.
+- Transparency uses mermaid 12.3.0 with `layout: "dagre"` (mermaid 12 defaults to ELK).
+- `engines.node` stays out of `package.json` so Vercel uses `bunVersion` from `vercel.json`.
+- There is no test suite; CI runs lint, format, typecheck, and knip only.
 
 ### Public website development
 

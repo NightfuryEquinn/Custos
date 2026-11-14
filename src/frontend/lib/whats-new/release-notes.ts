@@ -38,6 +38,33 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "7.0.2",
+    date: "November 2026",
+    lead: "Encrypted backups keep your links, recurring posts and reminder emails are more reliable, and Transparency diagrams stay current.",
+    highlights: [
+      {
+        icon: "download",
+        title: "Backups keep the same records",
+        body: "Restoring an encrypted backup reuses the original ids, so linked events, expenses and fill-ups stay connected instead of duplicating. The pack also includes the full schedule, not just the month you were viewing.",
+      },
+      {
+        icon: "calendar",
+        title: "Recurring posts finish their round",
+        body: "A slow cron run no longer skips later series after it hits the time budget, and overlapping inserts of the same occurrence are ignored.",
+      },
+      {
+        icon: "bell",
+        title: "Reminder emails respect the cap",
+        body: "Scheduled reminder emails now share the same per-account hourly limit as confirmations and budget alerts. Push still goes out.",
+      },
+      {
+        icon: "shield",
+        title: "Safer defaults",
+        body: "Setting a default wallet, editing a fill-up's vehicle, and the first save of categories no longer race or touch someone else's row.",
+      },
+    ],
+  },
+  {
     version: "7.0.1",
     date: "November 2026",
     lead: "Suggestions is retired, and syncing, reminders and sign-out are sturdier.",

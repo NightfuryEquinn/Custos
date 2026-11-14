@@ -90,11 +90,9 @@ if (process.env.NODE_ENV !== "production" && process.env.CRON_SECRET?.trim()) {
   const globalWithPoller = globalThis as typeof globalThis & {
     __custosDevCronTimer?: ReturnType<typeof setInterval>;
   };
-  if (isDbConnected() && !globalWithPoller.__custosDevCronTimer) {
+  if (!globalWithPoller.__custosDevCronTimer) {
     globalWithPoller.__custosDevCronTimer = setInterval(poll, REMINDER_POLL_INTERVAL_MS);
     void poll();
     console.log("[cron] dev poller active (every 15 min) — reminders + recurring expenses");
-  } else if (!isDbConnected()) {
-    console.log("[cron] dev poller skipped — MongoDB not connected at startup");
   }
 }

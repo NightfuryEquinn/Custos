@@ -560,6 +560,8 @@ function MermaidDiagram({ chart, label }: { chart: string; label: string }) {
           startOnLoad: false,
           securityLevel: "strict",
           theme: readTheme(),
+          // mermaid 12 defaults to ELK; dagre keeps the previous flowchart look
+          layout: "dagre",
           flowchart: { curve: "basis", htmlLabels: true, padding: 12 },
         });
         const id = `mmd-${reactId}-${Math.random().toString(36).slice(2, 8)}`;
