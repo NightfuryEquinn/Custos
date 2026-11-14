@@ -31,7 +31,7 @@
     "ethers": "^6.17.0",
     "hono": "^4.13.18",
     "ldrs": "^1.1.9",
-    "mermaid": "^11.17.2",
+    "mermaid": "^12.3.0",
     "mongodb": "6.12.0",
     "react": "^19",
     "react-colorful": "^5.8.0",
