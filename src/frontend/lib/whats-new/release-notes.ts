@@ -38,6 +38,23 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "7.0.3",
+    date: "November 2026",
+    lead: "Face ID and fingerprint stay set up, and signing in stays put.",
+    highlights: [
+      {
+        icon: "shield",
+        title: "Face ID stays set up",
+        body: "Setting up Face ID or fingerprint saves on the first prompt. If it doesn't work, you can try again instead of being asked to skip it.",
+      },
+      {
+        icon: "info",
+        title: "Sign-in stays put",
+        body: "Renewing a session no longer replaces the login cookie, so coming back later still finds you signed in.",
+      },
+    ],
+  },
+  {
     version: "7.0.2",
     date: "November 2026",
     lead: "Encrypted backups keep your links, recurring posts and reminder emails are more reliable, and Transparency diagrams stay current.",

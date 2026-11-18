@@ -9,7 +9,9 @@ import {
   getUserAgent,
   hashToken,
   parseDeviceLabel,
+  readDeviceId,
   readSessionToken,
+  setDeviceCookie,
   setSessionCookie,
   verifyAuthSignature,
 } from "@/api/lib/auth";
@@ -109,19 +111,23 @@ authRoutes.post("/verify", authVerifyRateLimit, zValidator("json", authVerifySch
   const tokenHash = hashToken(token);
   const ip = getClientIp(c);
   const userAgent = getUserAgent(c);
+  const existingDeviceId = readDeviceId(c);
+  const deviceId = existingDeviceId || generateToken();
 
-  /* Revoke this account's existing active session(s) on the same device
-     (same User-Agent) before inserting a fresh one. Without this, a login
-     that only happens because the browser lost its cookie (private mode,
-     Safari's cap on script-set cookies, a partial "clear site data") stacks
-     an indistinguishable new row in Active Sessions instead of replacing the
-     old one — the old row was still valid, just orphaned from its cookie.
-     A different real device (different User-Agent) is unaffected. */
+  /* Revoke this browser profile's previous session before inserting a fresh
+     one. The device cookie tells Safari apart from an installed app: they
+     share a User-Agent but not a cookie jar. A profile that has no device
+     cookie yet still replaces a legacy row with the same User-Agent and no
+     device id, so a lost cookie does not leave an orphaned Active Session. */
   await sessions.updateMany(
     {
-      ...sessionOwnershipFilter(accountId, normalized),
-      userAgent,
-      revokedAt: { $exists: false },
+      $and: [
+        sessionOwnershipFilter(accountId, normalized),
+        { revokedAt: { $exists: false } },
+        existingDeviceId
+          ? { deviceId: existingDeviceId }
+          : { userAgent, deviceId: { $exists: false } },
+      ],
     },
     { $set: { revokedAt: now } },
   );
@@ -130,6 +136,7 @@ authRoutes.post("/verify", authVerifyRateLimit, zValidator("json", authVerifySch
     _id: new ObjectId(),
     accountId,
     tokenHash,
+    deviceId,
     userAgent,
     ip,
     createdAt: now,
@@ -137,6 +144,7 @@ authRoutes.post("/verify", authVerifyRateLimit, zValidator("json", authVerifySch
     expiresAt: new Date(now.getTime() + SESSION_TTL_MS),
   });
 
+  setDeviceCookie(c, deviceId);
   setSessionCookie(c, token);
 
   return c.json({
@@ -156,6 +164,7 @@ authRoutes.post("/verify", authVerifyRateLimit, zValidator("json", authVerifySch
 });
 
 authRoutes.get("/me", sessionAuth, async (c) => {
+  c.header("Cache-Control", "no-store");
   const accountId = c.get("accountId");
   const sessionId = c.get("sessionId");
   const { users, sessions } = getCollections(getDb());

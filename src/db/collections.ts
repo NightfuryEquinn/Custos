@@ -119,13 +119,14 @@ export type SessionDocument = {
   address?: string;
   tokenHash: string;
   /**
-   * Previous tokenHash, kept valid briefly after a sliding-renewal rotation.
-   * A page load fans out several concurrent requests on the pre-rotation
-   * cookie; without this grace window, any request whose lookup lands after
-   * a sibling's rotation finds no matching row and 401s.
+   * Previous tokenHash from a sliding renewal that rotated the cookie.
+   * Renewal no longer rotates; this stays valid only until
+   * prevTokenValidUntil for sessions created before that change.
    */
   prevTokenHash?: string;
   prevTokenValidUntil?: Date;
+  /** Stable id from the ledger_device cookie. Scopes same-device session revoke. */
+  deviceId?: string;
   userAgent: string;
   ip: string;
   createdAt: Date;

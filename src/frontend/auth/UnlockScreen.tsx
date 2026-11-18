@@ -113,6 +113,7 @@ export function UnlockScreen({
   const needsPassphrase = !!idn && !idn.injected && !session && (!!idn.vault || !!idn.privateKey);
   const migrating = !!idn && !idn.injected && !idn.vault && !!idn.privateKey && !!idn.mnemonic;
   const cardRef = useRef<HTMLDivElement>(null);
+  const biometricAbort = useRef<AbortController | null>(null);
   useEnter(cardRef);
 
   useEffect(() => {
@@ -157,18 +158,24 @@ export function UnlockScreen({
     setBusy(false);
   }
 
+  /** Face ID button. A tap cancels a silent prompt already in flight. */
   async function biometricUnlock(silent = false) {
     if (!idn) return;
+    biometricAbort.current?.abort();
+    const controller = new AbortController();
+    biometricAbort.current = controller;
     setError("");
     if (!silent) setBusy(true);
     let pass: string;
     try {
-      pass = await unlockWithBiometric(idn.address);
+      pass = await unlockWithBiometric(idn.address, controller.signal);
     } catch (e) {
+      if (controller.signal.aborted) return;
       if (!silent) setError(e instanceof Error ? e.message : "Could not unlock with Face ID.");
       setBusy(false);
       return;
     }
+    if (controller.signal.aborted) return;
     await unlock(pass, true);
   }
 
@@ -186,18 +193,20 @@ export function UnlockScreen({
     if (!idn) return;
     setOfferBusy(true);
     setOfferError("");
+    let enrolled = false;
     try {
-      const ok = await enrollBiometric(
+      enrolled = await enrollBiometric(
         idn.address,
         idn.codename || codenameFor(idn.address),
         passphrase,
       );
-      if (!ok) setOfferError("Face ID isn't available on this device.");
+      if (!enrolled) setOfferError("Face ID isn't available on this device.");
     } catch {
       setOfferError("Could not set up Face ID.");
     }
-    markAskedToEnrollBiometric(idn.address);
     setOfferBusy(false);
+    if (!enrolled) return;
+    markAskedToEnrollBiometric(idn.address);
     onUnlocked();
   }
 

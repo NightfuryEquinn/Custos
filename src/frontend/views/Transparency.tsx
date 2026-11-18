@@ -365,11 +365,16 @@ const COLLECTIONS: CollectionDoc[] = [
         value: '"0xabc…"',
         note: "legacy sessions keyed by address only until backfill",
       },
-      { key: "tokenHash", value: "hashed cookie token (rotated on sliding renewal)" },
+      { key: "tokenHash", value: "hashed cookie token (expiry slides; the cookie value stays)" },
       {
         key: "prevTokenHash? / prevTokenValidUntil?",
         value: "hash / Date",
-        note: "brief grace window after rotation, so concurrent requests on the old cookie don't 401",
+        note: "grace window for sessions rotated before renewal stopped changing the cookie",
+      },
+      {
+        key: "deviceId?",
+        value: "device cookie id",
+        note: "scopes same-device sign-in so a different browser on this phone is left alone",
       },
       { key: "userAgent / ip", value: "client metadata" },
       { key: "createdAt / lastSeenAt / expiresAt", value: "Dates" },

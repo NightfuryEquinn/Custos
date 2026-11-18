@@ -173,6 +173,7 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
   const [termsOpen, setTermsOpen] = useState(false);
   const identities = identityStorage.list();
   const cardRef = useRef<HTMLDivElement>(null);
+  const biometricAbort = useRef<AbortController | null>(null);
   const phraseCopiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(phraseCopiedTimer.current), []);
   useEnter(cardRef);
@@ -464,19 +465,24 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
     }
   }
 
-  /** Face ID button on the device-unlock screen. */
+  /** Face ID button on the device-unlock screen. A tap cancels a silent prompt. */
   async function biometricUnlock(silent = false) {
     if (!pendingIdn) return;
+    biometricAbort.current?.abort();
+    const controller = new AbortController();
+    biometricAbort.current = controller;
     setError("");
     if (!silent) setBusy(true);
     let pass: string;
     try {
-      pass = await unlockWithBiometric(pendingIdn.address);
+      pass = await unlockWithBiometric(pendingIdn.address, controller.signal);
     } catch (e) {
+      if (controller.signal.aborted) return;
       if (!silent) setError(e instanceof Error ? e.message : "Could not unlock with Face ID.");
       setBusy(false);
       return;
     }
+    if (controller.signal.aborted) return;
     await unlockDeviceVault(pass, true);
   }
 
@@ -529,14 +535,16 @@ export function AuthScreen({ onAuth }: AuthScreenProps) {
     const passphraseValue = offerSource === "create" ? passphrase : unlockPass;
     setOfferBusy(true);
     setOfferError("");
+    let enrolled = false;
     try {
-      const ok = await enrollBiometric(address, codename, passphraseValue);
-      if (!ok) setOfferError("Face ID isn't available on this device. Continuing without it.");
+      enrolled = await enrollBiometric(address, codename, passphraseValue);
+      if (!enrolled) setOfferError("Face ID isn't available on this device.");
     } catch {
-      setOfferError("Could not set up Face ID. Continuing without it.");
+      setOfferError("Could not set up Face ID.");
     }
-    markAskedToEnrollBiometric(address);
     setOfferBusy(false);
+    if (!enrolled) return;
+    markAskedToEnrollBiometric(address);
     await proceedAfterOffer();
   }
 

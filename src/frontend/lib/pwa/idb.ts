@@ -58,9 +58,16 @@ export function openCustosDb(): Promise<IDBDatabase> {
   if (!sharedDb) {
     sharedDb = new Promise((resolve, reject) => {
       const req = indexedDB.open(DB_NAME, DB_VERSION);
+      let settled = false;
       req.onupgradeneeded = () => upgrade(req.result, req.transaction!);
       req.onsuccess = () => {
         const db = req.result;
+        if (settled) {
+          db.close();
+
+          return;
+        }
+        settled = true;
         db.onversionchange = () => {
           db.close();
           sharedDb = null;
@@ -70,7 +77,15 @@ export function openCustosDb(): Promise<IDBDatabase> {
         };
         resolve(db);
       };
+      req.onblocked = () => {
+        if (settled) return;
+        settled = true;
+        sharedDb = null;
+        reject(new Error("IndexedDB open blocked"));
+      };
       req.onerror = () => {
+        if (settled) return;
+        settled = true;
         sharedDb = null;
         reject(req.error ?? new Error("IndexedDB open failed"));
       };

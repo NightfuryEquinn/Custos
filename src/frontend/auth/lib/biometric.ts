@@ -34,12 +34,28 @@ function readRecords(): Record<string, BiometricRecord> {
   }
 }
 
-function writeRecords(records: Record<string, BiometricRecord>) {
+/** Persist biometric records. False when storage rejects the write. */
+function writeRecords(records: Record<string, BiometricRecord>): boolean {
   try {
     localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
+
+    return true;
   } catch {
-    /* ignore */
+    return false;
   }
+}
+
+/** Copy a salt into its own ArrayBuffer so WebAuthn cannot detach the original. */
+function saltBuffer(bytes: Uint8Array<ArrayBuffer>): ArrayBuffer {
+  return bytes.slice().buffer;
+}
+
+/** Read the first PRF output from a credential, when the authenticator returned one. */
+function readPrfFirst(credential: PublicKeyCredential | null): ArrayBuffer | undefined {
+  const prfResults = credential?.getClientExtensionResults().prf?.results as
+    { first?: ArrayBuffer } | undefined;
+
+  return prfResults?.first;
 }
 
 function readAsked(): Record<string, true> {
@@ -98,8 +114,8 @@ async function deriveWrapKey(
 
 /**
  * Register a platform credential for `address` and use its PRF output to
- * encrypt `passphrase`. Returns false (storing nothing) if the authenticator
- * doesn't support PRF.
+ * encrypt `passphrase`. Returns false (storing nothing) when the authenticator
+ * doesn't support PRF or the wrapped passphrase could not be saved.
  */
 export async function enrollBiometric(
   address: string,
@@ -130,30 +146,32 @@ export async function enrollBiometric(
       authenticatorSelection: {
         authenticatorAttachment: "platform",
         userVerification: "required",
-        residentKey: "preferred",
+        residentKey: "required",
       },
-      extensions: { prf: {} },
+      /* Ask for the PRF secret on create(), while the click's user gesture
+         is still active. A follow-up get() often has no gesture on iOS, so
+         it is only the fallback when create() returns no output. */
+      extensions: { prf: { eval: { first: saltBuffer(prfSalt) } } },
       timeout: 60_000,
     },
   })) as PublicKeyCredential | null;
   if (!credential) return false;
 
-  /* Creation-time PRF results are unreliable across browsers — always
-     confirm with a follow-up get(). */
-  const assertion = (await navigator.credentials.get({
-    publicKey: {
-      challenge: crypto.getRandomValues(new Uint8Array(32)),
-      allowCredentials: [{ id: credential.rawId, type: "public-key" }],
-      userVerification: "required",
-      extensions: { prf: { eval: { first: prfSalt } } },
-    },
-  })) as PublicKeyCredential | null;
+  let prfOutput = readPrfFirst(credential);
+  if (!prfOutput) {
+    const assertion = (await navigator.credentials.get({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials: [{ id: credential.rawId, type: "public-key" }],
+        userVerification: "required",
+        extensions: { prf: { eval: { first: saltBuffer(prfSalt) } } },
+      },
+    })) as PublicKeyCredential | null;
+    prfOutput = readPrfFirst(assertion);
+  }
+  if (!prfOutput) return false;
 
-  const prfResults = assertion?.getClientExtensionResults().prf?.results as
-    { first?: ArrayBuffer } | undefined;
-  if (!prfResults?.first) return false;
-
-  const key = await deriveWrapKey(prfResults.first);
+  const key = await deriveWrapKey(prfOutput);
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ciphertext = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
@@ -164,37 +182,36 @@ export async function enrollBiometric(
   const records = readRecords();
   records[address.toLowerCase()] = {
     credentialId: bytesToBase64(new Uint8Array(credential.rawId)),
-    prfSalt: bytesToBase64(prfSalt),
+    prfSalt: bytesToBase64(new Uint8Array(prfSalt)),
     iv: bytesToBase64(iv),
     ciphertext: bytesToBase64(new Uint8Array(ciphertext)),
   };
-  writeRecords(records);
 
-  return true;
+  return writeRecords(records);
 }
 
 /** Prompt Face ID / Touch ID and return the decrypted device passphrase. */
-export async function unlockWithBiometric(address: string): Promise<string> {
+export async function unlockWithBiometric(address: string, signal?: AbortSignal): Promise<string> {
   const record = readRecords()[address.toLowerCase()];
   if (!record) throw new Error("Face ID is not set up on this device.");
 
   const prfSalt = base64ToBytes(record.prfSalt);
   const assertion = (await navigator.credentials.get({
+    signal,
     publicKey: {
       challenge: crypto.getRandomValues(new Uint8Array(32)),
       allowCredentials: [
         { id: base64ToBytes(record.credentialId).buffer as ArrayBuffer, type: "public-key" },
       ],
       userVerification: "required",
-      extensions: { prf: { eval: { first: prfSalt } } },
+      extensions: { prf: { eval: { first: saltBuffer(prfSalt) } } },
     },
   })) as PublicKeyCredential | null;
 
-  const prfResults = assertion?.getClientExtensionResults().prf?.results as
-    { first?: ArrayBuffer } | undefined;
-  if (!prfResults?.first) throw new Error("Face ID could not unlock this device.");
+  const prfOutput = readPrfFirst(assertion);
+  if (!prfOutput) throw new Error("Face ID could not unlock this device.");
 
-  const key = await deriveWrapKey(prfResults.first);
+  const key = await deriveWrapKey(prfOutput);
   try {
     const plaintext = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv: base64ToBytes(record.iv) },
@@ -206,7 +223,7 @@ export async function unlockWithBiometric(address: string): Promise<string> {
   } catch {
     /* Pre-rename enrollments used a different HKDF info string. */
     try {
-      const legacyKey = await deriveWrapKey(prfResults.first, LEGACY_PRF_INFO);
+      const legacyKey = await deriveWrapKey(prfOutput, LEGACY_PRF_INFO);
       const plaintext = await crypto.subtle.decrypt(
         { name: "AES-GCM", iv: base64ToBytes(record.iv) },
         legacyKey,

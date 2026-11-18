@@ -1,8 +1,6 @@
 import {
   SESSION_MAX_LIFETIME_MS,
-  SESSION_ROTATION_GRACE_MS,
   SESSION_TTL_MS,
-  generateToken,
   hashToken,
   readSessionToken,
   setSessionCookie,
@@ -40,7 +38,7 @@ async function resolveAccountId(session: {
   return user ? user._id.toHexString() : null;
 }
 
-/** Require a valid session cookie; rotate the token on sliding renewal. */
+/** Require a valid session cookie and slide its expiry without changing the token. */
 export const sessionAuth = createMiddleware<{ Variables: SessionVariables }>(async (c, next) => {
   const token = readSessionToken(c);
   if (!token) unauthorized("Session required. Sign in again.");
@@ -56,8 +54,8 @@ export const sessionAuth = createMiddleware<{ Variables: SessionVariables }>(asy
 
   if (!session) unauthorized("Session expired or invalid. Sign in again.");
 
-  /* Matched on the current hash vs. still inside another request's rotation
-     grace window — only the former should ever trigger another rotation. */
+  /* Matched on the current hash vs. a pre-change rotation's grace window.
+     Only the current token slides; a grace match must not mint a new one. */
   const matchedCurrentHash = session.tokenHash === tokenHash;
 
   /* Sliding renewal must not extend a session forever: enforce an absolute cap. */
@@ -86,40 +84,33 @@ export const sessionAuth = createMiddleware<{ Variables: SessionVariables }>(asy
   c.set("accountId", accountId);
   c.set("sessionId", session._id.toHexString());
 
-  /* Only the request that actually holds the current hash may rotate — a
-     request served out of the grace window is already riding someone else's
-     fresh rotation and must not spawn another one. */
+  /* Slide expiry on the current token only. Refreshing the same cookie
+     value extends its maxAge; a lost response leaves the browser holding
+     the token Mongo already trusts. prevTokenHash still matches sessions
+     that rotated before renewal stopped issuing a new token. */
   if (
     matchedCurrentHash &&
     (!session.lastSeenAt || now.getTime() - session.lastSeenAt.getTime() > 5 * 60_000)
   ) {
     const renewedExpiry = Math.min(now.getTime() + SESSION_TTL_MS, absoluteExpiry);
-    const newToken = generateToken();
-    const newHash = hashToken(newToken);
-    const rotated = await sessions.updateOne(
+    await sessions.updateOne(
       { _id: session._id, tokenHash },
       {
         $set: {
-          tokenHash: newHash,
-          prevTokenHash: tokenHash,
-          prevTokenValidUntil: new Date(now.getTime() + SESSION_ROTATION_GRACE_MS),
           lastSeenAt: now,
           expiresAt: new Date(renewedExpiry),
         },
       },
     );
-
-    if (rotated.modifiedCount > 0) {
-      setSessionCookie(c, newToken);
-      /* Persist activity on the user — session rows TTL away and cannot drive purge alone.
-         Best-effort: worst case is a slightly stale lastSeenAt, not lost auth state. */
-      const { users } = getCollections(getDb());
-      void users
-        .updateOne({ _id: new ObjectId(accountId) }, { $set: { lastSeenAt: now } })
-        .catch(() => {
-          /* best-effort — see above */
-        });
-    }
+    setSessionCookie(c, token);
+    /* Persist activity on the user — session rows TTL away and cannot drive purge alone.
+       Best-effort: worst case is a slightly stale lastSeenAt, not lost auth state. */
+    const { users } = getCollections(getDb());
+    void users
+      .updateOne({ _id: new ObjectId(accountId) }, { $set: { lastSeenAt: now } })
+      .catch(() => {
+        /* best-effort — see above */
+      });
   }
 
   await next();

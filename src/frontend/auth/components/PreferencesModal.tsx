@@ -82,23 +82,32 @@ export function PreferencesModal({ account, onClose }: PreferencesModalProps) {
     setBioConfirming(true);
   };
 
+  /** Confirm the passphrase and enroll Face ID without waiting out PBKDF2 first. */
   const confirmBioEnroll = async () => {
     if (!idn?.vault) return;
     setBioBusy(true);
     setBioError("");
+    /* Start WebAuthn in this click turn, before PBKDF2 can spend the gesture. */
+    const enrollPromise = enrollBiometric(
+      account.address,
+      idn.codename || codenameFor(account.address),
+      bioConfirmPass,
+    );
     try {
       await unwrapSecrets(bioConfirmPass, idn.vault);
     } catch {
+      try {
+        const ok = await enrollPromise;
+        if (ok) disableBiometric(account.address);
+      } catch {
+        /* Prompt cancelled or unavailable; nothing was saved. */
+      }
       setBioError("Wrong passphrase.");
       setBioBusy(false);
       return;
     }
     try {
-      const ok = await enrollBiometric(
-        account.address,
-        idn.codename || codenameFor(account.address),
-        bioConfirmPass,
-      );
+      const ok = await enrollPromise;
       if (ok) {
         setBioOn(true);
         setBioConfirming(false);

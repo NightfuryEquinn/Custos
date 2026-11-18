@@ -6,14 +6,16 @@ import { createHash, randomBytes } from "node:crypto";
 import { AUTH_MESSAGE_PREAMBLE, AUTH_MESSAGE_VERIFY_LINE } from "@/lib/auth-message";
 
 export const SESSION_COOKIE = "ledger_session";
+/** Long-lived id for this browser profile. Scopes same-device session revoke. */
+export const DEVICE_COOKIE = "ledger_device";
+export const DEVICE_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 /** Absolute cap: no session may outlive this, regardless of sliding renewal. */
 export const SESSION_MAX_LIFETIME_MS = 90 * 24 * 60 * 60 * 1000;
 /**
- * How long the pre-rotation token hash stays valid after a sliding-renewal
- * rotation. A page load fans out several concurrent requests on the same
- * cookie; without this window, any request whose session lookup runs after
- * a sibling's rotation write finds no matching row and 401s.
+ * How long a pre-rotation token hash stays valid. Sliding renewal no longer
+ * rotates the token; this window only covers sessions rotated before that
+ * change, and logout still matches them.
  */
 export const SESSION_ROTATION_GRACE_MS = 30 * 1000;
 
@@ -111,6 +113,11 @@ export function readSessionToken(c: Context): string | undefined {
   return getCookie(c, SESSION_COOKIE);
 }
 
+/** Read this browser profile's device id, when one has been issued. */
+export function readDeviceId(c: Context): string | undefined {
+  return getCookie(c, DEVICE_COOKIE);
+}
+
 /** Whether the session cookie should set the Secure attribute. */
 function shouldUseSecureCookie(c: Context): boolean {
   if (isProductionRuntime()) return true;
@@ -123,22 +130,33 @@ function shouldUseSecureCookie(c: Context): boolean {
   }
 }
 
-/** Set the HttpOnly session cookie on the response. */
-export function setSessionCookie(c: Context, token: string): void {
-  setCookie(c, SESSION_COOKIE, token, {
+/** Cookie flags shared by the session and device cookies. */
+function sessionCookieOptions(c: Context, maxAgeMs: number) {
+  return {
     httpOnly: true,
     /* Secure in production/Vercel or when the request is HTTPS. Local HTTP
        dev leaves Secure off so the browser accepts the cookie. */
     secure: shouldUseSecureCookie(c),
-    sameSite: "Lax",
+    sameSite: "Lax" as const,
     path: "/",
-    maxAge: Math.floor(SESSION_TTL_MS / 1000),
-  });
+    maxAge: Math.floor(maxAgeMs / 1000),
+  };
 }
 
-/** Clear the session cookie. */
+/** Set the HttpOnly session cookie on the response. */
+export function setSessionCookie(c: Context, token: string): void {
+  setCookie(c, SESSION_COOKIE, token, sessionCookieOptions(c, SESSION_TTL_MS));
+}
+
+/** Set the long-lived device id cookie. Not cleared on logout. */
+export function setDeviceCookie(c: Context, deviceId: string): void {
+  setCookie(c, DEVICE_COOKIE, deviceId, sessionCookieOptions(c, DEVICE_TTL_MS));
+}
+
+/** Clear the session cookie with the same attributes used to set it. */
 export function clearSessionCookie(c: Context): void {
-  deleteCookie(c, SESSION_COOKIE, { path: "/" });
+  const { httpOnly, secure, sameSite, path } = sessionCookieOptions(c, SESSION_TTL_MS);
+  deleteCookie(c, SESSION_COOKIE, { httpOnly, secure, sameSite, path });
 }
 
 /** Map a User-Agent string to a short device label. */

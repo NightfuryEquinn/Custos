@@ -96,7 +96,7 @@ export async function ensureIndexes(db: Db): Promise<void> {
     db.collection(COLLECTIONS.authNonces).createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     db.collection(COLLECTIONS.authNonces).createIndex({ address: 1, nonce: 1 }),
     db.collection(COLLECTIONS.sessions).createIndex({ tokenHash: 1 }, { unique: true }),
-    /* Rotation grace-window lookup — see sessionAuth's $or in middleware/session.ts. */
+    /* Grace-window lookup for sessions rotated before renewal stopped changing the cookie. */
     db.collection(COLLECTIONS.sessions).createIndex({ prevTokenHash: 1 }),
     db.collection(COLLECTIONS.sessions).createIndex({ accountId: 1, createdAt: -1 }),
     db.collection(COLLECTIONS.sessions).createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),

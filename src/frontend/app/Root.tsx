@@ -122,8 +122,9 @@ export function Root() {
       .catch((err) => {
         if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
           // A definite, server-answered rejection — sign out, online or not.
+          // Only this address's unlock row: another account on the device keeps its cache.
           reject();
-          void forgetUnlock();
+          if (saved) void forgetUnlock(saved.address);
           setAccount(null);
           return;
         }
