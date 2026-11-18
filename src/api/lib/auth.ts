@@ -12,12 +12,6 @@ export const DEVICE_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 /** Absolute cap: no session may outlive this, regardless of sliding renewal. */
 export const SESSION_MAX_LIFETIME_MS = 90 * 24 * 60 * 60 * 1000;
-/**
- * How long a pre-rotation token hash stays valid. Sliding renewal no longer
- * rotates the token; this window only covers sessions rotated before that
- * change, and logout still matches them.
- */
-export const SESSION_ROTATION_GRACE_MS = 30 * 1000;
 
 /** Whether this process is a production / Vercel deploy. */
 function isProductionRuntime(): boolean {
