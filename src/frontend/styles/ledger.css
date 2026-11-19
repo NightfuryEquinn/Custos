@@ -4899,19 +4899,65 @@ textarea::placeholder {
   gap: var(--sp-3);
 }
 
-.calculator-confirm-list li {
+.calculator-confirm-list > li {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.calculator-confirm-row {
+  display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--sp-3);
-  font-size: 14px;
 }
 
 .calculator-confirm-name {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--sp-2);
+  flex: 1 1 auto;
   min-width: 0;
+}
+
+.calculator-confirm-name > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Beat the modal `.num` rule, which lets this span grow to the full row. */
+.modal .calculator-confirm-amt.num {
+  display: block;
+  flex: none;
+  width: auto;
+  max-width: none;
+  min-width: max-content;
+  white-space: nowrap;
+  overflow: visible;
+  text-align: right;
+}
+
+ul.allocation-confirm-subs {
+  margin: 0;
+  padding: 0 0 0 calc(var(--emoji-size) + var(--sp-2));
+  list-style: none;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-faint);
+  overflow-wrap: anywhere;
+}
+
+.calculator-confirm-amt .allocation-confirm-subs {
+  display: block;
+  margin-top: 2px;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--ink-faint);
 }
 
 @media (max-width: 639px) {
@@ -9132,11 +9178,6 @@ select.text-in {
 .calculator-sub-allocation .calculator-field {
   width: 140px;
   flex-shrink: 0;
-}
-.allocation-confirm-subs {
-  display: block;
-  font-weight: 400;
-  white-space: normal;
 }
 
 /* Habit garden: a bloom grows with each day's progress. */
