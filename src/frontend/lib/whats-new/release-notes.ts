@@ -38,6 +38,18 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "7.0.4",
+    date: "November 2026",
+    lead: "New events save again.",
+    highlights: [
+      {
+        icon: "calendar",
+        title: "New events save",
+        body: "Creating an event no longer fails with an invalid id. The calendar mints a real id before it syncs.",
+      },
+    ],
+  },
+  {
     version: "7.0.3",
     date: "November 2026",
     lead: "Face ID and fingerprint stay set up, and signing in stays put.",

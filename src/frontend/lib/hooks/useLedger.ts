@@ -1250,7 +1250,9 @@ export function useLedger(walletAddress: string) {
         void drainOutbox(wallet);
         return decodeEvent({ id: data.id, ...body } as EventWire, cryptoKey);
       }
-      const id = data.id ?? clientObjectId();
+      /* Blank id is the new-event sentinel (Schedule sends "").
+         Mint a document id so POST /events accepts it. */
+      const id = data.id || clientObjectId();
       const body = await encodeEventCreate(data, cryptoKey, reminderCtx);
       await enqueueOutbox({
         address: wallet,
