@@ -1011,8 +1011,8 @@ function MonthBreakdown({
     for (const flow of dayFlows) {
       spentRun += flow.spent;
       earnedRun += flow.earned;
-      spentPoints.push({ x: flow.label, v: Math.round(spentRun) });
-      earnedPoints.push({ x: flow.label, v: Math.round(earnedRun) });
+      spentPoints.push({ x: flow.label, v: spentRun });
+      earnedPoints.push({ x: flow.label, v: earnedRun });
     }
     return { cum: spentPoints, earnCum: earnedPoints };
   }, [dayFlows]);
