@@ -85,7 +85,13 @@ import type {
 import { resolveEventDeleteAction, type DeleteScope } from "@/lib/delete-scope";
 import { DEFAULT_CATEGORIES, validateTaxonomy } from "@/lib/default-categories";
 import type { TourPreference } from "@/schemas/profile";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -204,6 +210,80 @@ const keys = {
 /* Stable empty list so an unloaded profile does not hand consumers a fresh
    array on every render and retrigger their effects. */
 const EMPTY_TOURS_SEEN: string[] = [];
+
+/** Months that already have an events list, plus any the caller still wants written. */
+function cachedEventMonths(queryClient: QueryClient, wallet: string, extra: string[]): string[] {
+  const months = new Set(extra);
+
+  for (const [key, data] of queryClient.getQueriesData<LedgerEvent[]>({
+    queryKey: ["events", wallet],
+  })) {
+    const cacheMonth = key[2];
+    if (data && typeof cacheMonth === "string") months.add(cacheMonth);
+  }
+
+  return [...months];
+}
+
+/**
+ * Put one event into a month list.
+ * A once-event is dropped from every month other than its own.
+ * `insert` adds the row when this month did not have it yet.
+ */
+function placeCachedEvent(
+  prev: LedgerEvent[],
+  event: LedgerEvent,
+  cacheMonth: string,
+  insert: boolean,
+): LedgerEvent[] {
+  const eventMonth = clampMonthKey(event.date.slice(0, 7));
+  const exists = prev.some((row) => row.id === event.id);
+
+  if (exists) {
+    const mapped = prev.map((row) => (row.id === event.id ? event : row));
+    if (event.repeat === "once" && eventMonth !== cacheMonth) {
+      return mapped.filter((row) => row.id !== event.id);
+    }
+
+    return mapped;
+  }
+
+  if (!insert || (event.repeat === "once" && eventMonth !== cacheMonth)) {
+    return prev;
+  }
+
+  return [...prev, event];
+}
+
+/** Drop one event id from a month list. */
+function dropCachedEvent(prev: LedgerEvent[], id: string): LedgerEvent[] {
+  return prev.filter((row) => row.id !== id);
+}
+
+/** Replace an event in every cached month. Insert it only into `insertMonths`. */
+function writeEventToCaches(
+  queryClient: QueryClient,
+  wallet: string,
+  event: LedgerEvent,
+  insertMonths: string[],
+) {
+  const insert = new Set(insertMonths);
+
+  for (const cacheMonth of cachedEventMonths(queryClient, wallet, insertMonths)) {
+    queryClient.setQueryData<LedgerEvent[]>(keys.events(wallet, cacheMonth), (prev = []) =>
+      placeCachedEvent(prev, event, cacheMonth, insert.has(cacheMonth)),
+    );
+  }
+}
+
+/** Remove an event from every cached month that already has a list. */
+function dropEventFromCaches(queryClient: QueryClient, wallet: string, id: string) {
+  for (const cacheMonth of cachedEventMonths(queryClient, wallet, [])) {
+    queryClient.setQueryData<LedgerEvent[]>(keys.events(wallet, cacheMonth), (prev) =>
+      prev ? dropCachedEvent(prev, id) : prev,
+    );
+  }
+}
 
 export function useLedger(walletAddress: string) {
   const queryClient = useQueryClient();
@@ -404,6 +484,9 @@ export function useLedger(walletAddress: string) {
 
   const outboxTotal = useSyncStatus(wallet).total;
   const prevOutboxTotal = useRef<number | null>(null);
+  const loadEventsRef = useRef<
+    ((fresh?: boolean, forMonth?: string) => Promise<LedgerEvent[]>) | null
+  >(null);
 
   const loadCapitalPlans = async (fresh = false) => {
     const { capitalPlans } = await api.capitalPlans.list({ fresh });
@@ -569,7 +652,26 @@ export function useLedger(walletAddress: string) {
       .catch(() => {});
     void queryClient.invalidateQueries({ queryKey: keys.expenses(wallet) });
     void queryClient.invalidateQueries({ queryKey: keys.capitalPlans(wallet) });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadAllExpenses is recreated each render; only the queue size should retrigger
+    /* The open month and the current month are what Budgets and Home read.
+       A fresh read skips the stale offline copy. If it fails, the optimistic
+       rows from the save or delete stay. Other months are only marked stale. */
+    const loadEventsNow = loadEventsRef.current;
+    if (loadEventsNow) {
+      for (const cacheMonth of new Set([month, CURRENT_MONTH_KEY])) {
+        void queryClient
+          .fetchQuery({
+            queryKey: keys.events(wallet, cacheMonth),
+            queryFn: () => loadEventsNow(true, cacheMonth),
+            staleTime: 0,
+          })
+          .catch(() => {});
+      }
+    }
+    void queryClient.invalidateQueries({
+      queryKey: ["events", wallet],
+      refetchType: "none",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loaders are recreated each render; only the queue size should retrigger
   }, [outboxTotal, queryClient, wallet]);
 
   /* Same overlay as expensesQuery above — without it, an expense created or
@@ -709,6 +811,8 @@ export function useLedger(walletAddress: string) {
 
     return collected;
   };
+
+  loadEventsRef.current = loadEvents;
 
   const eventsQuery = useQuery({
     queryKey: keys.events(wallet, month),
@@ -1213,6 +1317,9 @@ export function useLedger(walletAddress: string) {
   });
 
   const saveEventMutation = useMutation({
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["events", wallet] });
+    },
     mutationFn: async (data: Omit<LedgerEvent, "id"> & { id?: string }) => {
       const cryptoKey = requireKey(wallet);
       assertCustomEventFields(data);
@@ -1267,24 +1374,10 @@ export function useLedger(walletAddress: string) {
       void drainOutbox(wallet);
       return decodeEvent({ id, ...body } as EventWire, cryptoKey);
     },
-    onSuccess: (event, variables) => {
+    onSuccess: async (event, variables) => {
+      await queryClient.cancelQueries({ queryKey: ["events", wallet] });
       const eventMonth = clampMonthKey(event.date.slice(0, 7));
-      const cacheMonths = new Set([month, eventMonth]);
-
-      for (const cacheMonth of cacheMonths) {
-        queryClient.setQueryData<LedgerEvent[]>(keys.events(wallet, cacheMonth), (prev = []) => {
-          if (prev.some((e) => e.id === event.id)) {
-            const mapped = prev.map((e) => (e.id === event.id ? event : e));
-            /* Drop from this month's cache when the event no longer occurs here as a once row. */
-            if (event.repeat === "once" && eventMonth !== cacheMonth) {
-              return mapped.filter((e) => e.id !== event.id);
-            }
-            return mapped;
-          }
-          if (event.repeat === "once" && eventMonth !== cacheMonth) return prev;
-          return [...prev, event];
-        });
-      }
+      writeEventToCaches(queryClient, wallet, event, [month, eventMonth]);
 
       if (!variables.id) {
         setMonthMutation.mutate(eventMonth);
@@ -1367,6 +1460,9 @@ export function useLedger(walletAddress: string) {
   });
 
   const deleteEventMutation = useMutation({
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["events", wallet] });
+    },
     mutationFn: async ({
       id,
       opts,
@@ -1451,13 +1547,16 @@ export function useLedger(walletAddress: string) {
       }
       return { ok: res.ok, deleted: res.deleted };
     },
-    onSuccess: (res, { id }) => {
-      queryClient.setQueryData<LedgerEvent[]>(keys.events(wallet, month), (prev = []) => {
-        if (res.deleted || !res.event) {
-          return prev.filter((e) => e.id !== id);
-        }
-        return prev.map((e) => (e.id === res.event!.id ? res.event! : e));
-      });
+    onSuccess: async (res, { id }) => {
+      await queryClient.cancelQueries({ queryKey: ["events", wallet] });
+      if (res.deleted || !res.event) {
+        dropEventFromCaches(queryClient, wallet, id);
+
+        return;
+      }
+
+      const eventMonth = clampMonthKey(res.event.date.slice(0, 7));
+      writeEventToCaches(queryClient, wallet, res.event, [month, eventMonth]);
     },
   });
 

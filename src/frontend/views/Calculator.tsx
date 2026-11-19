@@ -584,28 +584,38 @@ export function Calculator({
 
                       return (
                         <li key={c.id}>
-                          <span className="calculator-confirm-name">
-                            <CatGlyph glyph={c.glyph} id={c.id} /> {c.name}
-                          </span>
-                          <span className="num">
-                            {before !== after ? `${fmtMoney(before, { currency })} → ` : ""}
-                            {fmtMoney(after, { currency })}
-                            <small className="allocation-confirm-subs">
-                              {computed[c.id]
-                                ? (categoryIndex.catById[c.id]?.subs ?? c.subs)
-                                    .filter(
-                                      (sub) =>
-                                        (nextBreakdown[c.id]?.[sub.id] ?? 0) > 0 ||
-                                        (wallet?.subcategoryBudgets?.[c.id]?.[sub.id] ?? 0) > 0,
-                                    )
-                                    .map(
-                                      (sub) =>
-                                        `${sub.name}: ${fmtMoney(wallet?.subcategoryBudgets?.[c.id]?.[sub.id] ?? 0, { currency })} -> ${fmtMoney(nextBreakdown[c.id]?.[sub.id] ?? 0, { currency })}`,
-                                    )
-                                    .join(" / ")
-                                : "Unchanged"}
-                            </small>
-                          </span>
+                          <div className="calculator-confirm-row">
+                            <span className="calculator-confirm-name">
+                              <CatGlyph glyph={c.glyph} id={c.id} />
+                              <span>{c.name}</span>
+                            </span>
+                            <span className="num calculator-confirm-amt">
+                              {before !== after ? `${fmtMoney(before, { currency })} → ` : ""}
+                              {fmtMoney(after, { currency })}
+                              {!computed[c.id] ? (
+                                <small className="allocation-confirm-subs">Unchanged</small>
+                              ) : null}
+                            </span>
+                          </div>
+                          {computed[c.id] ? (
+                            <ul className="allocation-confirm-subs">
+                              {(categoryIndex.catById[c.id]?.subs ?? c.subs)
+                                .filter(
+                                  (sub) =>
+                                    (nextBreakdown[c.id]?.[sub.id] ?? 0) > 0 ||
+                                    (wallet?.subcategoryBudgets?.[c.id]?.[sub.id] ?? 0) > 0,
+                                )
+                                .map((sub) => (
+                                  <li key={sub.id}>
+                                    {sub.name}:{" "}
+                                    {fmtMoney(wallet?.subcategoryBudgets?.[c.id]?.[sub.id] ?? 0, {
+                                      currency,
+                                    })}{" "}
+                                    → {fmtMoney(nextBreakdown[c.id]?.[sub.id] ?? 0, { currency })}
+                                  </li>
+                                ))}
+                            </ul>
+                          ) : null}
                         </li>
                       );
                     })}
