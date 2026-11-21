@@ -38,6 +38,28 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "7.0.5",
+    date: "November 2026",
+    lead: "Reserved budget only counts holds that are still coming up.",
+    highlights: [
+      {
+        icon: "budget",
+        title: "Past holds release on their own",
+        body: "A budget hold whose date has passed stops reserving money, even if no payment was logged.",
+      },
+      {
+        icon: "calendar",
+        title: "Log Payment releases the right day",
+        body: "Changing the payment date no longer leaves the scheduled occurrence's hold stuck in Reserved.",
+      },
+      {
+        icon: "tags",
+        title: "No hidden holds",
+        body: "Holds on archived or deleted categories no longer count toward Reserved or shrink Available.",
+      },
+    ],
+  },
+  {
     version: "7.0.4",
     date: "November 2026",
     lead: "New events save again.",

@@ -26,8 +26,8 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 ### Schedule & tasks
 
 - **Schedule** — calendar/agenda for bills and reminders with recurrence (daily to yearly) and multi-day events (`endDate`); Upcoming shows only the next occurrence of a series.
-- **Budget holds** — optional encrypted envelope holds on any event (amount + category); reserve budget until you log payment or release the occurrence.
-- **Log payment** — open a prefilled expense from an event and link `eventId` ↔ `expenseId`, releasing that occurrence's hold.
+- **Budget holds** — optional encrypted envelope holds on any event (amount + category); reserve budget until you log payment, release the occurrence, or its date passes (past occurrences auto-release). **Reserved** only counts holds on active spending/savings categories.
+- **Log payment** — open a prefilled expense from an event and link `eventId` ↔ `expenseId`, releasing that occurrence's hold (the scheduled occurrence, even if you change the payment date).
 - **Email reminders** — optional Resend emails with per-event lead time and your timezone, plus a reminder at the event's own start; delivered to your account notify email, with a per-account hourly cap shared with confirmations and budget alerts.
 - **Push notifications** — opt-in Web Push per device under **Account → Preferences**, on the same 15-minute poll as email.
 - **To-do lists** — multiple named lists with inline task management.
@@ -443,7 +443,7 @@ curl -sS -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/j
 6. **Exports** — download an encrypted backup and/or CSV from **Account → Exports & imports**, then re-import.
 7. **Transparency** — confirm hosting, inference, and collection maps render.
 8. **Log payment** — create a bill event, use **Log payment**, confirm the expense links back to it.
-9. **Budget hold** — enable a hold, confirm Budgets shows **Held**, log payment, confirm release.
+9. **Budget hold** — enable a hold, confirm Budgets shows **Reserved**, log payment (try changing its date), confirm release; a hold dated before today must not count.
 10. **Push notifications** — enable under **Account → Preferences**, confirm the device registers (needs `VAPID_*`; on iOS, add to Home Screen first).
 11. **What's New** — confirm notes open on a device that hasn't seen this version, and reopen via **Account → What's New**.
 12. **First-run tour prompt** — sign in with a fresh wallet, confirm the welcome modal shows once; test both **I'll explore** and **Show me around** paths, and that the choice persists across reload.
