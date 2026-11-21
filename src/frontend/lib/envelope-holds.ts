@@ -1,4 +1,4 @@
-import { scheduleForMonth } from "@/frontend/lib/data";
+import { TODAY_ISO, scheduleForMonth } from "@/frontend/lib/data";
 import type { LedgerEvent } from "@/frontend/lib/types";
 
 /** Any schedule event can reserve a budget envelope hold. */
@@ -31,14 +31,15 @@ export function isHoldReleased(ev: LedgerEvent, occurrenceIso: string): boolean 
   return false;
 }
 
-/** True when this occurrence still reserves budget. */
+/** True when this occurrence still reserves budget. A passed occurrence auto-releases. */
 export function isActiveHoldOccurrence(ev: LedgerEvent, occurrenceIso: string): boolean {
   if (!isHoldEligibleEvent(ev) || !hasBudgetHoldConfig(ev)) return false;
+  if (occurrenceIso < TODAY_ISO) return false;
 
   return !isHoldReleased(ev, occurrenceIso);
 }
 
-/** Sum active holds per category for every occurrence in the month (past + upcoming). */
+/** Sum active holds per category for the month's occurrences from today onward. */
 export function holdsByCategory(events: LedgerEvent[], monthKey: string): Record<string, number> {
   const holds: Record<string, number> = {};
 
@@ -50,13 +51,6 @@ export function holdsByCategory(events: LedgerEvent[], monthKey: string): Record
   }
 
   return holds;
-}
-
-/** Total active holds across all categories for the full calendar month. */
-export function totalActiveHolds(events: LedgerEvent[], monthKey: string): number {
-  const byCat = holdsByCategory(events, monthKey);
-
-  return Object.values(byCat).reduce((sum, amount) => sum + amount, 0);
 }
 
 /** Return event with the occurrence hold marked released. */

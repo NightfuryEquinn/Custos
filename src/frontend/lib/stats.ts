@@ -24,7 +24,7 @@ import {
   roundMoney,
 } from "./data";
 import type { Budgets, Expense, FinancialWallet, LedgerEvent } from "./types";
-import { holdsByCategory, totalActiveHolds } from "./envelope-holds";
+import { holdsByCategory } from "./envelope-holds";
 import { displayGlyph } from "@/lib/glyphs";
 
 export {
@@ -532,7 +532,16 @@ export function monthStats(
   const totalBudget = Object.values(envelopeBudgets).reduce((s, v) => s + v, 0);
   const spendingBudget = Object.values(spendingBudgets).reduce((s, v) => s + v, 0);
   const byCatHeld = events ? holdsByCategory(events, key) : {};
-  const totalHeld = events ? totalActiveHolds(events, key) : 0;
+  /* Same envelope rule as totalBudget: a hold on an archived, income or deleted
+     category has no row to show it, so it must not shrink Available either. */
+  const totalHeld = Object.entries(byCatHeld)
+    .filter(([id]) => {
+      const cat = index?.catById[id];
+      if (cat) return !isIncomeCategory(cat) && !isArchivedCategory(cat);
+
+      return !index;
+    })
+    .reduce((s, [, v]) => s + v, 0);
   const balance = walletBalance(opts?.balanceExpenses ?? expenses, wallet, index);
   const monthlyPool =
     wallet.fundingMode === "monthly" ? wallet.income + earned + withdrawn : earned + withdrawn;

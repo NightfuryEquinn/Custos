@@ -389,7 +389,12 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
       const ev = events.find((e) => e.id === data.eventId);
       if (ev) {
         try {
-          let patch = releaseHoldForOccurrence(ev, data.date);
+          /* Release the occurrence Log Payment was opened for, not the (editable) payment date. */
+          const occurrenceIso =
+            modal && "add" in modal && modal.eventId === data.eventId && modal.date
+              ? modal.date
+              : data.date;
+          let patch = releaseHoldForOccurrence(ev, occurrenceIso);
           if (!data.id && saved?.expense?.id) {
             patch = { ...patch, expenseId: saved.expense.id };
           }
