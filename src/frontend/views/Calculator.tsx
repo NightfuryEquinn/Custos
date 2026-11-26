@@ -27,8 +27,9 @@ import { createPortal } from "react-dom";
  * ─────────────────────────────
  * Client-side only: deduct custom tax lines (a percentage of gross or a fixed
  * amount each) from income, allocate the
- * net across expense categories by amount, then optionally apply the
- * result to wallet budgets via a confirmation modal.
+ * net across expense categories. Each category can set a ceiling above its
+ * subcategory amounts; a blank ceiling uses the subcategory total. Apply
+ * writes both to wallet budgets after confirmation.
  * Layout: Income + Deductions share a setup grid on wider screens;
  * Allocate by category uses a live progress bar and responsive cards.
  */
@@ -91,6 +92,7 @@ export function Calculator({
   const [grossDraft, setGrossDraft] = useState("");
   const [taxLines, setTaxLines] = useState<TaxLine[]>(() => [emptyTaxLine(0)]);
   const [amtByCat, setAmtByCat] = useState<Record<string, string>>({});
+  const [ceilingByCat, setCeilingByCat] = useState<Record<string, string>>({});
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [applied, setApplied] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -113,6 +115,7 @@ export function Calculator({
       grossDirty.current = false;
       draftWallet.current = wallet?.id;
       setAmtByCat({});
+      setCeilingByCat({});
     }
     if (grossDirty.current) return;
     const income = wallet?.income ?? 0;
@@ -125,6 +128,12 @@ export function Calculator({
     const ids = expenseCategories.flatMap((c) => liveSubs(c).map((sub) => `${c.id}:${sub.id}`));
 
     setAmtByCat((prev) => alignDraftMap(prev, ids));
+    setCeilingByCat((prev) =>
+      alignDraftMap(
+        prev,
+        expenseCategories.map((c) => c.id),
+      ),
+    );
   }, [expenseCategories]);
 
   const gross = parseNonNeg(grossDraft);
@@ -139,6 +148,7 @@ export function Calculator({
     budgets: nextBudgets,
     subcategoryBudgets: nextBreakdown,
     amountRows,
+    overCategoryIds,
   } = useMemo(() => {
     const allocations = Object.fromEntries(
       expenseCategories.map((category) => [
@@ -151,8 +161,20 @@ export function Calculator({
         ),
       ]),
     );
-    return replaceBudgetAllocations({ budgets, subcategoryBudgets: savedBreakdown }, allocations);
-  }, [expenseCategories, amtByCat, budgets, savedBreakdown]);
+    const ceilings: Record<string, number> = {};
+
+    for (const category of expenseCategories) {
+      const raw = ceilingByCat[category.id] ?? "";
+      if (!raw.trim()) continue;
+      ceilings[category.id] = roundMoney(parseNonNeg(raw));
+    }
+
+    return replaceBudgetAllocations(
+      { budgets, subcategoryBudgets: savedBreakdown },
+      allocations,
+      ceilings,
+    );
+  }, [expenseCategories, amtByCat, ceilingByCat, budgets, savedBreakdown]);
 
   const allocAmtSum = roundMoney(amountRows.reduce((sum, row) => sum + row.amount, 0));
   const allocOk =
@@ -163,7 +185,8 @@ export function Calculator({
       amountRows.map((a) => a.amount),
       net,
     );
-  const canApply = gross > 0 && taxOk && allocOk;
+  const ceilingsOk = overCategoryIds.length === 0;
+  const canApply = gross > 0 && taxOk && allocOk && ceilingsOk;
 
   /** Which presets currently have rows in the tax list. */
   const activeTaxPresetIds = useMemo(() => {
@@ -485,6 +508,35 @@ export function Calculator({
                         {formatPct(net > 0 ? (amount / net) * 100 : 0)}
                       </ReadableValue>
                     </div>
+                    <div className="calculator-alloc-controls">
+                      <span>Category budget</span>
+                      <div className="calculator-field calculator-amt-field">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          inputMode="decimal"
+                          placeholder="Subcategory total"
+                          value={ceilingByCat[c.id] ?? ""}
+                          onChange={(e) => {
+                            markDirty();
+                            setCeilingByCat((prev) => ({
+                              ...prev,
+                              [c.id]: stripNegativeInput(e.target.value),
+                            }));
+                          }}
+                          onKeyDown={preventNegativeKeys}
+                          onWheel={preventWheelChange}
+                          aria-label={`${c.name} category budget`}
+                        />
+                        <span className="calculator-field-suffix">{cur.symbol}</span>
+                      </div>
+                    </div>
+                    {overCategoryIds.includes(c.id) ? (
+                      <p className="calculator-warn" role="status">
+                        Category amount is below the subcategory total.
+                      </p>
+                    ) : null}
                     {liveSubs(c).map((sub) => (
                       <label className="calculator-sub-allocation" key={sub.id}>
                         <span>{sub.name}</span>
@@ -520,6 +572,11 @@ export function Calculator({
       </section>
 
       <div className="calculator-apply" data-tour="tour-calculator-apply">
+        {overCategoryIds.length > 0 ? (
+          <p className="calculator-warn" role="status">
+            A category amount is below its subcategory total.
+          </p>
+        ) : null}
         <button
           type="button"
           className={"primary-btn" + (applied ? " calculator-apply-success" : "")}
@@ -561,8 +618,10 @@ export function Calculator({
                 <div className="modal-body modal-scroll">
                   <p className="calculator-confirm-lead">
                     This replaces the active budgets on{" "}
-                    <strong>{wallet?.name ?? "this wallet"}</strong>. Blank and zero allocations
-                    clear the saved budget and its breakdown.
+                    <strong>{wallet?.name ?? "this wallet"}</strong>. A blank category amount uses
+                    the subcategory total. A higher category amount leaves the difference
+                    unallocated. Blank and zero allocations clear the saved budget and its
+                    breakdown.
                   </p>
                   <p className="calculator-confirm-lead">
                     <strong>Total Budget {fmtMoney(allocAmtSum, { currency })}</strong>
@@ -582,6 +641,10 @@ export function Calculator({
                           (beforeBreakdown?.[sub.id] ?? 0) > 0 ||
                           (afterBreakdown?.[sub.id] ?? 0) > 0,
                       );
+                      const afterSubTotal = roundMoney(
+                        Object.values(afterBreakdown ?? {}).reduce((sum, value) => sum + value, 0),
+                      );
+                      const unallocated = roundMoney(after - afterSubTotal);
 
                       return (
                         <li key={c.id}>
@@ -595,6 +658,10 @@ export function Calculator({
                               {fmtMoney(after, { currency })}
                               {clearing ? (
                                 <small className="allocation-confirm-subs">Will be cleared</small>
+                              ) : unallocated > 0 ? (
+                                <small className="allocation-confirm-subs">
+                                  Unallocated {fmtMoney(unallocated, { currency })}
+                                </small>
                               ) : null}
                             </span>
                           </div>

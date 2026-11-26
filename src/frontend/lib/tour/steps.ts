@@ -269,7 +269,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     lastStep(
       "budgets-list",
       "Per Category",
-      "Tap an amount to edit a category budget. Progress bars show spend vs limit.",
+      "Tap a category or subcategory amount on the card. The category budget is the ceiling. Progress bars show spend vs limit.",
       '[data-tour="tour-budgets-list"]',
     ),
   ],
@@ -302,7 +302,7 @@ const VIEW_STEPS: Record<ViewId, TourStep[]> = {
     step(
       "calculator-allocate",
       "Allocate",
-      "Fill each expense category with an amount up to what's left after tax.",
+      "Set a category amount and fill its subcategories, up to what's left after tax. A blank category amount uses the subcategory total.",
       '[data-tour="tour-calculator-allocate"]',
     ),
     lastStep(

@@ -1,6 +1,58 @@
 import { mergeCategoryBudget } from "./category-retire";
 import type { Budgets, SubcategoryBudgets } from "./types";
 
+/** Round a money amount to integer cents. Non-finite values count as 0. */
+function moneyCents(amount: number): number {
+  return Number.isFinite(amount) ? Math.round(amount * 100) : 0;
+}
+
+/**
+ * Write one subcategory allocation under its category ceiling.
+ * Zero removes that allocation. An unset category budget becomes the new subcategory sum.
+ * Returns the original maps and an error when the sum would exceed a set category budget.
+ */
+export function setSubcategoryBudget(
+  budgets: Budgets,
+  breakdown: SubcategoryBudgets,
+  catId: string,
+  subId: string,
+  amount: number,
+): {
+  budgets: Budgets;
+  subcategoryBudgets: SubcategoryBudgets;
+  error?: string;
+} {
+  const row = { ...(breakdown[catId] ?? {}) };
+  const cents = moneyCents(amount);
+
+  if (cents <= 0) delete row[subId];
+  else row[subId] = cents / 100;
+
+  const sumCents = Object.values(row).reduce((sum, value) => sum + moneyCents(value), 0);
+  const ceilingCents = moneyCents(budgets[catId] ?? 0);
+
+  if (ceilingCents > 0 && sumCents > ceilingCents) {
+    return {
+      budgets,
+      subcategoryBudgets: breakdown,
+      error: "This is above the category budget. Raise the category amount on this card first.",
+    };
+  }
+
+  const children = Object.fromEntries(
+    Object.entries(breakdown).map(([id, values]) => [id, { ...values }]),
+  );
+
+  if (sumCents === 0) delete children[catId];
+  else children[catId] = row;
+
+  const nextBudgets = { ...budgets };
+
+  if (ceilingCents <= 0 && sumCents > 0) nextBudgets[catId] = sumCents / 100;
+
+  return { budgets: nextBudgets, subcategoryBudgets: children };
+}
+
 /** Transfers are repeat-safe because moved source entries are removed. */
 export function transferBudgetBreakdown(
   budgets: Budgets,

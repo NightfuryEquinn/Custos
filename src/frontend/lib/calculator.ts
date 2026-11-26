@@ -128,19 +128,38 @@ export function isValidAllocationAmounts(amounts: number[], net: number): boolea
   return sumCents <= targetCents + CENT_TOLERANCE;
 }
 
-/** Replace active parent budgets using subcategory allocations already rounded to cents. */
+/**
+ * Replace active parent budgets from subcategory allocations already rounded to cents.
+ * A ceiling at least as large as the subcategory sum becomes the parent budget.
+ * When the ceiling is omitted, the parent is the subcategory sum.
+ * A zero ceiling and a zero breakdown clear both. Ceilings below the breakdown
+ * are listed in `overCategoryIds` and leave that category unchanged.
+ */
 export function replaceBudgetAllocations(
   current: Pick<FinancialWallet, "budgets" | "subcategoryBudgets">,
   allocations: SubcategoryBudgets,
+  ceilings?: Record<string, number | undefined>,
 ) {
   const budgets = { ...current.budgets };
   const subcategoryBudgets = { ...current.subcategoryBudgets };
+  const overCategoryIds: string[] = [];
   const amountRows = Object.entries(allocations).map(([id, breakdown]) => {
     const cents = Object.values(breakdown).reduce(
-      (sum, amount) => sum + Math.round(amount * 100),
+      (sum, amount) => sum + (Number.isFinite(amount) ? Math.round(amount * 100) : 0),
       0,
     );
-    const amount = cents / 100;
+    const explicit = ceilings?.[id];
+    const hasCeiling = explicit !== undefined && Number.isFinite(explicit);
+    const ceilingCents = hasCeiling ? Math.round(explicit * 100) : cents;
+
+    if (hasCeiling && ceilingCents < cents) {
+      overCategoryIds.push(id);
+
+      return { id, amount: ceilingCents / 100 };
+    }
+
+    const amount = ceilingCents / 100;
+
     if (amount > 0) {
       budgets[id] = amount;
       subcategoryBudgets[id] = breakdown;
@@ -148,8 +167,9 @@ export function replaceBudgetAllocations(
       delete budgets[id];
       delete subcategoryBudgets[id];
     }
+
     return { id, amount };
   });
 
-  return { budgets, subcategoryBudgets, amountRows };
+  return { budgets, subcategoryBudgets, amountRows, overCategoryIds };
 }
