@@ -9,16 +9,64 @@
  * catches the two copies drifting apart.
  */
 export const ACCENTS = {
-  clay: { light: "#8f6140", dark: "#c98f63", contrastLight: "#ffffff", contrastDark: "#1a1714" },
-  moss: { light: "#3f7a52", dark: "#8fc79a", contrastLight: "#ffffff", contrastDark: "#1a1714" },
-  azure: { light: "#3a6ea5", dark: "#8fb8e8", contrastLight: "#ffffff", contrastDark: "#1a1714" },
-  berry: { light: "#8a4568", dark: "#d99bb8", contrastLight: "#ffffff", contrastDark: "#1a1714" },
-  plum: { light: "#6b4c9a", dark: "#b9a0e0", contrastLight: "#ffffff", contrastDark: "#1a1714" },
-  teal: { light: "#2f7570", dark: "#7fc9c1", contrastLight: "#ffffff", contrastDark: "#1a1714" },
-  amber: { light: "#8a6216", dark: "#d8ab5c", contrastLight: "#ffffff", contrastDark: "#1a1714" },
-  steel: { light: "#4f6070", dark: "#a3b5c4", contrastLight: "#ffffff", contrastDark: "#1a1714" },
+  clay: {
+    label: "Persimmon",
+    light: "#8e432d",
+    dark: "#e6a08a",
+    contrastLight: "#ffffff",
+    contrastDark: "#191d22",
+  },
+  moss: {
+    label: "Moss",
+    light: "#425836",
+    dark: "#b2c999",
+    contrastLight: "#ffffff",
+    contrastDark: "#191d22",
+  },
+  azure: {
+    label: "Indigo",
+    light: "#294567",
+    dark: "#abc8ed",
+    contrastLight: "#ffffff",
+    contrastDark: "#191d22",
+  },
+  berry: {
+    label: "Azuki",
+    light: "#773f4a",
+    dark: "#e3a7b0",
+    contrastLight: "#ffffff",
+    contrastDark: "#191d22",
+  },
+  plum: {
+    label: "Plum",
+    light: "#624567",
+    dark: "#d0acd3",
+    contrastLight: "#ffffff",
+    contrastDark: "#191d22",
+  },
+  teal: {
+    label: "Celadon",
+    light: "#325e56",
+    dark: "#9dcabc",
+    contrastLight: "#ffffff",
+    contrastDark: "#191d22",
+  },
+  amber: {
+    label: "Ochre",
+    light: "#6c5020",
+    dark: "#dfbb80",
+    contrastLight: "#ffffff",
+    contrastDark: "#191d22",
+  },
+  steel: {
+    label: "Iron gray",
+    light: "#46535a",
+    dark: "#b1c1c8",
+    contrastLight: "#ffffff",
+    contrastDark: "#191d22",
+  },
 } as const;
 
 export type AccentName = keyof typeof ACCENTS;
 export const ACCENT_NAMES = Object.keys(ACCENTS) as AccentName[];
-export const DEFAULT_ACCENT_NAME: AccentName = "clay";
+export const DEFAULT_ACCENT_NAME: AccentName = "azure";

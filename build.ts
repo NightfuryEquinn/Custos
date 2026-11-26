@@ -132,7 +132,9 @@ for (const name of ["OFL.txt", "NOTICE.txt"]) {
 
 const fontFilename = (bytes: Uint8Array) => `font-${Bun.hash(bytes).toString(16)}.woff2`;
 const offlineFonts = new Set<string>();
-for await (const entry of new Bun.Glob("zen-maru-gothic-latin*.woff2").scan({ cwd: fontsSrcDir })) {
+for await (const entry of new Bun.Glob("zen-kaku-gothic-antique-latin*.woff2").scan({
+  cwd: fontsSrcDir,
+})) {
   const bytes = await Bun.file(path.join(fontsSrcDir, entry)).bytes();
   offlineFonts.add(`fonts/${fontFilename(bytes)}`);
 }

@@ -107,7 +107,8 @@ export function SupportModal({ onClose }: SupportModalProps) {
                   style={{ background: ACCENTS[name][dark ? "dark" : "light"] }}
                   disabled={accentBusy}
                   aria-pressed={name === accentName}
-                  aria-label={name}
+                  aria-label={ACCENTS[name].label}
+                  title={ACCENTS[name].label}
                   onClick={() => void pickAccent(name)}
                 />
               ))}
@@ -127,7 +128,8 @@ export function SupportModal({ onClose }: SupportModalProps) {
                   style={{ background: SURFACES[name][dark ? "swatchDark" : "swatchLight"] }}
                   disabled={surfaceBusy}
                   aria-pressed={name === surfaceName}
-                  aria-label={name}
+                  aria-label={SURFACES[name].label}
+                  title={SURFACES[name].label}
                   onClick={() => void pickSurface(name)}
                 />
               ))}

@@ -53,10 +53,19 @@ export function resolveDark(preference: ThemePreference): boolean {
   return getSystemDark();
 }
 
+function syncBrowserColor(): void {
+  const root = document.documentElement;
+  const surface = root.getAttribute("data-surface") as SurfaceName;
+  const palette = SURFACES[surface] ?? SURFACES[DEFAULT_SURFACE_NAME];
+  const color = root.dataset.theme === "dark" ? palette.swatchDark : palette.swatchLight;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", color);
+}
+
 export function applyTheme(dark: boolean): void {
   const root = document.documentElement;
   root.setAttribute("data-theme", dark ? "dark" : "light");
   root.style.colorScheme = dark ? "dark" : "light";
+  syncBrowserColor();
 }
 
 export function getStoredAccent(): AccentName {
@@ -103,6 +112,7 @@ export function setStoredSurface(name: SurfaceName): void {
 /** Set `data-surface` on `<html>` so the matching ledger.css block applies. */
 export function applySurface(name: SurfaceName): void {
   document.documentElement.setAttribute("data-surface", name);
+  syncBrowserColor();
 }
 
 /** Resolve the hex + contrast pair for an accent name in the given theme. */

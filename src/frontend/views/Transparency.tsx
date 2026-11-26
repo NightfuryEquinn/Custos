@@ -63,7 +63,7 @@ const COLLECTIONS: CollectionDoc[] = [
       {
         key: "accent?",
         value: '"moss"',
-        note: "Free accent color pick; undefined means default (clay)",
+        note: "Free accent color pick; undefined means default (indigo)",
       },
       {
         key: "navTabs?",
@@ -661,9 +661,9 @@ export function Transparency() {
                 <code>GET /api/cron/reminders</code> about every fifteen minutes for email
                 reminders, push notifications, and recurring expense rows. Optional email uses
                 Resend; push delivery uses FCM, Apple Push, or Mozilla&apos;s service depending on
-                the browser. Zen Maru Gothic ships with the app under the SIL Open Font License.
-                Custos serves the font files from its own domain. Latin fonts are included in the
-                offline install, and other supported scripts are cached when first used.
+                the browser. Zen Kaku Gothic Antique ships with the app under the SIL Open Font
+                License. Custos serves the font files from its own domain. Latin fonts are included
+                in the offline install, and other supported scripts are cached when first used.
               </p>
               <p className="panel-sub panel-sub--spaced">
                 You navigate with a sidebar (or a bottom bar on smaller screens) with four

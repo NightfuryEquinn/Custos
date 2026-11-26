@@ -232,53 +232,7 @@ export function Overview({
         </div>
       </section>
       <div className="journal-columns">
-        <div className="journal-timeline">
-          <section className="panel" data-tour="tour-overview-recent">
-            <div className="panel-head panel-head--row">
-              <h2>Recent transactions</h2>
-              <button type="button" className="link-btn" onClick={() => setView("transactions")}>
-                View transactions
-              </button>
-            </div>
-            <div className="recent-list">
-              {recent.length ? (
-                recent.map((e) => {
-                  const cat = categoryIndex.catById[catOf(e.sub, categoryIndex)];
-                  if (!cat) return null;
-
-                  return (
-                    <button
-                      type="button"
-                      key={e.id}
-                      className="recent-row"
-                      onClick={() => onEdit(e)}
-                    >
-                      <span className="rr-glyph" style={glyphTint(cat.color)}>
-                        {displayGlyph(cat.glyph, cat.id)}
-                      </span>
-                      <span className="rr-main">
-                        <span className="rr-note">{e.note}</span>
-                        <span className="rr-sub">
-                          {categoryIndex.subById[e.sub]?.name ?? e.sub} · {dayLabel(e.date)}
-                        </span>
-                      </span>
-                      <ReadableValue
-                        as="span"
-                        className={"rr-amt" + (isIncome(e) ? " income" : " expense")}
-                      >
-                        {isIncome(e) ? "+" : "−"}
-                        {fmtMoney(e.amount, { currency })}
-                      </ReadableValue>
-                    </button>
-                  );
-                })
-              ) : (
-                <EmptyState title="No transactions yet" />
-              )}
-            </div>
-          </section>
-        </div>
-        <aside className="journal-margin" aria-label="Today">
+        <section className="journal-timeline" aria-label="Today">
           {daily}
           <section className="panel" data-tour="tour-overview-today-schedule">
             <div className="panel-head panel-head--row">
@@ -362,7 +316,53 @@ export function Overview({
               )}
             </div>
           </section>
-        </aside>
+        </section>
+        <div className="journal-margin">
+          <section className="panel" data-tour="tour-overview-recent">
+            <div className="panel-head panel-head--row">
+              <h2>Recent transactions</h2>
+              <button type="button" className="link-btn" onClick={() => setView("transactions")}>
+                View transactions
+              </button>
+            </div>
+            <div className="recent-list">
+              {recent.length ? (
+                recent.map((e) => {
+                  const cat = categoryIndex.catById[catOf(e.sub, categoryIndex)];
+                  if (!cat) return null;
+
+                  return (
+                    <button
+                      type="button"
+                      key={e.id}
+                      className="recent-row"
+                      onClick={() => onEdit(e)}
+                    >
+                      <span className="rr-glyph" style={glyphTint(cat.color)}>
+                        {displayGlyph(cat.glyph, cat.id)}
+                      </span>
+                      <span className="rr-main">
+                        <span className="rr-note">{e.note}</span>
+                        <span className="rr-sub">
+                          {categoryIndex.subById[e.sub]?.name ?? e.sub} · {dayLabel(e.date)}
+                        </span>
+                      </span>
+                      <ReadableValue
+                        as="span"
+                        className={"rr-amt" + (isIncome(e) ? " income" : " expense")}
+                      >
+                        {isIncome(e) ? "+" : "−"}
+                        {fmtMoney(e.amount, { currency })}
+                      </ReadableValue>
+                    </button>
+                  );
+                })
+              ) : (
+                <EmptyState title="No transactions yet" />
+              )}
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   );
