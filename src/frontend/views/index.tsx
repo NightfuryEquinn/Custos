@@ -18,7 +18,6 @@ import {
 import {
   isIncomeCategory,
   isSavingsCategory,
-  isSpendingCategory,
   spendingCategoriesFor,
 } from "@/frontend/lib/categories";
 import { buildPiggies } from "@/frontend/lib/piggies";
@@ -1235,13 +1234,6 @@ export function Insights({
       currency: displayCurrency,
     });
 
-  const spendingBudgets = Object.fromEntries(
-    Object.entries(budgets).filter(([id]) => {
-      const cat = categoryIndex.catById[id];
-      return cat ? isSpendingCategory(cat) : id !== "income" && id !== "savings";
-    }),
-  );
-  const totalBudget = Object.values(spendingBudgets).reduce((s, v) => s + v, 0);
   const chartMonths = useMemo(() => monthsWindow(month), [month]);
 
   /*
@@ -1314,23 +1306,24 @@ export function Insights({
       earned: roundMoney(fxConvert(bar.earned, currency, displayCurrency, fxRates)),
     }));
   }, [chartPeriod, expenses, month, categoryIndex, currency, displayCurrency, fxRates]);
+  const cur = useMemo(
+    () => monthStats(expenses, budgets, wallet ?? EMPTY_WALLET, month, categoryIndex),
+    [expenses, budgets, wallet, month, categoryIndex],
+  );
+  const spendingBudget = cur.spendingBudget;
   const chartBudget = useMemo(
     () =>
       roundMoney(
         fxConvert(
-          chartBudgetForPeriod(chartPeriod, totalBudget, month),
+          chartBudgetForPeriod(chartPeriod, spendingBudget, month),
           currency,
           displayCurrency,
           fxRates,
         ),
       ),
-    [chartPeriod, totalBudget, month, currency, displayCurrency, fxRates],
+    [chartPeriod, spendingBudget, month, currency, displayCurrency, fxRates],
   );
   const activeChartKey = chartActiveKey(chartPeriod, month);
-  const cur = useMemo(
-    () => monthStats(expenses, budgets, wallet ?? EMPTY_WALLET, month, categoryIndex),
-    [expenses, budgets, wallet, month, categoryIndex],
-  );
   const idx = MONTHS.findIndex((m) => m.key === month);
   const prevKey = idx > 0 ? (MONTHS[idx - 1]?.key ?? null) : null;
   const prev = useMemo(

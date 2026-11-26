@@ -7,13 +7,7 @@ import {
   recurringScheduleKey,
 } from "@/lib/recurring";
 import type { CategoryIndex } from "./categories";
-import {
-  catOfSub,
-  isArchivedCategory,
-  isIncomeCategory,
-  isSavingsSub,
-  isSpendingCategory,
-} from "./categories";
+import { catOfSub, isSavingsSub } from "./categories";
 import {
   CURRENT_MONTH_KEY,
   SUB_BY_ID,
@@ -511,37 +505,20 @@ export function monthStats(
     if (e.sub) bySub[e.sub] = (bySub[e.sub] || 0) + e.amount;
   }
 
-  const envelopeBudgets = Object.fromEntries(
-    Object.entries(budgets).filter(([id]) => {
-      const cat = index?.catById[id];
-      // A retired envelope keeps its stored budget but must stop counting
-      // toward the month's totals, or the budget line never comes back down.
-      if (cat) return !isIncomeCategory(cat) && !isArchivedCategory(cat);
-
-      return id !== "income";
-    }),
+  // Sum the same active envelopes the Budgets editor shows.
+  const envelopeIds = index && new Set(index.expenseCategories.map((category) => category.id));
+  const spendingIds = index && new Set(index.spendingCategories.map((category) => category.id));
+  const envelopeBudgets = Object.entries(budgets).filter(([id]) =>
+    envelopeIds ? envelopeIds.has(id) : id !== "income",
   );
-  const spendingBudgets = Object.fromEntries(
-    Object.entries(envelopeBudgets).filter(([id]) => {
-      const cat = index?.catById[id];
-      if (cat) return isSpendingCategory(cat);
-
-      return id !== "savings";
-    }),
-  );
-  const totalBudget = Object.values(envelopeBudgets).reduce((s, v) => s + v, 0);
-  const spendingBudget = Object.values(spendingBudgets).reduce((s, v) => s + v, 0);
+  const totalBudget = envelopeBudgets.reduce((sum, [, amount]) => sum + amount, 0);
+  const spendingBudget = envelopeBudgets
+    .filter(([id]) => (spendingIds ? spendingIds.has(id) : id !== "savings"))
+    .reduce((sum, [, amount]) => sum + amount, 0);
   const byCatHeld = events ? holdsByCategory(events, key) : {};
-  /* Same envelope rule as totalBudget: a hold on an archived, income or deleted
-     category has no row to show it, so it must not shrink Available either. */
   const totalHeld = Object.entries(byCatHeld)
-    .filter(([id]) => {
-      const cat = index?.catById[id];
-      if (cat) return !isIncomeCategory(cat) && !isArchivedCategory(cat);
-
-      return !index;
-    })
-    .reduce((s, [, v]) => s + v, 0);
+    .filter(([id]) => !envelopeIds || envelopeIds.has(id))
+    .reduce((sum, [, amount]) => sum + amount, 0);
   const balance = walletBalance(opts?.balanceExpenses ?? expenses, wallet, index);
   const monthlyPool =
     wallet.fundingMode === "monthly" ? wallet.income + earned + withdrawn : earned + withdrawn;

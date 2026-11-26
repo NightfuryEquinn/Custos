@@ -16,7 +16,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - **Savings (Piggies)** — savings tracker per category ("piggy") and subcategory ("piglet"): lifetime balance (deposits minus withdrawals, excluding Capitals-assigned savings), an optional target/deadline with a progress ring (piggies with no goal show no ring), and a **Piggy Insights** engine (rate, streak, best month, pace-vs-deadline) on the Insights view — spanning Piggies and Capitals together, with a pace line per Capitals plan. Linked from Home, Budgets, and Categories; exports to CSV.
 - **Big Expenses (Capitals)** — planner for big expenses (marriage, trips, loans, or custom): a total budget, paid line items, and assigned savings deposits, shown as Total / Saved / Paid / Unspent with a progress bar. **Save/mo** is the need at the start of the month (unpaid budget less what's still in the pot) divided by months to target, so it holds steady when you deposit mid-month, with a "left this month" line beside **Remaining**. **Log** records a real payment against an item; deleting a plan returns its deposits to savings.
 - **Subcategory breakdowns** — Insights' By Category and Transactions both drill into subcategories.
-- **Calculator** — client-side budgeting: deduct custom tax lines from income (each a percentage of gross or a fixed amount), allocate the rest to active subcategories (partial is fine), then apply their rolled-up parent budgets and encrypted breakdowns to the wallet. Includes Malaysia-oriented presets (EPF/SOCSO/EIS/PCB/SST); nothing leaves the browser.
+- **Calculator** — deduct custom tax lines from income (each a percentage of gross or a fixed amount), then allocate up to the remaining amount to active subcategories. **Apply to Budgets** previews the resulting **Total Budget** and identifies any budgets that will be cleared. Confirming replaces the selected wallet’s active spending and savings budgets and their encrypted subcategory breakdowns. Blank and zero allocations clear the saved amounts. Includes Malaysia-oriented presets (EPF/SOCSO/EIS/PCB/SST).
 - **Multiple wallets** — 29 currencies; monthly-income or starting-balance funding.
 - **Custom categories** — editable taxonomy with glyphs and colors; unused entries delete, in-use ones archive (so history keeps its type) and can transfer to another category.
 - **Recurring transactions** — monthly/quarterly/yearly, auto-posted via cron-job.org; scoped delete (one occurrence, this-and-future, or the whole series) with confirmation.
@@ -260,9 +260,10 @@ bun dev
 bun run typecheck  # tsc --noEmit
 bun run check      # lint + format check + typecheck + knip (the same steps CI runs)
 bun run knip       # unused files/exports/deps
+bun test tests/budget-regression.test.ts
 ```
 
-There is no automated test suite (`258fe3c` / `32c5bf4`) and CI does not run one. `bun run check` is lint, Prettier, `tsc --noEmit`, and knip.
+The budget regression tests cover Calculator replacement, category totals, and schedule holds. Run them before releasing changes to budgeting.
 
 Open [http://localhost:3000](http://localhost:3000). The SPA and API share the same origin (`/api/*`).
 
@@ -498,7 +499,7 @@ This release adds no database or backup migration. Installations upgrading from 
 
 Staying unlocked across reloads is **opt-in per device** (Preferences → Stay unlocked on this device; flag `ledger:keep-unlocked`). When on, the non-extractable ledger and series keys are stored in IndexedDB for twelve hours after a successful unlock, without sliding renewal. Non-extractable only stops page scripts exporting them — the browser still writes the key material into the profile's storage files, so anyone who copies the profile in that window can decrypt the account. Rows saved before the opt-in existed are deleted on the next load. Expired rows are swept at boot; sign-out, clear-local-data, turning the switch off and a rejected session remove them. Server login-session lifetimes are unchanged.
 
-Wallet ciphertext now optionally includes `subcategoryBudgets` (`categoryId -> subcategoryId -> amount`). Old wallets default to an empty breakdown. Calculator applies positive parent allocations with their complete active-subcategory breakdown; blank/zero parent allocations leave existing budgets unchanged. Budget totals and alerts count parent envelopes once. Manual parent edits cannot undercut the stored child total. Archived allocations remain stored; category transfers merge associated amounts, and transfers into income remove them.
+Wallet ciphertext now optionally includes `subcategoryBudgets` (`categoryId -> subcategoryId -> amount`). Old wallets default to an empty breakdown. Before 7.0.6, Calculator applied positive parent allocations and kept the saved budget when an allocation was blank or zero. Budget totals and alerts count parent envelopes once. Manual parent edits cannot undercut the stored child total. Allocations on archived parent categories remain stored. Category transfers merge associated amounts and remove them for transfers into income.
 
 `nudge_check_ins` stores account ownership, nudge linkage, local day, a `seq` sort counter (the parent Nudge's revision after the write), and an encrypted event payload. The exact tap time lives inside the payload; the server never stores a clock time. Nudge and check-in payloads are padded to a multiple of 256 bytes. The index is `(accountId, nudgeId, day, seq, _id)` and the history cursor is `day|seq|id`. There is no event TTL. The parent Nudge has a revision counter. Counts and events are committed atomically, so **MongoDB must be an Atlas/replica-set deployment supporting transactions**. Queued Nudge writes hold only ciphertext; the push copy (`notifyDetails`) and `metOn` are rebuilt from it when the write is sent.
 

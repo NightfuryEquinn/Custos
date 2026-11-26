@@ -4,15 +4,15 @@ import { useEnter, useModalMotion, useStagger } from "@/frontend/lib/animate";
 import { toast } from "@/frontend/lib/feedback";
 import { CatGlyph, EmptyState, Icon, Segmented, SummaryCard } from "@/frontend/components/ui";
 import {
-  budgetsFromAmounts,
   computeTax,
   isValidAllocationAmounts,
   isValidTaxLines,
   isValidTaxTotal,
   MY_TAX_PRESETS,
+  replaceBudgetAllocations,
   type TaxPreset,
 } from "@/frontend/lib/calculator";
-import { fmtMoney, getCurrency } from "@/frontend/lib/data";
+import { fmtMoney, getCurrency, roundMoney } from "@/frontend/lib/data";
 import {
   preventNegativeKeys,
   preventWheelChange,
@@ -135,20 +135,27 @@ export function Calculator({
   const net = taxOk ? taxed.net : 0;
   const taxAmount = taxOk ? taxed.taxAmount : 0;
 
-  const amountRows = useMemo(
-    () =>
-      expenseCategories.map((c) => ({
-        id: c.id,
-        amount:
-          liveSubs(c).reduce(
-            (sum, sub) => sum + Math.round(parseNonNeg(amtByCat[`${c.id}:${sub.id}`] ?? "") * 100),
-            0,
-          ) / 100,
-      })),
-    [expenseCategories, amtByCat],
-  );
+  const savedBreakdown = wallet?.subcategoryBudgets;
+  const {
+    budgets: nextBudgets,
+    subcategoryBudgets: nextBreakdown,
+    amountRows,
+  } = useMemo(() => {
+    const allocations = Object.fromEntries(
+      expenseCategories.map((category) => [
+        category.id,
+        Object.fromEntries(
+          liveSubs(category).map((sub) => [
+            sub.id,
+            roundMoney(parseNonNeg(amtByCat[`${category.id}:${sub.id}`] ?? "")),
+          ]),
+        ),
+      ]),
+    );
+    return replaceBudgetAllocations({ budgets, subcategoryBudgets: savedBreakdown }, allocations);
+  }, [expenseCategories, amtByCat, budgets, savedBreakdown]);
 
-  const allocAmtSum = amountRows.reduce((sum, row) => sum + row.amount, 0);
+  const allocAmtSum = roundMoney(amountRows.reduce((sum, row) => sum + row.amount, 0));
   const allocOk =
     expenseCategories.length > 0 &&
     allocAmtSum > 0 &&
@@ -158,12 +165,6 @@ export function Calculator({
       net,
     );
   const canApply = gross > 0 && taxOk && allocOk;
-
-  const computed = useMemo(() => {
-    if (!canApply) return {};
-
-    return budgetsFromAmounts(amountRows);
-  }, [canApply, amountRows]);
 
   /** Which presets currently have rows in the tax list. */
   const activeTaxPresetIds = useMemo(() => {
@@ -231,19 +232,6 @@ export function Calculator({
       return [...withoutPlaceholder, ...added];
     });
   };
-
-  /* Zero allocations are omitted from `computed`, so those categories keep their budget. */
-  const nextBudgets = { ...budgets, ...computed };
-  const nextBreakdown = { ...wallet?.subcategoryBudgets };
-  for (const category of expenseCategories) {
-    if (computed[category.id])
-      nextBreakdown[category.id] = Object.fromEntries(
-        liveSubs(category).map((sub) => [
-          sub.id,
-          Math.round(parseNonNeg(amtByCat[`${category.id}:${sub.id}`] ?? "") * 100) / 100,
-        ]),
-      );
-  }
 
   const openApply = () => {
     setApplyError("");
@@ -573,14 +561,28 @@ export function Calculator({
                 </div>
                 <div className="modal-body modal-scroll">
                   <p className="calculator-confirm-lead">
-                    This replaces the expense category budgets on{" "}
-                    <strong>{wallet?.name ?? "this wallet"}</strong> with the amounts below.
-                    Categories left at 0 keep their current budget.
+                    This replaces the active budgets on{" "}
+                    <strong>{wallet?.name ?? "this wallet"}</strong>. Blank and zero allocations
+                    clear the saved budget and its breakdown.
+                  </p>
+                  <p className="calculator-confirm-lead">
+                    <strong>Total Budget {fmtMoney(allocAmtSum, { currency })}</strong>
                   </p>
                   <ul className="calculator-confirm-list">
                     {expenseCategories.map((c) => {
                       const before = budgets[c.id] ?? 0;
                       const after = nextBudgets[c.id] ?? 0;
+                      const beforeBreakdown = savedBreakdown?.[c.id];
+                      const afterBreakdown = nextBreakdown[c.id];
+                      const clearing =
+                        after === 0 &&
+                        (before > 0 ||
+                          Object.values(beforeBreakdown ?? {}).some((amount) => amount > 0));
+                      const subs = (categoryIndex.catById[c.id]?.subs ?? c.subs).filter(
+                        (sub) =>
+                          (beforeBreakdown?.[sub.id] ?? 0) > 0 ||
+                          (afterBreakdown?.[sub.id] ?? 0) > 0,
+                      );
 
                       return (
                         <li key={c.id}>
@@ -592,28 +594,20 @@ export function Calculator({
                             <span className="num calculator-confirm-amt">
                               {before !== after ? `${fmtMoney(before, { currency })} → ` : ""}
                               {fmtMoney(after, { currency })}
-                              {!computed[c.id] ? (
-                                <small className="allocation-confirm-subs">Unchanged</small>
+                              {clearing ? (
+                                <small className="allocation-confirm-subs">Will be cleared</small>
                               ) : null}
                             </span>
                           </div>
-                          {computed[c.id] ? (
+                          {subs.length > 0 ? (
                             <ul className="allocation-confirm-subs">
-                              {(categoryIndex.catById[c.id]?.subs ?? c.subs)
-                                .filter(
-                                  (sub) =>
-                                    (nextBreakdown[c.id]?.[sub.id] ?? 0) > 0 ||
-                                    (wallet?.subcategoryBudgets?.[c.id]?.[sub.id] ?? 0) > 0,
-                                )
-                                .map((sub) => (
-                                  <li key={sub.id}>
-                                    {sub.name}:{" "}
-                                    {fmtMoney(wallet?.subcategoryBudgets?.[c.id]?.[sub.id] ?? 0, {
-                                      currency,
-                                    })}{" "}
-                                    → {fmtMoney(nextBreakdown[c.id]?.[sub.id] ?? 0, { currency })}
-                                  </li>
-                                ))}
+                              {subs.map((sub) => (
+                                <li key={sub.id}>
+                                  {sub.name}:{" "}
+                                  {fmtMoney(beforeBreakdown?.[sub.id] ?? 0, { currency })} →{" "}
+                                  {fmtMoney(afterBreakdown?.[sub.id] ?? 0, { currency })}
+                                </li>
+                              ))}
                             </ul>
                           ) : null}
                         </li>

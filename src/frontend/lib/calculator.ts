@@ -5,10 +5,7 @@
  * category, up to (but not required to reach) net after tax.
  */
 
-type AmountRow = {
-  id: string;
-  amount: number;
-};
+import type { FinancialWallet, SubcategoryBudgets } from "./types";
 
 export type TaxPresetLine = {
   title: string;
@@ -131,19 +128,28 @@ export function isValidAllocationAmounts(amounts: number[], net: number): boolea
   return sumCents <= targetCents + CENT_TOLERANCE;
 }
 
-/**
- * Build budgets from explicit amounts, rounded to 2 decimal places.
- * Applied exactly as entered — categories left blank (or 0) are simply
- * omitted, no redistribution of any unallocated remainder.
- */
-export function budgetsFromAmounts(rows: AmountRow[]): Record<string, number> {
-  const result: Record<string, number> = {};
+/** Replace active parent budgets using subcategory allocations already rounded to cents. */
+export function replaceBudgetAllocations(
+  current: Pick<FinancialWallet, "budgets" | "subcategoryBudgets">,
+  allocations: SubcategoryBudgets,
+) {
+  const budgets = { ...current.budgets };
+  const subcategoryBudgets = { ...current.subcategoryBudgets };
+  const amountRows = Object.entries(allocations).map(([id, breakdown]) => {
+    const cents = Object.values(breakdown).reduce(
+      (sum, amount) => sum + Math.round(amount * 100),
+      0,
+    );
+    const amount = cents / 100;
+    if (amount > 0) {
+      budgets[id] = amount;
+      subcategoryBudgets[id] = breakdown;
+    } else {
+      delete budgets[id];
+      delete subcategoryBudgets[id];
+    }
+    return { id, amount };
+  });
 
-  for (const row of rows) {
-    const cents = Number.isFinite(row.amount) && row.amount > 0 ? Math.round(row.amount * 100) : 0;
-
-    if (cents > 0) result[row.id] = cents / 100;
-  }
-
-  return result;
+  return { budgets, subcategoryBudgets, amountRows };
 }

@@ -38,6 +38,23 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "7.0.6",
+    date: "November 2026",
+    lead: "Total Budget matches the amounts you apply from Calculator.",
+    highlights: [
+      {
+        icon: "calculator",
+        title: "Review the total before applying",
+        body: "Calculator shows the new Total Budget and marks each saved budget that a blank or zero allocation will clear.",
+      },
+      {
+        icon: "budget",
+        title: "Budget totals match the category list",
+        body: "Total Budget and Reserved count only the spending and savings categories shown in Budgets.",
+      },
+    ],
+  },
+  {
     version: "7.0.5",
     date: "November 2026",
     lead: "Reserved budget only counts holds that are still coming up.",
