@@ -46,7 +46,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - **Encrypted backup** — one pack covering ledger data (the full schedule, not only the viewed month) and account/profile settings (notify email, timezone, theme, nav layout), encrypted with your ledger key, download/restore via **Account → Exports & imports**. Restore keeps the original document ids so linked rows stay connected.
 - **CSV export & import** — transactions, schedule events, and to-do lists.
 - **Encrypted ledger** — amounts, names, categories, notes, titles, holds, and to-dos encrypted client-side; unlocked with your wallet key each session.
-- **Offline unlock, reads & writes** — installable app shell + IndexedDB cache opens and unlocks with no connection; daily edits queue already-encrypted and sync once back online. All application chunks and fonts are precached, including unopened views. The status panel distinguishes local saves, syncing, failures, and verified offline readiness for downloaded records; updates wait for a safe reload. Wallet administration and recurring-series edits require a connection. A locally-restored session with no server confirmation is trusted for 30 days.
+- **Offline unlock, reads & writes** — installable app shell + IndexedDB cache opens and unlocks with no connection; daily edits queue already-encrypted and sync once back online. Application chunks for unopened views and Latin fonts are precached. Other font subsets are cached as they are used. The status panel distinguishes local saves, syncing, failures, and verified offline readiness for downloaded records; updates wait for a safe reload. Wallet administration and recurring-series edits require a connection. A locally-restored session with no server confirmation is trusted for 30 days.
 - **Budget alerts** — email when a category nears/exceeds its monthly budget; the client evaluates and sends names/amounts, the server only delivers.
 - **Transparency** — in-app map of hosting roles, what the server can infer, collections, and E2EE vs plaintext fields.
 - **Guided tour** — Shepherd.js walkthrough per view; a first-sign-in modal offers guided or explore-alone, stored on your profile so it follows you across devices. Replay from the **?** beside any page title or **Account → Take a Tour**.
@@ -73,7 +73,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 | API      | [Hono](https://hono.dev) + Zod validation                                                                           |
 | Database | [MongoDB](https://www.mongodb.com)                                                                                  |
 | Frontend | React 19, TanStack Query, ethers v6                                                                                 |
-| Styling  | Custom theme CSS (`ledger.css`, WCAG AA); Schibsted Grotesk / Azeret Mono self-hosted                               |
+| Styling  | Custom theme CSS (`ledger.css`, WCAG AA) and self-hosted Zen Maru Gothic                                            |
 | Loading  | [ldrs](https://uiball.com/ldrs) trefoil spinner                                                                     |
 | Motion   | [anime.js](https://animejs.com) v4                                                                                  |
 | Tours    | [Shepherd.js](https://shepherdjs.dev)                                                                               |
@@ -485,7 +485,7 @@ Patch release: backup identity, cron reliability, reminder email quota, and merm
 
 ### Public website development
 
-Run `bun scripts/build-website.ts` to bundle the public site’s local Anime.js motion before previewing `website/`. GitHub Pages CI builds this asset automatically.
+Run `bun scripts/build-website.ts` before previewing `website/`. The GitHub Pages workflow builds the site's scripts and copies the shared Zen Maru Gothic assets and SIL Open Font License. The PWA precaches Latin and extended Latin fonts and caches Japanese, Greek and Cyrillic subsets as they are used. Both sites serve the fonts from their own origin.
 
 ### 6.6.2 interface update
 

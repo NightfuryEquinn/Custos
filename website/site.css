@@ -32,9 +32,9 @@
   --on-accent: #fff;
   --selection: #e8d5c6;
 
-  --font-display: "Young Serif", Georgia, serif;
-  --font-body: "Schibsted Grotesk", system-ui, sans-serif;
-  --font-mono: "Azeret Mono", monospace;
+  --font-display: var(--font-body);
+  --font-body: "Zen Maru Gothic", system-ui, sans-serif;
+  --font-mono: var(--font-body);
 
   color-scheme: light;
 }
@@ -80,10 +80,18 @@ html {
   scroll-behavior: smooth;
   scroll-padding-top: var(--sp-7);
 }
+:where(*) {
+  letter-spacing: 0.02em;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
   font: 15px/1.7 var(--font-body);
+  font-synthesis: style;
+}
+:where(button, input, select, textarea, code, pre, kbd, samp) {
+  font-family: inherit;
 }
 ::selection {
   background: var(--selection);
@@ -147,18 +155,16 @@ a.cta {
   margin-top: var(--block-gap);
 }
 .sub h1 {
-  font: 400 clamp(36px, 5vw, 64px) / 1.2 var(--font-display);
-  letter-spacing: -0.04em;
+  font: 700 clamp(36px, 5vw, 64px) / 1.2 var(--font-display);
 }
 .sub h1 + * {
   margin-top: var(--sp-6);
 }
 .sub h2 {
-  font: 400 clamp(28px, 3.2vw, 36px) / 1.2 var(--font-display);
-  letter-spacing: -0.03em;
+  font: 700 clamp(28px, 3.2vw, 36px) / 1.2 var(--font-display);
 }
 .sub h3 {
-  font: 400 24px / 1.3 var(--font-display);
+  font: 700 24px / 1.3 var(--font-display);
 }
 .sub section > * + * {
   margin-top: var(--sp-6);
@@ -169,6 +175,8 @@ a.cta {
 .lede {
   max-width: var(--measure);
   color: var(--text-dim);
+  font-style: italic;
+  font-weight: 400;
 }
 .note {
   max-width: var(--measure);

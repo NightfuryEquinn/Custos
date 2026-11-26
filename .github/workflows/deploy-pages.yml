@@ -6,6 +6,8 @@ on:
     paths:
       - "website/**"
       - "scripts/build-website.ts"
+      - "src/frontend/assets/fonts/**"
+      - "src/frontend/styles/fonts.css"
       - "bun.lock"
       - ".nvmrc"
       - ".github/workflows/deploy-pages.yml"

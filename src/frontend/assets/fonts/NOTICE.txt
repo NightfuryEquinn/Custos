@@ -1,11 +1,5 @@
-Young Serif — Copyright 2023 The Young Serif Project Authors
-  https://github.com/noirblancrouge/YoungSerif
+Zen Maru Gothic — Copyright 2021 The Zen Maru Gothic Authors
+https://github.com/googlefonts/zen-marugothic
 
-Schibsted Grotesk — Copyright 2022 The Schibsted Grotesk Project Authors
-  https://github.com/schibsted/schibsted-grotesk
-
-Azeret Mono — Copyright 2021 The Azeret Project Authors
-  https://github.com/displaay/Azeret
-
-These typefaces are licensed under the SIL Open Font License, Version 1.1.
-See OFL.txt in this folder for the full license text.
+Google Fonts distribution, packaged by Fontsource (@fontsource/zen-maru-gothic 5.3.1).
+Licensed under the SIL Open Font License, Version 1.1. See OFL.txt.

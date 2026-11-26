@@ -30,13 +30,13 @@
   align-items: baseline;
   gap: var(--sp-5);
   width: fit-content;
-  font: 32px var(--font-display);
+  font: 700 32px var(--font-display);
   text-decoration: none;
 }
 .folio-brand span,
 .folio-edition {
   font: 11px var(--font-body);
-  letter-spacing: 0.05em;
+
   color: var(--text-dim);
 }
 .folio-edition .ver {
@@ -121,7 +121,7 @@
 .folio-kicker,
 .folio-chapter-label {
   font: 10px/1.7 var(--font-mono);
-  letter-spacing: 0.1em;
+
   text-transform: uppercase;
   color: var(--text-dim);
 }
@@ -145,14 +145,14 @@
 }
 .folio-hero h1 {
   margin: var(--sp-6) 0;
-  font: 400 clamp(38px, 5vw, 72px) / 1.16 var(--font-display);
-  letter-spacing: -0.055em;
+  font: 700 clamp(38px, 5vw, 72px) / 1.16 var(--font-display);
 }
 .folio-hero h1 em {
-  font-style: normal;
   color: var(--accent);
 }
 .folio-lead {
+  font-style: italic;
+  font-weight: 400;
   max-width: 440px;
   color: var(--text-dim);
   font-size: 16px;
@@ -174,7 +174,7 @@
   justify-content: space-between;
   align-items: baseline;
   gap: var(--sp-1) var(--sp-3);
-  font: 22px var(--font-display);
+  font: 700 22px var(--font-display);
 }
 .folio-sample-head small {
   font: 10px var(--font-mono);
@@ -192,7 +192,6 @@
 }
 .folio-sample-balance strong {
   font: 400 clamp(22px, 2.4vw, 32px) var(--font-mono);
-  letter-spacing: -0.04em;
 }
 .folio-sample-balance small {
   font-size: 10px;
@@ -272,8 +271,7 @@
 .folio-story h2,
 .folio-ending h2 {
   margin: var(--sp-4) 0 var(--sp-6);
-  font: 400 clamp(32px, 4vw, 52px) / 1.2 var(--font-display);
-  letter-spacing: -0.04em;
+  font: 700 clamp(32px, 4vw, 52px) / 1.2 var(--font-display);
 }
 .folio-story > h2:first-child {
   margin-top: 0;

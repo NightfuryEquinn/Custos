@@ -41,11 +41,11 @@
   --accent-contrast: #ffffff;
 
   /* Typography */
-  --font-display: "Schibsted Grotesk", system-ui, sans-serif;
-  --font-body: "Schibsted Grotesk", system-ui, sans-serif;
-  --font-mono: "Azeret Mono", ui-monospace, monospace;
+  --font-display: var(--font-body);
+  --font-body: "Zen Maru Gothic", system-ui, sans-serif;
+  --font-mono: var(--font-body);
   --font-num: var(--font-mono);
-  --tracking: 0;
+
   --base: 15.5px;
   --emoji-size: 24px;
 
@@ -288,15 +288,19 @@ body {
   height: 100%;
 }
 
+:where(*) {
+  letter-spacing: 0.02em;
+}
+
 body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-body);
   font-size: var(--base);
   line-height: 1.5;
-  letter-spacing: var(--tracking);
+
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: "ss01";
+  font-synthesis: style;
 }
 
 #root {
@@ -311,7 +315,7 @@ button {
   background: none;
 }
 
-input {
+:where(input, select, textarea, code, pre, kbd, samp) {
   font-family: inherit;
 }
 
@@ -326,14 +330,17 @@ svg {
 
 h1,
 h2,
-h3 {
+h3,
+h4,
+h5,
+h6 {
   margin: 0;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .num {
   font-family: var(--font-num);
-  letter-spacing: 0.05em;
+
   font-feature-settings: "tnum";
 }
 
@@ -463,8 +470,7 @@ h3 {
   gap: var(--sp-3);
   font-family: var(--font-display);
   font-size: 28px;
-  font-weight: 600;
-  letter-spacing: -0.035em;
+  font-weight: 700;
 }
 
 .page-title-icon {
@@ -754,7 +760,7 @@ textarea::placeholder {
   font-weight: 600;
   color: var(--ink-soft);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+
   margin: 0 0 var(--sp-3);
 }
 
@@ -1129,7 +1135,7 @@ textarea::placeholder {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+
   padding: 2px var(--sp-2);
   border-radius: var(--r-xs);
   background: var(--surface-3);
@@ -1255,7 +1261,7 @@ textarea::placeholder {
   color: #2a1b05;
   font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 0.02em;
+
   line-height: 1.5;
   white-space: nowrap;
 }
@@ -1755,7 +1761,6 @@ textarea::placeholder {
 
 .pci-code {
   font-weight: 700;
-  letter-spacing: 0.02em;
 }
 
 .pci-label {
@@ -1821,7 +1826,7 @@ textarea::placeholder {
 
 .pti-offset {
   font-weight: 700;
-  letter-spacing: 0.02em;
+
   font-family: var(--font-num);
 }
 
@@ -1901,7 +1906,7 @@ textarea::placeholder {
   font-weight: 600;
   color: var(--ink-faint);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+
   text-align: center;
   line-height: 1;
   padding: 0;
@@ -1971,7 +1976,7 @@ textarea::placeholder {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+
   color: var(--ink-faint);
   text-align: center;
   min-height: 14px;
@@ -2075,14 +2080,13 @@ textarea::placeholder {
   font-size: 13px;
   color: var(--ink-soft);
   font-weight: 600;
-  letter-spacing: 0;
 }
 
 .sc-value {
   font-family: var(--font-num);
   font-weight: 600;
   font-size: clamp(20px, 5.5cqi, 24px);
-  letter-spacing: -0.7px;
+
   margin-top: var(--sp-3);
   font-feature-settings: "tnum";
   line-height: 1.05;
@@ -2140,8 +2144,8 @@ textarea::placeholder {
 .panel-head h2 {
   font-family: var(--font-display);
   font-size: 18px;
-  font-weight: 600;
-  letter-spacing: -0.025em;
+  font-weight: 700;
+
   overflow-wrap: anywhere;
 }
 
@@ -2209,7 +2213,6 @@ textarea::placeholder {
   font-size: 15px;
   font-weight: 600;
   color: var(--ink);
-  letter-spacing: 0;
 }
 
 .profile-locked-sub {
@@ -2261,7 +2264,7 @@ textarea::placeholder {
 .profile-confidence {
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.05em;
+
   text-transform: uppercase;
   padding: var(--sp-1) var(--sp-2);
   border-radius: 999px;
@@ -2340,7 +2343,6 @@ textarea::placeholder {
   font-size: 14px;
   font-weight: 600;
   color: var(--ink);
-  letter-spacing: -0.01em;
 }
 
 .insight-card-metric {
@@ -2354,7 +2356,7 @@ textarea::placeholder {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+
   color: var(--ink-faint);
 }
 
@@ -2418,7 +2420,7 @@ textarea::placeholder {
   margin: 0;
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+
   text-transform: uppercase;
   color: var(--profile-accent, var(--accent));
 }
@@ -2434,8 +2436,8 @@ textarea::placeholder {
   margin: var(--sp-2) 0 0;
   font-family: var(--font-display);
   font-size: 22px;
-  font-weight: 400;
-  letter-spacing: -0.15px;
+  font-weight: 700;
+
   line-height: 1.2;
   color: var(--ink);
 }
@@ -2463,7 +2465,7 @@ textarea::placeholder {
   margin: 0;
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.05em;
+
   text-transform: uppercase;
   color: var(--ink-faint);
 }
@@ -2569,7 +2571,7 @@ textarea::placeholder {
   white-space: nowrap;
   font-size: 10.5px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+
   text-transform: uppercase;
   color: var(--profile-accent, var(--ink-faint));
 }
@@ -2717,6 +2719,11 @@ textarea::placeholder {
   margin-top: var(--sp-3);
 }
 
+.panel-head .panel-sub {
+  font-style: italic;
+  font-weight: 400;
+}
+
 .ov-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2729,7 +2736,6 @@ textarea::placeholder {
   font-family: var(--font-num);
   font-weight: 600;
   font-size: 22px;
-  letter-spacing: -0.15px;
 }
 
 .trend-stats {
@@ -2984,7 +2990,7 @@ textarea::placeholder {
   font-family: var(--font-num);
   font-weight: 600;
   font-size: 14px;
-  letter-spacing: -0.15px;
+
   margin-top: 2px;
   max-width: 100%;
   overflow: hidden;
@@ -3346,7 +3352,7 @@ textarea::placeholder {
   color: var(--ink-faint);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+
   padding: var(--sp-4) 0 var(--sp-2);
   border-bottom: 1px solid var(--hair);
 }
@@ -3669,8 +3675,7 @@ textarea::placeholder {
   margin: 0;
   font-family: var(--font-display);
   font-size: 19px;
-  font-weight: 400;
-  letter-spacing: -0.05px;
+  font-weight: 700;
 }
 
 .topsub-list {
@@ -4493,14 +4498,13 @@ textarea::placeholder {
   font-size: 13px;
   font-weight: 600;
   color: var(--accent);
-  letter-spacing: 0.005em;
 }
 
 .transparency-badge {
   flex: none;
   font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+
   text-transform: uppercase;
   padding: var(--sp-1) var(--sp-2);
   border-radius: var(--r-sm);
@@ -5079,7 +5083,7 @@ ul.allocation-confirm-subs {
   min-width: 0;
   font-size: 14px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+
   color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5106,7 +5110,7 @@ ul.allocation-confirm-subs {
 .capital-pace-metric-label {
   font-size: 10.5px;
   font-weight: 600;
-  letter-spacing: 0.05em;
+
   text-transform: uppercase;
   color: var(--ink-faint);
 }
@@ -5125,7 +5129,7 @@ ul.allocation-confirm-subs {
   flex: none;
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.05em;
+
   text-transform: uppercase;
   padding: var(--sp-1) var(--sp-2);
   border-radius: 999px;
@@ -5213,7 +5217,7 @@ ul.allocation-confirm-subs {
   flex: none;
   font-size: 10.5px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+
   text-transform: uppercase;
   color: var(--ink-faint);
   background: var(--surface-2);
@@ -5441,7 +5445,7 @@ ul.allocation-confirm-subs {
 .cap-band-label {
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.05em;
+
   text-transform: uppercase;
   color: var(--ink-faint);
 }
@@ -5666,7 +5670,7 @@ ul.allocation-confirm-subs {
   font-weight: 600;
   color: var(--ink-soft);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+
   text-align: left;
   padding: 0 var(--sp-1) 2px;
 }
@@ -5927,7 +5931,6 @@ ul.allocation-confirm-subs {
   font-size: 11px;
   color: var(--ink-faint);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
 }
 
 .agenda-items {
@@ -6052,7 +6055,7 @@ ul.allocation-confirm-subs {
   padding: var(--sp-4);
   font-family: var(--font-display);
   font-size: 21px;
-  font-weight: 400;
+  font-weight: 700;
   color: var(--ink);
   outline: none;
   margin-bottom: var(--sp-5);
@@ -6490,8 +6493,8 @@ ul.allocation-confirm-subs {
 .modal-head h3 {
   font-family: var(--font-display);
   font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.025em;
+  font-weight: 700;
+
   min-width: 0;
 }
 
@@ -6635,7 +6638,6 @@ ul.allocation-confirm-subs {
   color: var(--ink);
   width: 100%;
   min-width: 0;
-  letter-spacing: -0.7px;
 }
 
 .amount-field input::-webkit-outer-spin-button,
@@ -6848,8 +6850,8 @@ ul.allocation-confirm-subs {
 .auth-h1 {
   font-family: var(--font-display);
   font-size: clamp(28px, 5vw, 36px);
-  font-weight: 600;
-  letter-spacing: -0.045em;
+  font-weight: 700;
+
   margin-bottom: var(--sp-4);
   line-height: 1.1;
   color: var(--ink);
@@ -6862,9 +6864,9 @@ ul.allocation-confirm-subs {
 .auth-h2 {
   font-family: var(--font-display);
   font-size: clamp(22px, 4vw, 26px);
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: var(--sp-4);
-  letter-spacing: -0.02em;
+
   line-height: 1.15;
   color: var(--ink);
 }
@@ -6874,6 +6876,8 @@ ul.allocation-confirm-subs {
 }
 
 .auth-lead {
+  font-style: italic;
+  font-weight: 400;
   color: var(--ink-soft);
   font-size: 15px;
   line-height: 1.6;
@@ -7105,7 +7109,7 @@ ul.allocation-confirm-subs {
 .ih-name {
   font-family: var(--font-display);
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .ih-addr {
@@ -7129,7 +7133,7 @@ ul.allocation-confirm-subs {
   font-size: 11.5px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+
   color: var(--ink-soft);
   margin-bottom: var(--sp-3);
 }
@@ -7141,7 +7145,6 @@ ul.allocation-confirm-subs {
 .rec-warn {
   color: var(--danger);
   text-transform: none;
-  letter-spacing: 0;
 }
 
 .phrase-grid {
@@ -7202,7 +7205,7 @@ ul.allocation-confirm-subs {
 .known-label {
   font-size: 11.5px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+
   color: var(--ink-faint);
   font-weight: 600;
   margin-bottom: var(--sp-3);
@@ -7259,7 +7262,7 @@ ul.allocation-confirm-subs {
 .or-div span {
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+
   color: var(--ink-faint);
   font-weight: 600;
   white-space: nowrap;
@@ -7311,6 +7314,8 @@ ul.allocation-confirm-subs {
 }
 
 .dm-lead {
+  font-style: italic;
+  font-weight: 400;
   font-size: 13.5px;
   color: var(--ink-soft);
   line-height: 1.55;
@@ -7322,7 +7327,7 @@ ul.allocation-confirm-subs {
 .confirm-type strong {
   color: var(--ink);
   font-weight: 700;
-  letter-spacing: 0;
+
   text-transform: none;
   overflow-wrap: anywhere;
 }
@@ -7462,7 +7467,6 @@ ul.allocation-confirm-subs {
   font-size: 14px;
   font-weight: 600;
   color: var(--ink);
-  letter-spacing: 0;
 }
 
 .delete-scope-note {
@@ -7511,7 +7515,6 @@ ul.allocation-confirm-subs {
   font-weight: 600;
   font-size: 14.5px;
   margin-bottom: var(--sp-2);
-  letter-spacing: 0;
 }
 
 .consent-desc {
@@ -7605,7 +7608,6 @@ ul.allocation-confirm-subs {
   font-weight: 600;
   color: var(--ink);
   margin: var(--sp-5) 0 var(--sp-3);
-  letter-spacing: 0;
 }
 
 .dm-subhead:first-of-type {
@@ -7783,7 +7785,6 @@ ul.allocation-confirm-subs {
 .loading-state {
   font-size: 15px;
   color: var(--ink-soft);
-  letter-spacing: 0;
 }
 
 .loading-state--error {
@@ -7865,7 +7866,6 @@ select.text-in {
 }
 .modal-head h3 {
   font-weight: 600;
-  letter-spacing: -0.025em;
 }
 .modal-body {
   line-height: 1.55;
@@ -8890,7 +8890,7 @@ select.text-in {
   color: var(--ink);
   font-family: var(--font-display);
   font-size: 20px;
-  font-weight: 400;
+  font-weight: 700;
   line-height: 1.3;
 }
 

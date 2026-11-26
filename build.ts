@@ -130,6 +130,13 @@ for (const name of ["OFL.txt", "NOTICE.txt"]) {
   await Bun.write(path.join(fontsDestDir, name), Bun.file(path.join(fontsSrcDir, name)));
 }
 
+const fontFilename = (bytes: Uint8Array) => `font-${Bun.hash(bytes).toString(16)}.woff2`;
+const offlineFonts = new Set<string>();
+for await (const entry of new Bun.Glob("zen-maru-gothic-latin*.woff2").scan({ cwd: fontsSrcDir })) {
+  const bytes = await Bun.file(path.join(fontsSrcDir, entry)).bytes();
+  offlineFonts.add(`fonts/${fontFilename(bytes)}`);
+}
+
 /*
  * Un-inline the fonts CSS bundled it as base64.
  *
@@ -156,8 +163,7 @@ for (const cssOutput of cssOutputs) {
     /url\(data:font\/woff2;base64,([A-Za-z0-9+/=]+)\)/g,
     (_match, base64: string) => {
       const bytes = Buffer.from(base64, "base64");
-      const hash = Bun.hash(bytes).toString(16);
-      const filename = `font-${hash}.woff2`;
+      const filename = fontFilename(bytes);
       writes.push(Bun.write(path.join(fontsDestDir, filename), bytes));
       fontBytes += bytes.byteLength;
       fontCount++;
@@ -171,10 +177,11 @@ console.log(
   ` ${path.relative(root, fontsDestDir)}/*  ${fontCount} font file(s), ${(fontBytes / 1024).toFixed(1)} KB extracted from CSS`,
 );
 
-// Include lazy views and extracted fonts, even before the user visits them.
+// Precache the Latin faces. The service worker caches other subsets on demand.
 const shellAssets = [...new Bun.Glob("**/*").scanSync({ cwd: outdir })]
-  .filter((name) => /\.(js|css|woff2|png)$/.test(name) && name !== "sw.js")
-  .map((name) => `/${name.replaceAll("\\", "/")}`)
+  .map((name) => name.replaceAll("\\", "/"))
+  .filter((name) => (/\.(js|css|png)$/.test(name) && name !== "sw.js") || offlineFonts.has(name))
+  .map((name) => `/${name}`)
   .sort();
 const shellVersion = `${APP_VERSION}-${Bun.hash(JSON.stringify(shellAssets)).toString(16)}`;
 const workerPath = path.join(outdir, "sw.js");
