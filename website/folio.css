@@ -124,14 +124,10 @@
   width: 18px;
   height: 18px;
 }
-.folio-kicker,
 .folio-chapter-label {
   font: 10px/1.7 var(--font-mono);
 
   color: var(--text-dim);
-}
-.folio-kicker {
-  display: block;
 }
 .folio-caption {
   margin-top: var(--sp-6);
@@ -151,9 +147,6 @@
 .folio-hero h1 {
   margin: var(--sp-6) 0;
   font: 700 clamp(38px, 5vw, 72px) / 1.16 var(--font-display);
-}
-.folio-hero h1 em {
-  color: var(--accent);
 }
 .folio-lead {
   font-style: normal;
@@ -387,9 +380,6 @@
   }
   .folio-chapter-label > span {
     width: 100%;
-  }
-  .folio-open {
-    bottom: calc(var(--sp-3) + env(safe-area-inset-bottom));
   }
 }
 

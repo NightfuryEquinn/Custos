@@ -222,7 +222,7 @@ h3 {
     grid-column: 1;
     grid-row: 1;
   }
-  .sub > h1 + .lede {
+  .sub > h1 + :is(.lede, .service-intro) {
     margin: 0;
     grid-row: 1;
     align-self: end;
@@ -238,4 +238,30 @@ h3 {
     border: 0;
     padding: 0;
   }
+}
+
+:is(a, button, summary):active {
+  color: var(--accent-hover);
+}
+:is(.folio-open, .btn-primary, a.cta):active {
+  color: var(--on-accent);
+  background: var(--accent-hover);
+}
+button:disabled {
+  background: var(--bg-alt);
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
+:root[data-theme="dark"] img[src^="icons/"] {
+  filter: brightness(0) invert(85%);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) img[src^="icons/"] {
+    filter: brightness(0) invert(85%);
+  }
+}
+
+.service-intro .btn-primary {
+  margin-top: var(--sp-5);
 }
