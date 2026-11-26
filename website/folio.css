@@ -1,3 +1,5 @@
+/* Hallmark · v2.0.0 · redesign: full · theme: Washi and indigo (by request) · genre: editorial · shape: Journal · signature: A Thursday, yours · nav: masthead · footer: directory */
+/* Critique: Place the journal beside its story and use spacing to group the entries. */
 /*
   Public journal identity: masthead, home page and footer, shared by all three pages.
   Tokens, the shared frame (masthead / main / footer width) and the breakpoint tiers are
@@ -84,22 +86,26 @@
   }
 }
 .folio-open {
-  position: fixed;
-  bottom: max(var(--sp-6), env(safe-area-inset-bottom));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 50;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: var(--sp-6);
-  padding: var(--sp-4) var(--sp-6);
-  background: var(--text);
-  color: var(--bg);
-  border-radius: 999px;
+  justify-content: center;
+  min-height: 44px;
+  padding: var(--sp-3) var(--sp-6);
+  color: var(--on-accent);
+  background: var(--accent);
+  border-radius: 3px;
   text-decoration: none;
   font-size: 13px;
-  box-shadow: 0 8px 30px #00000015;
   white-space: nowrap;
+}
+.folio-open:hover {
+  background: var(--accent-hover);
+}
+.folio-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-6);
 }
 
 /* Underlined text link; the box is 44px tall so the underline sits clear of the text. */
@@ -118,15 +124,10 @@
   width: 18px;
   height: 18px;
 }
-.folio-kicker,
 .folio-chapter-label {
   font: 10px/1.7 var(--font-mono);
 
-  text-transform: uppercase;
   color: var(--text-dim);
-}
-.folio-kicker {
-  display: block;
 }
 .folio-caption {
   margin-top: var(--sp-6);
@@ -147,11 +148,8 @@
   margin: var(--sp-6) 0;
   font: 700 clamp(38px, 5vw, 72px) / 1.16 var(--font-display);
 }
-.folio-hero h1 em {
-  color: var(--accent);
-}
 .folio-lead {
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   max-width: 440px;
   color: var(--text-dim);
@@ -159,14 +157,12 @@
   line-height: 1.9;
 }
 .folio-hero .folio-inline {
-  margin-top: var(--sp-6);
+  margin-top: 0;
 }
 .folio-sample {
   background: var(--card);
   padding: var(--sp-6);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  box-shadow: 10px 16px 0 var(--bg-alt);
+  border-top: 3px solid var(--accent);
 }
 .folio-sample-head {
   display: flex;
@@ -262,8 +258,6 @@
 .folio-questions {
   max-width: 740px;
   margin: var(--block-gap) 0 0 auto;
-  padding-left: var(--indent);
-  border-left: 1px solid var(--border);
 }
 .folio-story {
   padding-bottom: var(--sp-7);
@@ -323,7 +317,7 @@
 
 /* Footer: the shared frame, with room underneath for the floating "Open Custos" pill. */
 .folio-footer {
-  padding-block: var(--sp-7) 120px;
+  padding-block: var(--sp-7) var(--section-y);
   border-top: 1px solid var(--border);
 }
 .folio-footer > div {
@@ -377,7 +371,6 @@
   }
   .folio-sample {
     padding: var(--sp-6) var(--sp-5);
-    box-shadow: 6px 8px 0 var(--bg-alt);
   }
   .folio-sample-head {
     font-size: 20px;
@@ -388,7 +381,98 @@
   .folio-chapter-label > span {
     width: 100%;
   }
-  .folio-open {
-    bottom: calc(var(--sp-3) + env(safe-area-inset-bottom));
+}
+
+.folio-masthead {
+  border-bottom: 1px solid var(--border);
+}
+.folio-actions {
+  margin-top: var(--sp-7);
+}
+.folio-hero h1 {
+  color: var(--accent);
+}
+.folio-hero .folio-caption {
+  max-width: 40ch;
+}
+.folio-sample-head {
+  color: var(--accent);
+}
+.folio-sample-balance {
+  margin-block: var(--sp-6);
+  padding: var(--sp-5);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.folio-sample-balance > span,
+.folio-sample-balance small {
+  color: inherit;
+}
+.folio-entry {
+  padding-inline: var(--sp-3);
+}
+.folio-entry.is-current {
+  background: var(--bg-alt);
+  box-shadow: inset 2px 0 var(--accent);
+}
+.folio-opening {
+  align-items: start;
+}
+.folio-hero {
+  align-self: center;
+}
+.folio-opening .folio-story {
+  margin-left: 0;
+}
+.folio-chapter-label {
+  font-size: 14px;
+}
+.folio-chapter-label a {
+  text-decoration: underline;
+}
+.folio-ending h2 {
+  color: var(--accent);
+}
+@media (min-width: 1024px) {
+  .folio-opening {
+    grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
+  }
+  .folio-opening > .folio-sample {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    align-self: start;
+  }
+  .folio-opening > .folio-chapter {
+    grid-column: 1;
+  }
+  .folio-opening .folio-story {
+    padding-block: var(--block-gap);
+  }
+  .folio-chapter:not(#a-day) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    column-gap: var(--block-gap);
+    align-items: start;
+  }
+  .folio-chapter:not(#a-day) :is(.folio-story, .folio-questions) {
+    grid-column: 2;
+    justify-self: start;
+    margin: 0;
+    padding-bottom: var(--block-gap);
+  }
+}
+@media (min-width: 1024px) and (min-height: 640px) and (prefers-reduced-motion: no-preference) {
+  .folio-opening.has-motion .folio-sample {
+    position: sticky;
+    top: var(--sp-6);
+  }
+}
+@media (max-width: 639px) {
+  .folio-masthead .folio-inline {
+    white-space: normal;
+    line-height: 1.3;
+  }
+  .folio-masthead .folio-open {
+    padding-inline: var(--sp-3);
   }
 }

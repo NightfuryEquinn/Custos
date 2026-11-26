@@ -1,6 +1,6 @@
 // Loaded as a blocking <head> script so the saved theme applies before first paint.
 const STORAGE_KEY = "custos-site:theme";
-const THEME_COLORS = { light: "#f5f4f0", dark: "#1a1714" } as const;
+const THEME_COLORS = { light: "#f7f4eb", dark: "#191d22" } as const;
 
 type Theme = keyof typeof THEME_COLORS;
 

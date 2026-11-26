@@ -41,7 +41,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 - **Web3 identity** — create or restore an in-browser wallet (12/24-word phrase); sign in with a SIWE-style challenge. A **ledger-only** key keeps the auth address uncorrelated with on-chain activity.
 - **Device passphrase vault** — recovery-phrase quiz on create; keys wrapped locally with PBKDF2 + AES-GCM instead of plaintext `localStorage`.
 - **Face ID / Touch ID unlock** — optional WebAuthn PRF biometric unlock per device; auto-prompts on open once enrolled, with the passphrase/button as fallback. An explicit sign-out turns auto-prompt off until next sign-in.
-- **Theming** — system-aware dark mode meeting **WCAG 2.1 AA** contrast; 8 accent colors and 4 base surface palettes, both applied instantly and synced across devices via your profile.
+- **Theming** — system-aware dark mode meeting **WCAG 2.1 AA** contrast; eight Japanese-inspired accents and four surface palettes. New profiles start with indigo on washi. Existing profiles keep their selected preset and receive its updated colors across devices.
 - **Sessions & privacy** — HttpOnly cookies with sliding rotation, per-device revoke, local-data clear, and data-sharing consent under **Account → Data & privacy**.
 - **Encrypted backup** — one pack covering ledger data (the full schedule, not only the viewed month) and account/profile settings (notify email, timezone, theme, nav layout), encrypted with your ledger key, download/restore via **Account → Exports & imports**. Restore keeps the original document ids so linked rows stay connected.
 - **CSV export & import** — transactions, schedule events, and to-do lists.
@@ -73,7 +73,7 @@ Built with **Bun**, **Hono**, **MongoDB**, and **React**.
 | API      | [Hono](https://hono.dev) + Zod validation                                                                           |
 | Database | [MongoDB](https://www.mongodb.com)                                                                                  |
 | Frontend | React 19, TanStack Query, ethers v6                                                                                 |
-| Styling  | Custom theme CSS (`ledger.css`, WCAG AA) and self-hosted Zen Maru Gothic                                            |
+| Styling  | Custom theme CSS (`ledger.css`, WCAG AA) and self-hosted Zen Kaku Gothic Antique                                    |
 | Loading  | [ldrs](https://uiball.com/ldrs) trefoil spinner                                                                     |
 | Motion   | [anime.js](https://animejs.com) v4                                                                                  |
 | Tours    | [Shepherd.js](https://shepherdjs.dev)                                                                               |
@@ -485,7 +485,9 @@ Patch release: backup identity, cron reliability, reminder email quota, and merm
 
 ### Public website development
 
-Run `bun scripts/build-website.ts` before previewing `website/`. The GitHub Pages workflow builds the site's scripts and copies the shared Zen Maru Gothic assets and SIL Open Font License. The PWA precaches Latin and extended Latin fonts and caches Japanese, Greek and Cyrillic subsets as they are used. Both sites serve the fonts from their own origin.
+The homepage follows a Thursday journal. On laptops and desktops, scrolling brings the coffee purchase, lunch appointment, and train-ticket task into focus. Smaller screens, reduced-motion preferences, and browsers with scripting disabled get the entries in reading order. The site and app use generous space between tasks and compact spacing within lists.
+
+Run `bun scripts/build-website.ts` before previewing `website/`. The GitHub Pages workflow builds the site's scripts and copies the shared Zen Kaku Gothic Antique assets and SIL Open Font License. The PWA precaches Latin and extended Latin fonts and caches other subsets as they are used. Both sites serve the fonts from their own origin.
 
 ### 6.6.2 interface update
 

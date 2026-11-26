@@ -45,7 +45,7 @@ function serializeProfile(doc: {
     toursSeen: serialized.toursSeen ?? [],
     /* Undefined reads as "never accepted" on the client. */
     termsVersion: serialized.termsVersion,
-    /* Undefined reads as the default "clay" accent on the client. */
+    /* Undefined reads as the default "azure" accent on the client. */
     accent: serialized.accent,
     /* Undefined reads as the default "bone" surface on the client. */
     surface: serialized.surface,

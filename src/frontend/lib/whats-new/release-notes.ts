@@ -38,6 +38,23 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "8.0.0",
+    date: "November 2026",
+    lead: "Custos has a new typeface and more room around the things you do each day.",
+    highlights: [
+      {
+        icon: "wallet",
+        title: "A quieter ledger",
+        body: "Zen Kaku Gothic Antique and wider spacing between sections help balances, entries, and actions stand apart.",
+      },
+      {
+        icon: "sparkle",
+        title: "Updated theme colors",
+        body: "New profiles start with indigo on washi. Your saved accent and surface selections now use their redesigned colors.",
+      },
+    ],
+  },
+  {
     version: "7.0.6",
     date: "November 2026",
     lead: "Total Budget matches the amounts you apply from Calculator.",

@@ -1,5 +1,5 @@
-Zen Maru Gothic — Copyright 2021 The Zen Maru Gothic Authors
-https://github.com/googlefonts/zen-marugothic
+Zen Kaku Gothic Antique — Copyright 2022 The Zen Kaku Gothic Project Authors
+https://github.com/googlefonts/zen-kakugothic
 
-Google Fonts distribution, packaged by Fontsource (@fontsource/zen-maru-gothic 5.3.1).
+Google Fonts distribution, packaged by Fontsource (@fontsource/zen-kaku-gothic-antique 5.3.1).
 Licensed under the SIL Open Font License, Version 1.1. See OFL.txt.

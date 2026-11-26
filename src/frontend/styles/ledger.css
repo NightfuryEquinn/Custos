@@ -35,14 +35,14 @@
 
 /* ── 1. Design tokens ─────────────────────────────────────────────── */
 :root {
-  /* Accent — earthy clay (light theme); dark theme lightens it below */
-  --accent: #8f6140;
+  /* Accent — indigo (light theme); dark theme lightens it below */
+  --accent: #294567;
   /* Text / icon color on accent-filled controls (white on light, dark ink on dark) */
   --accent-contrast: #ffffff;
 
   /* Typography */
   --font-display: var(--font-body);
-  --font-body: "Zen Maru Gothic", system-ui, sans-serif;
+  --font-body: "Zen Kaku Gothic Antique", system-ui, sans-serif;
   --font-mono: var(--font-body);
   --font-num: var(--font-mono);
 
@@ -50,12 +50,12 @@
   --emoji-size: 24px;
 
   /* Border radius scale */
-  --r-xs: 6px;
-  --r-sm: 8px;
-  --r-md: 10px;
-  --r-lg: 12px;
-  --r-xl: 14px;
-  --r-2xl: 16px;
+  --r-xs: 3px;
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+  --r-xl: 10px;
+  --r-2xl: 12px;
   --r-full: 999px;
   --radius: var(--r-xl); /* default card radius */
 
@@ -82,25 +82,25 @@
 /* Light theme — warm bone / soft off-white */
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #f5f4f0;
-  --surface: #fcfbfa;
-  --surface-2: #eeebe5;
-  --surface-3: #e4e0d7;
-  --ink: #1a1c1e;
-  --ink-soft: #575c65;
-  --ink-faint: #858b95;
-  --hair: #e8e4dc;
-  --border: #ded9d0;
-  --border-strong: #c4beaf;
-  --danger: #b3473f;
-  --ok: #4f7a68;
-  --saved: #5f8a7a;
+  --bg: #f7f4eb;
+  --surface: #fdfbf5;
+  --surface-2: #f1ede2;
+  --surface-3: #e8e4d8;
+  --ink: #24272a;
+  --ink-soft: #515455;
+  --ink-faint: #565959;
+  --hair: #dfdcd1;
+  --border: #cfcbbc;
+  --border-strong: #aba899;
+  --danger: #983831;
+  --ok: #385d47;
+  --saved: #395f52;
   --shadow: 0 1px 2px rgba(35, 30, 20, 0.035);
   --scrim: rgba(25, 30, 40, 0.36);
 }
 
 /*
- * Dark theme — warm espresso, WCAG 2.1 AA contrast targets:
+ * Dark theme — sumi ink, WCAG 2.1 AA contrast targets:
  *   normal text ≥ 4.5:1, large text / UI chrome ≥ 3.0:1 against surface layers.
  * --accent is lightened so links, active tabs, and focus rings stay readable;
  * --accent-contrast flips to dark ink so filled buttons stay ≥ 4.5:1 on the
@@ -108,20 +108,20 @@
  */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #1a1714;
-  --surface: #221e19;
-  --surface-2: #2b2620;
-  --surface-3: #362f27;
-  --accent: #c98f63;
-  --accent-contrast: #1a1714;
-  --ink: #ece5d9;
-  --ink-soft: #c8bcab;
-  --ink-faint: #9c8f7c;
-  --hair: #332c24;
-  --border: #473e33;
-  --border-strong: #6b5c48;
-  --danger: #e27a6c;
-  --ok: #86a883;
+  --bg: #191d22;
+  --surface: #20252a;
+  --surface-2: #282e33;
+  --surface-3: #32383c;
+  --accent: #abc8ed;
+  --accent-contrast: #191d22;
+  --ink: #f4efe3;
+  --ink-soft: #cdc9bf;
+  --ink-faint: #a7aaac;
+  --hair: #343a3d;
+  --border: #454b4d;
+  --border-strong: #72787b;
+  --danger: #f2a094;
+  --ok: #a1c49a;
   --saved: #9cb995;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
   --scrim: rgba(14, 10, 6, 0.58);
@@ -135,66 +135,74 @@
  * Kept in sync with the ACCENTS map in @/frontend/lib/theme.ts — the
  * "accent map and CSS agree" test in theme-contrast.test.ts catches drift.
  */
+:root[data-accent="clay"] {
+  --accent: #8e432d;
+  --accent-contrast: #ffffff;
+}
+:root[data-theme="dark"][data-accent="clay"] {
+  --accent: #e6a08a;
+  --accent-contrast: #191d22;
+}
 :root[data-accent="moss"] {
-  --accent: #3f7a52;
+  --accent: #425836;
   --accent-contrast: #ffffff;
 }
 :root[data-theme="dark"][data-accent="moss"] {
-  --accent: #8fc79a;
-  --accent-contrast: #1a1714;
+  --accent: #b2c999;
+  --accent-contrast: #191d22;
 }
 :root[data-accent="azure"] {
-  --accent: #3a6ea5;
+  --accent: #294567;
   --accent-contrast: #ffffff;
 }
 :root[data-theme="dark"][data-accent="azure"] {
-  --accent: #8fb8e8;
-  --accent-contrast: #1a1714;
+  --accent: #abc8ed;
+  --accent-contrast: #191d22;
 }
 :root[data-accent="berry"] {
-  --accent: #8a4568;
+  --accent: #773f4a;
   --accent-contrast: #ffffff;
 }
 :root[data-theme="dark"][data-accent="berry"] {
-  --accent: #d99bb8;
-  --accent-contrast: #1a1714;
+  --accent: #e3a7b0;
+  --accent-contrast: #191d22;
 }
 :root[data-accent="plum"] {
-  --accent: #6b4c9a;
+  --accent: #624567;
   --accent-contrast: #ffffff;
 }
 :root[data-theme="dark"][data-accent="plum"] {
-  --accent: #b9a0e0;
-  --accent-contrast: #1a1714;
+  --accent: #d0acd3;
+  --accent-contrast: #191d22;
 }
 :root[data-accent="teal"] {
-  --accent: #2f7570;
+  --accent: #325e56;
   --accent-contrast: #ffffff;
 }
 :root[data-theme="dark"][data-accent="teal"] {
-  --accent: #7fc9c1;
-  --accent-contrast: #1a1714;
+  --accent: #9dcabc;
+  --accent-contrast: #191d22;
 }
 :root[data-accent="amber"] {
-  --accent: #8a6216;
+  --accent: #6c5020;
   --accent-contrast: #ffffff;
 }
 :root[data-theme="dark"][data-accent="amber"] {
-  --accent: #d8ab5c;
-  --accent-contrast: #1a1714;
+  --accent: #dfbb80;
+  --accent-contrast: #191d22;
 }
 :root[data-accent="steel"] {
-  --accent: #4f6070;
+  --accent: #46535a;
   --accent-contrast: #ffffff;
 }
 :root[data-theme="dark"][data-accent="steel"] {
-  --accent: #a3b5c4;
-  --accent-contrast: #1a1714;
+  --accent: #b1c1c8;
+  --accent-contrast: #191d22;
 }
 
 /*
  * Base surface pick — swaps the neutral ground, keyed off [data-surface] on
- * <html>. "bone" (today's default) has no block here, same as "clay" above.
+ * <html>. "bone" (today's default) has no block here.
  * Each variant needs both a light and dark twin — [data-theme][data-surface]
  * beats a bare [data-theme] block on specificity regardless of source order,
  * so these aren't order-sensitive the way the accent blocks are.
@@ -205,76 +213,76 @@
  * values if a specific surface ever needs a tinted shadow.
  */
 :root[data-theme="light"][data-surface="slate"] {
-  --bg: #eef1f4;
-  --surface: #f8fafb;
-  --surface-2: #e9edf0;
-  --surface-3: #dbe1e6;
-  --ink: #1a1e22;
-  --ink-soft: #565f68;
-  --ink-faint: #838d97;
-  --hair: #dfe4e8;
-  --border: #d3dade;
-  --border-strong: #b8c1c7;
+  --bg: #eff3f5;
+  --surface: #f9fcfd;
+  --surface-2: #e9eff2;
+  --surface-3: #e0e6e9;
+  --ink: #232c32;
+  --ink-soft: #475963;
+  --ink-faint: #53616a;
+  --hair: #d5dfe4;
+  --border: #c6d1d6;
+  --border-strong: #9aabb3;
 }
 :root[data-theme="dark"][data-surface="slate"] {
-  --bg: #14171a;
-  --surface: #1b1f23;
-  --surface-2: #23282d;
-  --surface-3: #2d333a;
-  --ink: #e2e7ea;
-  --ink-soft: #b9c2c9;
-  --ink-faint: #8f9aa2;
-  --hair: #262c31;
-  --border: #383f46;
-  --border-strong: #57626b;
+  --bg: #141e25;
+  --surface: #1a252e;
+  --surface-2: #222e37;
+  --surface-3: #2b3842;
+  --ink: #ebf0f2;
+  --ink-soft: #c1d0d8;
+  --ink-faint: #a1b2bc;
+  --hair: #31404a;
+  --border: #45545e;
+  --border-strong: #697a86;
 }
 :root[data-theme="light"][data-surface="sage"] {
-  --bg: #eef2ec;
-  --surface: #f8faf7;
-  --surface-2: #e6ebe2;
-  --surface-3: #dbe2d5;
-  --ink: #1a1e19;
-  --ink-soft: #565f54;
-  --ink-faint: #838d7d;
-  --hair: #dfe6d9;
-  --border: #d3ddc9;
-  --border-strong: #b8c4a8;
+  --bg: #f1f3e9;
+  --surface: #f9faf4;
+  --surface-2: #eaf0df;
+  --surface-3: #e1e7d8;
+  --ink: #283127;
+  --ink-soft: #4a5746;
+  --ink-faint: #54614e;
+  --hair: #dbdfd0;
+  --border: #c9d0be;
+  --border-strong: #a2ae96;
 }
 :root[data-theme="dark"][data-surface="sage"] {
-  --bg: #161a14;
-  --surface: #1d221b;
-  --surface-2: #262c22;
-  --surface-3: #30392b;
-  --ink: #e5e9dc;
-  --ink-soft: #bdc4ae;
-  --ink-faint: #939c82;
-  --hair: #2a3122;
-  --border: #3d4632;
-  --border-strong: #5c684a;
+  --bg: #182019;
+  --surface: #1f281f;
+  --surface-2: #263026;
+  --surface-3: #303a30;
+  --ink: #ebefdf;
+  --ink-soft: #c8d1bb;
+  --ink-faint: #aab99d;
+  --hair: #374332;
+  --border: #485540;
+  --border-strong: #76816c;
 }
 :root[data-theme="light"][data-surface="ink"] {
-  --bg: #f0f0f0;
-  --surface: #fafafa;
-  --surface-2: #ebebeb;
-  --surface-3: #dcdcdc;
-  --ink: #1a1a1a;
-  --ink-soft: #595959;
-  --ink-faint: #868686;
-  --hair: #e4e4e4;
-  --border: #d6d6d6;
-  --border-strong: #b8b8b8;
+  --bg: #f2f1ee;
+  --surface: #faf9f6;
+  --surface-2: #eae9e5;
+  --surface-3: #e2e1dd;
+  --ink: #272827;
+  --ink-soft: #50514e;
+  --ink-faint: #565954;
+  --hair: #deded8;
+  --border: #c8c9c3;
+  --border-strong: #a1a49b;
 }
 :root[data-theme="dark"][data-surface="ink"] {
-  --bg: #171717;
-  --surface: #1f1f1f;
-  --surface-2: #282828;
-  --surface-3: #333333;
-  --ink: #e8e8e8;
-  --ink-soft: #bfbfbf;
-  --ink-faint: #949494;
-  --hair: #2c2c2c;
-  --border: #404040;
-  --border-strong: #606060;
+  --bg: #171918;
+  --surface: #1e211f;
+  --surface-2: #272a28;
+  --surface-3: #303431;
+  --ink: #ebece8;
+  --ink-soft: #c4c6c1;
+  --ink-faint: #aaada7;
+  --hair: #343934;
+  --border: #464c46;
+  --border-strong: #6f756e;
 }
 
 /* ── 2. Base & reset ──────────────────────────────────────────────── */
@@ -286,6 +294,7 @@ html,
 body {
   margin: 0;
   height: 100%;
+  overflow-x: clip;
 }
 
 :where(*) {
@@ -4884,7 +4893,7 @@ textarea::placeholder {
 }
 
 :root[data-theme="dark"] .primary-btn.calculator-apply-success:disabled {
-  color: #1a1714;
+  color: #191d22;
 }
 
 .calculator-confirm-lead {
@@ -8867,7 +8876,7 @@ select.text-in {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-xl);
-  box-shadow: var(--shadow-lg, 0 12px 40px -8px rgba(30, 40, 60, 0.22));
+  box-shadow: var(--shadow);
   color: var(--ink);
   font-family: var(--font-body);
   max-width: min(360px, calc(100vw - 32px));
@@ -8878,7 +8887,7 @@ select.text-in {
   align-items: center;
   gap: var(--sp-2);
   line-height: 1.3;
-  background: var(--surface-3);
+  background: var(--surface);
   border-top-left-radius: var(--r-xl);
   border-top-right-radius: var(--r-xl);
   padding: var(--sp-4);

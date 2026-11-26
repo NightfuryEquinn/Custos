@@ -11,10 +11,10 @@
  * in ledger.css.
  */
 export const SURFACES = {
-  bone: { swatchLight: "#f5f4f0", swatchDark: "#1a1714" },
-  slate: { swatchLight: "#eef1f4", swatchDark: "#161a1f" },
-  sage: { swatchLight: "#eff3ec", swatchDark: "#171b16" },
-  ink: { swatchLight: "#efefef", swatchDark: "#131313" },
+  bone: { label: "Washi", swatchLight: "#f7f4eb", swatchDark: "#191d22" },
+  slate: { label: "Blue-gray", swatchLight: "#eff3f5", swatchDark: "#141e25" },
+  sage: { label: "Pale sage", swatchLight: "#f1f3e9", swatchDark: "#182019" },
+  ink: { label: "Sumi", swatchLight: "#f2f1ee", swatchDark: "#171918" },
 } as const;
 
 export type SurfaceName = keyof typeof SURFACES;

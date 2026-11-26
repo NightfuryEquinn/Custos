@@ -1,3 +1,5 @@
+/* Hallmark · v2.0.0 · redesign: full · theme: Washi and indigo (by request) · genre: editorial · shape: Journal · signature: A Thursday, yours · nav: masthead · footer: directory */
+/* Critique: Place the journal beside its story and use spacing to group the entries. */
 /*
   Shared tokens, base and page frame for the three static pages (home, offers, services).
   Same 4px spacing scale and width tiers as the app (src/frontend/styles/ledger.css):
@@ -15,25 +17,25 @@
 
   /* One frame for masthead, content and footer: identical left/right edges on every page. */
   --gutter: clamp(20px, 4vw, 40px);
-  --wrap-max: 1240px;
+  --wrap-max: 1160px;
   --section-y: clamp(var(--sp-7), 8vw, 96px); /* section top/bottom padding */
   --block-gap: clamp(var(--sp-7), 5vw, 64px); /* between blocks inside a section */
   --indent: clamp(var(--sp-5), 5vw, 64px); /* text indent inside a ruled column */
   --measure: 64ch; /* prose line length */
 
-  --bg: #f5f4f0;
-  --bg-alt: #eeebe5;
-  --card: #fcfbfa;
-  --border: #ded9d0;
-  --text: #1a1c1e;
-  --text-dim: #575c65;
-  --accent: #8f6140;
-  --accent-hover: #754d32;
+  --bg: #f7f4eb;
+  --bg-alt: #e8e5da;
+  --card: #fffdf6;
+  --border: #c9cac1;
+  --text: #20282b;
+  --text-dim: #515b5c;
+  --accent: #294567;
+  --accent-hover: #203852;
   --on-accent: #fff;
-  --selection: #e8d5c6;
+  --selection: #d0dbe5;
 
   --font-display: var(--font-body);
-  --font-body: "Zen Maru Gothic", system-ui, sans-serif;
+  --font-body: "Zen Kaku Gothic Antique", system-ui, sans-serif;
   --font-mono: var(--font-body);
 
   color-scheme: light;
@@ -41,31 +43,31 @@
 
 /* theme.js sets data-theme before paint; without JS the OS preference applies. */
 :root[data-theme="dark"] {
-  --bg: #1a1714;
-  --bg-alt: #2b2620;
-  --card: #221e19;
-  --border: #473e33;
-  --text: #ece5d9;
-  --text-dim: #c8bcab;
-  --accent: #c98f63;
-  --accent-hover: #dba67e;
-  --on-accent: #1a1714;
-  --selection: #5a4330;
+  --bg: #191d22;
+  --bg-alt: #282f36;
+  --card: #20272e;
+  --border: #465159;
+  --text: #f1ede4;
+  --text-dim: #bcc6c9;
+  --accent: #abc8ed;
+  --accent-hover: #c4daf4;
+  --on-accent: #191d22;
+  --selection: #34485d;
 
   color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --bg: #1a1714;
-    --bg-alt: #2b2620;
-    --card: #221e19;
-    --border: #473e33;
-    --text: #ece5d9;
-    --text-dim: #c8bcab;
-    --accent: #c98f63;
-    --accent-hover: #dba67e;
-    --on-accent: #1a1714;
-    --selection: #5a4330;
+    --bg: #191d22;
+    --bg-alt: #282f36;
+    --card: #20272e;
+    --border: #465159;
+    --text: #f1ede4;
+    --text-dim: #bcc6c9;
+    --accent: #abc8ed;
+    --accent-hover: #c4daf4;
+    --on-accent: #191d22;
+    --selection: #34485d;
 
     color-scheme: dark;
   }
@@ -130,7 +132,7 @@ a.cta {
   justify-content: center;
   min-height: 44px;
   padding: var(--sp-3) var(--sp-5);
-  border-radius: 8px;
+  border-radius: 3px;
   background: var(--accent);
   color: var(--on-accent);
   font-size: 0.9rem;
@@ -175,7 +177,7 @@ a.cta {
 .lede {
   max-width: var(--measure);
   color: var(--text-dim);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
 }
 .note {
@@ -194,4 +196,72 @@ a.cta {
     transition-duration: 0.01ms;
     animation-duration: 0.01ms;
   }
+}
+
+html,
+body {
+  overflow-x: clip;
+}
+h1,
+h2,
+h3 {
+  min-width: 0;
+}
+@media (min-width: 1024px) {
+  .sub {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    gap: var(--block-gap);
+    align-items: start;
+  }
+  .sub > * {
+    grid-column: 2;
+    margin: 0;
+  }
+  .sub > h1 {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .sub > h1 + :is(.lede, .service-intro) {
+    margin: 0;
+    grid-row: 1;
+    align-self: end;
+  }
+  .marketing-services .bands,
+  .marketing-services .cta-box {
+    grid-column: 1 / -1;
+  }
+  .marketing-offers .disclosure {
+    grid-column: 1;
+    grid-row: 2;
+    background: transparent;
+    border: 0;
+    padding: 0;
+  }
+}
+
+:is(a, button, summary):active {
+  color: var(--accent-hover);
+}
+:is(.folio-open, .btn-primary, a.cta):active {
+  color: var(--on-accent);
+  background: var(--accent-hover);
+}
+button:disabled {
+  background: var(--bg-alt);
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
+:root[data-theme="dark"] img[src^="icons/"] {
+  filter: brightness(0) invert(85%);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) img[src^="icons/"] {
+    filter: brightness(0) invert(85%);
+  }
+}
+
+.service-intro .btn-primary {
+  margin-top: var(--sp-5);
 }

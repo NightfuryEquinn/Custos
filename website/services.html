@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Custos — Commercial & self-hosting</title>
+    <title>Custos | Commercial & self-hosting</title>
     <meta
       name="description"
       content="Paid self-host setup, private deployment, an E2EE/wallet-auth workshop, and custom privacy work for teams that want Custos commercially."
     />
     <link rel="canonical" href="https://intro-custos.nightfuryequinn.app/services.html" />
     <meta name="robots" content="index, follow" />
-    <meta name="theme-color" content="#f5f4f0" />
+    <meta name="theme-color" content="#f7f4eb" />
     <link rel="icon" href="logo.png" type="image/png" />
     <link rel="apple-touch-icon" href="logo.png" />
     <link rel="stylesheet" href="generated/fonts.css" />
@@ -29,12 +29,13 @@
         padding-block: var(--sp-6);
         border-top: 1px solid var(--border);
       }
-      .band h3 {
+      .band h2 {
+        font: 700 24px / 1.3 var(--font-display);
         display: flex;
         align-items: center;
         gap: var(--sp-3);
       }
-      .band h3 img {
+      .band h2 img {
         flex: none;
         width: 22px;
         height: 22px;
@@ -79,7 +80,7 @@
     <a class="folio-skip" href="#content">Skip to content</a>
     <header class="folio-masthead">
       <a class="folio-brand" href="index.html">custos<span>A little room for life.</span></a
-      ><a class="folio-inline" href="index.html">Back to the journal</a>
+      ><a class="folio-inline" href="index.html">Journal</a>
       <button type="button" class="folio-theme" aria-label="Switch theme" hidden>
         <svg class="folio-theme-moon" aria-hidden="true" viewBox="0 0 256 256" fill="currentColor">
           <path
@@ -92,23 +93,26 @@
           />
         </svg>
       </button>
+      <a class="folio-open" href="https://custos.nightfuryequinn.app">Open Custos</a>
     </header>
-    <a class="folio-open" href="https://custos.nightfuryequinn.app">Open Custos &#8599;</a>
 
     <main id="content" class="sub">
       <h1>Commercial & self-hosting</h1>
-      <p class="lede">
-        Use every feature free on the official host. Self-hosting, rebranding and competing services
-        require a written commercial agreement. Prices below are starting fees, not hourly rates;
-        scope and price are agreed by email before work begins.
-      </p>
+      <div class="service-intro">
+        <p class="lede">
+          Use every feature free on the official host. Self-hosting, rebranding and competing
+          services require a written commercial agreement. Prices below are starting fees, not
+          hourly rates; scope and price are agreed by email before work begins.
+        </p>
 
+        <a class="btn-primary" href="mailto:xianzyip8@gmail.com">Discuss your project</a>
+      </div>
       <div class="bands">
         <div class="band">
           <div>
-            <h3><img src="icons/Database.svg" alt="" /> Self-host setup</h3>
+            <h2><img src="icons/Database.svg" alt="" /> Self-host setup</h2>
             <p>
-              Stand up your own instance — Vercel/self-managed hosting, MongoDB Atlas, the
+              Stand up your own instance with Vercel/self-managed hosting, MongoDB Atlas, the
               notification and reminder cron jobs, environment variables, and a working deploy
               checklist handed to your team.
             </p>
@@ -118,10 +122,10 @@
 
         <div class="band">
           <div>
-            <h3><img src="icons/ShieldCheck.svg" alt="" /> Private deployment</h3>
+            <h2><img src="icons/ShieldCheck.svg" alt="" /> Private deployment</h2>
             <p>
               A dedicated, isolated deployment under your own domain and infrastructure, with the
-              encryption model unchanged — the operator still never sees plaintext ledger data.
+              encryption model unchanged. The operator still never sees plaintext ledger data.
             </p>
           </div>
           <div class="price">from $2,500</div>
@@ -129,10 +133,10 @@
 
         <div class="band">
           <div>
-            <h3><img src="icons/LockKey.svg" alt="" /> E2EE / wallet-auth workshop</h3>
+            <h2><img src="icons/LockKey.svg" alt="" /> E2EE / wallet-auth workshop</h2>
             <p>
               A half-day walkthrough of the client-side encryption model, wallet-signature sign-in,
-              and what stays plaintext for cron/queries — for a team building something similar and
+              and what stays plaintext for cron/queries, for a team building something similar and
               evaluating the trade-offs first.
             </p>
           </div>
@@ -141,7 +145,7 @@
 
         <div class="band">
           <div>
-            <h3><img src="icons/Target.svg" alt="" /> Custom privacy work</h3>
+            <h2><img src="icons/Target.svg" alt="" /> Custom privacy work</h2>
             <p>
               Scoped changes to the encryption boundary, data model, or retention rules for a
               specific compliance or product need. Quoted after a short scoping call.
@@ -153,10 +157,7 @@
 
       <div class="cta-box">
         <h2>Talk through your scope</h2>
-        <p>
-          Email with what you're trying to do — self-host, a private deployment, or something
-          bespoke.
-        </p>
+        <p>Email us about self-hosting, a private deployment, or a custom project.</p>
         <a class="btn-primary" href="mailto:xianzyip8@gmail.com">xianzyip8@gmail.com</a>
       </div>
     </main>
@@ -169,8 +170,8 @@
         ><a href="https://github.com/NightfuryEquinn/Custos">Source &amp; license</a>
       </div>
       <p>
-        © 2026 Yip Zi Xian. Custos — private expense ledger, schedule, and to-do app. Source public
-        for transparency under the
+        © 2026 Yip Zi Xian. Custos is a private expense ledger, schedule, and to-do app. Source
+        public for transparency under the
         <a
           href="https://github.com/NightfuryEquinn/Custos/blob/develop/LICENSE"
           target="_blank"

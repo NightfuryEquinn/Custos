@@ -32,7 +32,7 @@ type ApiProfile = {
   toursSeen: string[];
   /* Version of the Terms this account has accepted; undefined = never. */
   termsVersion?: string;
-  /* Accent color pick; undefined = default "clay". */
+  /* Accent color pick; undefined = default "azure". */
   accent?: string;
   /* Base surface pick; undefined = default "bone". */
   surface?: string;
