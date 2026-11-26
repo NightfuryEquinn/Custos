@@ -38,6 +38,23 @@ export type ReleaseNotes = {
  */
 export const RELEASE_NOTES: ReleaseNotes[] = [
   {
+    version: "8.0.1",
+    date: "November 2026",
+    lead: "Category and subcategory budgets can be edited from Budgets and from Calculator.",
+    highlights: [
+      {
+        icon: "budget",
+        title: "Subcategory amounts in Budgets",
+        body: "Tap a subcategory on its category card to set or clear that amount. The category budget stays the ceiling.",
+      },
+      {
+        icon: "calculator",
+        title: "Category budgets in Calculator",
+        body: "Set a category amount above its subcategory breakdown. A blank category field still uses the subcategory total.",
+      },
+    ],
+  },
+  {
     version: "8.0.0",
     date: "November 2026",
     lead: "Custos has a new typeface and more room around the things you do each day.",

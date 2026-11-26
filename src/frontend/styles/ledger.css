@@ -3592,10 +3592,39 @@ textarea::placeholder {
 }
 
 .be-subs {
-  color: var(--ink-faint);
-  opacity: 0.8;
-  flex-shrink: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-2);
+  width: 100%;
   min-width: 0;
+  color: var(--ink-faint);
+}
+
+.be-sub-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  width: 100%;
+  min-width: 0;
+}
+
+.be-sub-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.be-sub-label,
+.be-sub-note {
+  font-variant-numeric: tabular-nums;
+}
+
+.be-sub-row .fld-error,
+.be-sub-row .amount-live-total {
+  flex-basis: 100%;
+  margin: 0;
 }
 
 /* Insights */
@@ -4974,6 +5003,12 @@ ul.allocation-confirm-subs {
 }
 
 @media (max-width: 639px) {
+  .be-sub-row .be-amt,
+  .be-sub-row .be-edit {
+    min-height: 44px;
+    margin-left: auto;
+  }
+
   .calculator-alloc-controls .calculator-field {
     width: 96px;
   }

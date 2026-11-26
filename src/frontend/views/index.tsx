@@ -18,8 +18,10 @@ import {
 import {
   isIncomeCategory,
   isSavingsCategory,
+  liveSubs,
   spendingCategoriesFor,
 } from "@/frontend/lib/categories";
+import { setSubcategoryBudget } from "@/frontend/lib/subcategory-budgets";
 import { buildPiggies } from "@/frontend/lib/piggies";
 import { computeSavingsInsights } from "@/frontend/lib/savingsInsights";
 import {
@@ -99,7 +101,7 @@ import { createPortal } from "react-dom";
  *   Overview     — summary cards, to-do & schedule, spend/earn trend, donut,
  *                  recent transactions
  *   Transactions — searchable / filterable list grouped by date
- *   Budgets      — per-category budget editing
+ *   Budgets      — category and subcategory budget editing
  *   Insights     — month-over-month and category trends
  *   Recurring    — fixed monthly commitments
  */
@@ -676,10 +678,15 @@ export function Transactions({
   );
 }
 
+type BudgetEditTarget = { catId: string; subId?: string };
+
 type BudgetsProps = {
   expenses: Expense[];
   budgets: Budgets;
-  setBudgets: (budgets: Budgets) => void | Promise<void>;
+  setBudgets: (
+    budgets: Budgets,
+    subcategoryBudgets?: FinancialWallet["subcategoryBudgets"],
+  ) => void | Promise<void>;
   budgetsSaving?: boolean;
   wallet: FinancialWallet | null | undefined;
   month: string;
@@ -706,13 +713,13 @@ export function Budgets({
     () => monthStats(expenses, budgets, wallet ?? EMPTY_WALLET, month, categoryIndex, events),
     [expenses, budgets, wallet, month, categoryIndex, events],
   );
-  const [editId, setEditId] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState<BudgetEditTarget | null>(null);
   const [draft, setDraft] = useState("");
   const [editError, setEditError] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
   /* Refs flip synchronously: they stop a blur right after Enter/Escape (or a
      double commit) from re-saving, and unlike state they never read stale. */
-  const editRef = useRef<string | null>(null);
+  const editRef = useRef<BudgetEditTarget | null>(null);
   const savingEditRef = useRef(false);
   const draftEvaluated = useMemo(() => evaluateExpression(draft), [draft]);
   const draftIsExpression = draftEvaluated !== null && !isPlainNumber(draft);
@@ -721,11 +728,12 @@ export function Budgets({
   const totalHeld = st.totalHeld;
   const totalAvailable = totalBudget - totalSpent - (st.saved - st.withdrawn) - totalHeld;
 
-  /** Open the inline budget editor for a category. */
-  const startEdit = (id: string) => {
-    editRef.current = id;
-    setEditId(id);
-    setDraft(isBudgetSet(budgets[id]) ? String(budgets[id]) : "");
+  /** Open the inline editor for a category ceiling or one subcategory amount. */
+  const startEdit = (catId: string, subId?: string) => {
+    editRef.current = { catId, subId };
+    setEditTarget({ catId, subId });
+    const current = subId ? wallet?.subcategoryBudgets?.[catId]?.[subId] : budgets[catId];
+    setDraft(isBudgetSet(current) ? String(current) : "");
     setEditError("");
   };
   useSearchReveal(["budget"], (target) => {
@@ -736,7 +744,7 @@ export function Budgets({
   });
   const closeEdit = () => {
     editRef.current = null;
-    setEditId(null);
+    setEditTarget(null);
     setEditError("");
   };
   /**
@@ -744,31 +752,59 @@ export function Budgets({
    * 0); an invalid draft keeps the editor open with an inline error.
    */
   const commit = async () => {
-    const id = editRef.current;
-    if (!id || savingEditRef.current) return;
+    const target = editRef.current;
+    if (!target || savingEditRef.current) return;
     if (!draft.trim()) return closeEdit();
     if (draftEvaluated === null || draftEvaluated < 0) {
       setEditError("Enter a valid amount, 0 or more.");
       return;
     }
     const v = roundMoney(draftEvaluated);
-    const childTotal = Object.values(wallet?.subcategoryBudgets?.[id] ?? {}).reduce(
+    const { catId, subId } = target;
+
+    if (subId) {
+      const current = wallet?.subcategoryBudgets?.[catId]?.[subId] ?? 0;
+      if (v === current) return closeEdit();
+      const next = setSubcategoryBudget(budgets, wallet?.subcategoryBudgets ?? {}, catId, subId, v);
+      if (next.error) {
+        setEditError(next.error);
+        return;
+      }
+
+      savingEditRef.current = true;
+      setSavingEdit(true);
+      setEditError("");
+      try {
+        await setBudgets(next.budgets, next.subcategoryBudgets);
+        closeEdit();
+      } catch (e) {
+        setEditError(
+          e instanceof Error ? e.message : "Couldn't save this budget. Please try again.",
+        );
+      } finally {
+        savingEditRef.current = false;
+        setSavingEdit(false);
+      }
+      return;
+    }
+
+    const childTotal = Object.values(wallet?.subcategoryBudgets?.[catId] ?? {}).reduce(
       (sum, n) => sum + n,
       0,
     );
     if (v < roundMoney(childTotal)) {
       setEditError(
-        "This is below the subcategory total. Adjust the breakdown in Calculator first.",
+        "This is below the subcategory total. Lower a subcategory amount on this card first.",
       );
       return;
     }
-    if (v === (budgets[id] ?? 0)) return closeEdit();
+    if (v === (budgets[catId] ?? 0)) return closeEdit();
 
     savingEditRef.current = true;
     setSavingEdit(true);
     setEditError("");
     try {
-      await setBudgets({ ...budgets, [id]: v });
+      await setBudgets({ ...budgets, [catId]: v });
       closeEdit();
     } catch (e) {
       setEditError(e instanceof Error ? e.message : "Couldn't save this budget. Please try again.");
@@ -777,6 +813,10 @@ export function Budgets({
       setSavingEdit(false);
     }
   };
+
+  /** Whether the open editor is this category ceiling or subcategory row. */
+  const editing = (catId: string, subId?: string) =>
+    editTarget?.catId === catId && editTarget.subId === subId;
   const viewRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   useEnter(viewRef);
@@ -831,7 +871,7 @@ export function Budgets({
                       </button>
                     ) : null}
                   </div>
-                  {editId === c.id ? (
+                  {editing(c.id) ? (
                     <>
                       {draftIsExpression ? (
                         <FadeIn className="amount-live-total">
@@ -872,7 +912,7 @@ export function Budgets({
                     </button>
                   )}
                 </div>
-                {editId === c.id && editError ? (
+                {editing(c.id) && editError ? (
                   <p className="fld-error" id="budget-edit-error" role="alert">
                     {editError}
                   </p>
@@ -902,22 +942,93 @@ export function Budgets({
                   ) : (
                     <span>{fmtMoney(budget - spent, { currency })} remaining</span>
                   )}
-                  <span className="be-subs">
+                  <div className="be-subs">
+                    {liveSubs(categoryIndex.catById[c.id] ?? c).map((sub) => {
+                      const amount = wallet?.subcategoryBudgets?.[c.id]?.[sub.id];
+                      const subEditing = editing(c.id, sub.id);
+
+                      return (
+                        <div key={sub.id} className="be-sub-row">
+                          <span className="be-sub-name">{sub.name}</span>
+                          {subEditing ? (
+                            <div className="be-edit">
+                              <span className="be-cur">{getCurrency(currency).symbol}</span>
+                              <input
+                                autoFocus
+                                disabled={savingEdit || budgetsSaving}
+                                type="text"
+                                inputMode="text"
+                                value={draft}
+                                aria-label={`${c.name} ${sub.name} budget`}
+                                aria-invalid={!!editError}
+                                aria-describedby={editError ? "budget-edit-error" : undefined}
+                                onChange={(e) => {
+                                  setDraft(e.target.value);
+                                  setEditError("");
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") void commit();
+                                  if (e.key === "Escape") closeEdit();
+                                }}
+                                onBlur={() => void commit()}
+                              />
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className="be-amt"
+                              onClick={() => startEdit(c.id, sub.id)}
+                            >
+                              {isBudgetSet(amount) ? fmtMoney(amount, { currency }) : "Unset"}
+                            </button>
+                          )}
+                          {subEditing && draftIsExpression ? (
+                            <FadeIn className="amount-live-total">
+                              = {fmtMoney(draftEvaluated, { currency })}
+                            </FadeIn>
+                          ) : null}
+                          {subEditing && editError ? (
+                            <p className="fld-error" id="budget-edit-error" role="alert">
+                              {editError}
+                            </p>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                     {(categoryIndex.catById[c.id]?.subs ?? c.subs)
-                      .map((sub) => {
-                        const amount = wallet?.subcategoryBudgets?.[c.id]?.[sub.id];
-                        const label = `${sub.name}${sub.archived ? " (archived)" : ""}`;
-                        return amount === undefined
-                          ? label
-                          : `${label}: ${fmtMoney(amount, { currency })}`;
-                      })
-                      .join(" / ")}
+                      .filter(
+                        (sub) =>
+                          sub.archived && isBudgetSet(wallet?.subcategoryBudgets?.[c.id]?.[sub.id]),
+                      )
+                      .map((sub) => (
+                        <div key={sub.id} className="be-sub-row">
+                          <span className="be-sub-name">{sub.name} (archived)</span>
+                          <span className="be-sub-label">
+                            {fmtMoney(wallet?.subcategoryBudgets?.[c.id]?.[sub.id] ?? 0, {
+                              currency,
+                            })}
+                          </span>
+                        </div>
+                      ))}
                     {wallet?.subcategoryBudgets?.[c.id] &&
                     (budget ?? 0) >
-                      Object.values(wallet.subcategoryBudgets[c.id]!).reduce((sum, n) => sum + n, 0)
-                      ? ` / Unallocated: ${fmtMoney((budget ?? 0) - Object.values(wallet.subcategoryBudgets[c.id]!).reduce((sum, n) => sum + n, 0), { currency })}`
-                      : ""}
-                  </span>
+                      Object.values(wallet.subcategoryBudgets[c.id]!).reduce(
+                        (sum, n) => sum + n,
+                        0,
+                      ) ? (
+                      <span className="be-sub-note">
+                        Unallocated:{" "}
+                        {fmtMoney(
+                          (budget ?? 0) -
+                            Object.values(wallet.subcategoryBudgets[c.id]!).reduce(
+                              (sum, n) => sum + n,
+                              0,
+                            ),
+                          { currency },
+                        )}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             );
