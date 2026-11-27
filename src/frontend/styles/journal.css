@@ -197,9 +197,14 @@
 .journal-app .view {
   max-width: calc(var(--journal-measure) + 2 * var(--pad));
 }
-/* One bottom clearance: the fixed bottom bar below 1024px (none above) plus the home-indicator inset. */
+/* Keep the last row clear of the home indicator and the compact Menu button. */
 .journal-app .scroll {
   padding-bottom: calc(var(--sp-6) + env(safe-area-inset-bottom));
+}
+@media (max-width: 1023px) {
+  .journal-app .scroll {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom));
+  }
 }
 .journal-app .panel {
   border: 0;

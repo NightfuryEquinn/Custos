@@ -99,6 +99,9 @@ html:has(.mega-menu[open]) {
   color: var(--ink-soft, var(--text-dim));
   font: 600 14px / 1.4 var(--font-body);
 }
+.mega-menu--app .mega-menu-group h3 {
+  color: var(--accent);
+}
 .mega-menu-group ul {
   margin: 0;
   padding: 0;
@@ -175,10 +178,65 @@ html:has(.mega-menu[open]) {
     padding-bottom: 32px;
   }
 }
-@media (min-width: 1024px) {
-  .mega-menu--app .mega-menu-groups {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+@media (max-width: 1023px) {
+  .mega-menu-trigger,
+  .mega-menu-head [data-mega-close] {
+    justify-content: center;
+    min-width: 88px;
+    padding-inline: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface, var(--bg));
   }
+  .mega-menu-trigger {
+    position: fixed;
+    z-index: 20;
+    inset-inline-end: max(20px, env(safe-area-inset-right));
+    inset-block-end: calc(12px + env(safe-area-inset-bottom));
+  }
+  html:has([data-public-menu]:not([hidden])) {
+    scrollbar-gutter: stable;
+  }
+  body:has([data-public-menu]:not([hidden])) {
+    padding-block-end: calc(68px + env(safe-area-inset-bottom));
+  }
+  .mega-menu-head {
+    display: contents;
+  }
+  .mega-menu-head h2 {
+    flex: none;
+    padding: max(12px, env(safe-area-inset-top)) var(--mega-menu-gutter, 20px) 0;
+  }
+  .mega-menu-body {
+    min-height: 0;
+  }
+  .mega-menu-head [data-mega-close] {
+    order: 1;
+    flex: none;
+    align-self: flex-end;
+    margin-block: auto calc(12px + env(safe-area-inset-bottom));
+    margin-inline-end: max(
+      var(--mega-menu-gutter, 20px),
+      calc(env(safe-area-inset-right) - var(--mega-menu-edge, 0px))
+    );
+  }
+}
+@media (min-width: 640px) and (max-width: 1023px) {
+  .mega-menu-trigger {
+    inset-inline-end: max(var(--pad), env(safe-area-inset-right));
+  }
+  .mega-menu-trigger[data-public-menu] {
+    inset-inline-end: max(var(--gutter), env(safe-area-inset-right));
+  }
+  .mega-menu-panel {
+    position: absolute;
+    inset: auto 0 0;
+    margin-block-start: 0;
+    max-height: calc(100% - max(20px, env(safe-area-inset-top)));
+  }
+}
+@media (min-width: 1024px) {
+  .mega-menu--app .mega-menu-groups,
   .mega-menu-favorites ul {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     column-gap: 32px;

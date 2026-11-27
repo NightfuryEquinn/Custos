@@ -56,7 +56,7 @@ export function MegaMenu({
       <button
         ref={triggerRef}
         type="button"
-        className="mega-menu-control"
+        className="mega-menu-control mega-menu-trigger"
         aria-haspopup="dialog"
         aria-expanded="false"
         aria-controls="journal-menu"
