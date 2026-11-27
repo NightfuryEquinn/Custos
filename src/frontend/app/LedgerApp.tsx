@@ -857,7 +857,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
                 <MegaMenu view={view} favorites={tabItems} groups={moreGroups} setView={setView} />
                 <button
                   type="button"
-                  className="icon-btn"
+                  className="icon-btn masthead-search"
                   aria-label="Search Custos"
                   aria-haspopup="dialog"
                   onClick={() => setSearchOpen(true)}

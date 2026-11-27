@@ -1416,6 +1416,23 @@
 .journal-app .tb-actions {
   gap: var(--sp-1);
 }
+@media (min-width: 1024px) {
+  .journal-masthead :is(.mega-menu-trigger, .masthead-search) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 44px;
+    line-height: 1;
+  }
+  .journal-masthead .mega-menu-trigger {
+    padding-inline: var(--sp-2);
+    border-radius: var(--r-md);
+  }
+  .journal-masthead .mega-menu-trigger svg {
+    color: var(--ink-soft);
+  }
+}
 .journal-app .page-refresh-btn--main {
   display: grid;
 }
