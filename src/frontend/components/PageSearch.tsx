@@ -23,7 +23,7 @@ export function PageSearch(props: SearchProps) {
     /** Leave other editors' keyboard shortcuts and unsaved changes alone. */
     const shortcut = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "k") return;
-      if (document.querySelector('[aria-modal="true"]') && !open) return;
+      if (document.querySelector('dialog[open], [aria-modal="true"]') && !open) return;
       event.preventDefault();
       setOpen(!open);
     };

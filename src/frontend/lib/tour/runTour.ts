@@ -56,12 +56,7 @@ function waitForElement(selector: string, timeout = 2500): Promise<Element | nul
   });
 }
 
-/* Several nav anchors share one `data-tour` id — the desktop sidebar, the
-   More sheet, and the bottom tab bar are all in the DOM, with only one
-   visible per breakpoint. Shepherd's own string lookup takes the first
-   match (the display:none sidebar on a phone) and then hides the popup as a
-   hidden reference. `getClientRects()` is empty for display:none and
-   non-empty for the position:fixed bottom nav, unlike `offsetParent`. */
+/** Attach a tour step only to a control visible at the current breakpoint. */
 function visibleMatch(selector: string): HTMLElement | null {
   const all = [...document.querySelectorAll<HTMLElement>(selector)];
 

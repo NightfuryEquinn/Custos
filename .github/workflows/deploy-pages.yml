@@ -8,6 +8,8 @@ on:
       - "scripts/build-website.ts"
       - "src/frontend/assets/fonts/**"
       - "src/frontend/styles/fonts.css"
+      - "src/lib/mega-menu.ts"
+      - "src/lib/motion.ts"
       - "bun.lock"
       - ".nvmrc"
       - ".github/workflows/deploy-pages.yml"

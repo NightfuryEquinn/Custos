@@ -58,7 +58,7 @@ export const VIEW_CONTROLS: Partial<Record<ViewId, "w" | "m" | "wm">> = {
 };
 
 /**
- * Destination groups for the sidebar and More sheet. Every view id appears in
+ * Destination groups for the mega menu. Every view id appears in
  * exactly one group (tested); ids not yet in VIEW_IDS are skipped, so a group
  * can name a view before it ships.
  */
@@ -72,8 +72,7 @@ export const NAV_GROUPS: ReadonlyArray<readonly [label: string, ids: readonly st
  * Resolve stored nav preferences into the rendered lists, tolerating drift:
  * an id from a retired view is dropped, and the saved order applies within
  * each group, so a view the order never mentions keeps its group's default
- * slot instead of vanishing. Favorites lead the sidebar; `moreGroups` is the
- * rest, so no destination appears twice on either surface.
+ * slot instead of vanishing. Favorites lead the menu; `moreGroups` contains the remaining links.
  */
 export function resolveNav(navOrder?: readonly string[], navTabs?: readonly string[]) {
   const cleanOrder = sanitize(navOrder ?? []);

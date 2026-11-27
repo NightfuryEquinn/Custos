@@ -68,12 +68,12 @@ const COLLECTIONS: CollectionDoc[] = [
       {
         key: "navTabs?",
         value: '["overview", "budgets", …]',
-        note: "Favorite pages (bottom bar, top of the sidebar), in order; undefined means never customized",
+        note: "Favorite pages (top of the Menu), in order; undefined means never customized",
       },
       {
         key: "navOrder?",
         value: '["overview", "budgets", …]',
-        note: "Page order within each sidebar group; undefined means never customized",
+        note: "Page order within each Menu group; undefined means never customized",
       },
       {
         key: "startView?",
@@ -448,7 +448,7 @@ const COLLECTIONS: CollectionDoc[] = [
 const RELATIONSHIP_CHART = `flowchart TB
   subgraph Client["Browser client"]
     direction TB
-    UI["React UI<br/>sidebar · bottom bar · search"]
+    UI["React UI<br/>menu · search"]
     Key["In-memory ledger key<br/>from wallet signature"]
     LS["localStorage<br/>identities · session · theme · tour<br/>active wallet · prefs · whatsnew"]
     UI --> Key
@@ -666,17 +666,16 @@ export function Transparency() {
                 in the offline install, and other supported scripts are cached when first used.
               </p>
               <p className="panel-sub panel-sub--spaced">
-                You navigate with a sidebar (or a bottom bar on smaller screens) with four
-                customizable favorites, and Ctrl or Command + K searches records, pages and
-                settings. A device passphrase wraps your in-app recovery key on this browser;
-                encrypted backups download to your machine only. Staying unlocked across reloads is
-                off unless you turn it on in Preferences; when on, your unlock keys sit in this
-                browser's storage for up to twelve hours, so anyone who copies this browser profile
-                in that time could read your data. They are removed on sign-out, expiry, turning it
-                off, or clearing local data. Optional Face ID / Touch ID unlock runs entirely in the
-                browser through WebAuthn — it can prompt on its own when you open the app, but the
-                server never receives the credential, the assertion, or any signal that a biometric
-                check happened.
+                The Menu groups all pages and starts with four customizable favorites, and Ctrl or
+                Command + K searches records, pages and settings. A device passphrase wraps your
+                in-app recovery key on this browser; encrypted backups download to your machine
+                only. Staying unlocked across reloads is off unless you turn it on in Preferences;
+                when on, your unlock keys sit in this browser's storage for up to twelve hours, so
+                anyone who copies this browser profile in that time could read your data. They are
+                removed on sign-out, expiry, turning it off, or clearing local data. Optional Face
+                ID / Touch ID unlock runs entirely in the browser through WebAuthn — it can prompt
+                on its own when you open the app, but the server never receives the credential, the
+                assertion, or any signal that a biometric check happened.
               </p>
               <p className="panel-sub panel-sub--spaced">
                 The installable PWA caches ciphertext locally so the app opens, unlocks, and reads

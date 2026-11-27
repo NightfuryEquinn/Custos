@@ -1,13 +1,7 @@
 import { animate, stagger, type JSAnimation } from "animejs";
 import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import { openConfirm } from "@/frontend/lib/feedback";
-
-const DUR = { fast: 160, base: 240, modal: 220, sheet: 260, scrim: 165, picker: 132 } as const;
-
-const EASE = {
-  base: "out(3)",
-  modal: "out(3)",
-} as const;
+import { MOTION, REDUCED_MOTION } from "@/lib/motion";
 
 type ModalVariant = "sheet" | "center" | "picker";
 
@@ -125,7 +119,7 @@ function onEscape(event: KeyboardEvent) {
 
 /** Return whether the user prefers reduced motion. */
 function prefersReducedMotion() {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return window.matchMedia(REDUCED_MOTION).matches;
 }
 
 /** Cancel a running anime.js instance. */
@@ -134,15 +128,14 @@ function cancelAnim(anim: JSAnimation | null | undefined) {
 }
 
 /** Set final visible styles on an element. */
-function setVisible(el: HTMLElement, transform = "none") {
+function setVisible(el: HTMLElement) {
   el.style.opacity = "1";
-  el.style.transform = transform;
 }
 
-/** Set hidden styles before an entrance animation. */
-function setHidden(el: HTMLElement, opacity: number, translateY: number, scale = 1) {
+/** Set the first frame before an entrance animation. */
+function setEntrance(el: HTMLElement, opacity: number, y: number) {
   el.style.opacity = String(opacity);
-  el.style.transform = `translateY(${translateY}px) scale(${scale})`;
+  if (y) el.style.transform = `translateY(${y}px)`;
 }
 
 /** Run enter animation on mount; cleanup cancels on unmount. */
@@ -154,15 +147,15 @@ export function useEnter(ref: RefObject<HTMLElement | null>, opts?: EnterOpts) {
     if (!el || opts?.disabled) return;
 
     const y = opts?.y ?? 4;
-    const duration = opts?.duration ?? DUR.base;
-    const ease = opts?.ease ?? EASE.base;
+    const duration = opts?.duration ?? MOTION.screen;
+    const ease = opts?.ease ?? MOTION.enterEase;
 
     if (prefersReducedMotion()) {
       setVisible(el);
       return;
     }
 
-    setHidden(el, 0, y);
+    setEntrance(el, 0.6, y);
     animRef.current = animate(el, {
       opacity: 1,
       translateY: 0,
@@ -182,18 +175,18 @@ export function useFadeIn(ref: RefObject<HTMLElement | null>, opts?: FadeOpts) {
     const el = ref.current;
     if (!el || opts?.disabled || opts?.active === false) return;
 
-    const duration = opts?.duration ?? DUR.fast;
+    const duration = opts?.duration ?? MOTION.fade;
 
     if (prefersReducedMotion()) {
       setVisible(el);
       return;
     }
 
-    el.style.opacity = "0";
+    el.style.opacity = "0.6";
     animRef.current = animate(el, {
       opacity: 1,
       duration,
-      ease: EASE.base,
+      ease: MOTION.enterEase,
     });
 
     return () => cancelAnim(animRef.current);
@@ -212,24 +205,27 @@ export function useStagger(
     const container = containerRef.current;
     if (!container || opts?.disabled) return;
 
-    const children = Array.from(container.querySelectorAll<HTMLElement>(childSelector)).slice(0, 6);
+    const children = Array.from(container.querySelectorAll<HTMLElement>(childSelector)).slice(
+      0,
+      MOTION.stagger.limit,
+    );
     if (!children.length) return;
 
-    const y = opts?.y ?? 6;
-    const duration = opts?.duration ?? DUR.base;
-    const staggerMs = opts?.staggerMs ?? 30;
+    const y = opts?.y ?? 4;
+    const duration = opts?.duration ?? MOTION.stagger.duration;
+    const staggerMs = opts?.staggerMs ?? MOTION.stagger.step;
 
     if (prefersReducedMotion()) {
       children.forEach((child) => setVisible(child));
       return;
     }
 
-    children.forEach((child) => setHidden(child, 0, y));
+    children.forEach((child) => setEntrance(child, 0.7, y));
     animRef.current = animate(children, {
       opacity: 1,
-      translateY: 0,
+      ...(y ? { translateY: 0 } : {}),
       duration,
-      ease: EASE.base,
+      ease: MOTION.enterEase,
       delay: stagger(staggerMs),
     });
 
@@ -237,20 +233,9 @@ export function useStagger(
   }, [containerRef, childSelector, opts?.disabled, opts?.duration, opts?.staggerMs, opts?.y]);
 }
 
-/** Panel presets matching the old CSS keyframes. */
-function panelEnterState(variant: ModalVariant) {
-  if (variant === "sheet") return { opacity: 0.6, translateY: 24, scale: 1 };
-  if (variant === "picker") return { opacity: 0, translateY: 0, scale: 1 };
-
-  return { opacity: 0, translateY: 4, scale: 1 };
-}
-
-/** Panel duration for a modal variant. */
-function panelDuration(variant: ModalVariant) {
-  if (variant === "sheet") return DUR.sheet;
-  if (variant === "picker") return DUR.picker;
-
-  return DUR.scrim;
+function panelTravel(variant: ModalVariant) {
+  if (variant === "sheet") return 8;
+  return variant === "center" ? 4 : 0;
 }
 
 /** Animate modal scrim + panel on mount; expose animated close. */
@@ -263,6 +248,7 @@ export function useModalMotion(
   const exitAnims = useRef<JSAnimation[]>([]);
   const closingRef = useRef(false);
   const variant = opts?.variant ?? "center";
+  const timing = variant === "picker" ? MOTION.picker : MOTION.dialog;
   const active = opts?.active !== false;
   // Capture before React commits an autofocus field, including newly mounted confirmations.
   const opener = useRef<HTMLElement | null>(document.activeElement as HTMLElement | null);
@@ -314,6 +300,10 @@ export function useModalMotion(
     const panel = panelRef.current;
     const scrim = scrimRef.current;
     if (!active || !panel || !scrim || panel.getAttribute("role") !== "dialog") return;
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && focused !== document.body && !panel.contains(focused)) {
+      opener.current = focused;
+    }
     const entry = {
       panel,
       scrim,
@@ -406,7 +396,7 @@ export function useModalMotion(
      running. Left alone, anime.js keeps ticking against the now-detached
      nodes, closingRef never resets, and the stale onDone later re-closes a
      menu the user has since reopened. */
-  useEffect(() => {
+  useLayoutEffect(() => {
     return () => {
       exitAnims.current.forEach(cancelAnim);
       exitAnims.current = [];
@@ -425,21 +415,21 @@ export function useModalMotion(
     if (prefersReducedMotion()) {
       setVisible(scrim);
       setVisible(panel);
+      if (panelTravel(variant)) panel.style.removeProperty("transform");
       return;
     }
 
-    const enter = panelEnterState(variant);
+    const y = panelTravel(variant);
     scrim.style.opacity = "0";
-    setHidden(panel, enter.opacity, enter.translateY, enter.scale);
+    setEntrance(panel, 0.6, y);
 
     enterAnims.current.push(
-      animate(scrim, { opacity: 1, duration: DUR.scrim, ease: EASE.base }),
+      animate(scrim, { opacity: 1, duration: timing.open, ease: MOTION.enterEase }),
       animate(panel, {
         opacity: 1,
-        translateY: 0,
-        scale: 1,
-        duration: panelDuration(variant),
-        ease: variant === "sheet" ? EASE.modal : EASE.base,
+        ...(y ? { translateY: 0 } : {}),
+        duration: timing.open,
+        ease: MOTION.enterEase,
       }),
     );
 
@@ -447,7 +437,7 @@ export function useModalMotion(
       enterAnims.current.forEach(cancelAnim);
       enterAnims.current = [];
     };
-  }, [active, opts?.disabled, panelRef, scrimRef, variant]);
+  }, [active, opts?.disabled, panelRef, scrimRef, timing, variant]);
 
   /** Play exit motion, then call onDone (usually unmount). */
   const requestClose = useCallback(
@@ -455,6 +445,8 @@ export function useModalMotion(
       if (closingRef.current) return;
 
       closingRef.current = true;
+      enterAnims.current.forEach(cancelAnim);
+      enterAnims.current = [];
       const scrim = scrimRef.current;
       const panel = panelRef.current;
 
@@ -464,7 +456,7 @@ export function useModalMotion(
         return;
       }
 
-      const enter = panelEnterState(variant);
+      const y = panelTravel(variant);
       let pending = 2;
 
       /** Finish once both scrim and panel exits complete. */
@@ -477,18 +469,22 @@ export function useModalMotion(
       };
 
       exitAnims.current = [
-        animate(scrim, { opacity: 0, duration: DUR.scrim, ease: EASE.base, onComplete: finish }),
+        animate(scrim, {
+          opacity: 0,
+          duration: timing.close,
+          ease: MOTION.exitEase,
+          onComplete: finish,
+        }),
         animate(panel, {
-          opacity: enter.opacity,
-          translateY: enter.translateY,
-          scale: enter.scale,
-          duration: panelDuration(variant),
-          ease: variant === "sheet" ? EASE.modal : EASE.base,
+          opacity: 0,
+          ...(y ? { translateY: y } : {}),
+          duration: timing.close,
+          ease: MOTION.exitEase,
           onComplete: finish,
         }),
       ];
     },
-    [opts?.disabled, panelRef, scrimRef, variant],
+    [opts?.disabled, panelRef, scrimRef, timing, variant],
   );
 
   /** Close via the shared path: honours lock and unsaved-changes guard. */

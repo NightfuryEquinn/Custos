@@ -820,7 +820,7 @@ export function Budgets({
   const viewRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   useEnter(viewRef);
-  useStagger(gridRef, ".summary-card");
+  useStagger(gridRef, ".summary-card", { y: 0 });
 
   return (
     <div ref={viewRef} className="view">
@@ -1587,7 +1587,7 @@ export function Insights({
   const viewRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   useEnter(viewRef);
-  useStagger(gridRef, ".summary-card");
+  useStagger(gridRef, ".summary-card", { y: 0 });
 
   return (
     <div ref={viewRef} className="view">
@@ -2103,7 +2103,7 @@ export function Recurring({ expenses, month, currency, categoryIndex, onEdit }: 
   const viewRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   useEnter(viewRef);
-  useStagger(gridRef, ".summary-card");
+  useStagger(gridRef, ".summary-card", { y: 0 });
 
   return (
     <div ref={viewRef} className="view">

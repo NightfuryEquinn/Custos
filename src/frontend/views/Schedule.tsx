@@ -267,7 +267,7 @@ export function Schedule({
   const viewRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   useEnter(viewRef);
-  useStagger(gridRef, ".summary-card");
+  useStagger(gridRef, ".summary-card", { y: 0 });
 
   return (
     <div ref={viewRef} className="view">

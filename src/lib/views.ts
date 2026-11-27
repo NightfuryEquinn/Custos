@@ -25,8 +25,8 @@ export const VIEW_IDS = [
 
 export type ViewId = (typeof VIEW_IDS)[number];
 
-/** Default mobile tab-bar picks — the 5th slot is always More. */
+/** Default favorites shown at the top of the menu. */
 export const DEFAULT_TAB_IDS = ["overview", "daily", "schedule", "transactions"] as const;
 
-/** How many views the mobile tab bar shows before the More sheet. */
+/** How many favorites the menu shows. */
 export const TAB_SLOTS = DEFAULT_TAB_IDS.length;

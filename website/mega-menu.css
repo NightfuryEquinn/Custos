@@ -1,0 +1,189 @@
+/* Hallmark · Custos journal · Ma and Kanso · component: navigation overlay */
+/* Critique: Leave space between groups and let each list end at its last link. */
+:root {
+  --mega-menu-shade: var(--scrim, color-mix(in srgb, var(--text) 38%, transparent));
+}
+:root[data-theme="dark"] {
+  --mega-menu-shade: var(--scrim, color-mix(in srgb, var(--bg) 72%, transparent));
+}
+.mega-menu-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.mega-menu-control[hidden] {
+  display: none;
+}
+.mega-menu-control:hover,
+.mega-menu-link:hover {
+  color: var(--accent);
+}
+.mega-menu-control:focus-visible,
+.mega-menu-link:focus-visible,
+.mega-menu-body a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+html:has(.mega-menu[open]) {
+  overflow: hidden;
+}
+.mega-menu {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink, var(--text));
+  overflow: clip;
+  font-family: var(--font-body);
+}
+.mega-menu::backdrop {
+  background: transparent;
+}
+.mega-menu-shade {
+  position: absolute;
+  inset: 0;
+  background: var(--mega-menu-shade);
+}
+.mega-menu-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  margin-inline: auto;
+  background: var(--surface, var(--bg));
+}
+.mega-menu-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: max(12px, env(safe-area-inset-top)) var(--mega-menu-gutter, 20px) 0;
+}
+.mega-menu-head h2 {
+  margin: 0;
+  font: 700 clamp(24px, 3vw, 32px) / 1.2 var(--font-display);
+  overflow-wrap: anywhere;
+}
+.mega-menu-body {
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 24px var(--mega-menu-gutter, 20px) max(24px, env(safe-area-inset-bottom));
+}
+.mega-menu-groups,
+.mega-menu-favorites ul {
+  display: grid;
+  gap: 24px;
+}
+.mega-menu-favorites {
+  margin-bottom: 24px;
+}
+.mega-menu-group h3 {
+  margin: 0 0 4px;
+  color: var(--ink-soft, var(--text-dim));
+  font: 600 14px / 1.4 var(--font-body);
+}
+.mega-menu-group ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.mega-menu-favorites ul {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 12px;
+}
+.mega-menu-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding-block: 4px;
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.mega-menu-link svg {
+  flex: none;
+}
+.mega-menu-link[aria-current] {
+  text-decoration: underline;
+  text-underline-offset: 5px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--accent);
+}
+.mega-menu-group .folio-open {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 24px;
+}
+.mega-menu-fallback {
+  width: min(calc(100% - 2 * var(--gutter)), var(--wrap-max));
+  margin-inline: auto;
+}
+.mega-menu-fallback summary {
+  padding-block: 8px;
+  cursor: pointer;
+}
+@media (min-width: 640px) {
+  .mega-menu-panel {
+    --mega-menu-gutter: calc(var(--mega-menu-page-gutter) - var(--mega-menu-edge));
+    width: min(
+      calc(100% - 2 * var(--mega-menu-edge)),
+      calc(var(--mega-menu-measure) + 2 * var(--mega-menu-gutter))
+    );
+    height: auto;
+    max-height: calc(100% - var(--mega-menu-top) - 20px);
+    margin-block-start: var(--mega-menu-top);
+  }
+  .mega-menu--app {
+    --mega-menu-edge: 12px;
+    --mega-menu-page-gutter: var(--pad);
+    --mega-menu-measure: var(--journal-measure);
+    --mega-menu-top: 64px;
+  }
+  .mega-menu--public {
+    --mega-menu-edge: 12px;
+    --mega-menu-page-gutter: var(--gutter);
+    --mega-menu-measure: var(--wrap-max);
+    --mega-menu-top: 88px;
+  }
+  .mega-menu-groups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 32px;
+  }
+  .mega-menu-head {
+    padding-top: 24px;
+  }
+  .mega-menu-body {
+    padding-bottom: 32px;
+  }
+}
+@media (min-width: 1024px) {
+  .mega-menu--app .mega-menu-groups {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .mega-menu-favorites ul {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    column-gap: 32px;
+  }
+  .mega-menu-favorites {
+    margin-bottom: 40px;
+  }
+}
