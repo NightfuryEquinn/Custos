@@ -15,9 +15,9 @@ import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 type NavigationModalProps = {
-  /** Current sidebar order, resolved (all views, defaults already applied). */
+  /** Current group order, resolved (all views, defaults already applied). */
   sidebarItems: readonly NavItem[];
-  /** Current favorites (bottom bar, top of the sidebar), in order. */
+  /** Current favorites in menu order. */
   tabItems: readonly NavItem[];
   /** Saved start page; undefined until the account chooses one. */
   startView?: ViewId;
@@ -172,7 +172,7 @@ export function NavigationModal({
 
           <div className="dm-sec">
             <span className="fld-label">Favorites</span>
-            <p className="dm-lead">Four pages for the bottom bar and the top of the sidebar.</p>
+            <p className="dm-lead">Four pages at the top of the Menu.</p>
             <div className="nav-tab-preview">
               {tabs.map((id) => (
                 <span key={id} className="nav-tab-preview-item">
@@ -185,10 +185,6 @@ export function NavigationModal({
                   {tabs.length + i + 1}
                 </span>
               ))}
-              <span className="nav-tab-preview-item nav-tab-preview-more">
-                <Icon name="more" size={16} />
-                More
-              </span>
             </div>
             <div className="sub-row">
               {NAV_ITEMS.map(([id, label]) => {

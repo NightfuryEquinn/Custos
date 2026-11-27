@@ -1,167 +1,97 @@
 import { Icon } from "@/frontend/components/ui";
-import { useModalMotion } from "@/frontend/lib/animate";
 import type { NavItem } from "@/frontend/lib/nav";
+import { bindMegaMenu } from "@/lib/mega-menu";
 import type { ViewId } from "@/lib/views";
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { List } from "@phosphor-icons/react";
+import { useEffect, useRef } from "react";
 
 type Group = { label: string; items: readonly NavItem[] };
 
-/** Links, not buttons: middle-click works and Back/Forward come from the hash. */
-function PageLink({
-  item,
-  active,
-  className,
-  size,
-}: {
-  item: NavItem;
-  active: boolean;
-  className: string;
-  size: number;
-}) {
-  const [id, name, icon] = item;
-
+function MenuGroup({ label, items, view }: Group & { view: ViewId }) {
   return (
-    <a
-      href={`#${id}`}
-      data-tour={`tour-nav-${id}`}
-      className={className + (active ? " active" : "")}
-      aria-current={active ? "page" : undefined}
-    >
-      <Icon name={icon} size={size} />
-      <span>{name}</span>
-    </a>
+    <section className="mega-menu-group">
+      <h3>{label}</h3>
+      <ul>
+        {items.map(([id, name, icon]) => (
+          <li key={id}>
+            <a
+              className="mega-menu-link"
+              href={`#${id}`}
+              aria-current={view === id ? "page" : undefined}
+            >
+              <Icon name={icon} size={20} />
+              <span>{name}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
-/** Persistent desktop navigation: favorites first, then the remaining groups. */
-export function SideNav({
+export function MegaMenu({
   view,
   favorites,
   groups,
+  setView,
 }: {
   view: ViewId;
   favorites: readonly NavItem[];
   groups: readonly Group[];
+  setView: (view: ViewId) => void;
 }) {
-  return (
-    <nav className="journal-nav" aria-label="Pages" data-tour="tour-nav">
-      {[{ label: "Favorites", items: favorites }, ...groups].map((group) => (
-        <div className="journal-nav-group" key={group.label}>
-          <span className="journal-eyebrow">{group.label}</span>
-          <div className="journal-nav-links">
-            {group.items.map((item) => (
-              <PageLink
-                key={item[0]}
-                item={item}
-                active={view === item[0]}
-                className="journal-nav-item"
-                size={20}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
-    </nav>
-  );
-}
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
-/** Phone and tablet navigation: the four favorites plus a More sheet. */
-export function BottomNav({
-  view,
-  favorites,
-  moreGroups,
-}: {
-  view: ViewId;
-  favorites: readonly NavItem[];
-  moreGroups: readonly Group[];
-}) {
-  const [moreOpen, setMoreOpen] = useState(false);
-  const scrimRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const moreActive = moreGroups.some((g) => g.items.some(([id]) => id === view));
-  const { requestClose } = useModalMotion(scrimRef, panelRef, {
-    variant: "sheet",
-    active: moreOpen,
-    onDismiss: () => setMoreOpen(false),
-  });
-
-  /** A navigation (link, Back/Forward) closes the sheet. */
   useEffect(() => {
-    setMoreOpen(false);
-  }, [view]);
+    const trigger = triggerRef.current;
+    const dialog = dialogRef.current;
+    if (!trigger || !dialog) return;
+
+    return bindMegaMenu(trigger, dialog, (link) => setView(link.hash.slice(1) as ViewId));
+  }, [setView]);
 
   return (
     <>
-      <nav className="bottom-nav" aria-label="Pages" data-tour="tour-nav">
-        {favorites.map((item) => (
-          <PageLink
-            key={item[0]}
-            item={item}
-            active={view === item[0]}
-            className="bn-item"
-            size={21}
-          />
-        ))}
-        <button
-          type="button"
-          data-tour="tour-nav-more"
-          className={"bn-item" + (moreActive || moreOpen ? " active" : "")}
-          aria-haspopup="dialog"
-          aria-expanded={moreOpen}
-          onClick={() => setMoreOpen((open) => !open)}
-        >
-          <Icon name="more" size={21} />
-          <span>More</span>
-        </button>
-      </nav>
-      {moreOpen &&
-        createPortal(
-          <div
-            ref={scrimRef}
-            className="modal-scrim nav-more-scrim"
-            onMouseDown={(e) => {
-              if (e.target === e.currentTarget) requestClose(() => setMoreOpen(false));
-            }}
-          >
-            <div
-              ref={panelRef}
-              className="modal nav-more-panel"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="nav-more-title"
-            >
-              <div className="nav-more-head">
-                <h2 id="nav-more-title">More</h2>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  aria-label="Close"
-                  onClick={() => requestClose(() => setMoreOpen(false))}
-                >
-                  <Icon name="close" size={18} />
-                </button>
-              </div>
-              {moreGroups.map((group) => (
-                <div className="nav-more-group" key={group.label}>
-                  <span className="journal-eyebrow">{group.label}</span>
-                  <div className="nav-more-grid">
-                    {group.items.map((item) => (
-                      <PageLink
-                        key={item[0]}
-                        item={item}
-                        active={view === item[0]}
-                        className="nav-more-item"
-                        size={22}
-                      />
-                    ))}
-                  </div>
-                </div>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="mega-menu-control mega-menu-trigger"
+        aria-haspopup="dialog"
+        aria-expanded="false"
+        aria-controls="journal-menu"
+        data-tour="tour-nav"
+      >
+        <List size={20} aria-hidden="true" />
+        Menu
+      </button>
+      <dialog
+        ref={dialogRef}
+        className="mega-menu mega-menu--app"
+        id="journal-menu"
+        aria-labelledby="journal-menu-title"
+      >
+        <div className="mega-menu-shade" aria-hidden="true" />
+        <div className="mega-menu-panel">
+          <header className="mega-menu-head">
+            <h2 id="journal-menu-title">Pages</h2>
+            <button type="button" className="mega-menu-control" data-mega-close>
+              <Icon name="close" size={18} />
+              Close
+            </button>
+          </header>
+          <nav className="mega-menu-body" aria-label="Pages">
+            <div className="mega-menu-favorites">
+              <MenuGroup label="Favorites" items={favorites} view={view} />
+            </div>
+            <div className="mega-menu-groups">
+              {groups.map((group) => (
+                <MenuGroup key={group.label} {...group} view={view} />
               ))}
             </div>
-          </div>,
-          document.body,
-        )}
+          </nav>
+        </div>
+      </dialog>
     </>
   );
 }

@@ -10,7 +10,7 @@ import { armSyncTriggers, drainOutbox } from "@/frontend/lib/sync/engine";
 import { LoadingBloom } from "@/frontend/components/LoadingBloom";
 import { OfflineBanner } from "@/frontend/components/OfflineBanner";
 import { toast } from "@/frontend/lib/feedback";
-import { BottomNav, SideNav } from "@/frontend/components/Navigation";
+import { MegaMenu } from "@/frontend/components/Navigation";
 import { DailyHomePanel } from "@/frontend/components/DailyHomePanel";
 import { SearchRevealContext } from "@/frontend/lib/search/reveal";
 import type { SearchTarget } from "@/frontend/lib/search/model";
@@ -107,7 +107,7 @@ const Transparency = lazy(() =>
 /*
  * LedgerApp — authenticated app shell
  * ───────────────────────────────────
- * Journal shell: persistent sidebar from 1024px, bottom bar with More below it,
+ * Journal shell: shared mega menu across screen sizes,
  * topbar + scrollable view, and each page's main action beside its title. Hosts
  * the global modals (expense, wallet management, event).
  */
@@ -842,7 +842,6 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
       value={{ target: searchTarget, handled: () => setSearchTarget(null) }}
     >
       <div className="app journal-app">
-        <SideNav view={view} favorites={tabItems} groups={moreGroups} />
         <main className="main">
           <header className="topbar">
             <div className="journal-masthead">
@@ -855,6 +854,7 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
                 custos
               </button>
               <div className="tb-actions">
+                <MegaMenu view={view} favorites={tabItems} groups={moreGroups} setView={setView} />
                 <button
                   type="button"
                   className="icon-btn"
@@ -1112,7 +1112,6 @@ export function LedgerApp({ account, onSignOut, signingOut = false }: LedgerAppP
           </div>
         </main>
 
-        <BottomNav view={view} favorites={tabItems} moreGroups={moreGroups} />
         <PageSearch
           address={account.address}
           ledger={ledger}

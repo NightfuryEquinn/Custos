@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="generated/fonts.css" />
     <link rel="stylesheet" href="site.css" />
     <link rel="stylesheet" href="folio.css" />
+    <link rel="stylesheet" href="mega-menu.css" />
     <script src="generated/theme.js"></script>
     <style>
       .disclosure {
@@ -79,8 +80,7 @@
   <body class="marketing-offers">
     <a class="folio-skip" href="#content">Skip to content</a>
     <header class="folio-masthead">
-      <a class="folio-brand" href="index.html">custos<span>A little room for life.</span></a
-      ><a class="folio-inline" href="index.html">Journal</a>
+      <a class="folio-brand" href="index.html">custos<span>A little room for life.</span></a>
       <button type="button" class="folio-theme" aria-label="Switch theme" hidden>
         <svg class="folio-theme-moon" aria-hidden="true" viewBox="0 0 256 256" fill="currentColor">
           <path
@@ -93,12 +93,66 @@
           />
         </svg>
       </button>
-      <a class="folio-open" href="https://custos.nightfuryequinn.app">Open Custos</a>
+      <button
+        type="button"
+        class="mega-menu-control mega-menu-trigger"
+        data-public-menu
+        aria-haspopup="dialog"
+        aria-expanded="false"
+        aria-controls="public-menu"
+        hidden
+      >
+        <span aria-hidden="true">☰</span> Menu
+      </button>
     </header>
+    <details class="mega-menu-fallback">
+      <summary>Menu</summary>
+      <nav class="mega-menu-body mega-menu-groups" aria-label="Explore Custos">
+        <section class="mega-menu-group">
+          <h3>Journal</h3>
+          <ul>
+            <li><a class="mega-menu-link" href="index.html">Journal home</a></li>
+            <li><a class="mega-menu-link" href="index.html#a-day">Everyday</a></li>
+            <li><a class="mega-menu-link" href="index.html#features">Money</a></li>
+            <li><a class="mega-menu-link" href="index.html#schedule">Time</a></li>
+            <li><a class="mega-menu-link" href="index.html#goals">Intentions</a></li>
+          </ul>
+        </section>
+        <section class="mega-menu-group">
+          <h3>Explore</h3>
+          <ul>
+            <li>
+              <a class="mega-menu-link" href="offers.html" aria-current="page"
+                >Support &amp; offers</a
+              >
+            </li>
+            <li>
+              <a class="mega-menu-link" href="services.html">Commercial &amp; self-hosting</a>
+            </li>
+          </ul>
+          <a class="folio-open" href="https://custos.nightfuryequinn.app">Open Custos</a>
+        </section>
+      </nav>
+    </details>
+    <dialog
+      class="mega-menu mega-menu--public"
+      id="public-menu"
+      aria-labelledby="public-menu-title"
+    >
+      <div class="mega-menu-shade" aria-hidden="true"></div>
+      <div class="mega-menu-panel">
+        <header class="mega-menu-head">
+          <h2 id="public-menu-title">Explore Custos</h2>
+          <button type="button" class="mega-menu-control" data-mega-close>
+            <span aria-hidden="true">×</span> Close
+          </button>
+        </header>
+      </div>
+    </dialog>
 
     <main id="content" class="sub">
-      <h1>Support & offers</h1>
-      <p class="lede">
+      <h1 data-page-entrance>Support & offers</h1>
+      <p class="lede" data-page-entrance>
         Custos is free on the official host with full features, and always will be. Everything on
         this page is optional and never gates a feature. Tips keep the lights on; the affiliate
         offers below are how the free version of the site itself is funded.
@@ -204,5 +258,6 @@
         >. <a href="index.html">Back to the site</a>.
       </p>
     </footer>
+    <script type="module" src="generated/journal-motion.js"></script>
   </body>
 </html>

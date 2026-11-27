@@ -55,6 +55,7 @@
     <link rel="stylesheet" href="generated/fonts.css" />
     <link rel="stylesheet" href="site.css" />
     <link rel="stylesheet" href="folio.css" />
+    <link rel="stylesheet" href="mega-menu.css" />
     <script src="generated/theme.js"></script>
     <script type="application/ld+json">
       {
@@ -188,12 +189,67 @@
           />
         </svg>
       </button>
+      <button
+        type="button"
+        class="mega-menu-control mega-menu-trigger"
+        data-public-menu
+        aria-haspopup="dialog"
+        aria-expanded="false"
+        aria-controls="public-menu"
+        hidden
+      >
+        <span aria-hidden="true">☰</span> Menu
+      </button>
     </header>
+    <details class="mega-menu-fallback">
+      <summary>Menu</summary>
+      <nav class="mega-menu-body mega-menu-groups" aria-label="Explore Custos">
+        <section class="mega-menu-group">
+          <h3>Journal</h3>
+          <ul>
+            <li>
+              <a class="mega-menu-link" href="index.html" aria-current="page">Journal home</a>
+            </li>
+            <li><a class="mega-menu-link" href="#a-day">Everyday</a></li>
+            <li><a class="mega-menu-link" href="#features">Money</a></li>
+            <li><a class="mega-menu-link" href="#schedule">Time</a></li>
+            <li><a class="mega-menu-link" href="#goals">Intentions</a></li>
+          </ul>
+        </section>
+        <section class="mega-menu-group">
+          <h3>Explore</h3>
+          <ul>
+            <li><a class="mega-menu-link" href="offers.html">Support &amp; offers</a></li>
+            <li>
+              <a class="mega-menu-link" href="services.html">Commercial &amp; self-hosting</a>
+            </li>
+          </ul>
+          <a class="folio-open" href="https://custos.nightfuryequinn.app">Open Custos</a>
+        </section>
+      </nav>
+    </details>
+    <dialog
+      class="mega-menu mega-menu--public"
+      id="public-menu"
+      aria-labelledby="public-menu-title"
+    >
+      <div class="mega-menu-shade" aria-hidden="true"></div>
+      <div class="mega-menu-panel">
+        <header class="mega-menu-head">
+          <h2 id="public-menu-title">Explore Custos</h2>
+          <button type="button" class="mega-menu-control" data-mega-close>
+            <span aria-hidden="true">×</span> Close
+          </button>
+        </header>
+      </div>
+    </dialog>
     <main id="journal">
       <div class="folio-opening">
         <section class="folio-hero">
-          <h1>Life happens.<br />Give it a little room.</h1>
-          <p class="folio-lead">A private journal for your spending, plans and daily routines.</p>
+          <h1 data-page-entrance>Life happens.<br />Give it a little room.</h1>
+          <p class="folio-lead" data-page-entrance>
+            A private journal for your spending, plans and daily routines.
+          </p>
           <div class="folio-actions">
             <a class="folio-open" href="https://custos.nightfuryequinn.app">Open Custos</a
             ><a class="folio-inline" href="#a-day"

@@ -197,9 +197,14 @@
 .journal-app .view {
   max-width: calc(var(--journal-measure) + 2 * var(--pad));
 }
-/* One bottom clearance: the fixed bottom bar below 1024px (none above) plus the home-indicator inset. */
+/* Keep the last row clear of the home indicator and the compact Menu button. */
 .journal-app .scroll {
-  padding-bottom: calc(var(--nav-clearance) + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--sp-6) + env(safe-area-inset-bottom));
+}
+@media (max-width: 1023px) {
+  .journal-app .scroll {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom));
+  }
 }
 .journal-app .panel {
   border: 0;
@@ -422,195 +427,6 @@
   padding: var(--sp-3) var(--sp-4);
   border-left: 2px solid var(--accent);
   background: var(--surface-2);
-}
-/* Hallmark · component: sidebar · genre: editorial (inferred) · theme: brand · states: default, hover, focus, active · contrast: pass · v2.0.0
- * critique: a filled chip rail read as a settings panel; the journal is a ruled margin, so the rail shares --bg and marks the current page with a 2px accent bar.
- * Navigation: sidebar from 1024px, bottom bar plus More sheet below. */
-.journal-app {
-  --nav-clearance: 88px; /* 56px bar + padding + breathing room */
-}
-.journal-nav {
-  display: none;
-}
-.bottom-nav {
-  position: fixed;
-  inset: auto 0 0;
-  z-index: 20;
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  padding: var(--sp-1) max(var(--sp-1), env(safe-area-inset-right))
-    calc(var(--sp-1) + env(safe-area-inset-bottom)) max(var(--sp-1), env(safe-area-inset-left));
-  border-top: 1px solid var(--border);
-  background: var(--surface);
-}
-.bn-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sp-1);
-  min-width: 0;
-  min-height: 56px;
-  border: 0;
-  background: transparent;
-  color: var(--ink-soft);
-  font: 500 11px var(--font-body);
-  text-decoration: none;
-  cursor: pointer;
-}
-.bn-item span {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.bn-item.active {
-  color: var(--accent);
-}
-@media (max-width: 379px) {
-  /* Narrowest phones: keep full labels (Transactions) instead of clipping them. */
-  .bottom-nav {
-    padding-inline: 0;
-  }
-  .bn-item {
-    font-size: 10px;
-  }
-}
-.nav-more-scrim {
-  z-index: 60;
-}
-.nav-more-panel {
-  width: min(480px, 100%);
-}
-.nav-more-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  margin-bottom: var(--sp-4);
-}
-.nav-more-head h2 {
-  font: 700 24px/1.3 var(--font-display);
-}
-.nav-more-group + .nav-more-group {
-  margin-top: var(--sp-6);
-}
-.nav-more-group > .journal-eyebrow {
-  margin: 0;
-}
-.nav-more-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--sp-2);
-  margin-top: var(--sp-2);
-}
-.nav-more-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sp-2);
-  min-height: 72px;
-  padding: var(--sp-2);
-  border: 0;
-  border-block-end: 1px solid var(--hair);
-  border-radius: 0;
-  color: var(--ink);
-  font-size: 12px;
-  text-align: center;
-  text-decoration: none;
-  overflow-wrap: anywhere;
-}
-.nav-more-item.active {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-@media (min-width: 1024px) {
-  .journal-app {
-    display: grid;
-    grid-template-columns: 248px minmax(0, 1fr);
-    --nav-clearance: var(--sp-6);
-  }
-  .bottom-nav {
-    display: none;
-  }
-  .journal-nav {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    height: 100dvh;
-    overflow-y: auto;
-    padding: var(--sp-7) var(--sp-4);
-    background: var(--bg);
-    border-inline-end: 1px solid var(--hair);
-  }
-}
-@media (min-width: 1280px) {
-  .journal-app {
-    grid-template-columns: 272px minmax(0, 1fr);
-  }
-}
-.journal-nav-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-  flex: none;
-}
-.journal-nav-group + .journal-nav-group {
-  margin-top: var(--sp-4);
-  padding-top: var(--sp-4);
-  border-top: 1px solid var(--hair);
-}
-.journal-nav-group > .journal-eyebrow {
-  margin: 0;
-  padding-inline: var(--sp-3);
-  color: var(--ink-soft);
-  font: 500 13px/1.3 var(--font-body);
-  letter-spacing: 0;
-  text-transform: none;
-}
-.journal-nav-links {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-}
-.journal-nav-item {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  min-height: 44px;
-  padding: var(--sp-2) var(--sp-3);
-  border-radius: 0;
-  color: var(--ink-soft);
-  font-size: 14px;
-  text-decoration: none;
-  min-width: 0;
-}
-.journal-nav-item > svg {
-  flex: none;
-}
-.journal-nav-item > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .journal-nav-item {
-    transition: color var(--dur-fast) var(--ease);
-  }
-}
-.journal-nav-item:hover {
-  color: var(--ink);
-}
-.journal-nav-item:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.journal-nav-item.active {
-  color: var(--ink);
-  background: transparent;
-  box-shadow: inset 2px 0 0 var(--accent);
 }
 .journal-command-scrim {
   z-index: 60;
@@ -1912,6 +1728,10 @@
   }
   .journal-app .tb-actions {
     gap: 0;
+    flex-shrink: 1;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    min-width: 0;
   }
   .journal-app .journal-masthead {
     gap: var(--sp-1);

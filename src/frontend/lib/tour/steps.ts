@@ -14,7 +14,7 @@ interface TourStepButton {
 type TourStep = Omit<StepOptions, "buttons"> & { id: string; buttons?: TourStepButton[] };
 
 function navTarget(view: ViewId): string {
-  return `[data-tour="tour-nav-${view}"], [data-tour="tour-nav-more"]`;
+  return `[data-tour="tour-nav-${view}"]`;
 }
 
 function btn(text: string, kind: TourButtonKind): TourStepButton {
@@ -59,9 +59,9 @@ export const SHELL_TOUR_STEPS: TourStep[] = [
   step(
     "shell-nav",
     "Navigation",
-    "Favorites come first; more pages are grouped below or under More. Customize them in Account > Navigation. Ctrl or Command + K searches records, pages and settings.",
+    "Open Menu to see your favorites first, followed by Everyday, Money, and Tools. Customize the order in Account > Navigation. Ctrl or Command + K searches records, pages and settings.",
     '[data-tour="tour-nav"]',
-    "right",
+    "bottom",
   ),
   step(
     "shell-wallet",

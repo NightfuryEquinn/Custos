@@ -7779,10 +7779,6 @@ ul.allocation-confirm-subs {
   border-style: dashed;
 }
 
-.nav-tab-preview-more {
-  color: var(--ink-soft);
-}
-
 .nav-order-list {
   list-style: none;
   margin: 0;

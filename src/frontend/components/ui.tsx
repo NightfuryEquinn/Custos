@@ -405,11 +405,9 @@ const MONTH_SHORT = [
   "Dec",
 ];
 
-/** Viewport height left below a fixed dropdown, keeping the bottom bar (below 1024px) clear. */
+/** Viewport height left below a fixed dropdown, with space at the bottom edge. */
 function dropdownMaxHeightPx(anchorBottom: number) {
-  const bottomBar = window.matchMedia("(max-width: 1023px)").matches ? 88 : 16;
-
-  return Math.max(140, Math.round(window.innerHeight - anchorBottom - bottomBar));
+  return Math.max(140, Math.round(window.innerHeight - anchorBottom - 16));
 }
 
 /** True when a scroll started inside the open dropdown (do not dismiss). */
